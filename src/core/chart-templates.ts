@@ -1,18 +1,20 @@
+import { ACTIVITIES } from './activities';
 import type { Account, AccountType, Activity, Tax, Warehouse } from './types';
 
 // دليل حسابات عام لنشاط تجاري/خدمي، بترقيم شجري (رقم الأب بادئة لرقم الابن).
 // ملاحظة: يحتاج مراجعة من محاسب قبل اعتماده كمطابق للنظام المحاسبي الموحد السوري.
-type Row = [id: string, name: string, type: AccountType, isGroup?: boolean];
+type Row = [id: string, name: string, type: AccountType, isGroup?: boolean, currency?: string];
 
 const TRADING: Row[] = [
   ['1', 'الأصول', 'asset', true],
   ['11', 'الأصول المتداولة', 'asset', true],
-  ['1101', 'الصندوق', 'asset'],
+  ['1101', 'الصندوق (ليرة)', 'asset'],
   ['1102', 'البنك', 'asset'],
   ['1103', 'العملاء', 'asset'],
   ['1104', 'المخزون', 'asset'],
   ['1105', 'شيكات برسم التحصيل', 'asset'],
   ['1106', 'سلف الموظفين', 'asset'],
+  ['1108', 'صندوق الدولار', 'asset', false, 'USD'],
   ['12', 'الأصول الثابتة', 'asset', true],
   ['1201', 'أثاث ومفروشات', 'asset'],
   ['1202', 'أجهزة ومعدات', 'asset'],
@@ -26,6 +28,7 @@ const TRADING: Row[] = [
   ['2103', 'ضريبة الإنفاق الاستهلاكي المستحقة', 'liability'],
   ['2104', 'ضرائب ورسوم أخرى مستحقة', 'liability'],
   ['2105', 'رواتب مستحقة', 'liability'],
+  ['2106', 'عربون ودفعات مقدمة من العملاء', 'liability'],
   ['22', 'الخصوم طويلة الأجل', 'liability', true],
   ['2201', 'قروض', 'liability'],
 
@@ -57,6 +60,9 @@ const TRADING: Row[] = [
   ['5209', 'مصاريف متنوعة', 'expense'],
   ['5301', 'خسائر فروقات الصرف', 'expense'],
   ['5401', 'استهلاك الأصول الثابتة', 'expense'],
+  ['5402', 'فروقات الجرد', 'expense'],
+  ['5403', 'بضاعة تالفة ومنتهية الصلاحية', 'expense'],
+  ['5404', 'مواد مستهلكة داخلياً', 'expense'],
 ];
 
 function parentOf(id: string, ids: Set<string>): string | null {
@@ -67,35 +73,26 @@ function parentOf(id: string, ids: Set<string>): string | null {
   return null;
 }
 
-// تسميات خاصة بكل نشاط فوق الدليل العام
-const ACTIVITY_NAMES: Record<Activity, Record<string, string>> = {
-  general: {},
-  auto: {
-    '1104': 'مخزون قطع الغيار',
-    '4101': 'مبيعات قطع الغيار',
-    '4201': 'إيرادات الصيانة (أجور اليد)',
-  },
-};
-
-export function chartFor(activity: Activity = 'general'): Account[] {
-  const names = ACTIVITY_NAMES[activity];
-  return tradingChart().map((a) => ({ ...a, name: names[a.id] ?? a.name }));
-}
-
-export function defaultWarehouses(): Warehouse[] {
-  return [{ id: 'main', name: 'المستودع الرئيسي' }];
-}
-
 export function tradingChart(): Account[] {
   const ids = new Set(TRADING.map(([id]) => id));
-  return TRADING.map(([id, name, type, isGroup = false]) => ({
+  return TRADING.map(([id, name, type, isGroup = false, currency]) => ({
     id,
     name,
     type,
     parentId: parentOf(id, ids),
     isGroup,
-    currency: null,
+    currency: currency ?? null,
   }));
+}
+
+/** الدليل العام مع تسميات خاصة بكل نشاط. */
+export function chartFor(activity: Activity = 'general'): Account[] {
+  const names = ACTIVITIES[activity].accountNames;
+  return tradingChart().map((a) => ({ ...a, name: names[a.id] ?? a.name }));
+}
+
+export function defaultWarehouses(): Warehouse[] {
+  return [{ id: 'main', name: 'المستودع الرئيسي' }];
 }
 
 // نسب الضرائب تختلف حسب نوع السلعة/النشاط، لذلك تبدأ معطّلة ويحددها المستخدم.
@@ -109,10 +106,12 @@ export function defaultTaxes(): Tax[] {
 // حسابات النظام التي تعتمد عليها العمليات التلقائية (الفواتير، السندات...)
 export const SYSTEM_ACCOUNTS = {
   cash: '1101',
+  usdCash: '1108',
   bank: '1102',
   customers: '1103',
   inventory: '1104',
   suppliers: '2101',
+  deposits: '2106',
   sales: '4101',
   salesReturns: '4102',
   discountAllowed: '4103',
@@ -123,4 +122,7 @@ export const SYSTEM_ACCOUNTS = {
   fxLoss: '5301',
   openingBalances: '3104',
   retainedEarnings: '3103',
+  countDifferences: '5402',
+  damaged: '5403',
+  consumption: '5404',
 } as const;

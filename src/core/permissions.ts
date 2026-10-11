@@ -1,0 +1,115 @@
+import type { Role, User } from './types';
+
+// كل صلاحية تحمي مجموعة عمليات. الفحص يتم في العملية الرئيسية قبل تنفيذ أي عملية،
+// والواجهة تستخدم نفس القائمة لإخفاء ما لا يحق للمستخدم.
+export const PERMISSIONS = {
+  'sales.create': 'إنشاء فواتير المبيع',
+  'sales.void': 'إلغاء الفواتير',
+  'returns.create': 'المرتجعات',
+  'discount.give': 'إعطاء خصم',
+  'purchases.create': 'فواتير الشراء',
+  'vouchers.create': 'سندات القبض والدفع',
+  'vouchers.void': 'إلغاء السندات',
+  'journal.create': 'القيود اليدوية',
+  'items.manage': 'إدارة المواد والأسعار',
+  'costs.view': 'رؤية التكاليف والأرباح',
+  'parties.manage': 'إدارة العملاء والموردين',
+  'stock.adjust': 'الجرد والتالف والأرصدة الافتتاحية',
+  'stock.transfer': 'التحويل بين المستودعات',
+  'production.manage': 'الإنتاج والتصنيع',
+  'repairs.manage': 'أوامر الصيانة',
+  'pos.use': 'شاشة البيع السريع',
+  'restaurant.use': 'الطاولات والطلبات',
+  'appointments.manage': 'المواعيد',
+  'reports.financial': 'التقارير المالية',
+  'reports.stock': 'تقارير المخزون',
+  'accounts.manage': 'دليل الحسابات',
+  'rates.manage': 'أسعار الصرف',
+  'settings.manage': 'إعدادات الشركة والطباعة',
+  'users.manage': 'المستخدمون والصلاحيات',
+  'period.close': 'إقفال الفترات والسنة المالية',
+  'backup.manage': 'النسخ الاحتياطي والتصدير',
+} as const;
+
+export type Permission = keyof typeof PERMISSIONS;
+export const ALL_PERMISSIONS = Object.keys(PERMISSIONS) as Permission[];
+
+export const ROLE_NAMES: Record<Role, string> = {
+  owner: 'المالك',
+  manager: 'مدير',
+  accountant: 'محاسب',
+  cashier: 'كاشير / بائع',
+  storekeeper: 'أمين مستودع',
+  technician: 'فني',
+  viewer: 'اطلاع فقط',
+};
+
+const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
+  owner: ALL_PERMISSIONS,
+  manager: ALL_PERMISSIONS.filter((p) => p !== 'users.manage' && p !== 'period.close'),
+  accountant: [
+    'sales.create', 'sales.void', 'returns.create', 'discount.give', 'purchases.create', 'vouchers.create', 'vouchers.void',
+    'journal.create', 'costs.view', 'parties.manage', 'reports.financial', 'reports.stock', 'accounts.manage', 'rates.manage',
+    'stock.adjust', 'backup.manage',
+  ],
+  cashier: ['sales.create', 'returns.create', 'pos.use', 'restaurant.use', 'appointments.manage', 'vouchers.create', 'parties.manage'],
+  storekeeper: ['items.manage', 'stock.adjust', 'stock.transfer', 'production.manage', 'purchases.create', 'reports.stock'],
+  technician: ['repairs.manage', 'appointments.manage'],
+  viewer: ['reports.stock'],
+};
+
+export function permissionsOf(user: User): Set<Permission> {
+  if (!user.active) return new Set();
+  const set = new Set<Permission>(ROLE_PERMISSIONS[user.role]);
+  for (const p of user.extra ?? []) if (p in PERMISSIONS) set.add(p as Permission);
+  if (user.role !== 'owner') for (const p of user.denied ?? []) set.delete(p as Permission);
+  return set;
+}
+
+export function can(user: User | null | undefined, permission: Permission): boolean {
+  return !!user && permissionsOf(user).has(permission);
+}
+
+/** الصلاحية المطلوبة لكل عملية على الدفتر. العمليات غير المذكورة هنا ممنوعة على الواجهة. */
+export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) => Permission)> = {
+  updateCompany: 'settings.manage',
+  saveAccount: 'accounts.manage',
+  saveTax: 'settings.manage',
+  setRate: 'rates.manage',
+  postEntry: 'journal.create',
+  voidEntry: 'vouchers.void',
+  lockPeriod: 'period.close',
+  closeYear: 'period.close',
+  saveUser: 'users.manage',
+  saveParty: 'parties.manage',
+  saveItem: 'items.manage',
+  saveItems: 'items.manage',
+  saveWarehouse: 'stock.transfer',
+  postInvoice: (args) => {
+    const kind = (args[0] as { kind?: string } | undefined)?.kind;
+    if (kind === 'purchase' || kind === 'purchase_return') return 'purchases.create';
+    if (kind === 'sale_return') return 'returns.create';
+    return 'sales.create';
+  },
+  voidInvoice: 'sales.void',
+  postVoucher: 'vouchers.create',
+  postOpeningBalances: 'stock.adjust',
+  adjustStock: 'stock.adjust',
+  countStock: 'stock.adjust',
+  transferStock: 'stock.transfer',
+  postProduction: 'production.manage',
+  saveVehicle: 'repairs.manage',
+  saveRepair: 'repairs.manage',
+  invoiceRepair: 'sales.create',
+  saveTable: 'settings.manage',
+  saveOrder: 'restaurant.use',
+  closeOrder: 'restaurant.use',
+  saveAppointment: 'appointments.manage',
+  invoiceAppointment: 'sales.create',
+};
+
+export function permissionFor(method: string, args: unknown[]): Permission | null {
+  const p = METHOD_PERMISSIONS[method];
+  if (!p) return null;
+  return typeof p === 'function' ? p(args) : p;
+}

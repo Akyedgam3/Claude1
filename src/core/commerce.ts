@@ -1,17 +1,9 @@
 import { SYSTEM_ACCOUNTS } from './chart-templates';
 import type { EntryDraft, LineDraft } from './ledger';
 import { convertMinor } from './money';
+import { adjustmentMoves, applyMove, invoiceMoves, negate, productionMoves, roundQty, StockPlanner, transferMoves } from './stock';
 import { computeTaxes } from './tax';
-import type {
-  CompanyEvent,
-  CompanyState,
-  Invoice,
-  InvoiceKind,
-  InvoiceLine,
-  JournalEntry,
-  RepairOrder,
-  StockLevel,
-} from './types';
+import type { CompanyEvent, CompanyState, Invoice, InvoiceKind, InvoiceLine, JournalEntry, RepairOrder } from './types';
 
 function fail(message: string): never {
   throw new Error(message);
@@ -23,6 +15,18 @@ export const INVOICE_KIND_NAMES: Record<InvoiceKind, string> = {
   sale_return: 'مرتجع مبيع',
   purchase_return: 'مرتجع شراء',
 };
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function checkDate(state: CompanyState, date: string): void {
+  if (!DATE_RE.test(date)) fail(`تاريخ غير صالح: ${date}`);
+  const locked = state.info?.lockedUntil;
+  if (locked && date <= locked) fail(`الفترة حتى ${locked} مقفلة، لا يمكن تسجيل حركات بتاريخ ${date}`);
+}
+
+function invoiceVoided(state: CompanyState, invoiceId: string | undefined): boolean {
+  return !!invoiceId && !!state.invoices.find((i) => i.id === invoiceId)?.voidEntryId;
+}
 
 // ───────────── التحقق ─────────────
 
@@ -38,28 +42,46 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       const item = event.item;
       if (!item.name.trim()) fail('اسم المادة مطلوب');
       if (!item.code.trim()) fail('رمز المادة مطلوب');
-      if (Object.values(state.items).some((i) => i.id !== item.id && i.code === item.code)) {
-        fail(`الرمز ${item.code} مستخدم لمادة أخرى`);
-      }
-      if (item.barcode && Object.values(state.items).some((i) => i.id !== item.id && i.barcode === item.barcode)) {
-        fail(`الباركود ${item.barcode} مستخدم لمادة أخرى`);
+      const others = Object.values(state.items).filter((i) => i.id !== item.id);
+      if (others.some((i) => i.code === item.code)) fail(`الرمز ${item.code} مستخدم لمادة أخرى`);
+      const barcodes = [item.barcode, ...(item.units ?? []).map((u) => u.barcode)].filter(Boolean);
+      for (const b of barcodes) {
+        if (others.some((i) => i.barcode === b || i.units?.some((u) => u.barcode === b))) fail(`الباركود ${b} مستخدم لمادة أخرى`);
       }
       if (!state.currencies[item.priceCurrency]) fail('عملة السعر غير معرّفة');
-      if (!Number.isSafeInteger(item.price) || item.price < 0) fail('سعر غير صالح');
+      for (const p of [item.price, item.wholesalePrice, item.specialPrice, ...(item.units ?? []).map((u) => u.price)]) {
+        if (p !== undefined && (!Number.isSafeInteger(p) || p < 0)) fail('سعر غير صالح');
+      }
+      for (const u of item.units ?? []) {
+        if (!u.name.trim() || !(u.factor > 0)) fail('وحدة غير صالحة: يجب إدخال الاسم ومعامل التحويل');
+        if (u.name === item.unit) fail('اسم الوحدة الإضافية يطابق الوحدة الأساسية');
+      }
+      if (item.kind === 'composite') {
+        if (!item.recipe?.length) fail('الصنف المركّب يحتاج مكوّنات');
+      }
+      for (const r of item.recipe ?? []) {
+        const c = state.items[r.itemId] ?? fail('مكوّن غير موجود');
+        if (c.kind !== 'stock') fail(`المكوّن "${c.name}" يجب أن يكون مادة مخزنية`);
+        if (r.itemId === item.id) fail('لا يمكن أن يكون الصنف مكوّناً لنفسه');
+        if (!(r.qty > 0)) fail('كمية المكوّن يجب أن تكون أكبر من صفر');
+      }
       const existing = state.items[item.id];
-      if (existing && existing.kind !== item.kind && (state.stock[item.id]?.totalQty ?? 0) !== 0) {
-        fail('لا يمكن تغيير نوع مادة لها رصيد في المخزون');
+      const lvl = state.stock[item.id];
+      if (existing && lvl && lvl.totalQty !== 0) {
+        if (existing.kind !== item.kind) fail('لا يمكن تغيير نوع مادة لها رصيد في المخزون');
+        if (!!existing.trackExpiry !== !!item.trackExpiry) fail('لا يمكن تغيير تتبّع الصلاحية لمادة لها رصيد');
+        if (!!existing.trackSerial !== !!item.trackSerial) fail('لا يمكن تغيير تتبّع الأرقام التسلسلية لمادة لها رصيد');
       }
       return;
     }
     case 'vehicle.saved':
-      if (!state.parties[event.vehicle.partyId]) fail('صاحب السيارة غير موجود');
-      if (!event.vehicle.plate.trim()) fail('رقم اللوحة مطلوب');
-      if (!event.vehicle.make.trim()) fail('نوع السيارة مطلوب');
+      if (!state.parties[event.vehicle.partyId]) fail('صاحب السيارة/الجهاز غير موجود');
+      if ((event.vehicle.kind ?? 'vehicle') === 'vehicle' && !event.vehicle.plate.trim()) fail('رقم اللوحة مطلوب');
+      if (!event.vehicle.make.trim()) fail('النوع / الماركة مطلوب');
       return;
     case 'repair.saved': {
       const r = event.repair;
-      if (!state.vehicles[r.vehicleId]) fail('السيارة غير موجودة');
+      if (!state.vehicles[r.vehicleId]) fail('السيارة/الجهاز غير موجود');
       if (!state.parties[r.partyId]) fail('الزبون غير موجود');
       if (!state.currencies[r.currency]) fail('عملة غير معرّفة');
       for (const p of r.parts) {
@@ -67,11 +89,41 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
         if (!(p.qty > 0)) fail('كمية القطعة يجب أن تكون أكبر من صفر');
       }
       const existing = state.repairs[r.id];
-      if (existing?.status === 'invoiced' && r.status !== 'invoiced') fail('أمر الإصلاح مفوتر ولا يمكن تعديل حالته');
+      if (existing?.status === 'invoiced' && r.status !== 'invoiced' && !invoiceVoided(state, existing.invoiceId)) {
+        fail('أمر الإصلاح مفوتر ولا يمكن تعديل حالته');
+      }
+      return;
+    }
+    case 'table.saved':
+      if (!event.table.name.trim()) fail('اسم الطاولة مطلوب');
+      return;
+    case 'order.saved': {
+      const o = event.order;
+      if (o.tableId && !state.tables[o.tableId]) fail('الطاولة غير موجودة');
+      for (const l of o.lines) {
+        if (!state.items[l.itemId]) fail('صنف غير موجود في الطلب');
+        if (!(l.qty > 0)) fail('الكمية يجب أن تكون أكبر من صفر');
+      }
+      const existing = state.orders[o.id];
+      if (existing && existing.status !== 'open') fail('الطلب مغلق ولا يمكن تعديله');
+      if (o.status === 'open' && o.tableId) {
+        const busy = Object.values(state.orders).find((x) => x.id !== o.id && x.status === 'open' && x.tableId === o.tableId);
+        if (busy) fail(`الطاولة عليها طلب مفتوح رقم ${busy.number}`);
+      }
+      return;
+    }
+    case 'appointment.saved': {
+      const a = event.appointment;
+      if (!state.parties[a.partyId]) fail('المراجع غير موجود');
+      if (!DATE_RE.test(a.date) || !/^\d{2}:\d{2}$/.test(a.time)) fail('تاريخ أو وقت غير صالح');
+      if (a.itemId && !state.items[a.itemId]) fail('الخدمة غير موجودة');
+      const prev = state.appointments[a.id];
+      if (prev?.invoiceId && a.status !== 'done' && !invoiceVoided(state, prev.invoiceId)) fail('الموعد مفوتر');
       return;
     }
     case 'invoice.posted': {
       const inv = event.invoice;
+      checkDate(state, inv.date);
       if (state.invoices.some((i) => i.id === inv.id)) fail('الفاتورة مسجّلة مسبقاً');
       if (!state.warehouses[inv.warehouseId]) fail('المستودع غير موجود');
       if (inv.partyId && !state.parties[inv.partyId]) fail('العميل/المورد غير موجود');
@@ -85,33 +137,33 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       if (event.entry.voidOf !== inv.entryId) fail('القيد العكسي لا يخص هذه الفاتورة');
       return;
     }
+    case 'stock.adjusted': {
+      const a = event.adjustment;
+      checkDate(state, a.date);
+      if (!state.warehouses[a.warehouseId]) fail('المستودع غير موجود');
+      if (a.lines.length === 0) fail('لا توجد مواد');
+      for (const l of a.lines) {
+        const item = state.items[l.itemId] ?? fail('مادة غير موجودة');
+        if (item.kind !== 'stock') fail(`"${item.name}" ليست مادة مخزنية`);
+      }
+      return;
+    }
+    case 'stock.transferred': {
+      const t = event.transfer;
+      checkDate(state, t.date);
+      if (!state.warehouses[t.from] || !state.warehouses[t.to]) fail('المستودع غير موجود');
+      if (t.from === t.to) fail('اختر مستودعين مختلفين');
+      return;
+    }
+    case 'production.posted':
+      checkDate(state, event.production.date);
+      if (!state.warehouses[event.production.warehouseId]) fail('المستودع غير موجود');
+      if (event.production.outputs.length === 0) fail('حدد المنتجات');
+      return;
   }
 }
 
 // ───────────── التطبيق على الحالة ─────────────
-
-function stockOf(state: CompanyState, itemId: string): StockLevel {
-  return (state.stock[itemId] ??= { qty: {}, totalQty: 0, value: 0, lastCost: 0 });
-}
-
-/** إشارة حركة المخزون: +1 دخول، -1 خروج. */
-const STOCK_DIRECTION: Record<InvoiceKind, 1 | -1> = { sale: -1, sale_return: 1, purchase: 1, purchase_return: -1 };
-
-function roundQty(q: number): number {
-  return Math.round(q * 1000) / 1000;
-}
-
-function moveStock(state: CompanyState, inv: Invoice, sign: 1 | -1): void {
-  const dir = STOCK_DIRECTION[inv.kind] * sign;
-  for (const line of inv.lines) {
-    if (!line.itemId || state.items[line.itemId]?.kind !== 'stock') continue;
-    const level = stockOf(state, line.itemId);
-    level.qty[inv.warehouseId] = roundQty((level.qty[inv.warehouseId] ?? 0) + dir * line.qty);
-    level.totalQty = roundQty(level.totalQty + dir * line.qty);
-    level.value += dir * (line.cost ?? 0);
-    if (inv.kind === 'purchase' && sign === 1 && line.qty > 0) level.lastCost = Math.round((line.cost ?? 0) / line.qty);
-  }
-}
 
 function bump(state: CompanyState, key: string, n: number): void {
   state.counters[key] = Math.max(state.counters[key] ?? 0, n);
@@ -135,20 +187,46 @@ export function applyCommerceEvent(state: CompanyState, event: CompanyEvent): vo
       state.repairs[event.repair.id] = { ...event.repair };
       bump(state, 'repair', event.repair.number);
       return;
+    case 'table.saved':
+      state.tables[event.table.id] = { ...event.table };
+      return;
+    case 'order.saved':
+      state.orders[event.order.id] = { ...event.order };
+      bump(state, 'order', event.order.number);
+      return;
+    case 'appointment.saved':
+      state.appointments[event.appointment.id] = { ...event.appointment };
+      return;
     case 'invoice.posted':
       state.invoices.push(event.invoice);
       state.entries.push(event.entry);
       bump(state, event.invoice.kind, event.invoice.number);
-      moveStock(state, event.invoice, 1);
+      for (const m of invoiceMoves(state, event.invoice)) applyMove(state, m);
       return;
     case 'invoice.voided': {
       const inv = state.invoices.find((i) => i.id === event.invoiceId)!;
       inv.voidEntryId = event.entry.id;
       state.entries.push(event.entry);
       state.voided[inv.entryId] = event.entry.id;
-      moveStock(state, inv, -1);
+      for (const m of invoiceMoves(state, inv)) applyMove(state, negate(m));
       return;
     }
+    case 'stock.adjusted':
+      state.adjustments.push(event.adjustment);
+      if (event.entry) state.entries.push(event.entry);
+      bump(state, 'adjustment', event.adjustment.number);
+      for (const m of adjustmentMoves(event.adjustment)) applyMove(state, m);
+      return;
+    case 'stock.transferred':
+      state.transfers.push(event.transfer);
+      bump(state, 'transfer', event.transfer.number);
+      for (const m of transferMoves(event.transfer)) applyMove(state, m);
+      return;
+    case 'production.posted':
+      state.productions.push(event.production);
+      bump(state, 'production', event.production.number);
+      for (const m of productionMoves(event.production)) applyMove(state, m);
+      return;
   }
 }
 
@@ -158,8 +236,13 @@ export interface InvoiceLineDraft {
   itemId?: string | null;
   description?: string;
   qty: number;
-  price: number; // بأصغر وحدة من عملة الفاتورة
+  unit?: string; // اسم وحدة إضافية (كرتونة مثلاً)
+  price: number; // سعر الوحدة المختارة بأصغر وحدة من عملة الفاتورة
   discount?: number;
+  batch?: string;
+  expiry?: string;
+  serials?: string[];
+  note?: string;
 }
 
 export interface InvoiceDraft {
@@ -174,6 +257,7 @@ export interface InvoiceDraft {
   taxIds?: string[];
   paid?: number; // الافتراضي: كامل المبلغ للزبون النقدي، وصفر لغيره
   cashAccountId?: string;
+  salesman?: string;
   notes?: string;
   source?: { type: string; id: string };
   createdBy?: string;
@@ -184,6 +268,7 @@ export interface InvoiceContext {
   baseCode: string;
   resolveRate(currency: string, date: string): number | undefined;
   buildEntry(draft: EntryDraft): JournalEntry;
+  partyBalance(partyId: string): number;
 }
 
 /** يقسم مبلغاً على أوزان بالتناسب مع ضمان أن المجموع يساوي المبلغ تماماً. */
@@ -197,74 +282,120 @@ export function allocate(total: number, weights: number[]): number[] {
   return parts;
 }
 
+export function lineAmount(l: Pick<InvoiceLine, 'qty' | 'price' | 'discount'>): number {
+  return Math.round(l.qty * l.price) - l.discount;
+}
+
 export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft): { invoice: Invoice; entry: JournalEntry } {
   const { state, baseCode } = ctx;
   const kind = draft.kind;
+  checkDate(state, draft.date);
   const isSaleSide = kind === 'sale' || kind === 'sale_return';
   const currency = draft.currency ?? baseCode;
   if (!state.currencies[currency]) fail('عملة غير معرّفة');
   const rate =
     currency === baseCode ? 1 : (draft.rate ?? ctx.resolveRate(currency, draft.date) ?? fail(`لا يوجد سعر صرف لـ ${currency} بتاريخ ${draft.date}`));
   const warehouseId = draft.warehouseId ?? Object.keys(state.warehouses)[0] ?? fail('لا يوجد مستودع');
+  if (!state.warehouses[warehouseId]) fail('المستودع غير موجود');
   const partyId = draft.partyId ?? null;
-  if (partyId) {
-    const party = state.parties[partyId] ?? fail('العميل/المورد غير موجود');
+  const party = partyId ? (state.parties[partyId] ?? fail('العميل/المورد غير موجود')) : null;
+  if (party) {
     if (isSaleSide && party.kind === 'supplier') fail(`${party.name} مسجّل كمورد فقط`);
     if (!isSaleSide && party.kind === 'customer') fail(`${party.name} مسجّل كعميل فقط`);
   }
   if (draft.lines.length === 0) fail('الفاتورة فارغة');
+  const allowNegative = !!state.info?.allowNegativeStock;
 
   const lines: InvoiceLine[] = draft.lines.map((d, i) => {
-    const item = d.itemId ? (state.items[d.itemId] ?? fail(`السطر ${i + 1}: مادة غير موجودة`)) : null;
-    if (!(d.qty > 0)) fail(`السطر ${i + 1}: الكمية يجب أن تكون أكبر من صفر`);
-    if (!Number.isSafeInteger(d.price) || d.price < 0) fail(`السطر ${i + 1}: سعر غير صالح`);
+    const n = i + 1;
+    const item = d.itemId ? (state.items[d.itemId] ?? fail(`السطر ${n}: مادة غير موجودة`)) : null;
+    if (!(d.qty > 0) || !Number.isFinite(d.qty)) fail(`السطر ${n}: الكمية يجب أن تكون أكبر من صفر`);
+    if (!Number.isSafeInteger(d.price) || d.price < 0) fail(`السطر ${n}: سعر غير صالح`);
     const discount = d.discount ?? 0;
-    if (discount < 0 || discount > Math.round(d.qty * d.price)) fail(`السطر ${i + 1}: خصم غير صالح`);
-    const description = d.description?.trim() || item?.name || fail(`السطر ${i + 1}: البيان مطلوب`);
-    return { itemId: item?.id ?? null, description, qty: roundQty(d.qty), price: d.price, discount };
+    if (!Number.isSafeInteger(discount) || discount < 0 || discount > Math.round(d.qty * d.price)) fail(`السطر ${n}: خصم غير صالح`);
+    const description = d.description?.trim() || item?.name || fail(`السطر ${n}: البيان مطلوب`);
+    let factor = 1;
+    if (d.unit && item && d.unit !== item.unit) {
+      const u = item.units?.find((x) => x.name === d.unit) ?? fail(`السطر ${n}: الوحدة "${d.unit}" غير معرّفة لـ"${item.name}"`);
+      factor = u.factor;
+    }
+    if (item?.trackSerial && !Number.isInteger(d.qty * factor)) fail(`السطر ${n}: كمية المواد ذات الأرقام التسلسلية يجب أن تكون عدداً صحيحاً`);
+    return {
+      itemId: item?.id ?? null,
+      description,
+      qty: roundQty(d.qty),
+      ...(factor !== 1 ? { unit: d.unit!, factor } : {}),
+      price: d.price,
+      discount,
+      ...(d.note ? { note: d.note } : {}),
+    };
   });
 
-  const amounts = lines.map((l) => Math.round(l.qty * l.price) - l.discount);
+  const amounts = lines.map(lineAmount);
   const subtotal = amounts.reduce((s, a) => s + a, 0);
   const discount = draft.discount ?? 0;
-  if (discount < 0 || discount > subtotal) fail('خصم الفاتورة غير صالح');
+  if (!Number.isSafeInteger(discount) || discount < 0 || discount > subtotal) fail('خصم الفاتورة غير صالح');
   const taxes = (draft.taxIds ?? []).map((id) => state.taxes[id] ?? fail('ضريبة غير معرّفة'));
   const taxResult = computeTaxes(subtotal - discount, taxes.map((t) => ({ ...t, active: true })));
   const taxTotal = taxResult.total - taxResult.net;
   const total = taxResult.total;
   const paid = draft.paid ?? (partyId ? 0 : total);
-  if (paid < 0 || paid > total) fail('المبلغ المدفوع غير صالح');
+  if (!Number.isSafeInteger(paid) || paid < 0 || paid > total) fail('المبلغ المدفوع غير صالح');
   if (!partyId && paid !== total) fail('الفاتورة النقدية بدون اسم يجب أن تُدفع كاملة؛ اختر عميلاً/مورداً للبيع بالدين');
-  const cashAccountId = draft.cashAccountId ?? SYSTEM_ACCOUNTS.cash;
-
-  const isStock = (l: InvoiceLine) => !!l.itemId && state.items[l.itemId]!.kind === 'stock';
+  const cashAccountId = draft.cashAccountId ?? (currency === 'USD' && state.accounts[SYSTEM_ACCOUNTS.usdCash] ? SYSTEM_ACCOUNTS.usdCash : SYSTEM_ACCOUNTS.cash);
+  const cashAccount = state.accounts[cashAccountId] ?? fail('الصندوق غير موجود');
+  if (cashAccount.currency && cashAccount.currency !== currency && paid > 0) fail(`الصندوق "${cashAccount.name}" يقبل ${cashAccount.currency} فقط`);
   const toBase = (minor: number) => convertMinor(minor, state.currencies[currency]!, state.currencies[baseCode]!, rate);
 
-  // التكلفة بالعملة الأساسية لكل سطر مخزني
-  if (kind === 'purchase' || kind === 'purchase_return') {
-    // تكلفة الشراء = حصة السطر من صافي الفاتورة شامل الخصم والضرائب
-    const shares = allocate(total, amounts);
-    lines.forEach((l, i) => {
-      if (isStock(l)) l.cost = toBase(shares[i]!);
-    });
-  } else {
-    const working = new Map<string, { qty: number; value: number; lastCost: number }>();
-    for (const l of lines) {
-      if (!isStock(l)) continue;
-      const lvl = working.get(l.itemId!) ?? { ...(state.stock[l.itemId!] ?? { totalQty: 0, value: 0, lastCost: 0 }), qty: state.stock[l.itemId!]?.totalQty ?? 0 };
-      const unit = lvl.qty > 0 ? lvl.value / lvl.qty : lvl.lastCost;
-      l.cost = Math.round(unit * l.qty);
-      const dir = kind === 'sale' ? -1 : 1;
-      lvl.qty += dir * l.qty;
-      lvl.value += dir * l.cost;
-      working.set(l.itemId!, lvl);
-    }
+  // حد الائتمان: لا نسمح بتجاوز دين العميل للحد المسموح
+  if (kind === 'sale' && party?.creditLimit && total - paid > 0) {
+    const after = ctx.partyBalance(party.id) + toBase(total - paid);
+    if (after > party.creditLimit) fail(`تجاوز حد الائتمان للعميل ${party.name}`);
   }
+
+  // التكلفة والدفعات والأرقام لكل سطر
+  const planner = new StockPlanner(state);
+  const shares = allocate(total, amounts);
+  lines.forEach((l, i) => {
+    if (!l.itemId) return;
+    const item = state.items[l.itemId]!;
+    const d = draft.lines[i]!;
+    const baseQty = roundQty(l.qty * (l.factor ?? 1));
+    const opts = {
+      ...(d.batch ? { batch: d.batch } : {}),
+      ...(d.expiry ? { expiry: d.expiry } : {}),
+      ...(d.serials ? { serials: d.serials } : {}),
+      allowNegative,
+    };
+    if (item.kind === 'stock') {
+      if (kind === 'sale') Object.assign(l, planner.out(item.id, warehouseId, baseQty, opts));
+      else if (kind === 'sale_return') {
+        const cost = Math.round(planner.unitCost(item.id) * baseQty);
+        Object.assign(l, { cost }, planner.in(item.id, warehouseId, baseQty, cost, opts));
+      } else if (kind === 'purchase') {
+        // تكلفة الشراء = حصة السطر من صافي الفاتورة شامل الخصم والضرائب
+        const cost = toBase(shares[i]!);
+        Object.assign(l, { cost }, planner.in(item.id, warehouseId, baseQty, cost, opts));
+      } else {
+        const out = planner.out(item.id, warehouseId, baseQty, opts);
+        Object.assign(l, out, { cost: toBase(shares[i]!) });
+      }
+    } else if (item.kind === 'composite' && isSaleSide) {
+      l.components = (item.recipe ?? []).map((r) => {
+        const qty = roundQty(r.qty * baseQty);
+        if (kind === 'sale') return { itemId: r.itemId, qty, cost: planner.out(r.itemId, warehouseId, qty, { allowNegative }).cost };
+        const cost = Math.round(planner.unitCost(r.itemId) * qty);
+        planner.in(r.itemId, warehouseId, qty, cost);
+        return { itemId: r.itemId, qty, cost };
+      });
+      l.cost = l.components.reduce((s, c) => s + c.cost, 0);
+    }
+  });
 
   const id = crypto.randomUUID();
   const number = (state.counters[kind] ?? 0) + 1;
   const partySide = isSaleSide ? SYSTEM_ACCOUNTS.customers : SYSTEM_ACCOUNTS.suppliers;
-  // "in" = الجهة التي يدخل فيها المال للشركة (مدين في المبيع)
+  // الجهة التي يدخل فيها المال للشركة (مدين في المبيع)
   const moneyIn = kind === 'sale' || kind === 'purchase_return';
   const dr = (amount: number): Pick<LineDraft, 'debit' | 'credit'> => ({ debit: amount });
   const cr = (amount: number): Pick<LineDraft, 'debit' | 'credit'> => ({ credit: amount });
@@ -272,6 +403,7 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft): { invoic
   const against = moneyIn ? cr : dr;
   const fx = { currency, rate };
   const base = { currency: baseCode, rate: 1 };
+  const isGoods = (l: InvoiceLine) => !!l.itemId && state.items[l.itemId]!.kind !== 'service';
 
   const entryLines: LineDraft[] = [];
   const push = (l: LineDraft) => {
@@ -280,30 +412,28 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft): { invoic
   push({ accountId: cashAccountId, ...money(paid), ...fx });
   if (partyId) push({ accountId: partySide, ...money(total - paid), ...fx, partyId });
 
+  const cost = lines.reduce((s, l) => s + (l.cost ?? 0), 0);
   if (isSaleSide) {
-    const goods = lines.reduce((s, l, i) => s + (isStock(l) ? amounts[i]! : 0), 0);
+    const goods = lines.reduce((s, l, i) => s + (isGoods(l) ? amounts[i]! : 0), 0);
     const services = subtotal - goods;
     const revenue = kind === 'sale' ? SYSTEM_ACCOUNTS.sales : SYSTEM_ACCOUNTS.salesReturns;
     push({ accountId: revenue, ...against(goods), ...fx });
     push({ accountId: SYSTEM_ACCOUNTS.serviceRevenue, ...against(services), ...fx });
     push({ accountId: SYSTEM_ACCOUNTS.discountAllowed, ...money(discount), ...fx });
     taxResult.taxes.forEach((t) => push({ accountId: t.tax.accountId, ...against(t.amount), ...fx }));
-    const cost = lines.reduce((s, l) => s + (l.cost ?? 0), 0);
     // المبيع: من حـ/ تكلفة البضاعة إلى حـ/ المخزون، والمرتجع بالعكس
     const out = kind === 'sale';
     push({ accountId: SYSTEM_ACCOUNTS.cogs, ...(out ? dr(cost) : cr(cost)), ...base });
     push({ accountId: SYSTEM_ACCOUNTS.inventory, ...(out ? cr(cost) : dr(cost)), ...base });
   } else {
-    const stockCost = lines.reduce((s, l) => s + (l.cost ?? 0), 0);
-    push({ accountId: SYSTEM_ACCOUNTS.inventory, ...against(stockCost), ...base });
-    const shares = allocate(total, amounts);
-    const other = lines.reduce((s, l, i) => s + (isStock(l) ? 0 : shares[i]!), 0);
+    push({ accountId: SYSTEM_ACCOUNTS.inventory, ...against(cost), ...base });
+    const other = lines.reduce((s, l, i) => s + (l.itemId && state.items[l.itemId]!.kind === 'stock' ? 0 : shares[i]!), 0);
     push({ accountId: SYSTEM_ACCOUNTS.miscExpenses, ...against(other), ...fx });
   }
 
   const entry = ctx.buildEntry({
     date: draft.date,
-    memo: `${INVOICE_KIND_NAMES[kind]} رقم ${number}`,
+    memo: `${INVOICE_KIND_NAMES[kind]} رقم ${number}${party ? ` — ${party.name}` : ''}`,
     lines: entryLines,
     source: { type: 'invoice', id },
     ...(draft.createdBy ? { createdBy: draft.createdBy } : {}),
@@ -327,6 +457,7 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft): { invoic
     total,
     paid,
     cashAccountId,
+    ...(draft.salesman ? { salesman: draft.salesman } : {}),
     ...(draft.notes ? { notes: draft.notes } : {}),
     ...(draft.source ? { source: draft.source } : {}),
     entryId: entry.id,

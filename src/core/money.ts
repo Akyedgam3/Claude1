@@ -2,18 +2,19 @@
 // لتجنّب أخطاء الفاصلة العائمة في الحسابات المالية.
 
 export interface Currency {
-  code: string; // SYP, USD, TRY, EUR ...
+  code: string; // SYP أو USD
   nameAr: string;
   symbol: string;
   decimals: number; // عدد المنازل العشرية لأصغر وحدة
 }
 
+// العملتان المعتمدتان فقط: الليرة السورية الجديدة (بعد حذف الصفرين) والدولار الأمريكي.
 export const DEFAULT_CURRENCIES: Currency[] = [
-  { code: 'SYP', nameAr: 'ليرة سورية', symbol: 'ل.س', decimals: 2 },
+  { code: 'SYP', nameAr: 'ليرة سورية جديدة', symbol: 'ل.س', decimals: 2 },
   { code: 'USD', nameAr: 'دولار أمريكي', symbol: '$', decimals: 2 },
-  { code: 'TRY', nameAr: 'ليرة تركية', symbol: '₺', decimals: 2 },
-  { code: 'EUR', nameAr: 'يورو', symbol: '€', decimals: 2 },
 ];
+
+export const ALLOWED_CURRENCIES = new Set(DEFAULT_CURRENCIES.map((c) => c.code));
 
 function assertSafe(n: number): number {
   if (!Number.isSafeInteger(n)) throw new Error(`المبلغ خارج النطاق المسموح: ${n}`);

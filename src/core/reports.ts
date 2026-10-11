@@ -217,12 +217,12 @@ export interface IncomeStatement {
   netProfit: number;
 }
 
-/** قائمة الدخل المختصرة: الإيرادات (دائن) - المصاريف (مدين). */
+/** قائمة الدخل المختصرة: الإيرادات (دائن) - المصاريف (مدين). قيود إقفال السنة لا تدخل فيها. */
 export function incomeStatement(state: CompanyState, period: Period = {}): IncomeStatement {
   let revenue = 0;
   let expenses = 0;
   for (const e of state.entries) {
-    if (!inPeriod(e, period)) continue;
+    if (!inPeriod(e, period) || e.source?.type === 'closing') continue;
     for (const l of e.lines) {
       const type = state.accounts[l.accountId]?.type;
       if (type === 'revenue') revenue += l.baseCredit - l.baseDebit;
@@ -230,4 +230,154 @@ export function incomeStatement(state: CompanyState, period: Period = {}): Incom
     }
   }
   return { revenue, expenses, netProfit: revenue - expenses };
+}
+
+// ───────────── تقارير إضافية ─────────────
+
+export interface BalanceSheet {
+  assets: number;
+  liabilities: number;
+  equity: number; // يشمل أرباح الفترة غير المقفلة
+  currentProfit: number;
+}
+
+/** الميزانية العمومية حتى تاريخ معيّن. */
+export function balanceSheet(state: CompanyState, to?: string): BalanceSheet {
+  let assets = 0;
+  let liabilities = 0;
+  let equity = 0;
+  let profit = 0;
+  for (const e of state.entries) {
+    if (to && e.date > to) continue;
+    for (const l of e.lines) {
+      const d = l.baseDebit - l.baseCredit;
+      switch (state.accounts[l.accountId]?.type) {
+        case 'asset':
+          assets += d;
+          break;
+        case 'liability':
+          liabilities -= d;
+          break;
+        case 'equity':
+          equity -= d;
+          break;
+        case 'revenue':
+        case 'expense':
+          profit -= d;
+      }
+    }
+  }
+  return { assets, liabilities, equity: equity + profit, currentProfit: profit };
+}
+
+export interface ItemSalesRow {
+  item: Item;
+  qty: number; // بالوحدة الأساسية
+  revenue: number; // بالعملة الأساسية بعد خصم السطر (قبل خصم الفاتورة)
+  cost: number;
+  profit: number;
+}
+
+/** أرباح المواد: الكمية المباعة والإيراد والتكلفة والربح لكل مادة (بعد طرح المرتجعات). */
+export function salesByItem(state: CompanyState, period: Period = {}): ItemSalesRow[] {
+  const base = state.currencies[state.info!.baseCurrency]!;
+  const rows = new Map<string, ItemSalesRow>();
+  for (const inv of state.invoices) {
+    if (inv.voidEntryId || (inv.kind !== 'sale' && inv.kind !== 'sale_return')) continue;
+    if ((period.from && inv.date < period.from) || (period.to && inv.date > period.to)) continue;
+    const sign = inv.kind === 'sale' ? 1 : -1;
+    const cur = state.currencies[inv.currency]!;
+    const scale = 10 ** (base.decimals - cur.decimals);
+    for (const l of inv.lines) {
+      if (!l.itemId) continue;
+      const item = state.items[l.itemId];
+      if (!item) continue;
+      const row = rows.get(item.id) ?? { item, qty: 0, revenue: 0, cost: 0, profit: 0 };
+      row.qty += sign * l.qty * (l.factor ?? 1);
+      row.revenue += sign * Math.round((Math.round(l.qty * l.price) - l.discount) * inv.rate * scale);
+      row.cost += sign * (l.cost ?? 0);
+      row.profit = row.revenue - row.cost;
+      rows.set(item.id, row);
+    }
+  }
+  return [...rows.values()].sort((a, b) => b.profit - a.profit);
+}
+
+/** المبيعات حسب البائع/المندوب أو المستخدم. */
+export function salesByPerson(state: CompanyState, period: Period = {}, by: 'salesman' | 'createdBy' = 'createdBy') {
+  const base = state.currencies[state.info!.baseCurrency]!;
+  const rows = new Map<string, { name: string; count: number; total: number }>();
+  for (const inv of state.invoices) {
+    if (inv.voidEntryId || (inv.kind !== 'sale' && inv.kind !== 'sale_return')) continue;
+    if ((period.from && inv.date < period.from) || (period.to && inv.date > period.to)) continue;
+    const name = (by === 'salesman' ? inv.salesman : state.users[inv.createdBy]?.displayName ?? inv.createdBy) || 'بدون';
+    const cur = state.currencies[inv.currency]!;
+    const total = Math.round(inv.total * inv.rate * 10 ** (base.decimals - cur.decimals)) * (inv.kind === 'sale' ? 1 : -1);
+    const row = rows.get(name) ?? { name, count: 0, total: 0 };
+    row.count += inv.kind === 'sale' ? 1 : 0;
+    row.total += total;
+    rows.set(name, row);
+  }
+  return [...rows.values()].sort((a, b) => b.total - a.total);
+}
+
+export interface AgingRow {
+  partyId: string;
+  name: string;
+  balance: number;
+  buckets: [number, number, number, number]; // 0-30، 31-60، 61-90، أكثر من 90 يوماً
+}
+
+/**
+ * أعمار الديون: يوزّع رصيد كل عميل على أعمار فواتيره (الأقدم يُسدَّد أولاً).
+ */
+export function receivablesAging(state: CompanyState, today: string): AgingRow[] {
+  const day = (d: string) => Math.floor(new Date(d).getTime() / 86_400_000);
+  const now = day(today);
+  const perParty = new Map<string, { debits: { date: string; amount: number }[]; credits: number }>();
+  for (const e of state.entries) {
+    for (const l of e.lines) {
+      if (!l.partyId || state.accounts[l.accountId]?.id !== '1103') continue;
+      const p = perParty.get(l.partyId) ?? { debits: [], credits: 0 };
+      if (l.baseDebit) p.debits.push({ date: e.date, amount: l.baseDebit });
+      p.credits += l.baseCredit;
+      perParty.set(l.partyId, p);
+    }
+  }
+  const rows: AgingRow[] = [];
+  for (const [partyId, p] of perParty) {
+    let credits = p.credits;
+    const buckets: [number, number, number, number] = [0, 0, 0, 0];
+    for (const d of p.debits.sort((a, b) => a.date.localeCompare(b.date))) {
+      const open = Math.max(0, d.amount - credits);
+      credits = Math.max(0, credits - d.amount);
+      if (!open) continue;
+      const age = now - day(d.date);
+      buckets[age <= 30 ? 0 : age <= 60 ? 1 : age <= 90 ? 2 : 3] += open;
+    }
+    const balance = buckets.reduce((s, b) => s + b, 0);
+    if (balance > 0) rows.push({ partyId, name: state.parties[partyId]?.name ?? '', balance, buckets });
+  }
+  return rows.sort((a, b) => b.balance - a.balance);
+}
+
+/** حركة الصناديق في يوم (أو فترة): الداخل والخارج لكل صندوق بكل عملة. */
+export function cashMovement(state: CompanyState, period: Period) {
+  const boxes = Object.values(state.accounts).filter((a) => !a.isGroup && (a.parentId === '11' || a.parentId === '1101') && /^110[128]/.test(a.id));
+  return boxes.map((a) => {
+    const rows: Record<string, { opening: number; inflow: number; outflow: number; closing: number }> = {};
+    for (const e of state.entries) {
+      for (const l of e.lines) {
+        if (l.accountId !== a.id) continue;
+        const r = (rows[l.currency] ??= { opening: 0, inflow: 0, outflow: 0, closing: 0 });
+        if (period.from && e.date < period.from) r.opening += l.debit - l.credit;
+        else if (!period.to || e.date <= period.to) {
+          r.inflow += l.debit;
+          r.outflow += l.credit;
+        }
+      }
+    }
+    for (const r of Object.values(rows)) r.closing = r.opening + r.inflow - r.outflow;
+    return { account: a, byCurrency: rows };
+  });
 }

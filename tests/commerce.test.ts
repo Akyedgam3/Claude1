@@ -79,7 +79,7 @@ describe('invoices and stock', () => {
     expect(l.state.stock['filter']).toMatchObject({ totalQty: 5, value: 150_000 });
     expect(partyBalance(l.state, 'cus').base).toBe(0);
     expect(() => l.voidInvoice(sale.id, '2026-03-03')).toThrow(/ملغاة/);
-    expect(() => l.voidEntry(sale.entryId, '2026-03-03')).toThrow(/فاتورة/);
+    expect(() => l.voidEntry(sale.entryId, '2026-03-03')).toThrow(/مستند/);
     balanced(l);
   });
 
@@ -107,6 +107,7 @@ describe('invoices and stock', () => {
 
   it('applies consumption tax and invoice discount', () => {
     const l = shop();
+    l.postInvoice({ kind: 'purchase', date: '2026-03-01', partyId: 'sup', lines: [{ itemId: 'filter', qty: 5, price: 30_000 }] });
     l.saveTax({ ...l.state.taxes['consumption']!, percent: 5, active: true });
     const inv = l.postInvoice({
       kind: 'sale',
@@ -142,6 +143,7 @@ describe('invoices and stock', () => {
 describe('vouchers', () => {
   it('receipt from a customer reduces the debt', () => {
     const l = shop();
+    l.postInvoice({ kind: 'purchase', date: '2026-03-01', partyId: 'sup', lines: [{ itemId: 'filter', qty: 5, price: 30_000 }] });
     l.postInvoice({ kind: 'sale', date: '2026-03-02', partyId: 'cus', lines: [{ itemId: 'filter', qty: 1, price: 50_000 }] });
     const e = l.postVoucher({ kind: 'receipt', date: '2026-03-05', amount: 20_000, partyId: 'cus', memo: 'دفعة' });
     expect(e.memo).toContain('سند قبض رقم 1');
