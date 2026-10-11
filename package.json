@@ -11,7 +11,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "start": "electron-vite preview",
-    "dist:win": "npm run build && electron-builder --win nsis",
+    "dist:win": "npm run build && electron-builder --win nsis --publish never",
     "admin": "tsx admin/server.ts",
     "test:e2e": "playwright test"
   },
@@ -71,5 +71,6 @@
       "onlyLoadAppFromAsar": true
     },
     "asar": true
-  }
+  },
+  "author": "Mizan"
 }
