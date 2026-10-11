@@ -13,5 +13,6 @@ export function hostCompanyFor(store: CompanyStore, license: { blocked: () => st
     subscribe: (fn: (item: EventItem) => void) => store.onEvent((event, seq) => fn({ event, seq })),
     blocked: license.blocked,
     maxClients: () => Math.max(0, license.devices() - 1),
+    userActive: (id) => !!store.ledger.state.users[id]?.active,
   };
 }

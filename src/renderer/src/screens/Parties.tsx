@@ -109,7 +109,7 @@ export function BalanceText({ value, currency }: { value: number; currency?: str
 }
 
 function PartyPanel({ party, onEdit }: { party: Party; onEdit: () => void }) {
-  const { state, navigate, feature } = useCompany();
+  const { state, navigate, feature, can } = useCompany();
   const [currency, setCurrency] = useState<string>('');
   const orders = feature('tailoring') ? Object.values(state.tailorOrders).filter((o) => o.partyId === party.id).sort((a, b) => b.number - a.number) : [];
   const measures = Object.entries(party.measurements ?? {});
@@ -124,7 +124,7 @@ function PartyPanel({ party, onEdit }: { party: Party; onEdit: () => void }) {
         <h3>{party.name}</h3>
         <span className="button-row">
           <PrintButtons kind="report" name={`كشف حساب ${party.name}`} papers={['a4', '80mm']} />
-          <button onClick={onEdit}>تعديل</button>
+          {can('parties.manage') && <button onClick={onEdit}>تعديل</button>}
         </span>
       </header>
       <div className="kv">

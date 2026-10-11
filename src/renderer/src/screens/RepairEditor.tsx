@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { Invoice, RepairOrder, RepairStatus } from '../../../core';
+import { computeTaxes, type Invoice, type RepairOrder, type RepairStatus } from '../../../core';
 import { money, parseAmount, toInput, today, uid, useCompany, dateText } from '../api';
 import { CurrencySelect, Field, itemMatches, itemOptions, Modal, PageHeader, Picker } from '../components/ui';
 import { cashAccounts } from './InvoiceEditor';
@@ -21,7 +21,7 @@ interface LaborRow {
 }
 
 export function RepairEditor({ id }: { id?: string }) {
-  const { state, call, notify, navigate } = useCompany();
+  const { state, call, notify, navigate, can } = useCompany();
   const asset = useAssetKind();
   const base = state.info!.baseCurrency;
   const existing = id && !id.startsWith('new') ? state.repairs[id] : undefined;
@@ -119,7 +119,7 @@ export function RepairEditor({ id }: { id?: string }) {
             <button className="primary" onClick={save}>
               حفظ
             </button>
-            {status !== 'cancelled' && (
+            {status !== 'cancelled' && can('sales.create') && (
               <button className="primary accent" onClick={() => setInvoicing(true)}>
                 تسليم وفوترة
               </button>
@@ -135,7 +135,7 @@ export function RepairEditor({ id }: { id?: string }) {
             <div className="with-button">
               <Picker options={vehicleOptions} value={vehicleId} onChange={setVehicleId} placeholder="ابحث باللوحة / IMEI أو اسم الزبون..." />
               <button type="button" className="icon" title="جديد" onClick={() => setNewVehicle(true)}>
-                +
+                <Icon name="plus" size={16} />
               </button>
             </div>
           </Field>
@@ -312,9 +312,14 @@ function InvoiceRepairDialog({
   onConfirm: (opts: { paid: number; cashAccountId: string; taxIds: string[] }) => Promise<void>;
 }) {
   const { state, notify } = useCompany();
-  const [paid, setPaid] = useState(toInput(state, total, currency));
-  const [cash, setCash] = useState('1101');
   const [taxIds, setTaxIds] = useState(Object.values(state.taxes).filter((t) => t.active && t.percent > 0).map((t) => t.id));
+  // المطلوب مع الضرائب المختارة؛ المقبوض الافتراضي = كامل المطلوب ما لم يعدّله المستخدم
+  const grand = computeTaxes(total, taxIds.map((id) => ({ ...state.taxes[id]!, active: true }))).total;
+  const [paidText, setPaidText] = useState<string | null>(null);
+  const paid = paidText ?? toInput(state, grand, currency);
+  const boxes = cashAccounts(state, currency);
+  const [cashChoice, setCash] = useState('');
+  const cash = boxes.some((b) => b.id === cashChoice) ? cashChoice : (boxes.find((b) => b.currency === currency) ?? boxes[0])?.id ?? '1101';
   return (
     <Modal title="تسليم السيارة وإصدار الفاتورة" onClose={onClose}>
       <form
@@ -329,15 +334,15 @@ function InvoiceRepairDialog({
         }}
       >
         <p className="wide">
-          قيمة الأمر: <strong>{money(state, total, currency)}</strong>
-          {taxIds.length > 0 && ' + الضرائب'}
+          المطلوب: <strong>{money(state, grand, currency)}</strong>
+          {taxIds.length > 0 && <span className="muted"> (شامل الضرائب)</span>}
         </p>
         <Field label="المقبوض الآن (الباقي يُسجّل ديناً على الزبون)">
-          <input value={paid} onChange={(e) => setPaid(e.target.value)} autoFocus />
+          <input value={paid} onChange={(e) => setPaidText(e.target.value)} autoFocus />
         </Field>
         <Field label="الصندوق">
           <select value={cash} onChange={(e) => setCash(e.target.value)}>
-            {cashAccounts(state).map((a) => (
+            {boxes.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}
               </option>

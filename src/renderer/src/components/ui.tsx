@@ -12,12 +12,25 @@ export function Field({ label, children, wide }: { label: string; children: Reac
   );
 }
 
+const modalStack: object[] = [];
+
 export function Modal({ title, onClose, children, width }: { title: string; onClose: () => void; children: ReactNode; width?: number }) {
+  const close = useRef(onClose);
+  close.current = onClose;
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    // النوافذ المتداخلة: Escape يغلق العليا فقط، ولا يغلقها إن كانت قائمة اختيار مفتوحة
+    const me = {};
+    modalStack.push(me);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented || modalStack[modalStack.length - 1] !== me) return;
+      close.current();
+    };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      modalStack.splice(modalStack.indexOf(me), 1);
+    };
+  }, []);
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" style={width ? { width } : undefined}>
@@ -136,7 +149,10 @@ export function Picker({
           else if (e.key === 'Enter') {
             e.preventDefault();
             choose(list[active]);
-          } else if (e.key === 'Escape') setOpen(false);
+          } else if (e.key === 'Escape' && open) {
+            e.preventDefault(); // يغلق القائمة فقط، لا النافذة
+            setOpen(false);
+          }
         }}
       />
       {open && (
@@ -241,10 +257,12 @@ export function ConfirmButton({ label, confirmLabel, onConfirm, className }: { l
 }
 
 /** حقل الماسح الضوئي: يقرأ الباركود أو الرمز أو رقم القطعة أو باركود الميزان. */
-export function ScanInput({ onScan, placeholder }: { onScan: (code: string) => void; placeholder?: string }) {
+export function ScanInput({ onScan, placeholder, autoFocus, inputRef }: { onScan: (code: string) => void; placeholder?: string; autoFocus?: boolean; inputRef?: React.Ref<HTMLInputElement> }) {
   const [value, setValue] = useState('');
   return (
     <input
+      ref={inputRef}
+      autoFocus={autoFocus}
       className="mono scan-input"
       placeholder={placeholder ?? 'امسح الباركود أو اكتب الرمز ثم Enter'}
       value={value}

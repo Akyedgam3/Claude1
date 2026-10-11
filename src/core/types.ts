@@ -233,6 +233,7 @@ export interface ComponentMove {
   itemId: string;
   qty: number; // بالوحدة الأساسية للمكوّن
   cost: number; // بالعملة الأساسية
+  batches?: BatchMove[]; // دفعات المكوّن (للمكوّنات ذات الصلاحية)
 }
 
 export interface InvoiceLine {

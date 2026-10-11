@@ -61,6 +61,8 @@ export interface HostCompany {
   blocked(): string | null;
   /** أقصى عدد أجهزة متصلة (غير الجهاز الرئيسي). */
   maxClients(): number;
+  /** هل المستخدم ما زال فعّالاً (يُوقف المستخدم المعطّل فوراً على كل الأجهزة). */
+  userActive?(userId: string): boolean;
 }
 
 interface Session {
@@ -166,6 +168,10 @@ export class LanHost {
 
       const session = this.sessions.get(String(msg['token'] ?? ''));
       if (!session) return err('انتهت الجلسة، سجّل الدخول من جديد');
+      if (this.company.userActive && !this.company.userActive(session.user.id)) {
+        this.sessions.delete(session.token);
+        return err('هذا المستخدم موقوف');
+      }
       session.lastSeen = now;
 
       if (path === '/logout') {

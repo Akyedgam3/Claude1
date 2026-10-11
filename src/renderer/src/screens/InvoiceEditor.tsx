@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { computeTaxes, findRate, INVOICE_KIND_NAMES, resolveScan, type CompanyState, type Invoice, type InvoiceKind, type Item, type Party } from '../../../core';
 import { convertPrice, money, parseAmount, toInput, today, uid, useCompany } from '../api';
 import { CurrencySelect, Field, itemMatches, itemOptions, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
@@ -17,6 +17,7 @@ interface LineState {
   batch: string;
   expiry: string;
   serials: string;
+  manualPrice?: boolean; // كتب المستخدم السعر بيده (لا نعيد تسعيره)
 }
 
 const emptyLine = (): LineState => ({ key: uid(), itemId: null, description: '', unit: '', qty: '1', price: '', discount: '', batch: '', expiry: '', serials: '' });
@@ -66,6 +67,7 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
   const [newItem, setNewItem] = useState<string | null>(null);
   const [newParty, setNewParty] = useState(false);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
 
   const party = partyId ? state.parties[partyId] : null;
   const storedRate = findRate(state, currency, date);
@@ -75,20 +77,36 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
   const cashId = boxes.some((b) => b.id === cashAccountId) ? cashAccountId : (boxes.find((b) => b.currency === currency) ?? boxes[0])?.id ?? '1101';
   const salesmen = useMemo(() => [...new Set(state.invoices.map((i) => i.salesman).filter(Boolean))] as string[], [state.invoices]);
 
-  const priceFor = (item: Item, unit = '') => itemPrice(state, item, { party, unit, currency, date, purchase: kind === 'purchase' || kind === 'purchase_return' });
+  const priceFor = (item: Item, unit = '', p: Party | null | undefined = party, cur = currency) =>
+    itemPrice(state, item, { party: p, unit, currency: cur, date, purchase: kind === 'purchase' || kind === 'purchase_return' });
+  /** عند تغيير الزبون أو العملة: نعيد تسعير الأسطر التلقائية، ونلغي المبلغ المدفوع المكتوب. */
+  const reprice = (p: Party | null | undefined, cur: string) => {
+    setPaidText(null);
+    setLines((ls) => ls.map((l) => (l.itemId && !l.manualPrice && state.items[l.itemId] ? { ...l, price: priceFor(state.items[l.itemId]!, l.unit, p, cur) } : l)));
+  };
+  const changeParty = (id: string | null) => {
+    setPartyId(id);
+    reprice(id ? (state.parties[id] ?? null) : null, currency);
+  };
+  const changeCurrency = (cur: string) => {
+    setCurrency(cur);
+    reprice(party, cur);
+  };
   const setLine = (key: string, patch: Partial<LineState>) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   const withEmpty = (ls: LineState[]) => (ls.some((l) => !l.itemId && !l.description) ? ls : [...ls, emptyLine()]);
 
   const chooseItem = (key: string, itemId: string | null, unit = '', qty = '1', price?: string) => {
     const item = itemId ? state.items[itemId] : null;
-    setLines((ls) => withEmpty(ls.map((l) => (l.key === key ? { ...l, itemId, unit, qty, description: item?.name ?? '', price: price ?? (item ? priceFor(item, unit) : l.price) } : l))));
+    setLines((ls) => withEmpty(ls.map((l) => (l.key === key ? { ...l, itemId, unit, qty, description: item?.name ?? '', price: price ?? (item ? priceFor(item, unit) : l.price), manualPrice: price !== undefined } : l))));
   };
 
   const scan = (code: string) => {
     const r = resolveScan(state, code);
     if (!r) return notify(`لا توجد مادة بالرمز ${code}`, 'error');
     const unit = r.unit ?? '';
-    const priceOverride = r.price !== undefined ? toInput(state, r.price, currency) : undefined;
+    // سعر باركود الميزان مكتوب بعملة سعر المادة؛ نحوّله لعملة الفاتورة
+    const scanned = r.price !== undefined ? convertPrice(state, r.price, r.item.priceCurrency, currency, { [base]: 1, USD: findRate(state, 'USD', date) ?? 0 }) : null;
+    const priceOverride = scanned !== null ? toInput(state, scanned, currency) : undefined;
     setLines((ls) => {
       const same = !r.qty && ls.find((l) => l.itemId === r.item.id && l.unit === unit && !r.item.trackSerial);
       if (same) return ls.map((l) => (l === same ? { ...l, qty: String(Number(l.qty || 0) + 1) } : l));
@@ -124,8 +142,10 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
   })();
 
   const save = async () => {
+    if (savingRef.current) return; // منع الحفظ مرتين (Ctrl+Enter المتكرر)
     if (preview.error) return notify(preview.error, 'error');
     if (currency !== base && !rate) return notify('أدخل سعر الصرف', 'error');
+    savingRef.current = true;
     setSaving(true);
     try {
       const draft = {
@@ -161,6 +181,7 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
     } catch (e) {
       notify((e as Error).message, 'error');
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
@@ -178,15 +199,15 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
       <section className="card form-grid four">
         <Field label={isSale ? 'العميل' : 'المورد'}>
           <div className="with-button">
-            <Picker options={partyOptions(state, isSale ? 'customer' : 'supplier')} value={partyId} onChange={setPartyId} placeholder={isSale ? 'زبون نقدي (اختياري)' : 'مورد نقدي (اختياري)'} />
+            <Picker options={partyOptions(state, isSale ? 'customer' : 'supplier')} value={partyId} onChange={changeParty} placeholder={isSale ? 'زبون نقدي (اختياري)' : 'مورد نقدي (اختياري)'} />
             {partyId && (
-              <button type="button" className="icon" title="إزالة" onClick={() => setPartyId(null)}>
+              <button type="button" className="icon" title="إزالة" onClick={() => changeParty(null)}>
                 <Icon name="close" size={16} />
               </button>
             )}
             {can('parties.manage') && (
               <button type="button" className="icon" title="إضافة جديد" onClick={() => setNewParty(true)}>
-                +
+                <Icon name="plus" size={16} />
               </button>
             )}
           </div>
@@ -196,7 +217,7 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
         <Field label="العملة">
-          <CurrencySelect value={currency} onChange={setCurrency} />
+          <CurrencySelect value={currency} onChange={changeCurrency} />
         </Field>
         {currency !== base && (
           <Field label={`سعر الصرف (${state.currencies[base]?.symbol})`}>
@@ -325,7 +346,7 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
                     <input className="num-input" value={l.qty} onChange={(e) => setLine(l.key, { qty: e.target.value })} inputMode="decimal" />
                   </td>
                   <td>
-                    <input className="num-input" value={l.price} onChange={(e) => setLine(l.key, { price: e.target.value })} inputMode="decimal" />
+                    <input className="num-input" value={l.price} onChange={(e) => setLine(l.key, { price: e.target.value, manualPrice: true })} inputMode="decimal" />
                   </td>
                   {allowDiscount && (
                     <td>
@@ -420,10 +441,10 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
         <ItemForm
           item={null}
           onClose={() => setNewItem(null)}
-          onSaved={(item) => setLines((ls) => withEmpty(ls.map((l) => (l.key === newItem ? { ...l, itemId: item.id, description: item.name, price: isSale ? toInput(state, item.price, item.priceCurrency) : '' } : l))))}
+          onSaved={(item) => setLines((ls) => withEmpty(ls.map((l) => (l.key === newItem ? { ...l, itemId: item.id, description: item.name, price: priceFor(item) } : l))))}
         />
       )}
-      {newParty && <PartyForm party={null} defaultKind={isSale ? 'customer' : 'supplier'} onClose={() => setNewParty(false)} onSaved={(p) => setPartyId(p.id)} />}
+      {newParty && <PartyForm party={null} defaultKind={isSale ? 'customer' : 'supplier'} onClose={() => setNewParty(false)} onSaved={(p) => changeParty(p.id)} />}
     </div>
   );
 }

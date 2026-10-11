@@ -29,6 +29,8 @@ export function Vouchers() {
         .sort((a, b) => a.id.localeCompare(b.id)),
     [state.accounts, kind, currency],
   );
+  // الحساب المعروض هو نفسه الذي يُرحَّل عليه (لا قيمة مخفية خارج القائمة)
+  const counterId = counterAccounts.some((a) => a.id === accountId) ? accountId : (counterAccounts[0]?.id ?? '');
 
   const history = useMemo(
     () =>
@@ -53,7 +55,7 @@ export function Vouchers() {
       amount: minor,
       currency,
       ...(currency !== base && rate ? { rate: Number(rate) } : {}),
-      ...(target === 'party' ? { partyId } : { accountId }),
+      ...(target === 'party' ? { partyId } : { accountId: counterId }),
       cashAccountId: cashId,
       memo: memo.trim() || (kind === 'receipt' ? 'قبض' : 'دفع'),
     });
@@ -124,7 +126,7 @@ export function Vouchers() {
             </Field>
           ) : (
             <Field label="الحساب">
-              <select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+              <select value={counterId} onChange={(e) => setAccountId(e.target.value)}>
                 {counterAccounts.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}

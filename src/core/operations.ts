@@ -222,7 +222,12 @@ export function buildProduction(ctx: OpsContext, d: ProductionDraft): Production
   if (d.outputs.length === 0) fail('حدد المنتجات');
   const needs = new Map<string, number>();
   if (d.inputs?.length) {
-    for (const i of d.inputs) needs.set(i.itemId, roundQty((needs.get(i.itemId) ?? 0) + i.qty));
+    for (const i of d.inputs) {
+      const item = state.items[i.itemId] ?? fail('مادة أولية غير موجودة');
+      if (item.kind !== 'stock') fail(`"${item.name}" يجب أن تكون مادة مخزنية`);
+      if (!(i.qty > 0)) fail('كمية المادة الأولية يجب أن تكون أكبر من صفر');
+      needs.set(i.itemId, roundQty((needs.get(i.itemId) ?? 0) + i.qty));
+    }
   } else {
     for (const o of d.outputs) {
       const item = state.items[o.itemId] ?? fail('منتج غير موجود');

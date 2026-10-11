@@ -1,3 +1,4 @@
+import { applyEvent } from '../core/ledger';
 import type { CompanyState, User } from '../core/types';
 import { execute } from '../app/executor';
 import { LanClient, type EventItem } from '../app/lan';
@@ -83,6 +84,8 @@ export class RemoteBackend implements Backend {
     this.client.startEvents(
       this.seq,
       (items) => {
+        // نحدّث نسخة الحالة هنا أيضاً حتى تعيد snapshot() بيانات حديثة لا بيانات وقت الدخول
+        for (const it of items) if (it.seq > this.seq) applyEvent(this.state, it.event);
         this.seq = items[items.length - 1]!.seq;
         onEvents(items);
       },

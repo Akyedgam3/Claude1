@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_CURRENCIES, accountBalance, chartFor } from '../src/core';
 import { CompanyStore, peekCompany } from '../src/storage/company-store';
 
@@ -160,5 +160,42 @@ describe('CompanyStore (encrypted)', () => {
     const meta = JSON.parse(fs.readFileSync(path.join(dir, 'company.json'), 'utf8'));
     fs.writeFileSync(path.join(dir, 'company.json'), JSON.stringify({ ...meta, format: 1 }));
     expect(() => peekCompany(dir)).toThrow(/قديم/);
+  });
+
+  it('a failed disk write does not damage the journal (disk full)', () => {
+    const { store } = create();
+    sale(store, 100);
+    const real = fs.writeSync;
+    const spy = vi.spyOn(fs, 'writeSync').mockImplementationOnce(((fd: number, data: string) => {
+      real(fd, data.slice(0, 20)); // كتابة ناقصة ثم خطأ
+      throw Object.assign(new Error('ENOSPC'), { code: 'ENOSPC' });
+    }) as never);
+    expect(() => sale(store, 200)).toThrow(/مساحة/);
+    spy.mockRestore();
+    sale(store, 300); // بعد تحرير المساحة يكمل العمل
+    store.close();
+    const reopened = CompanyStore.open(dir, login);
+    expect(accountBalance(reopened.ledger.state, '1101').balance).toBe(400);
+    reopened.close();
+  });
+
+  it('opens even if head.json was torn by a power cut', () => {
+    const { store } = create();
+    sale(store, 100);
+    store.close();
+    fs.writeFileSync(path.join(dir, 'head.json'), '');
+    const reopened = CompanyStore.open(dir, login);
+    expect(accountBalance(reopened.ledger.state, '1101').balance).toBe(100);
+    reopened.close();
+  });
+
+  it('treats a lock from another computer as held, and an old lock as stale', () => {
+    create().store.close();
+    const lock = path.join(dir, '.lock');
+    fs.writeFileSync(lock, JSON.stringify({ pid: 1, host: 'OTHER-PC' }));
+    expect(() => CompanyStore.open(dir, login)).toThrow(/جهاز آخر/);
+    const old = new Date(Date.now() - 10 * 60_000);
+    fs.utimesSync(lock, old, old);
+    CompanyStore.open(dir, login).close();
   });
 });

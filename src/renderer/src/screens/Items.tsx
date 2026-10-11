@@ -34,8 +34,9 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
       for (const r of rows) {
         const name = String(r['الاسم'] ?? '').trim();
         if (!name) continue;
-        const code = String(r['الرمز'] ?? '').trim() || String(existingCodes.size + parsed.length + 1).padStart(4, '0');
+        const code = String(r['الرمز'] ?? '').trim() || nextCode([...existingCodes]);
         if (existingCodes.has(code)) continue;
+        existingCodes.add(code); // يمنع تكرار الرمز داخل نفس الملف
         const currency = String(r['العملة'] ?? base).trim().toUpperCase() === 'USD' ? 'USD' : base;
         parsed.push({
           id: uid(),
@@ -65,7 +66,7 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
         {canEdit && (
           <>
             <button className="primary" onClick={() => setEditing('new')}>
-              + {profile.itemLabel} جديد
+              <Icon name="plus" size={16} /> {profile.itemLabel} {newWord(profile.itemLabel)}
             </button>
             {feature('variants') && <button onClick={() => setVariants(true)}>+ موديل بمقاسات وألوان</button>}
             <button onClick={importExcel}>استيراد من Excel</button>
@@ -265,7 +266,7 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
   };
 
   return (
-    <Modal title={item ? `تعديل: ${item.name}` : `${profile.itemLabel} جديد`} onClose={onClose} width={780}>
+    <Modal title={item ? `تعديل: ${item.name}` : `${profile.itemLabel} ${newWord(profile.itemLabel)}`} onClose={onClose} width={780}>
       <Tabs<FormTab>
         value={tab}
         onChange={setTab}
@@ -599,4 +600,9 @@ function LabelSheet({ items, onClose }: { items: Item[]; onClose: () => void }) 
       </div>
     </Modal>
   );
+}
+
+/** "جديد" أو "جديدة" حسب الاسم (مادة جديدة، صنف جديد). */
+export function newWord(label: string): string {
+  return /[ةه]$/.test(label.trim()) ? 'جديدة' : 'جديد';
 }

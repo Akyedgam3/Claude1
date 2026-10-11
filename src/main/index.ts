@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ACTIVITIES, chartFor, DEFAULT_CURRENCIES, defaultTaxes, type Activity } from '../core';
+import { ACTIVITIES, can, chartFor, DEFAULT_CURRENCIES, defaultTaxes, PERMISSIONS, type Activity, type Permission } from '../core';
 import { hostCompanyFor } from '../app/host-company';
 import { DEFAULT_LAN_PORT, LanClient, LanHost, newPairingCode } from '../app/lan';
 import { FEED_CHECK_HOURS, LICENSE_FEED_URLS } from '../license/config';
@@ -53,7 +53,9 @@ function readSettings(): Settings {
 
 function writeSettings(s: Settings): void {
   fs.mkdirSync(path.dirname(settingsFile()), { recursive: true });
-  fs.writeFileSync(settingsFile(), JSON.stringify(s, null, 2));
+  const tmp = `${settingsFile()}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(s, null, 2));
+  fs.renameSync(tmp, settingsFile()); // حفظ آمن من انقطاع الكهرباء
 }
 
 function remember(name: string, dir: string): void {
@@ -89,6 +91,14 @@ function licenseBlocked(): string | null {
 }
 
 async function refreshLicense(): Promise<void> {
+  try {
+    await refreshLicenseNow();
+  } catch (e) {
+    console.error('license refresh failed', e);
+  }
+}
+
+async function refreshLicenseNow(): Promise<void> {
   await license.refresh();
   const before = lastLicense;
   const now = licenseStatus();
@@ -115,6 +125,12 @@ function activeBackend(): Backend {
   return backend;
 }
 
+/** عمليات الإدارة على الجهاز (الشبكة، النسخ) تحتاج صلاحية المستخدم المسجّل. */
+function requirePermission(p: Permission): void {
+  const b = activeBackend();
+  if (!can(b.user, p)) throw new Error(`لا تملك صلاحية: ${PERMISSIONS[p]}`);
+}
+
 function localStore(): CompanyStore {
   const b = activeBackend();
   if (!(b instanceof LocalBackend)) throw new Error('هذه العملية متاحة على الجهاز الرئيسي فقط');
@@ -131,6 +147,7 @@ function attach(b: Backend): void {
 }
 
 async function closeBackend(): Promise<void> {
+  stopHosting(); // لا يبقى الخادم يقدّم بيانات شركة أُغلقت
   const b = backend;
   backend = null;
   if (b) await b.close();
@@ -144,6 +161,7 @@ async function startHosting(): Promise<void> {
   try {
     await host.start();
   } catch (e) {
+    host?.stop();
     host = null;
     throw new Error(`تعذر تشغيل وضع الخادم على المنفذ ${s.lan.port}: ${(e as Error).message}`);
   }
@@ -301,6 +319,7 @@ function registerIpc(): void {
   handle('company:call', (method: string, args: unknown[]) => activeBackend().call(method, args));
 
   handle('company:backup', async (toExternal: boolean) => {
+    requirePermission('backup.manage');
     const store = localStore();
     if (!toExternal) return store.backup();
     const res = await dialog.showOpenDialog(win!, { title: 'اختر مكان النسخة الاحتياطية (فلاشة مثلاً)', properties: ['openDirectory'] });
@@ -308,10 +327,15 @@ function registerIpc(): void {
     return store.backup(path.join(res.filePaths[0], `Mizan-${safeFolderName(store.meta.name)}`), Infinity);
   });
 
-  handle('company:reveal', () => shell.openPath(localStore().dir));
+  handle('company:reveal', () => {
+    requirePermission('backup.manage');
+    return shell.openPath(localStore().dir);
+  });
 
   // ── الشبكة المحلية ──
   handle('lan:status', () => {
+    requirePermission('settings.manage');
+    localStore();
     const s = readSettings();
     return {
       enabled: s.lan.hostEnabled,
@@ -324,6 +348,8 @@ function registerIpc(): void {
   });
 
   handle('lan:host', async (enable: boolean, newCode?: boolean) => {
+    requirePermission('settings.manage');
+    localStore(); // وضع الخادم للجهاز الرئيسي بعد فتح الشركة فقط
     const s = readSettings();
     s.lan.hostEnabled = enable;
     if (newCode) s.lan.pairingCode = newPairingCode();

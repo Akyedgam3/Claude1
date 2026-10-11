@@ -1,7 +1,7 @@
 import { SYSTEM_ACCOUNTS } from './chart-templates';
 import type { EntryDraft, LineDraft } from './ledger';
 import { convertMinor } from './money';
-import { adjustmentMoves, applyMove, invoiceMoves, negate, productionMoves, roundQty, StockPlanner, transferMoves } from './stock';
+import { adjustmentMoves, applyMove, assertMovesPossible, invoiceMoves, negate, productionMoves, roundQty, StockPlanner, transferMoves } from './stock';
 import { computeTaxes } from './tax';
 import type { CompanyEvent, CompanyState, Invoice, InvoiceKind, InvoiceLine, JournalEntry, RepairOrder, TailorOrder } from './types';
 
@@ -154,6 +154,7 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       const inv = state.invoices.find((i) => i.id === event.invoiceId) ?? fail('الفاتورة غير موجودة');
       if (inv.voidEntryId) fail('الفاتورة ملغاة مسبقاً');
       if (event.entry.voidOf !== inv.entryId) fail('القيد العكسي لا يخص هذه الفاتورة');
+      assertMovesPossible(state, invoiceMoves(state, inv).map(negate));
       return;
     }
     case 'stock.adjusted': {
@@ -379,6 +380,7 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft): { invoic
   // التكلفة والدفعات والأرقام لكل سطر
   const planner = new StockPlanner(state);
   const shares = allocate(total, amounts);
+  let returnVariance = 0;
   lines.forEach((l, i) => {
     if (!l.itemId) return;
     const item = state.items[l.itemId]!;
@@ -400,16 +402,22 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft): { invoic
         const cost = toBase(shares[i]!);
         Object.assign(l, { cost }, planner.in(item.id, warehouseId, baseQty, cost, opts));
       } else {
+        // مرتجع الشراء يخرج من المخزون بمتوسط التكلفة؛ فرق سعر الإرجاع يذهب لحساب الفروقات
         const out = planner.out(item.id, warehouseId, baseQty, opts);
-        Object.assign(l, out, { cost: toBase(shares[i]!) });
+        Object.assign(l, out);
+        returnVariance += toBase(shares[i]!) - out.cost;
       }
     } else if (item.kind === 'composite' && isSaleSide) {
       l.components = (item.recipe ?? []).map((r) => {
         const qty = roundQty(r.qty * baseQty);
-        if (kind === 'sale') return { itemId: r.itemId, qty, cost: planner.out(r.itemId, warehouseId, qty, { allowNegative }).cost };
+        if (kind === 'sale') {
+          const o = planner.out(r.itemId, warehouseId, qty, { allowNegative });
+          return { itemId: r.itemId, qty, cost: o.cost, ...(o.batches ? { batches: o.batches } : {}) };
+        }
         const cost = Math.round(planner.unitCost(r.itemId) * qty);
-        planner.in(r.itemId, warehouseId, qty, cost);
-        return { itemId: r.itemId, qty, cost };
+        // المكوّن ذو الصلاحية يعود في دفعة "مرتجع" لأن دفعته الأصلية غير معروفة
+        const back = planner.in(r.itemId, warehouseId, qty, cost, state.items[r.itemId]?.trackExpiry ? { batch: 'مرتجع' } : {});
+        return { itemId: r.itemId, qty, cost, ...(back.batches ? { batches: back.batches } : {}) };
       });
       l.cost = l.components.reduce((s, c) => s + c.cost, 0);
     }
@@ -450,6 +458,9 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft): { invoic
     push({ accountId: SYSTEM_ACCOUNTS.inventory, ...(out ? cr(cost) : dr(cost)), ...base });
   } else {
     push({ accountId: SYSTEM_ACCOUNTS.inventory, ...against(cost), ...base });
+    // ربح (موجب) أو خسارة (سالب) فرق سعر مرتجع الشراء عن التكلفة
+    if (returnVariance > 0) push({ accountId: SYSTEM_ACCOUNTS.countDifferences, credit: returnVariance, ...base });
+    if (returnVariance < 0) push({ accountId: SYSTEM_ACCOUNTS.countDifferences, debit: -returnVariance, ...base });
     const other = lines.reduce((s, l, i) => s + (l.itemId && state.items[l.itemId]!.kind === 'stock' ? 0 : shares[i]!), 0);
     push({ accountId: SYSTEM_ACCOUNTS.miscExpenses, ...against(other), ...fx });
   }

@@ -3,6 +3,7 @@ import type { AssetKind, Vehicle } from '../../../core';
 import { dateText, uid, useCompany } from '../api';
 import { Empty, Field, matches, Modal, PageHeader, partyOptions, Picker, SearchBox } from '../components/ui';
 import { PartyForm } from './Parties';
+import { Icon } from '../components/icons';
 import { STATUS_NAMES } from './Repairs';
 
 /** نوع البطاقة حسب النشاط: سيارات (ورش) أو أجهزة (موبايلات وإلكترونيات). */
@@ -88,7 +89,7 @@ export function Vehicles() {
 }
 
 export function VehicleForm({ vehicle, onClose, onSaved, partyId }: { vehicle: Vehicle | null; onClose: () => void; onSaved?: (v: Vehicle) => void; partyId?: string | null }) {
-  const { state, call, notify, navigate } = useCompany();
+  const { state, call, notify, navigate, can } = useCompany();
   const asset = useAssetKind();
   const kind = vehicle?.kind ?? asset.kind;
   const isCar = kind === 'vehicle';
@@ -112,7 +113,7 @@ export function VehicleForm({ vehicle, onClose, onSaved, partyId }: { vehicle: V
     : [];
 
   return (
-    <Modal title={vehicle ? assetLabel(vehicle) : `${asset.one} جديد`} onClose={onClose} width={720}>
+    <Modal title={vehicle ? assetLabel(vehicle) : `${asset.one} ${asset.kind === 'vehicle' ? 'جديدة' : 'جديد'}`} onClose={onClose} width={720}>
       <form
         className="form-grid"
         onSubmit={async (e) => {
@@ -138,9 +139,11 @@ export function VehicleForm({ vehicle, onClose, onSaved, partyId }: { vehicle: V
         <Field label={asset.owner} wide>
           <div className="with-button">
             <Picker options={partyOptions(state, 'customer')} value={f.partyId} onChange={(id) => setF({ ...f, partyId: id })} placeholder="اختر العميل..." />
-            <button type="button" className="icon" onClick={() => setNewParty(true)}>
-              +
-            </button>
+            {can('parties.manage') && (
+              <button type="button" className="icon" title="زبون جديد" onClick={() => setNewParty(true)}>
+                <Icon name="plus" size={16} />
+              </button>
+            )}
           </div>
         </Field>
         {isCar && (

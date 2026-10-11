@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { Ledger, applyEvent, emptyState } from '../core/ledger';
 import type { Currency } from '../core/money';
@@ -89,22 +90,46 @@ function isAlive(pid: number): boolean {
   }
 }
 
+/** القفل يُجدَّد كل 20 ثانية؛ القفل الأقدم من دقيقتين بقايا جلسة توقفت فجأة. */
+const LOCK_HEARTBEAT_MS = 20_000;
+const LOCK_STALE_MS = 120_000;
+
 function acquireLock(dir: string): void {
   const file = path.join(dir, LOCK);
+  const mine = JSON.stringify({ pid: process.pid, host: os.hostname() });
   try {
-    fs.writeFileSync(file, String(process.pid), { flag: 'wx' });
+    fs.writeFileSync(file, mine, { flag: 'wx' });
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e;
-    const owner = Number(fs.readFileSync(file, 'utf8'));
-    if (owner && owner !== process.pid && isAlive(owner)) {
-      throw new Error('الشركة مفتوحة حالياً من نسخة أخرى من البرنامج');
+    let owner: { pid?: number; host?: string } = {};
+    try {
+      const raw = fs.readFileSync(file, 'utf8').trim();
+      owner = raw.startsWith('{') ? JSON.parse(raw) : { pid: Number(raw) };
+    } catch {
+      owner = {};
     }
-    fs.writeFileSync(file, String(process.pid)); // قفل قديم من جلسة أُغلقت بشكل مفاجئ
+    const fresh = Date.now() - fs.statSync(file).mtimeMs < LOCK_STALE_MS;
+    // مجلد على جهاز آخر في الشبكة: لا نستطيع فحص برنامجه، فنعتبره مفتوحاً ما دام قفله حديثاً
+    const otherHost = !!owner.host && owner.host !== os.hostname();
+    const busy = fresh && (otherHost ? true : !!owner.pid && owner.pid !== process.pid && isAlive(owner.pid));
+    if (busy) {
+      throw new Error(otherHost ? `الشركة مفتوحة حالياً على جهاز آخر (${owner.host}). للعمل من أكثر من جهاز استخدم الشبكة المحلية.` : 'الشركة مفتوحة حالياً من نسخة أخرى من البرنامج');
+    }
+    fs.writeFileSync(file, mine); // قفل قديم من جلسة أُغلقت بشكل مفاجئ
   }
 }
 
 function readJson<T>(file: string): T {
   return JSON.parse(fs.readFileSync(file, 'utf8')) as T;
+}
+
+/** يقرأ ملف JSON، أو null إن كان تالفاً (انقطاع كهرباء أثناء حفظه). */
+function readJsonSafe<T>(file: string): T | null {
+  try {
+    return readJson<T>(file);
+  } catch {
+    return null;
+  }
 }
 
 /** معلومات الشركة العامة وأسماء المستخدمين (لشاشة الدخول) دون فك التشفير. */
@@ -137,6 +162,7 @@ export class CompanyStore {
   private lastHash: string;
   private sinceSnapshot = 0;
   private listeners = new Set<(event: CompanyEvent, seq: number) => void>();
+  private heartbeat: ReturnType<typeof setInterval>;
   /** true إن أُزيلت عملية ناقصة من نهاية السجل عند الفتح (انقطاع كهرباء أثناء الكتابة). */
   readonly recoveredTail: boolean;
   /** true إن فُتحت الشركة برمز الاسترداد (يجب تعيين كلمة سر جديدة). */
@@ -158,6 +184,16 @@ export class CompanyStore {
     this.viaRecovery = opts.viaRecovery;
     this.user = opts.user;
     this.fd = fs.openSync(path.join(dir, JOURNAL), 'a');
+    const lock = path.join(dir, LOCK);
+    this.heartbeat = setInterval(() => {
+      try {
+        const now = new Date();
+        fs.utimesSync(lock, now, now);
+      } catch {
+        // لا شيء: القفل يُعاد إنشاؤه عند الفتح القادم
+      }
+    }, LOCK_HEARTBEAT_MS);
+    this.heartbeat.unref?.();
     this.ledger = new Ledger((event) => this.append(event), state);
     this.ledger.actor = opts.user.id;
   }
@@ -275,8 +311,8 @@ export class CompanyStore {
 
     // كشف حذف عمليات من آخر السجل: السجل يجب ألا يكون أقصر من آخر رأس موقّع
     const headFile = path.join(dir, HEAD);
-    if (fs.existsSync(headFile)) {
-      const head = readJson<{ seq: number; hash: string; mac: string }>(headFile);
+    const head = fs.existsSync(headFile) ? readJsonSafe<{ seq: number; hash: string; mac: string }>(headFile) : null;
+    if (head) {
       if (!safeEqual(head.mac, hmac(key, `${head.seq}|${head.hash}`))) throw new Error('ملف رأس السجل معدّل');
       if (events.length < head.seq) {
         throw new Error(`سجل الشركة ناقص: آخر عملية محفوظة ${head.seq} والموجود ${events.length}. استرجع نسخة احتياطية.`);
@@ -295,17 +331,46 @@ export class CompanyStore {
     const seq = this.seq + 1;
     const base = { seq, at: new Date().toISOString(), by: this.ledger.actor, prev: this.lastHash, ...seal(this.key, JSON.stringify(event), `${seq}|${this.lastHash}`) };
     const record: JournalRecord = { ...base, hash: recordHash(base) };
-    fs.writeSync(this.fd, JSON.stringify(record) + '\n');
-    fs.fsyncSync(this.fd); // لا نعتبر العملية محفوظة قبل وصولها للقرص
+    const size = fs.fstatSync(this.fd).size;
+    try {
+      fs.writeSync(this.fd, JSON.stringify(record) + '\n');
+      fs.fsyncSync(this.fd); // لا نعتبر العملية محفوظة قبل وصولها للقرص
+    } catch (e) {
+      // كتابة ناقصة (القرص ممتلئ مثلاً): نعيد الملف كما كان حتى لا تلتصق بها العملية التالية
+      try {
+        fs.ftruncateSync(this.fd, size);
+      } catch {
+        // إن فشل القص أيضاً يصلحه الفتح القادم (يزيل السطر الناقص الأخير)
+      }
+      throw new Error(`تعذّر الحفظ على القرص (${(e as NodeJS.ErrnoException).code ?? 'خطأ'}). تأكد من وجود مساحة كافية ثم أعد المحاولة.`);
+    }
     this.seq = seq;
     this.lastHash = record.hash;
-    fs.writeFileSync(path.join(this.dir, HEAD), JSON.stringify({ seq, hash: record.hash, mac: hmac(this.key, `${seq}|${record.hash}`) }));
+    try {
+      // الرأس الموقّع لكشف حذف عمليات من آخر السجل؛ السجل نفسه هو الأصل، ففشل حفظ الرأس لا يلغي العملية
+      writeAtomic(path.join(this.dir, HEAD), JSON.stringify({ seq, hash: record.hash, mac: hmac(this.key, `${seq}|${record.hash}`) }));
+    } catch {
+      // يُعاد حفظه مع العملية التالية
+    }
     // التطبيق على الحالة يحدث بعد العودة من هنا؛ نؤجل الإشعار واللقطة حتى ينتهي،
     // ونثبّت قائمة المشتركين الآن حتى لا يصل الحدث لمن اشترك بعده
     const listeners = [...this.listeners];
     queueMicrotask(() => {
-      for (const fn of listeners) fn(event, seq);
-      if (++this.sinceSnapshot >= SNAPSHOT_EVERY) this.snapshot();
+      for (const fn of listeners) {
+        try {
+          fn(event, seq);
+        } catch (err) {
+          console.error('event listener failed', err);
+        }
+      }
+      if (++this.sinceSnapshot >= SNAPSHOT_EVERY) {
+        try {
+          this.snapshot();
+        } catch (err) {
+          // اللقطة لتسريع الفتح فقط (قد يمنعها برنامج حماية أو OneDrive مؤقتاً)
+          console.error('snapshot failed', err);
+        }
+      }
     });
   }
 
@@ -402,7 +467,12 @@ export class CompanyStore {
 
   close(): void {
     if (this.fd < 0) return;
-    this.snapshot();
+    clearInterval(this.heartbeat);
+    try {
+      this.snapshot();
+    } catch (err) {
+      console.error('snapshot failed', err);
+    }
     fs.closeSync(this.fd);
     this.fd = -1;
     this.listeners.clear();

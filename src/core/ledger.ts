@@ -414,6 +414,7 @@ export class Ledger {
   /** يبني القيد ويحسب المقابل بالعملة الأساسية دون حفظه. */
   buildEntry(draft: EntryDraft): JournalEntry {
     const base = this.base;
+    let inexact = false; // هل نتج عن التحويل كسور قُرّبت؟
     const lines: JournalLine[] = draft.lines.map((d, i) => {
       const currency = this.state.currencies[d.currency ?? base.code] ?? fail(`السطر ${i + 1}: عملة غير معرّفة`);
       const rate =
@@ -422,6 +423,8 @@ export class Ledger {
           : (d.rate ?? this.rateFor(currency.code, draft.date) ?? fail(`لا يوجد سعر صرف لـ ${currency.nameAr} بتاريخ ${draft.date}`));
       const debit = d.debit ?? 0;
       const credit = d.credit ?? 0;
+      const scale = 10 ** (base.decimals - currency.decimals);
+      if (rate !== 1 && [debit, credit].some((v) => v && !Number.isInteger(v * rate * scale))) inexact = true;
       return {
         accountId: d.accountId,
         currency: currency.code,
@@ -435,7 +438,7 @@ export class Ledger {
         ...(d.partyId ? { partyId: d.partyId } : {}),
       };
     });
-    absorbRounding(lines);
+    if (inexact) absorbRounding(lines);
 
     return {
       id: crypto.randomUUID(),
@@ -493,10 +496,11 @@ export class Ledger {
    */
   closeYear(endDate: string): JournalEntry | undefined {
     if (!DATE_RE.test(endDate)) fail('تاريخ غير صالح');
-    const from = this.state.info?.lockedUntil;
+    // نجمع كل الحركات حتى تاريخ الإقفال بما فيها قيود الإقفال السابقة، فيبقى فقط ما لم يُقفل بعد
+    // (حتى لو أُقفلت أشهر من السنة سابقاً، أو أُعيد إقفال سنة مقفلة)
     const balances = new Map<string, number>();
     for (const e of this.state.entries) {
-      if (e.date > endDate || (from && e.date <= from) || e.source?.type === 'closing') continue;
+      if (e.date > endDate) continue;
       for (const l of e.lines) {
         const type = this.state.accounts[l.accountId]?.type;
         if (type === 'revenue' || type === 'expense') balances.set(l.accountId, (balances.get(l.accountId) ?? 0) + l.baseDebit - l.baseCredit);
@@ -801,6 +805,9 @@ export class Ledger {
       fail('على الطلب عربون؛ أرجع العربون (ألغِ سند القبض) قبل إلغاء الطلب');
     }
     if (draft.garments.length + draft.fabrics.length === 0) fail('أضف قطعة واحدة على الأقل');
+    if (existing && tailorDeposits(this.state, existing) > 0 && (draft.currency !== existing.currency || draft.partyId !== existing.partyId)) {
+      fail('على الطلب عربون؛ لا يمكن تغيير الزبون أو العملة');
+    }
     const order: TailorOrder = {
       ...draft,
       number: existing?.number ?? (this.state.counters['tailor'] ?? 0) + 1,
@@ -889,8 +896,15 @@ function withoutInvoice<T extends { invoiceId?: string }>(doc: T): Omit<T, 'invo
 function absorbRounding(lines: JournalLine[]): void {
   const diff = lines.reduce((s, l) => s + l.baseDebit - l.baseCredit, 0);
   if (diff === 0 || Math.abs(diff) > lines.length) return;
-  if (lines.every((l) => l.rate === 1)) return; // لا تقريب في قيود العملة الأساسية
-  const side = diff > 0 ? 'baseCredit' : 'baseDebit';
-  const target = lines.filter((l) => l[side] > 0).sort((a, b) => b[side] - a[side])[0];
-  if (target) target[side] += Math.abs(diff);
+  // نعدّل فقط أسطر العملة الأجنبية (أسطر العملة الأساسية مبالغها دقيقة)
+  const foreign = lines.filter((l) => l.rate !== 1);
+  const grow = diff > 0 ? 'baseCredit' : 'baseDebit';
+  const shrink = diff > 0 ? 'baseDebit' : 'baseCredit';
+  const target = foreign.filter((l) => l[grow] > 0).sort((a, b) => b[grow] - a[grow])[0];
+  if (target) {
+    target[grow] += Math.abs(diff);
+    return;
+  }
+  const other = foreign.filter((l) => l[shrink] > Math.abs(diff)).sort((a, b) => b[shrink] - a[shrink])[0];
+  if (other) other[shrink] -= Math.abs(diff);
 }

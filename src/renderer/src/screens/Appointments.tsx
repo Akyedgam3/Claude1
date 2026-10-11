@@ -4,6 +4,7 @@ import { addDays, dateText, money, parseAmount, today, toInput, uid, useCompany 
 import { Empty, Field, itemOptions, Modal, PageHeader, partyOptions, Picker } from '../components/ui';
 import { PartyForm } from './Parties';
 import { Icon } from '../components/icons';
+import { itemPrice } from './InvoiceEditor';
 
 const STATUS: Record<AppointmentStatus, string> = { booked: 'محجوز', arrived: 'حضر', done: 'منتهٍ', cancelled: 'ملغى', no_show: 'لم يحضر' };
 
@@ -101,12 +102,14 @@ export function Appointments() {
 }
 
 function InvoiceButton({ appointment, onDone }: { appointment: Appointment; onDone: (inv: Invoice) => void }) {
-  const { state, call, notify } = useCompany();
+  const { state, call, notify, can } = useCompany();
   const base = state.info!.baseCurrency;
   const [open, setOpen] = useState(false);
   const service = appointment.itemId ? state.items[appointment.itemId] : undefined;
-  const [price, setPrice] = useState(service ? toInput(state, service.price, service.priceCurrency) : '');
+  // السعر يُحوَّل لعملة الشركة (خدمة مسعّرة بالدولار مثلاً)
+  const [price, setPrice] = useState(service ? itemPrice(state, service, { currency: base, date: today() }) : '');
   const [paid, setPaid] = useState(price);
+  if (!can('sales.create')) return null;
   if (!open) return <button onClick={() => setOpen(true)}>إنهاء وفوترة</button>;
   return (
     <Modal title="فوترة الموعد" onClose={() => setOpen(false)}>
@@ -143,7 +146,7 @@ function InvoiceButton({ appointment, onDone }: { appointment: Appointment; onDo
 }
 
 function AppointmentForm({ appointment, day, onClose }: { appointment: Appointment | null; day: string; onClose: () => void }) {
-  const { state, call, notify } = useCompany();
+  const { state, call, notify, can } = useCompany();
   const [f, setF] = useState({
     partyId: appointment?.partyId ?? null as string | null,
     date: appointment?.date ?? day,
@@ -187,9 +190,11 @@ function AppointmentForm({ appointment, day, onClose }: { appointment: Appointme
         <Field label="المراجع" wide>
           <div className="with-button">
             <Picker options={partyOptions(state, 'customer')} value={f.partyId} onChange={(id) => setF({ ...f, partyId: id })} />
-            <button type="button" className="icon" onClick={() => setNewParty(true)}>
-              +
-            </button>
+            {can('parties.manage') && (
+              <button type="button" className="icon" title="زبون جديد" onClick={() => setNewParty(true)}>
+                <Icon name="plus" size={16} />
+              </button>
+            )}
           </div>
         </Field>
         <Field label="التاريخ">

@@ -186,7 +186,7 @@ export function Journal() {
                 <td className="muted">{[...new Set(e.lines.map((l) => state.accounts[l.accountId]?.name))].join('، ')}</td>
                 <td className="num">{money(state, e.lines.reduce((s, l) => s + l.baseDebit, 0))}</td>
                 <td>
-                  {e.source?.type === 'manual' && !e.voidOf && !state.voided[e.id] && can('journal.create') && (
+                  {e.source?.type === 'manual' && !e.voidOf && !state.voided[e.id] && can('vouchers.void') && (
                     <ConfirmButton label="إلغاء" onConfirm={() => call('voidEntry', e.id, today()).then((r) => r && notify('تم إلغاء القيد'))} />
                   )}
                 </td>

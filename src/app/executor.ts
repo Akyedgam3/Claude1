@@ -74,11 +74,18 @@ export function execute(store: CompanyStore, actor: User, method: string, args: 
     const src = (args[0] as { source?: { type?: string } } | undefined)?.source;
     if (src && src.type !== 'manual') fail('نوع القيد غير مسموح');
   }
-  if (method === 'postInvoice' || method === 'closeOrder' || method === 'invoiceRepair' || method === 'deliverTailorOrder') {
+  if (['postInvoice', 'closeOrder', 'invoiceRepair', 'deliverTailorOrder', 'invoiceAppointment'].includes(method)) {
     const d = args[method === 'postInvoice' ? 0 : 1] as Partial<InvoiceDraft> | undefined;
     const discounted = !!d?.discount || !!d?.lines?.some((l) => !!l.discount);
     if (discounted) requirePermission(user, 'discount.give');
   }
+  // المنفّذ يُسجَّل دائماً باسم المستخدم الحالي؛ لا يُقبل createdBy من الواجهة أو الشبكة
+  args = args.map((a) => {
+    if (!a || typeof a !== 'object' || Array.isArray(a) || !('createdBy' in a)) return a;
+    const copy = { ...(a as Record<string, unknown>) };
+    delete copy['createdBy'];
+    return copy;
+  });
   const fn = (store.ledger as unknown as Record<string, (...a: unknown[]) => unknown>)[method];
   if (typeof fn !== 'function') fail(`عملية غير معروفة: ${method}`);
   const value = fn.apply(store.ledger, args);

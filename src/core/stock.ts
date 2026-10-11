@@ -48,6 +48,39 @@ export function applyMove(state: CompanyState, m: StockMove): void {
   }
 }
 
+/** يتحقق أن حركات الإخراج ممكنة (كمية، دفعات، أرقام تسلسلية) قبل تطبيقها — مثلاً عند إلغاء فاتورة شراء بيعت بضاعتها. */
+export function assertMovesPossible(state: CompanyState, moves: StockMove[]): void {
+  if (state.info?.allowNegativeStock) return;
+  const need = new Map<string, number>();
+  const batchNeed = new Map<string, number>();
+  for (const m of moves) {
+    if (m.qty >= 0) continue;
+    const k = `${m.itemId}|${m.warehouseId}`;
+    need.set(k, roundQty((need.get(k) ?? 0) - m.qty));
+    for (const b of m.batches ?? []) {
+      if (!b.batch) continue;
+      const bk = `${m.itemId}|${batchKey(m.warehouseId, b.batch)}`;
+      batchNeed.set(bk, roundQty((batchNeed.get(bk) ?? 0) + b.qty));
+    }
+    for (const s of m.serials ?? []) {
+      if (state.stock[m.itemId]?.serials?.[s] !== m.warehouseId) fail(`الرقم التسلسلي ${s} لم يعد في المخزون (بيع أو نُقل)`);
+    }
+  }
+  for (const [k, q] of need) {
+    const [itemId, wh] = k.split('|') as [string, string];
+    const have = state.stock[itemId]?.qty[wh] ?? 0;
+    if (have + 1e-9 < q) {
+      const item = state.items[itemId];
+      fail(`لا يمكن: الكمية المتوفرة من "${item?.name ?? itemId}" هي ${roundQty(Math.max(have, 0))} ${item?.unit ?? ''} فقط (بيع جزء منها)`);
+    }
+  }
+  for (const [k, q] of batchNeed) {
+    const [itemId, ...rest] = k.split('|');
+    const have = state.stock[itemId!]?.batches?.[rest.join('|')]?.qty ?? 0;
+    if (have + 1e-9 < q) fail(`الدفعة ${rest[1]} من "${state.items[itemId!]?.name ?? ''}" لم تعد كافية`);
+  }
+}
+
 export function negate(m: StockMove): StockMove {
   return { ...m, qty: -m.qty, value: -m.value, lastCost: false };
 }
@@ -73,7 +106,7 @@ export function invoiceMoves(state: CompanyState, inv: Invoice): StockMove[] {
       });
     }
     for (const c of line.components ?? []) {
-      moves.push({ itemId: c.itemId, warehouseId: inv.warehouseId, qty: dir * c.qty, value: dir * c.cost });
+      moves.push({ itemId: c.itemId, warehouseId: inv.warehouseId, qty: dir * c.qty, value: dir * c.cost, ...(c.batches ? { batches: c.batches } : {}) });
     }
   }
   return moves;

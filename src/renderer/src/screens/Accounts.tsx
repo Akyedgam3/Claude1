@@ -87,7 +87,7 @@ function AccountForm({ parent, account, onClose }: { parent?: Account; account?:
             id: f.id.trim(),
             name: f.name.trim(),
             type: account?.type ?? parent!.type,
-            parentId: account?.parentId ?? parent!.id,
+            parentId: account ? account.parentId : parent!.id,
             isGroup: f.isGroup,
             currency: f.currency || null,
             ...(f.archived ? { archived: true } : {}),

@@ -83,7 +83,10 @@ export class LicenseManager {
     const cipher = createCipheriv('aes-256-gcm', this.secret, iv);
     const ct = Buffer.concat([cipher.update(JSON.stringify(data), 'utf8'), cipher.final()]);
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
-    fs.writeFileSync(this.file, Buffer.concat([iv, cipher.getAuthTag(), ct]));
+    // حفظ آمن: ملف مؤقت ثم استبدال، حتى لا يضيع الترخيص إن انقطعت الكهرباء أثناء الحفظ
+    const tmp = `${this.file}.tmp`;
+    fs.writeFileSync(tmp, Buffer.concat([iv, cipher.getAuthTag(), ct]));
+    fs.renameSync(tmp, this.file);
   }
 
   private feedOf(data: Stored): LicenseFeed | null {
@@ -135,7 +138,11 @@ export class LicenseManager {
     const data = this.read();
     // لا نعيد ضبط وقت آخر تحقق عند التفعيل؛ مهلة العمل بدون إنترنت تُحسب من تاريخ إصدار المفتاح
     // أو من آخر تحقق فعلي، حتى لا يكفي إعادة إدخال المفتاح لتجاوز التحقق
-    this.write({ ...data, key: clean });
+    const old = data.key ? parseLicense(data.key, this.o.publicKey) : null;
+    const now = this.now();
+    // مفتاح أحدث من البائع (موقّع) دليل على وقت صحيح: يصلح قفل "تاريخ الجهاز" إن قفزت الساعة للمستقبل سابقاً
+    const newer = (!old || payload.issuedAt > old.issuedAt) && now.getTime() >= new Date(payload.issuedAt).getTime() - DAY;
+    this.write({ ...data, key: clean, ...(newer ? { lastSeen: now.toISOString() } : {}) });
     const s = this.status();
     if (s.locked && s.reason !== 'offline') throw new Error(s.message ?? 'تعذر التفعيل');
     return s;
@@ -153,7 +160,10 @@ export class LicenseManager {
         const cached = this.feedOf(data);
         // نرفض قائمة أقدم من المحفوظة (حتى لا تُستخدم نسخة قديمة لإعادة تفعيل ترخيص موقوف)
         if (cached && feed.issuedAt < cached.issuedAt) continue;
-        this.write({ ...data, feed: text.trim(), lastOnline: this.now().toISOString() });
+        const now = this.now();
+        // القائمة الموقّعة وقت موثوق: إن لم تكن ساعة الجهاز متأخرة عنها نصحّح آخر وقت محفوظ
+        const clockOk = now.getTime() >= new Date(feed.issuedAt).getTime() - DAY;
+        this.write({ ...data, feed: text.trim(), lastOnline: now.toISOString(), ...(clockOk ? { lastSeen: now.toISOString() } : {}) });
         return true;
       } catch {
         // نجرب الرابط التالي

@@ -250,7 +250,13 @@ function Count() {
         <Field label="التاريخ">
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
-        <WarehouseSelect value={warehouseId} onChange={setWarehouseId} />
+        <WarehouseSelect
+          value={warehouseId}
+          onChange={(w) => {
+            setWarehouseId(w);
+            setCounted({}); // الجرد يخص مستودعاً واحداً
+          }}
+        />
         <SearchBox value={query} onChange={setQuery} placeholder="ابحث أو امسح الباركود..." />
         <PrintButtons kind="report" name="ورقة جرد" papers={['a4']} />
       </div>

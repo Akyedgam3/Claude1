@@ -339,9 +339,11 @@ export function TailorEditor({ id }: { id?: string }) {
           <Field label="الزبون" wide>
             <div className="with-button">
               <Picker options={customers} value={partyId} onChange={(v) => pickParty(v)} placeholder="ابحث بالاسم أو الهاتف..." />
-              <button type="button" className="icon" title="زبون جديد" onClick={() => setNewParty(true)}>
-                <Icon name="plus" size={16} />
-              </button>
+              {can('parties.manage') && (
+                <button type="button" className="icon" title="زبون جديد" onClick={() => setNewParty(true)}>
+                  <Icon name="plus" size={16} />
+                </button>
+              )}
             </div>
           </Field>
           <Field label="الهاتف">

@@ -55,7 +55,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ],
   cashier: ['sales.create', 'returns.create', 'pos.use', 'restaurant.use', 'appointments.manage', 'tailoring.manage', 'vouchers.create', 'parties.manage'],
   storekeeper: ['items.manage', 'stock.adjust', 'stock.transfer', 'production.manage', 'purchases.create', 'reports.stock'],
-  technician: ['repairs.manage', 'appointments.manage', 'tailoring.manage'],
+  technician: ['repairs.manage', 'appointments.manage', 'tailoring.manage', 'parties.manage'],
   viewer: ['reports.stock'],
 };
 
@@ -81,7 +81,6 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
   voidEntry: 'vouchers.void',
   lockPeriod: 'period.close',
   closeYear: 'period.close',
-  saveUser: 'users.manage',
   saveParty: 'parties.manage',
   saveItem: 'items.manage',
   saveItems: 'items.manage',
@@ -94,7 +93,11 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
   },
   voidInvoice: 'sales.void',
   postVoucher: 'vouchers.create',
-  postOpeningBalances: 'stock.adjust',
+  // أرصدة الحسابات والذمم الافتتاحية قيد مالي؛ أرصدة المخزون وحدها لأمين المستودع
+  postOpeningBalances: (args) => {
+    const d = args[0] as { accounts?: unknown[]; parties?: unknown[] } | undefined;
+    return d?.accounts?.length || d?.parties?.length ? 'journal.create' : 'stock.adjust';
+  },
   adjustStock: 'stock.adjust',
   countStock: 'stock.adjust',
   transferStock: 'stock.transfer',

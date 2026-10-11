@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
-import { resolveScan, type Invoice, type Item } from '../../../core';
-import { money, parseAmount, qtyText, today, toInput, uid, useCompany } from '../api';
+import { useMemo, useRef, useState } from 'react';
+import { findRate, resolveScan, type Invoice, type Item } from '../../../core';
+import { convertPrice, money, parseAmount, qtyText, today, toInput, uid, useCompany } from '../api';
 import { usePrinter } from '../components/print';
 import { matches, partyOptions, Picker, ScanInput } from '../components/ui';
 import { InvoiceDocument } from './InvoiceView';
@@ -39,24 +39,37 @@ export function Pos() {
     [sellable, category, query],
   );
 
-  const priceOf = (item: Item, unit = '') => {
+  /** السعر بعملة الشركة، أو null إن كانت المادة مسعّرة بالدولار ولا يوجد سعر صرف. */
+  const priceOf = (item: Item, unit = ''): number | null => {
     const text = itemPrice(state, item, { party, unit, currency: base, date: today() });
-    return text ? parseAmount(state, text, base) : 0;
+    return text ? parseAmount(state, text, base) : null;
   };
+  const scanRef = useRef<HTMLInputElement>(null);
+  const refocus = () => setTimeout(() => scanRef.current?.focus(), 0);
 
   const add = (item: Item, opts: { unit?: string; qty?: number; price?: number } = {}) => {
     const unit = opts.unit ?? '';
+    const price = opts.price ?? priceOf(item, unit);
+    refocus();
+    if (price === null) return notify(`سجّل سعر الدولار اليوم أولاً — سعر "${item.name}" بالدولار`, 'error');
     setCart((c) => {
       const same = !opts.qty && !item.trackSerial && c.find((l) => l.itemId === item.id && l.unit === unit);
       if (same) return c.map((l) => (l === same ? { ...l, qty: l.qty + 1 } : l));
-      return [...c, { key: uid(), itemId: item.id, unit, qty: opts.qty ?? 1, price: opts.price ?? priceOf(item, unit), serials: [] }];
+      return [...c, { key: uid(), itemId: item.id, unit, qty: opts.qty ?? 1, price, serials: [] }];
     });
   };
 
   const scan = (code: string) => {
     const r = resolveScan(state, code);
     if (!r) return notify(`لا توجد مادة بالرمز ${code}`, 'error');
-    add(r.item, { ...(r.unit ? { unit: r.unit } : {}), ...(r.qty ? { qty: r.qty } : {}), ...(r.price !== undefined ? { price: r.price } : {}) });
+    // سعر باركود الميزان بعملة سعر المادة؛ نحوّله لعملة الشركة
+    let price: number | undefined;
+    if (r.price !== undefined) {
+      const v = convertPrice(state, r.price, r.item.priceCurrency, base, { [base]: 1, USD: findRate(state, 'USD', today()) ?? 0 });
+      if (v === null) return notify('سجّل سعر الدولار اليوم أولاً', 'error');
+      price = v;
+    }
+    add(r.item, { ...(r.unit ? { unit: r.unit } : {}), ...(r.qty ? { qty: r.qty } : {}), ...(price !== undefined ? { price } : {}) });
   };
 
   const subtotal = cart.reduce((s, l) => s + Math.round(l.qty * l.price), 0);
@@ -96,6 +109,7 @@ export function Pos() {
     if (!res) return;
     setLast(res.value);
     setCart([]);
+    refocus();
     setReceived('');
     setDiscount('');
     setPartyId(null);
@@ -109,7 +123,7 @@ export function Pos() {
     <div className="pos">
       <div className="pos-products">
         <div className="pos-search">
-          <ScanInput onScan={scan} placeholder="امسح الباركود أو باركود الميزان..." />
+          <ScanInput onScan={scan} placeholder="امسح الباركود أو باركود الميزان..." autoFocus inputRef={scanRef} />
           <input placeholder="بحث بالاسم..." value={query} onChange={(e) => setQuery(e.target.value)} />
         </div>
         {categories.length > 0 && (
@@ -128,7 +142,10 @@ export function Pos() {
           {grid.map((i) => (
             <button key={i.id} className="pos-item" onClick={() => add(i)}>
               <strong>{i.name}</strong>
-              <span>{money(state, priceOf(i))}</span>
+              <span>{(() => {
+                const p = priceOf(i);
+                return p === null ? 'لا يوجد سعر دولار' : money(state, p);
+              })()}</span>
               {i.kind === 'stock' && <small>{qtyText(state.stock[i.id]?.totalQty ?? 0)} {i.unit}</small>}
             </button>
           ))}
@@ -161,7 +178,7 @@ export function Pos() {
                 </div>
                 <div className="qty-box">
                   <button onClick={() => setCart(l.qty <= 1 ? cart.filter((x) => x.key !== l.key) : cart.map((x) => (x.key === l.key ? { ...x, qty: x.qty - 1 } : x)))}>−</button>
-                  <input value={qtyText(l.qty)} onChange={(e) => setCart(cart.map((x) => (x.key === l.key ? { ...x, qty: Number(e.target.value) || 0 } : x)))} />
+                  <QtyInput value={l.qty} onChange={(q) => setCart((c) => (q > 0 ? c.map((x) => (x.key === l.key ? { ...x, qty: q } : x)) : c))} />
                   <button onClick={() => setCart(cart.map((x) => (x.key === l.key ? { ...x, qty: x.qty + 1 } : x)))}>+</button>
                 </div>
                 <strong className="num">{money(state, Math.round(l.qty * l.price))}</strong>
@@ -223,5 +240,29 @@ export function Pos() {
         </div>
       )}
     </div>
+  );
+}
+
+/** حقل كمية يقبل الكسور أثناء الكتابة (1.25 كيلو) ويثبّت القيمة عند الخروج منه. */
+function QtyInput({ value, onChange }: { value: number; onChange: (q: number) => void }) {
+  const [text, setText] = useState<string | null>(null);
+  const commit = () => {
+    const q = Number((text ?? '').replace(',', '.'));
+    if (text !== null && q > 0) onChange(q);
+    setText(null);
+  };
+  return (
+    <input
+      value={text ?? qtyText(value)}
+      inputMode="decimal"
+      onChange={(e) => {
+        const t = e.target.value;
+        setText(t);
+        const q = Number(t.replace(',', '.'));
+        if (q > 0 && !t.endsWith('.') && !t.endsWith(',')) onChange(q);
+      }}
+      onBlur={commit}
+      onKeyDown={(e) => e.key === 'Enter' && commit()}
+    />
   );
 }
