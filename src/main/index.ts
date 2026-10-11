@@ -12,6 +12,7 @@ import { LICENSE_PUBLIC_KEY } from '../license/public-key';
 import { CompanyStore, peekCompany, type Credentials } from '../storage/company-store';
 import { LocalBackend, RemoteBackend, type Backend } from './backend';
 import { buildCsv, buildWorkbook, readWorkbook, type ExportSheet } from './exporter';
+import appIcon from '../../build/icon.png?asset';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const isDev = !app.isPackaged;
@@ -378,6 +379,7 @@ function createWindow(): void {
     minWidth: 1024,
     minHeight: 640,
     title: 'ميزان',
+    icon: appIcon,
     autoHideMenuBar: true,
     backgroundColor: '#f5f6f8',
     show: false,

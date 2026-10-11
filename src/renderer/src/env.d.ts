@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import type { MizanApi } from '../../preload';
 
 declare global {

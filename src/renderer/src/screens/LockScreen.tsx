@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import logo from '../assets/logo.png';
 import { api, type AppInfo } from '../api';
 import { ConnectForm } from './Welcome';
 
@@ -26,6 +27,7 @@ export function LockScreen({ info, onChanged, notify }: { info: AppInfo; onChang
   return (
     <div className="welcome lock">
       <div className="welcome-hero">
+        <img src={logo} alt="" className="hero-logo" />
         <div className="logo big">ميزان</div>
         <p>نظام محاسبة لكل المصالح والتجارات</p>
       </div>

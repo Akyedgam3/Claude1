@@ -40,7 +40,8 @@
     "appId": "sy.mizan.accounting",
     "productName": "Mizan",
     "directories": {
-      "output": "dist"
+      "output": "dist",
+      "buildResources": "build"
     },
     "files": [
       "out/**/*",
@@ -54,13 +55,19 @@
             "x64"
           ]
         }
-      ]
+      ],
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "language": "1025",
-      "shortcutName": "ميزان"
+      "shortcutName": "ميزان",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
     },
     "electronFuses": {
       "runAsNode": false,
@@ -70,7 +77,8 @@
       "enableEmbeddedAsarIntegrityValidation": true,
       "onlyLoadAppFromAsar": true
     },
-    "asar": true
+    "asar": true,
+    "icon": "build/icon.png"
   },
   "author": "Mizan"
 }

@@ -3,6 +3,8 @@ import { applyEvent, ROLE_NAMES, type CompanyState, type Feature, type Permissio
 import type { EventItem } from '../../app/lan';
 import type { LicenseStatus } from '../../license/manager';
 import { api, Company, makeCtxHelpers, type AppInfo, type CompanyCtx } from './api';
+import logoSmall from './assets/logo-64.png';
+import logo from './assets/logo.png';
 import { Accounts } from './screens/Accounts';
 import { Appointments } from './screens/Appointments';
 import { Dashboard } from './screens/Dashboard';
@@ -159,7 +161,13 @@ export function App() {
     return { state, info, session: info.session, call, notify, navigate, reloadInfo: loadInfo, ...makeCtxHelpers(state, info.session.user) };
   }, [info, state, call, notify, navigate, loadInfo]);
 
-  if (!info) return <div className="splash">ميزان</div>;
+  const splash = (
+    <div className="splash">
+      <img src={logo} alt="" />
+      ميزان
+    </div>
+  );
+  if (!info) return splash;
   const toastEl = toast && <div className={`toast ${toast.kind}`}>{toast.message}</div>;
   const lic = info.license;
 
@@ -184,7 +192,7 @@ export function App() {
       </>
     );
   }
-  if (!ctx) return <div className="splash">ميزان</div>;
+  if (!ctx) return splash;
 
   const visible = NAV.filter((n) => {
     if (typeof n === 'string') return true;
@@ -200,7 +208,10 @@ export function App() {
       <div className="shell">
         <aside className="sidebar">
           <div className="brand">
-            <div className="logo">ميزان</div>
+            <div className="logo">
+              <img src={logoSmall} alt="" className="logo-img" />
+              ميزان
+            </div>
             <div className="company-name">
               {ctx.profile.icon} {ctx.state.info?.name}
             </div>

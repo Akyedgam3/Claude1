@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ACTIVITY_LIST } from '../../../core';
+import logo from '../assets/logo.png';
 import { api, type AppInfo, type CompanyPeek } from '../api';
 import { Field, Modal } from '../components/ui';
 
@@ -31,6 +32,7 @@ export function Welcome({
   return (
     <div className="welcome">
       <div className="welcome-hero">
+        <img src={logo} alt="" className="hero-logo" />
         <div className="logo big">ميزان</div>
         <p>نظام محاسبة لكل المصالح والتجارات — يعمل بدون إنترنت وبياناتك مشفّرة على جهازك.</p>
         {info.license.customer && (
