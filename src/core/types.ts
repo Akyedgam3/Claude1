@@ -69,7 +69,8 @@ export type Activity =
   | 'butcher'
   | 'bakery'
   | 'wholesale'
-  | 'clinic';
+  | 'clinic'
+  | 'tailor';
 
 export type Paper = 'a4' | 'a5' | '80mm' | '58mm';
 
@@ -136,6 +137,7 @@ export interface Party {
   creditLimit?: number; // بأصغر وحدة من العملة الأساسية
   priceTier?: PriceTier;
   notes?: string;
+  measurements?: Record<string, string>; // قياسات الزبون (خياطة): اسم القياس ← القيمة
   archived?: boolean;
 }
 
@@ -402,6 +404,36 @@ export interface Appointment {
   invoiceId?: string;
 }
 
+// ───────────── الخياطة والتفصيل ─────────────
+
+export type TailorStatus = 'received' | 'cutting' | 'sewing' | 'fitting' | 'ready' | 'delivered' | 'cancelled';
+
+export interface TailorGarment {
+  description: string; // ثوب، بدلة، فستان، تقصير بنطال...
+  qty: number;
+  price: number; // أجرة الخياطة للقطعة بأصغر وحدة من عملة الطلب
+  notes?: string; // تفاصيل الموديل
+}
+
+export interface TailorOrder {
+  id: string;
+  number: number;
+  partyId: string;
+  date: string; // تاريخ الاستلام
+  dueDate?: string; // موعد التسليم
+  fittingDate?: string; // موعد البروفة
+  status: TailorStatus;
+  currency: string;
+  garments: TailorGarment[];
+  fabrics: { itemId: string; qty: number; price: number }[]; // أقمشة ولوازم من المحل تُباع للزبون
+  ownFabric?: string; // وصف قماش الزبون إن أحضره معه
+  measurements: Record<string, string>; // نسخة القياسات وقت الطلب
+  tailor?: string; // الخياط المسؤول
+  notes?: string;
+  deposits: { entryId: string; amount: number; date: string }[]; // العربون (سندات قبض)
+  invoiceId?: string;
+}
+
 // ───────────── الحالة الكاملة والأحداث ─────────────
 
 export interface CompanyState {
@@ -426,6 +458,7 @@ export interface CompanyState {
   tables: Record<string, DiningTable>;
   orders: Record<string, Order>;
   appointments: Record<string, Appointment>;
+  tailorOrders: Record<string, TailorOrder>;
   counters: Record<string, number>; // آخر رقم لكل نوع مستند
 }
 
@@ -452,4 +485,5 @@ export type CompanyEvent =
   | { type: 'repair.saved'; repair: RepairOrder }
   | { type: 'table.saved'; table: DiningTable }
   | { type: 'order.saved'; order: Order }
-  | { type: 'appointment.saved'; appointment: Appointment };
+  | { type: 'appointment.saved'; appointment: Appointment }
+  | { type: 'tailor.saved'; order: TailorOrder };

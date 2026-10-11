@@ -21,6 +21,7 @@ export const PERMISSIONS = {
   'pos.use': 'شاشة البيع السريع',
   'restaurant.use': 'الطاولات والطلبات',
   'appointments.manage': 'المواعيد',
+  'tailoring.manage': 'طلبات التفصيل والقياسات',
   'reports.financial': 'التقارير المالية',
   'reports.stock': 'تقارير المخزون',
   'accounts.manage': 'دليل الحسابات',
@@ -52,9 +53,9 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'journal.create', 'costs.view', 'parties.manage', 'reports.financial', 'reports.stock', 'accounts.manage', 'rates.manage',
     'stock.adjust', 'backup.manage',
   ],
-  cashier: ['sales.create', 'returns.create', 'pos.use', 'restaurant.use', 'appointments.manage', 'vouchers.create', 'parties.manage'],
+  cashier: ['sales.create', 'returns.create', 'pos.use', 'restaurant.use', 'appointments.manage', 'tailoring.manage', 'vouchers.create', 'parties.manage'],
   storekeeper: ['items.manage', 'stock.adjust', 'stock.transfer', 'production.manage', 'purchases.create', 'reports.stock'],
-  technician: ['repairs.manage', 'appointments.manage'],
+  technician: ['repairs.manage', 'appointments.manage', 'tailoring.manage'],
   viewer: ['reports.stock'],
 };
 
@@ -106,6 +107,9 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
   closeOrder: 'restaurant.use',
   saveAppointment: 'appointments.manage',
   invoiceAppointment: 'sales.create',
+  saveTailorOrder: 'tailoring.manage',
+  addTailorDeposit: 'vouchers.create',
+  deliverTailorOrder: 'sales.create',
 };
 
 export function permissionFor(method: string, args: unknown[]): Permission | null {

@@ -283,7 +283,8 @@ export class CompanyStore {
       }
     }
 
-    const state = snapshotAt > 0 ? snapshot!.state : emptyState();
+    // دمج مع الحالة الفارغة حتى تعمل اللقطات القديمة بعد إضافة أنواع مستندات جديدة
+    const state = snapshotAt > 0 ? { ...emptyState(), ...snapshot!.state } : emptyState();
     const replay = events.slice(Math.max(snapshotAt, 0));
     for (const event of replay) applyEvent(state, event);
     return { state, seq: events.length, hash: prev, recoveredTail, replayed: replay.length };

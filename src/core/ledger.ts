@@ -1,4 +1,4 @@
-import { applyCommerceEvent, buildInvoice, repairToInvoiceLines, validateCommerceEvent, type InvoiceDraft, type InvoiceLineDraft } from './commerce';
+import { applyCommerceEvent, buildInvoice, repairToInvoiceLines, tailorDeposits, tailorToInvoiceLines, validateCommerceEvent, type InvoiceDraft, type InvoiceLineDraft } from './commerce';
 import { SYSTEM_ACCOUNTS } from './chart-templates';
 import { ALLOWED_CURRENCIES, convertMinor, type Currency } from './money';
 import {
@@ -32,6 +32,7 @@ import type {
   Role,
   StockAdjustment,
   StockTransfer,
+  TailorOrder,
   Tax,
   User,
   Vehicle,
@@ -64,6 +65,7 @@ export function emptyState(): CompanyState {
     tables: {},
     orders: {},
     appointments: {},
+    tailorOrders: {},
     counters: {},
   };
 }
@@ -563,6 +565,9 @@ export class Ledger {
     } else if (src?.type === 'appointment') {
       const a = this.state.appointments[src.id];
       if (a?.invoiceId === invoice.id) this.emit({ type: 'appointment.saved', appointment: { ...withoutInvoice(a), status: 'arrived' } });
+    } else if (src?.type === 'tailor') {
+      const o = this.state.tailorOrders[src.id];
+      if (o?.invoiceId === invoice.id) this.emit({ type: 'tailor.saved', order: { ...withoutInvoice(o), status: 'ready' } });
     }
   }
 
@@ -776,6 +781,91 @@ export class Ledger {
     this.emit({ type: 'appointment.saved', appointment: { ...a, status: 'done', invoiceId: invoice.id } });
     return invoice;
   }
+
+  // ───────────── الخياطة والتفصيل ─────────────
+
+  /** حفظ طلب تفصيل جديد أو تعديله. العربون والفاتورة لا يُعدَّلان من هنا. */
+  saveTailorOrder(draft: TailorOrderDraft): TailorOrder {
+    const existing = this.state.tailorOrders[draft.id];
+    if (existing?.invoiceId) fail('الطلب مسلّم ومفوتر؛ ألغِ الفاتورة أولاً لتعديله');
+    if (draft.status === 'delivered') fail('استخدم "تسليم وفوترة" لتسليم الطلب');
+    if (existing && existing.status !== 'cancelled' && draft.status === 'cancelled' && tailorDeposits(this.state, existing) > 0) {
+      fail('على الطلب عربون؛ أرجع العربون (ألغِ سند القبض) قبل إلغاء الطلب');
+    }
+    if (draft.garments.length + draft.fabrics.length === 0) fail('أضف قطعة واحدة على الأقل');
+    const order: TailorOrder = {
+      ...draft,
+      number: existing?.number ?? (this.state.counters['tailor'] ?? 0) + 1,
+      deposits: existing?.deposits ?? [],
+    };
+    this.emit({ type: 'tailor.saved', order });
+    return order;
+  }
+
+  /** تسجيل عربون على الطلب: سند قبض على حساب الزبون. */
+  addTailorDeposit(orderId: string, d: { date: string; amount: number; cashAccountId?: string; rate?: number }): TailorOrder {
+    const o = this.state.tailorOrders[orderId] ?? fail('الطلب غير موجود');
+    if (o.invoiceId || o.status === 'cancelled') fail('لا يمكن إضافة عربون على طلب مسلّم أو ملغى');
+    const entry = this.postVoucher({
+      kind: 'receipt',
+      date: d.date,
+      amount: d.amount,
+      currency: o.currency,
+      partyId: o.partyId,
+      memo: `عربون طلب تفصيل رقم ${o.number}`,
+      ...(d.cashAccountId ? { cashAccountId: d.cashAccountId } : {}),
+      ...(d.rate ? { rate: d.rate } : {}),
+      createdBy: this.actor,
+    });
+    const order: TailorOrder = { ...o, deposits: [...o.deposits, { entryId: entry.id, amount: d.amount, date: d.date }] };
+    this.emit({ type: 'tailor.saved', order });
+    return order;
+  }
+
+  /** تسليم الطلب للزبون: فاتورة مبيع بأجور الخياطة والأقمشة، والعربون يُخصم من المطلوب. */
+  deliverTailorOrder(orderId: string, opts: TailorDeliverOptions): Invoice {
+    const o = this.state.tailorOrders[orderId] ?? fail('الطلب غير موجود');
+    if (o.invoiceId) fail('الطلب مسلّم مسبقاً');
+    if (o.status === 'cancelled') fail('الطلب ملغى');
+    const draft: InvoiceDraft = {
+      kind: 'sale',
+      date: opts.date,
+      partyId: o.partyId,
+      currency: o.currency,
+      lines: tailorToInvoiceLines(this.state, o),
+      ...(opts.rate ? { rate: opts.rate } : {}),
+      ...(opts.warehouseId ? { warehouseId: opts.warehouseId } : {}),
+      ...(opts.discount ? { discount: opts.discount } : {}),
+      ...(opts.taxIds ? { taxIds: opts.taxIds } : {}),
+      ...(opts.cashAccountId ? { cashAccountId: opts.cashAccountId } : {}),
+      notes: `طلب تفصيل رقم ${o.number}`,
+      source: { type: 'tailor', id: o.id },
+    };
+    let paid = opts.paid;
+    if (paid === undefined) {
+      // حساب المجموع النهائي (مع الخصم والضريبة) دون تسجيل شيء، ثم دفع المتبقي بعد العربون
+      const { invoice: preview } = buildInvoice(
+        { state: this.state, baseCode: this.base.code, resolveRate: (c, dt) => this.rateFor(c, dt), buildEntry: (e) => this.buildEntry(e), partyBalance: () => -Infinity },
+        { ...draft, paid: 0 },
+      );
+      paid = Math.max(0, preview.total - tailorDeposits(this.state, o));
+    }
+    const invoice = this.postInvoice({ ...draft, paid });
+    this.emit({ type: 'tailor.saved', order: { ...o, status: 'delivered', invoiceId: invoice.id } });
+    return invoice;
+  }
+}
+
+export type TailorOrderDraft = Omit<TailorOrder, 'number' | 'deposits' | 'invoiceId'> & { number?: number };
+
+export interface TailorDeliverOptions {
+  date: string;
+  paid?: number; // الافتراضي: المتبقي بعد العربون
+  cashAccountId?: string;
+  warehouseId?: string;
+  discount?: number;
+  taxIds?: string[];
+  rate?: number;
 }
 
 function withoutInvoice<T extends { invoiceId?: string }>(doc: T): Omit<T, 'invoiceId'> {

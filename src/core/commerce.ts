@@ -3,7 +3,7 @@ import type { EntryDraft, LineDraft } from './ledger';
 import { convertMinor } from './money';
 import { adjustmentMoves, applyMove, invoiceMoves, negate, productionMoves, roundQty, StockPlanner, transferMoves } from './stock';
 import { computeTaxes } from './tax';
-import type { CompanyEvent, CompanyState, Invoice, InvoiceKind, InvoiceLine, JournalEntry, RepairOrder } from './types';
+import type { CompanyEvent, CompanyState, Invoice, InvoiceKind, InvoiceLine, JournalEntry, RepairOrder, TailorOrder } from './types';
 
 function fail(message: string): never {
   throw new Error(message);
@@ -121,6 +121,25 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       if (prev?.invoiceId && a.status !== 'done' && !invoiceVoided(state, prev.invoiceId)) fail('الموعد مفوتر');
       return;
     }
+    case 'tailor.saved': {
+      const o = event.order;
+      if (!state.parties[o.partyId]) fail('الزبون غير موجود');
+      if (!DATE_RE.test(o.date) || (o.dueDate && !DATE_RE.test(o.dueDate)) || (o.fittingDate && !DATE_RE.test(o.fittingDate))) fail('تاريخ غير صالح');
+      if (!state.currencies[o.currency]) fail('عملة غير معروفة');
+      for (const g of o.garments) {
+        if (!g.description.trim()) fail('اكتب نوع القطعة');
+        if (!(g.qty > 0) || !Number.isSafeInteger(g.price) || g.price < 0) fail(`كمية أو أجرة غير صالحة: ${g.description}`);
+      }
+      for (const f of o.fabrics) {
+        const item = state.items[f.itemId] ?? fail('قماش غير موجود في المواد');
+        if (item.kind === 'composite') fail(`لا يمكن استخدام ${item.name} كقماش`);
+        if (!(f.qty > 0) || !Number.isSafeInteger(f.price) || f.price < 0) fail(`كمية أو سعر غير صالح: ${item.name}`);
+      }
+      const prev = state.tailorOrders[o.id];
+      if (prev && prev.number !== o.number) fail('لا يمكن تغيير رقم الطلب');
+      if (prev?.invoiceId && !invoiceVoided(state, prev.invoiceId) && (o.status !== 'delivered' || o.invoiceId !== prev.invoiceId)) fail('الطلب مسلّم ومفوتر؛ ألغِ الفاتورة أولاً لتعديله');
+      return;
+    }
     case 'invoice.posted': {
       const inv = event.invoice;
       checkDate(state, inv.date);
@@ -196,6 +215,10 @@ export function applyCommerceEvent(state: CompanyState, event: CompanyEvent): vo
       return;
     case 'appointment.saved':
       state.appointments[event.appointment.id] = { ...event.appointment };
+      return;
+    case 'tailor.saved':
+      state.tailorOrders[event.order.id] = { ...event.order };
+      bump(state, 'tailor', event.order.number);
       return;
     case 'invoice.posted':
       state.invoices.push(event.invoice);
@@ -473,4 +496,22 @@ export function repairToInvoiceLines(state: CompanyState, repair: RepairOrder): 
     ...repair.parts.map((p) => ({ itemId: p.itemId, description: state.items[p.itemId]?.name ?? '', qty: p.qty, price: p.price })),
     ...repair.labor.map((l) => ({ itemId: null, description: l.description, qty: 1, price: l.amount })),
   ];
+}
+
+/** أسطر فاتورة التسليم: أجور الخياطة كخدمات + الأقمشة من المخزون. */
+export function tailorToInvoiceLines(state: CompanyState, order: TailorOrder): InvoiceLineDraft[] {
+  return [
+    ...order.garments.map((g) => ({ itemId: null, description: `خياطة ${g.description}`, qty: g.qty, price: g.price, ...(g.notes ? { note: g.notes } : {}) })),
+    ...order.fabrics.map((f) => ({ itemId: f.itemId, description: state.items[f.itemId]?.name ?? '', qty: f.qty, price: f.price })),
+  ];
+}
+
+/** مجموع العربون الفعّال (السندات غير الملغاة). */
+export function tailorDeposits(state: CompanyState, order: TailorOrder): number {
+  return order.deposits.filter((d) => !state.voided[d.entryId]).reduce((s, d) => s + d.amount, 0);
+}
+
+/** مجموع الطلب قبل الخصم والضريبة. */
+export function tailorSubtotal(order: Pick<TailorOrder, 'garments' | 'fabrics'>): number {
+  return order.garments.reduce((s, g) => s + Math.round(g.qty * g.price), 0) + order.fabrics.reduce((s, f) => s + Math.round(f.qty * f.price), 0);
 }
