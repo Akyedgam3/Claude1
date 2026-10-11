@@ -337,11 +337,19 @@ export class CompanyStore {
       fs.fsyncSync(this.fd); // لا نعتبر العملية محفوظة قبل وصولها للقرص
     } catch (e) {
       // كتابة ناقصة (القرص ممتلئ مثلاً): نعيد الملف كما كان حتى لا تلتصق بها العملية التالية
+      // على ويندوز ملف الإضافة لا يقبل القص، فنغلقه ونقصّه بالمسار ثم نعيد فتحه
+      const file = path.join(this.dir, JOURNAL);
       try {
-        fs.ftruncateSync(this.fd, size);
+        fs.closeSync(this.fd);
+      } catch {
+        // مغلق مسبقاً
+      }
+      try {
+        fs.truncateSync(file, size);
       } catch {
         // إن فشل القص أيضاً يصلحه الفتح القادم (يزيل السطر الناقص الأخير)
       }
+      this.fd = fs.openSync(file, 'a');
       throw new Error(`تعذّر الحفظ على القرص (${(e as NodeJS.ErrnoException).code ?? 'خطأ'}). تأكد من وجود مساحة كافية ثم أعد المحاولة.`);
     }
     this.seq = seq;
