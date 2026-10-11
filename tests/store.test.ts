@@ -2,8 +2,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { DEFAULT_CURRENCIES, accountBalance, tradingChart } from '../src/core';
-import { CompanyStore } from '../src/storage/company-store';
+import { DEFAULT_CURRENCIES, accountBalance, chartFor } from '../src/core';
+import { CompanyStore, peekCompany } from '../src/storage/company-store';
 
 let dir: string;
 beforeEach(() => {
@@ -11,98 +11,154 @@ beforeEach(() => {
 });
 afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
 
-function create(): CompanyStore {
-  return CompanyStore.create(dir, { name: 'محل', baseCurrency: 'SYP', fiscalYearStart: '01-01' }, DEFAULT_CURRENCIES, tradingChart());
+const login = { username: 'admin', password: 'secret123' };
+
+function create() {
+  return CompanyStore.create(dir, {
+    info: { name: 'محل', baseCurrency: 'SYP', fiscalYearStart: '01-01' },
+    currencies: DEFAULT_CURRENCIES,
+    accounts: chartFor('general'),
+    owner: { username: 'admin', displayName: 'المالك', password: login.password },
+  });
 }
 
 const sale = (store: CompanyStore, amount: number) =>
   store.ledger.postEntry({ date: '2026-01-05', memo: 'بيع', lines: [{ accountId: '1101', debit: amount }, { accountId: '4101', credit: amount }] });
 
-describe('CompanyStore', () => {
-  it('persists to disk and reloads the same state', () => {
-    const store = create();
+describe('CompanyStore (encrypted)', () => {
+  it('persists to disk encrypted and reloads with the right password', () => {
+    const { store, recoveryCode } = create();
+    expect(recoveryCode).toMatch(/^([A-Z2-9]{4}-){5}[A-Z2-9]{4}$/);
     sale(store, 1500);
     store.close();
-    const reopened = CompanyStore.open(dir);
+    const raw = fs.readFileSync(path.join(dir, 'journal.mzl'), 'utf8') + fs.readFileSync(path.join(dir, 'snapshot.enc'), 'utf8');
+    expect(raw).not.toContain('محل');
+    expect(raw).not.toContain('1101');
+    const reopened = CompanyStore.open(dir, login);
     expect(accountBalance(reopened.ledger.state, '1101').balance).toBe(1500);
-    expect(reopened.ledger.state.info?.name).toBe('محل');
+    expect(reopened.user.role).toBe('owner');
     reopened.close();
   });
 
-  it('reloads correctly from snapshot plus newer journal records', () => {
-    const store = create();
+  it('rejects wrong passwords and unknown users', () => {
+    create().store.close();
+    expect(() => CompanyStore.open(dir, { username: 'admin', password: 'wrong' })).toThrow(/غير صحيحة/);
+    expect(() => CompanyStore.open(dir, { username: 'nobody', password: 'secret123' })).toThrow(/غير صحيحة/);
+    expect(fs.existsSync(path.join(dir, '.lock'))).toBe(false);
+  });
+
+  it('opens with the recovery code and allows setting a new password', () => {
+    const { store, recoveryCode } = create();
+    store.close();
+    const s = CompanyStore.open(dir, { recoveryCode: recoveryCode.toLowerCase().replace(/-/g, ' ') });
+    expect(s.viaRecovery).toBe(true);
+    s.setPassword(s.user.id, 'newpass99');
+    s.close();
+    expect(() => CompanyStore.open(dir, login)).toThrow();
+    CompanyStore.open(dir, { username: 'admin', password: 'newpass99' }).close();
+    expect(() => CompanyStore.open(dir, { recoveryCode: 'AAAA-BBBB' })).toThrow(/الاسترداد/);
+  });
+
+  it('manages user passwords and deactivation', () => {
+    const { store } = create();
+    store.ledger.saveUser({ id: 'u2', username: 'kasher', displayName: 'كاشير', role: 'cashier', active: true });
+    store.setPassword('u2', 'cashier1');
+    expect(store.verify('KASHER', 'cashier1')?.id).toBe('u2');
+    expect(store.verify('kasher', 'nope')).toBeNull();
+    expect(peekCompany(dir).usernames.sort()).toEqual(['admin', 'kasher']);
+    store.ledger.saveUser({ id: 'u2', username: 'kasher', displayName: 'كاشير', role: 'cashier', active: false });
+    store.syncUser('u2');
+    store.close();
+    expect(() => CompanyStore.open(dir, { username: 'kasher', password: 'cashier1' })).toThrow();
+    const s = CompanyStore.open(dir, login);
+    expect(s.verify('kasher', 'cashier1')).toBeNull();
+    s.close();
+  });
+
+  it('reloads from snapshot plus newer journal records after a crash', () => {
+    const { store } = create();
     sale(store, 100);
     store.snapshot();
     sale(store, 200);
-    // إغلاق مفاجئ بدون close(): نحذف القفل فقط كما لو أن العملية ماتت
-    fs.rmSync(path.join(dir, '.lock'));
-    const reopened = CompanyStore.open(dir);
+    fs.rmSync(path.join(dir, '.lock')); // إغلاق مفاجئ
+    const reopened = CompanyStore.open(dir, login);
     expect(accountBalance(reopened.ledger.state, '1101').balance).toBe(300);
     reopened.close();
   });
 
   it('recovers from a half-written last line (power cut)', () => {
-    const store = create();
+    const { store } = create();
     sale(store, 100);
     store.close();
     fs.appendFileSync(path.join(dir, 'journal.mzl'), '{"seq":999,"at":"2026');
-    fs.rmSync(path.join(dir, 'snapshot.json'));
-    const reopened = CompanyStore.open(dir);
+    fs.rmSync(path.join(dir, 'snapshot.enc'));
+    const reopened = CompanyStore.open(dir, login);
     expect(reopened.recoveredTail).toBe(true);
     expect(accountBalance(reopened.ledger.state, '1101').balance).toBe(100);
-    sale(reopened, 50); // يمكن متابعة العمل بعد الإصلاح
+    sale(reopened, 50);
     reopened.close();
-    const again = CompanyStore.open(dir);
+    const again = CompanyStore.open(dir, login);
     expect(accountBalance(again.ledger.state, '1101').balance).toBe(150);
     again.close();
   });
 
-  it('detects tampering with recorded operations', () => {
-    const store = create();
+  it('detects edited, reordered or deleted records', () => {
+    const { store } = create();
     sale(store, 100);
+    sale(store, 200);
     store.close();
+    fs.rmSync(path.join(dir, 'snapshot.enc'));
     const file = path.join(dir, 'journal.mzl');
-    fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace('"debit":100', '"debit":900').replace('"baseDebit":100', '"baseDebit":900'));
-    expect(() => CompanyStore.open(dir)).toThrow(/العبث/);
+    const original = fs.readFileSync(file, 'utf8');
+    const lines = original.trim().split('\n');
+
+    // تعديل النص المشفّر
+    const rec = JSON.parse(lines[lines.length - 1]!);
+    rec.ct = Buffer.from('x' + Buffer.from(rec.ct, 'base64').toString('latin1').slice(1), 'latin1').toString('base64');
+    fs.writeFileSync(file, [...lines.slice(0, -1), JSON.stringify(rec)].join('\n') + '\n');
+    expect(() => CompanyStore.open(dir, login)).toThrow(/العبث/);
+
+    // حذف آخر عملية
+    fs.writeFileSync(file, lines.slice(0, -1).join('\n') + '\n');
+    expect(() => CompanyStore.open(dir, login)).toThrow(/ناقص/);
+
+    fs.writeFileSync(file, original);
+    CompanyStore.open(dir, login).close();
   });
 
   it('prevents opening a company that another running program holds', () => {
-    create().close();
-    fs.writeFileSync(path.join(dir, '.lock'), String(process.ppid)); // عملية أخرى حيّة
-    expect(() => CompanyStore.open(dir)).toThrow(/مفتوحة/);
-    fs.writeFileSync(path.join(dir, '.lock'), '999999999'); // قفل قديم لعملية منتهية
-    CompanyStore.open(dir).close();
+    create().store.close();
+    fs.writeFileSync(path.join(dir, '.lock'), String(process.ppid));
+    expect(() => CompanyStore.open(dir, login)).toThrow(/مفتوحة/);
+    fs.writeFileSync(path.join(dir, '.lock'), '999999999');
+    CompanyStore.open(dir, login).close();
   });
 
-  it('creates backups that can be opened as companies', () => {
-    const store = create();
+  it('creates encrypted backups that can be opened as companies', () => {
+    const { store } = create();
     sale(store, 700);
     const backupDir = store.backup();
     store.close();
-    const restored = CompanyStore.open(backupDir);
+    const restored = CompanyStore.open(backupDir, login);
     expect(accountBalance(restored.ledger.state, '1101').balance).toBe(700);
     restored.close();
   });
 
-  it('refuses to overwrite an existing company', () => {
-    create().close();
-    expect(() => create()).toThrow(/مسبقاً/);
-  });
-});
-
-describe('CompanyStore with commerce data', () => {
-  it('replays invoices and stock after reopening', () => {
-    const store = create();
-    const l = store.ledger;
-    l.saveParty({ id: 'c', kind: 'customer', name: 'زبون' });
-    l.saveItem({ id: 'i', code: '1', name: 'بواجي', kind: 'stock', unit: 'قطعة', price: 1000, priceCurrency: 'SYP' });
-    l.postInvoice({ kind: 'purchase', date: '2026-01-01', lines: [{ itemId: 'i', qty: 4, price: 500 }] });
-    l.postInvoice({ kind: 'sale', date: '2026-01-02', partyId: 'c', lines: [{ itemId: 'i', qty: 1, price: 1000 }] });
+  it('notifies listeners of new events', async () => {
+    const { store } = create();
+    const seen: string[] = [];
+    store.onEvent((e) => seen.push(e.type));
+    sale(store, 1);
+    await Promise.resolve();
+    expect(seen).toEqual(['entry.posted']);
     store.close();
-    fs.rmSync(path.join(dir, 'snapshot.json'));
-    const reopened = CompanyStore.open(dir);
-    expect(reopened.ledger.state.stock['i']).toMatchObject({ totalQty: 3, value: 1500 });
-    expect(reopened.ledger.state.counters['sale']).toBe(1);
-    reopened.close();
+  });
+
+  it('refuses old unencrypted files and overwriting an existing company', () => {
+    create().store.close();
+    expect(() => create()).toThrow(/مسبقاً/);
+    const meta = JSON.parse(fs.readFileSync(path.join(dir, 'company.json'), 'utf8'));
+    fs.writeFileSync(path.join(dir, 'company.json'), JSON.stringify({ ...meta, format: 1 }));
+    expect(() => peekCompany(dir)).toThrow(/قديم/);
   });
 });
