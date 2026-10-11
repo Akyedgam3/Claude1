@@ -9,9 +9,9 @@
     "typecheck": "tsc --noEmit",
     "license:keygen": "tsx scripts/license-keygen.ts",
     "dev": "electron-vite dev",
-    "build": "electron-vite build",
+    "build": "NODE_ENV=production electron-vite build",
     "start": "electron-vite preview",
-    "dist:win": "electron-vite build && electron-builder --win nsis",
+    "dist:win": "npm run build && electron-builder --win nsis",
     "admin": "tsx admin/server.ts"
   },
   "devDependencies": {
@@ -41,7 +41,8 @@
       "output": "dist"
     },
     "files": [
-      "out/**/*"
+      "out/**/*",
+      "!**/*.map"
     ],
     "win": {
       "target": [
@@ -58,6 +59,15 @@
       "allowToChangeInstallationDirectory": true,
       "language": "1025",
       "shortcutName": "ميزان"
-    }
+    },
+    "electronFuses": {
+      "runAsNode": false,
+      "enableCookieEncryption": true,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "enableEmbeddedAsarIntegrityValidation": true,
+      "onlyLoadAppFromAsar": true
+    },
+    "asar": true
   }
 }
