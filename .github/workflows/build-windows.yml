@@ -1,5 +1,5 @@
 # يبني ملف تنصيب ويندوز (Mizan Setup.exe) على جهاز ويندوز حقيقي في GitHub.
-# التنزيل: صفحة Actions ← آخر تشغيل ← Artifacts ← Mizan-Windows
+# التنزيل: صفحة Actions ← آخر تشغيل لـ "Build Windows installer" ← Artifacts ← Mizan-Windows
 name: Build Windows installer
 
 on:

@@ -1,6 +1,6 @@
 {
   "name": "mizan",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "ميزان - نظام محاسبة لسطح المكتب يعمل بدون إنترنت",
   "type": "module",
@@ -9,10 +9,11 @@
     "typecheck": "tsc --noEmit",
     "license:keygen": "tsx scripts/license-keygen.ts",
     "dev": "electron-vite dev",
-    "build": "NODE_ENV=production electron-vite build",
+    "build": "electron-vite build",
     "start": "electron-vite preview",
     "dist:win": "npm run build && electron-builder --win nsis",
-    "admin": "tsx admin/server.ts"
+    "admin": "tsx admin/server.ts",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",
