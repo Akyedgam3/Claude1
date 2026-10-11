@@ -3,6 +3,7 @@ import type { Appointment, AppointmentStatus, Invoice } from '../../../core';
 import { addDays, dateText, money, parseAmount, today, toInput, uid, useCompany } from '../api';
 import { Empty, Field, itemOptions, Modal, PageHeader, partyOptions, Picker } from '../components/ui';
 import { PartyForm } from './Parties';
+import { Icon } from '../components/icons';
 
 const STATUS: Record<AppointmentStatus, string> = { booked: 'محجوز', arrived: 'حضر', done: 'منتهٍ', cancelled: 'ملغى', no_show: 'لم يحضر' };
 
@@ -18,9 +19,9 @@ export function Appointments() {
   return (
     <div className="page">
       <PageHeader title="المواعيد">
-        <button onClick={() => setDay(addDays(day, -1))}>→ السابق</button>
+        <button onClick={() => setDay(addDays(day, -1))}><Icon name="prev" size={16} /> السابق</button>
         <input type="date" value={day} onChange={(e) => setDay(e.target.value)} />
-        <button onClick={() => setDay(addDays(day, 1))}>التالي ←</button>
+        <button onClick={() => setDay(addDays(day, 1))}>التالي <Icon name="next" size={16} /></button>
         <button onClick={() => setDay(today())}>اليوم</button>
         <button className="primary" onClick={() => setEditing('new')}>
           + موعد

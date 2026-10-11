@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ACTIVITY_LIST } from '../../../core';
 import logo from '../assets/logo.png';
+import { Icon } from '../components/icons';
 import { api, type AppInfo, type CompanyPeek } from '../api';
 import { Field, Modal } from '../components/ui';
 
@@ -134,7 +135,9 @@ function NewCompany({ notify, onCreated }: { notify: (m: string, k?: 'ok' | 'err
       <div className="activity-grid">
         {ACTIVITY_LIST.map((a) => (
           <button key={a.id} type="button" className={`activity ${f.activity === a.id ? 'active' : ''}`} onClick={() => setF({ ...f, activity: a.id })}>
-            <span className="activity-icon">{a.icon}</span>
+            <span className="activity-icon" style={{ background: a.color }}>
+              <Icon name={a.icon} size={22} />
+            </span>
             <strong>{a.name}</strong>
             <small>{a.description}</small>
           </button>

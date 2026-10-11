@@ -1,8 +1,10 @@
 import { useMemo } from 'react';
 import { accountBalance, balancesByCurrency, expiringBatches, findRate, incomeStatement, stockReport } from '../../../core';
 import { dateText, money, qtyText, today, useCompany } from '../api';
-import { PageHeader, Stat } from '../components/ui';
+import { Stat } from '../components/ui';
 import { STATUS_NAMES } from './Repairs';
+import { TAILOR_STATUS } from './Tailor';
+import { Icon } from '../components/icons';
 
 export function Dashboard() {
   const { state, navigate, can, feature, profile, user } = useCompany();
@@ -27,6 +29,9 @@ export function Dashboard() {
       expiring: expiringBatches(state, d, 30).slice(0, 15),
       openRepairs: Object.values(state.repairs).filter((r) => r.status !== 'invoiced' && r.status !== 'cancelled'),
       openOrders: Object.values(state.orders).filter((o) => o.status === 'open'),
+      tailor: Object.values(state.tailorOrders)
+        .filter((o) => !o.invoiceId && o.status !== 'cancelled' && o.status !== 'delivered')
+        .sort((a, b) => (a.fittingDate && a.fittingDate >= d ? a.fittingDate : a.dueDate ?? '9999').localeCompare(b.fittingDate && b.fittingDate >= d ? b.fittingDate : b.dueDate ?? '9999')),
       appointments: Object.values(state.appointments).filter((a) => a.date === d && a.status !== 'cancelled').sort((a, b) => a.time.localeCompare(b.time)),
       usd: base === 'USD' ? 1 : findRate(state, 'USD', d),
     };
@@ -36,46 +41,57 @@ export function Dashboard() {
 
   return (
     <div className="page">
-      <PageHeader title={`أهلاً ${user.displayName}`}>
-        <span className="muted">
-          {profile.icon} {state.info?.name} · {dateText(d)}
+      <div className="activity-hero">
+        <span className="activity-badge">
+          <Icon name={profile.icon} size={30} />
         </span>
-      </PageHeader>
+        <div>
+          <h1>أهلاً {user.displayName}</h1>
+          <div className="muted">
+            {state.info?.name} · {profile.name} · {dateText(d)}
+          </div>
+        </div>
+      </div>
 
       <div className="quick-actions">
         {feature('pos') && can('pos.use') && (
           <button className="primary big" onClick={() => navigate('pos')}>
-            ▣ نقطة البيع
+            <Icon name="pos" size={20} /> نقطة البيع
           </button>
         )}
         {feature('tables') && can('restaurant.use') && (
           <button className="primary big" onClick={() => navigate('restaurant')}>
-            🍽 الطاولات
+            <Icon name="utensils" size={20} /> الطاولات
+          </button>
+        )}
+        {feature('tailoring') && can('tailoring.manage') && (
+          <button className="primary big accent" onClick={() => navigate('tailor-order')}>
+            <Icon name="scissors" size={20} /> طلب تفصيل جديد
           </button>
         )}
         {can('sales.create') && (
           <button className="primary big" onClick={() => navigate('sale')}>
-            + فاتورة مبيع
+            <Icon name="plus" size={20} /> فاتورة مبيع
           </button>
         )}
         {feature('repairs') && can('repairs.manage') && (
           <button className="primary big accent" onClick={() => navigate('repair')}>
-            + أمر صيانة
+            <Icon name="wrench" size={20} /> أمر صيانة
           </button>
         )}
         {feature('appointments') && can('appointments.manage') && (
           <button className="primary big accent" onClick={() => navigate('appointments')}>
-            🗓 المواعيد
+            <Icon name="calendar" size={20} /> المواعيد
           </button>
         )}
         {can('purchases.create') && (
           <button className="big" onClick={() => navigate('purchase')}>
-            + فاتورة شراء
+            <Icon name="purchase" size={20} /> فاتورة شراء
           </button>
         )}
         {can('vouchers.create') && (
           <button className="big" onClick={() => navigate('vouchers')}>
-            سند قبض / دفع
+            <Icon name="wallet" size={20} /> سند قبض / دفع
           </button>
         )}
       </div>
@@ -129,6 +145,29 @@ export function Dashboard() {
             )}
           </section>
         )}
+        {feature('tailoring') && (
+          <section className="card">
+            <h3>طلبات التفصيل الجارية ({data.tailor.length})</h3>
+            {data.tailor.length === 0 ? (
+              <p className="muted">لا توجد طلبات جارية</p>
+            ) : (
+              <table className="table compact">
+                <tbody>
+                  {data.tailor.slice(0, 12).map((o) => (
+                    <tr key={o.id} className={`clickable ${o.dueDate && o.dueDate < d ? 'late' : ''}`} onClick={() => navigate('tailor-order', o.id)}>
+                      <td className="mono">{o.number}</td>
+                      <td>{state.parties[o.partyId]?.name}</td>
+                      <td>{o.fittingDate && o.fittingDate >= d ? `بروفة ${dateText(o.fittingDate)}` : o.dueDate ? `تسليم ${dateText(o.dueDate)}` : ''}</td>
+                      <td>
+                        <span className={`status ${o.status === 'ready' ? 'done' : o.status === 'received' ? 'open' : 'in_progress'}`}>{TAILOR_STATUS[o.status]}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
+        )}
         {feature('tables') && (
           <section className="card clickable" onClick={() => navigate('restaurant')}>
             <h3>الطلبات المفتوحة ({data.openOrders.length})</h3>
@@ -157,7 +196,7 @@ export function Dashboard() {
         )}
         {can('reports.stock') && (
           <section className="card">
-            <h3>نواقص المخزون ({data.low.length})</h3>
+            <h3>نواقص {profile.itemsLabel} ({data.low.length})</h3>
             {data.low.length === 0 ? (
               <p className="muted">لا توجد نواقص</p>
             ) : (

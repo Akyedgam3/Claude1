@@ -6,6 +6,7 @@ import { cashAccounts } from './InvoiceEditor';
 import { repairTotal, STATUS_NAMES } from './Repairs';
 import { assetLabel, useAssetKind, VehicleForm } from './Vehicles';
 import { DocHeader, PrintButtons } from '../components/print';
+import { Icon } from '../components/icons';
 
 interface PartRow {
   key: string;
@@ -211,7 +212,7 @@ export function RepairEditor({ id }: { id?: string }) {
                       </td>
                       <td>
                         <button type="button" className="icon" onClick={() => setParts(parts.filter((x) => x.key !== p.key))}>
-                          ✕
+                          <Icon name="close" size={16} />
                         </button>
                       </td>
                     </tr>
@@ -258,7 +259,7 @@ export function RepairEditor({ id }: { id?: string }) {
                     </td>
                     <td>
                       <button type="button" className="icon" onClick={() => setLabor(labor.filter((x) => x.key !== l.key))}>
-                        ✕
+                        <Icon name="close" size={16} />
                       </button>
                     </td>
                   </tr>

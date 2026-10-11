@@ -5,6 +5,7 @@ import { DocHeader, usePrinter } from '../components/print';
 import { ConfirmButton, Empty, matches, PageHeader } from '../components/ui';
 import { InvoiceDocument } from './InvoiceView';
 import { itemPrice } from './InvoiceEditor';
+import { Icon } from '../components/icons';
 
 const TYPE_NAMES: Record<OrderType, string> = { dine_in: 'صالة', takeaway: 'سفري', delivery: 'توصيل' };
 
@@ -135,7 +136,7 @@ function OrderPanel({ order, onBack }: { order: Order; onBack: () => void }) {
   return (
     <div className="page">
       <PageHeader title={`${table ? table.name : TYPE_NAMES[order.type]} — طلب ${order.number}`}>
-        <button onClick={onBack}>← رجوع</button>
+        <button onClick={onBack}><Icon name="prev" size={16} /> رجوع</button>
         <button onClick={sendToKitchen} disabled={!lines.some((l) => !l.sent) && !dirty}>
           حفظ وإرسال للمطبخ
         </button>
@@ -191,7 +192,7 @@ function OrderPanel({ order, onBack }: { order: Order; onBack: () => void }) {
                   </button>
                 </div>
                 <strong className="num">{money(state, Math.round(l.qty * l.price))}</strong>
-                {l.sent ? <span className="tag">بالمطبخ</span> : <button className="icon" onClick={() => setLines(lines.filter((x) => x.id !== l.id))}>✕</button>}
+                {l.sent ? <span className="tag">بالمطبخ</span> : <button className="icon" onClick={() => setLines(lines.filter((x) => x.id !== l.id))}><Icon name="close" size={16} /></button>}
               </div>
             ))}
           </div>
@@ -241,7 +242,7 @@ function OrderPanel({ order, onBack }: { order: Order; onBack: () => void }) {
                 <strong>
                   {qtyText(l.qty)} × {state.items[l.itemId]?.name}
                 </strong>
-                {l.note && <div>⚠ {l.note}</div>}
+                {l.note && <div><Icon name="warning" size={14} /> {l.note}</div>}
               </div>
             ))}
           </div>

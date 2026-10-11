@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_CURRENCIES, Ledger, accountBalance, chartFor, defaultTaxes, hasFeature, incomeStatement, partyBalance, permissionFor, trialBalance, type TailorOrderDraft } from '../src/core';
+import { DEFAULT_CURRENCIES, Ledger, accountBalance, chartFor, defaultTaxes, effectiveProfile, hasFeature, incomeStatement, partyBalance, permissionFor, trialBalance, type TailorOrderDraft } from '../src/core';
 
 function shop() {
   const l = new Ledger(() => {});
@@ -98,5 +98,28 @@ describe('tailoring', () => {
     expect(inv.paid).toBe(0);
     expect(partyBalance(l.state, 'c').base).toBe(-500);
     balanced(l);
+  });
+});
+
+describe('activity customization', () => {
+  it('lets any business turn features on/off and set its own lists', () => {
+    const l = shop();
+    expect(effectiveProfile(l.state.info).features).toContain('tailoring');
+    l.updateCompany({ customize: { featuresOn: ['appointments', 'recipes'], featuresOff: ['pos'], categories: ['عبايات'], units: ['متر'], attributes: ['اللون'], itemsLabel: 'الأقمشة' } });
+    const p = effectiveProfile(l.state.info);
+    expect(p.features).toEqual(expect.arrayContaining(['tailoring', 'appointments', 'recipes', 'units']));
+    expect(p.features).not.toContain('pos');
+    expect(p.categories).toEqual(['عبايات']);
+    expect(p.attributes).toEqual(['اللون']);
+    expect(p.itemsLabel).toBe('الأقمشة');
+    expect(p.itemLabel).toBe('مادة');
+    // تغيير النشاط مسموح، والنشاط غير المعروف مرفوض
+    l.updateCompany({ activity: 'clothing' });
+    expect(effectiveProfile(l.state.info).name).toBe('ألبسة وأحذية');
+    expect(() => l.updateCompany({ activity: 'nope' as never })).toThrow(/نشاط/);
+    expect(() => l.updateCompany({ customize: { categories: [1 as never] } })).toThrow(/تخصيص/);
+    // ميزة غير معروفة تُتجاهل بدل أن تكسر البرنامج
+    l.updateCompany({ customize: { featuresOn: ['hack'] } });
+    expect(effectiveProfile(l.state.info).features).not.toContain('hack');
   });
 });

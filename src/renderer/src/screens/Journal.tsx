@@ -3,6 +3,7 @@ import type { JournalEntry } from '../../../core';
 import { dateText, major, money, parseAmount, today, uid, useCompany } from '../api';
 import { ExportButtons } from '../components/print';
 import { ConfirmButton, CurrencySelect, Field, matches, PageHeader, partyOptions, Picker, SearchBox } from '../components/ui';
+import { Icon } from '../components/icons';
 
 interface Row {
   key: string;
@@ -114,7 +115,7 @@ export function Journal() {
                   </td>
                   <td>
                     <button className="icon" onClick={() => setRows((rs) => (rs.length > 2 ? rs.filter((x) => x.key !== r.key) : rs))}>
-                      ✕
+                      <Icon name="close" size={16} />
                     </button>
                   </td>
                 </tr>

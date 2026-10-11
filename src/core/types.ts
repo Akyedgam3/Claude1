@@ -107,6 +107,18 @@ export interface CompanyInfo {
   allowNegativeStock?: boolean;
   print?: PrintSettings;
   scale?: ScaleSettings;
+  customize?: ActivityCustomization;
+}
+
+/** تخصيص النشاط من قبل المستخدم: تشغيل/إيقاف ميزات، وقوائم خاصة به. */
+export interface ActivityCustomization {
+  featuresOn?: string[]; // ميزات إضافية فوق ميزات النشاط
+  featuresOff?: string[]; // ميزات النشاط التي لا يريدها
+  categories?: string[]; // التصنيفات المقترحة (تحل محل قائمة النشاط)
+  units?: string[]; // الوحدات المقترحة
+  attributes?: string[]; // حقول إضافية للمادة (مقاس، لون، بلد المنشأ...)
+  itemLabel?: string; // اسم المادة المفرد (قطعة، صنف، قماش...)
+  itemsLabel?: string;
 }
 
 // ───────────── المستخدمون والصلاحيات ─────────────

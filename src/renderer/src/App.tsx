@@ -5,6 +5,7 @@ import type { LicenseStatus } from '../../license/manager';
 import { api, Company, makeCtxHelpers, type AppInfo, type CompanyCtx } from './api';
 import logoSmall from './assets/logo-64.png';
 import logo from './assets/logo.png';
+import { Icon } from './components/icons';
 import { Accounts } from './screens/Accounts';
 import { Appointments } from './screens/Appointments';
 import { Dashboard } from './screens/Dashboard';
@@ -23,6 +24,7 @@ import { Repairs } from './screens/Repairs';
 import { Reports } from './screens/Reports';
 import { Restaurant } from './screens/Restaurant';
 import { Settings } from './screens/Settings';
+import { TailorEditor, TailorOrders } from './screens/Tailor';
 import { StockOps } from './screens/StockOps';
 import { Users } from './screens/Users';
 import { Vehicles } from './screens/Vehicles';
@@ -40,30 +42,31 @@ interface NavItem {
 }
 
 const NAV: (NavItem | string)[] = [
-  { key: 'dashboard', label: 'الرئيسية', icon: '⌂' },
+  { key: 'dashboard', label: 'الرئيسية', icon: 'home' },
   'العمليات',
-  { key: 'pos', label: 'نقطة البيع', icon: '▣', feature: 'pos', perm: 'pos.use' },
-  { key: 'restaurant', label: 'الطاولات والطلبات', icon: '🍽', feature: 'tables', perm: 'restaurant.use' },
-  { key: 'sale', label: 'فاتورة مبيع', icon: '＋', perm: 'sales.create' },
-  { key: 'repairs', label: 'أوامر الصيانة', icon: '🔧', feature: 'repairs', perm: 'repairs.manage' },
-  { key: 'appointments', label: 'المواعيد', icon: '🗓', feature: 'appointments', perm: 'appointments.manage' },
-  { key: 'purchase', label: 'فاتورة شراء', icon: '⇣', perm: 'purchases.create' },
-  { key: 'vouchers', label: 'سندات القبض والدفع', icon: '₪', perm: 'vouchers.create' },
-  { key: 'invoices', label: 'سجل الفواتير', icon: '☰' },
+  { key: 'pos', label: 'نقطة البيع', icon: 'pos', feature: 'pos', perm: 'pos.use' },
+  { key: 'restaurant', label: 'الطاولات والطلبات', icon: 'utensils', feature: 'tables', perm: 'restaurant.use' },
+  { key: 'sale', label: 'فاتورة مبيع', icon: 'plus', perm: 'sales.create' },
+  { key: 'repairs', label: 'أوامر الصيانة', icon: 'wrench', feature: 'repairs', perm: 'repairs.manage' },
+  { key: 'appointments', label: 'المواعيد', icon: 'calendar', feature: 'appointments', perm: 'appointments.manage' },
+  { key: 'tailor', label: 'طلبات التفصيل', icon: 'scissors', feature: 'tailoring', perm: 'tailoring.manage' },
+  { key: 'purchase', label: 'فاتورة شراء', icon: 'purchase', perm: 'purchases.create' },
+  { key: 'vouchers', label: 'سندات القبض والدفع', icon: 'wallet', perm: 'vouchers.create' },
+  { key: 'invoices', label: 'سجل الفواتير', icon: 'receipt' },
   'المخزون والبطاقات',
-  { key: 'items', label: 'المواد', icon: '▦' },
-  { key: 'stock', label: 'عمليات المخزون', icon: '⇄', perms: ['stock.adjust', 'stock.transfer'] },
-  { key: 'production', label: 'الإنتاج', icon: '⚙', feature: 'production', perm: 'production.manage' },
-  { key: 'parties', label: 'العملاء والموردون', icon: '☺' },
-  { key: 'vehicles', label: 'السيارات والأجهزة', icon: '🚗', features: ['vehicles', 'devices'], perm: 'repairs.manage' },
+  { key: 'items', label: 'المواد', icon: 'package' },
+  { key: 'stock', label: 'عمليات المخزون', icon: 'transfer', perms: ['stock.adjust', 'stock.transfer'] },
+  { key: 'production', label: 'الإنتاج', icon: 'factory', feature: 'production', perm: 'production.manage' },
+  { key: 'parties', label: 'العملاء والموردون', icon: 'users' },
+  { key: 'vehicles', label: 'السيارات والأجهزة', icon: 'car', features: ['vehicles', 'devices'], perm: 'repairs.manage' },
   'المحاسبة',
-  { key: 'reports', label: 'التقارير', icon: '▤', perms: ['reports.financial', 'reports.stock'] },
-  { key: 'journal', label: 'القيود اليومية', icon: '✎', perm: 'journal.create' },
-  { key: 'rates', label: 'سعر الدولار', icon: '$', perm: 'rates.manage' },
-  { key: 'accounts', label: 'دليل الحسابات', icon: '⌗', perm: 'accounts.manage' },
+  { key: 'reports', label: 'التقارير', icon: 'reports', perms: ['reports.financial', 'reports.stock'] },
+  { key: 'journal', label: 'القيود اليومية', icon: 'journal', perm: 'journal.create' },
+  { key: 'rates', label: 'سعر الدولار', icon: 'dollar', perm: 'rates.manage' },
+  { key: 'accounts', label: 'دليل الحسابات', icon: 'accounts', perm: 'accounts.manage' },
   'الإدارة',
-  { key: 'users', label: 'المستخدمون', icon: '👤', perm: 'users.manage' },
-  { key: 'settings', label: 'الإعدادات', icon: '⚙' },
+  { key: 'users', label: 'المستخدمون', icon: 'user-cog', perm: 'users.manage' },
+  { key: 'settings', label: 'الإعدادات', icon: 'settings' },
 ];
 
 /** نسخة سطحية جديدة لكل مجموعة حتى تلاحظ React التغيير بعد تطبيق الأحداث. */
@@ -205,7 +208,7 @@ export function App() {
 
   return (
     <Company.Provider value={ctx}>
-      <div className="shell">
+      <div className="shell" style={{ ['--activity' as string]: ctx.profile.color }}>
         <aside className="sidebar">
           <div className="brand">
             <div className="logo">
@@ -213,7 +216,7 @@ export function App() {
               ميزان
             </div>
             <div className="company-name">
-              {ctx.profile.icon} {ctx.state.info?.name}
+              <Icon name={ctx.profile.icon} size={16} /> {ctx.state.info?.name}
             </div>
             <div className="user-chip">
               {ctx.user.displayName} · {ROLE_NAMES[ctx.user.role]}
@@ -228,7 +231,7 @@ export function App() {
                 </div>
               ) : (
                 <button key={n.key} className={screen.key === n.key ? 'active' : ''} onClick={() => navigate(n.key)}>
-                  <span className="nav-icon">{n.icon}</span>
+                  <Icon name={n.icon} className="nav-icon" />
                   {n.label}
                 </button>
               ),
@@ -247,7 +250,7 @@ export function App() {
               await loadInfo();
             }}
           >
-            تسجيل الخروج
+            <Icon name="logout" size={16} /> تسجيل الخروج
           </button>
         </aside>
         <main className="content">
@@ -286,6 +289,10 @@ function Screen({ screen }: { screen: { key: string; param?: string } }) {
       return <RepairEditor key={p ?? 'new'} {...(p ? { id: p } : {})} />;
     case 'appointments':
       return <Appointments />;
+    case 'tailor':
+      return <TailorOrders />;
+    case 'tailor-order':
+      return <TailorEditor key={p ?? 'new'} {...(p ? { id: p } : {})} />;
     case 'vehicles':
       return <Vehicles />;
     case 'items':

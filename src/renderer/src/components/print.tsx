@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import type { Paper } from '../../../core';
 import { api, useCompany, type ExportSheet } from '../api';
+import { Icon } from './icons';
 
 export type DocKind = 'invoice' | 'receipt' | 'kitchen' | 'label' | 'report';
 
@@ -70,7 +71,7 @@ export function PrintButtons({ kind, name, papers }: { kind: DocKind; name: stri
           ))}
         </select>
       )}
-      <button onClick={() => printer.print(kind, paper)}>🖨 طباعة</button>
+      <button onClick={() => printer.print(kind, paper)}><Icon name="printer" size={16} /> طباعة</button>
       <button onClick={() => printer.pdf(name, paper)}>PDF</button>
     </span>
   );

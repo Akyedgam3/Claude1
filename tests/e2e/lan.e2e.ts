@@ -37,7 +37,7 @@ test('a second device connects to the main device over the local network', async
 
     // عملية من الجهاز الفرعي تظهر مباشرة على الجهاز الرئيسي
     await nav(cp, 'العملاء والموردون');
-    await cp.getByRole('button', { name: '+ إضافة' }).click();
+    await cp.getByRole('button', { name: 'إضافة', exact: true }).click();
     await cp.locator('.modal .field', { hasText: 'الاسم' }).locator('input').fill('زبون من الكاشير الثاني');
     await cp.locator('.modal').getByRole('button', { name: 'حفظ' }).click();
     await toast(cp, 'تم الحفظ');
@@ -46,7 +46,7 @@ test('a second device connects to the main device over the local network', async
     await expect(hp.locator('table')).toContainText('زبون من الكاشير الثاني');
 
     // والعكس: عملية من الجهاز الرئيسي تصل للفرعي
-    await hp.getByRole('button', { name: '+ إضافة' }).click();
+    await hp.getByRole('button', { name: 'إضافة', exact: true }).click();
     await hp.locator('.modal .field', { hasText: 'الاسم' }).locator('input').fill('مورد من الجهاز الرئيسي');
     await hp.locator('.modal select').first().selectOption('supplier');
     await hp.locator('.modal').getByRole('button', { name: 'حفظ' }).click();

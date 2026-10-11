@@ -5,6 +5,7 @@ import { usePrinter } from '../components/print';
 import { matches, partyOptions, Picker, ScanInput } from '../components/ui';
 import { InvoiceDocument } from './InvoiceView';
 import { itemPrice } from './InvoiceEditor';
+import { Icon } from '../components/icons';
 
 interface CartLine {
   key: string;
@@ -139,7 +140,7 @@ export function Pos() {
           <Picker options={partyOptions(state, 'customer')} value={partyId} onChange={setPartyId} placeholder="زبون نقدي" />
           {partyId && (
             <button className="icon" onClick={() => setPartyId(null)}>
-              ✕
+              <Icon name="close" size={16} />
             </button>
           )}
         </div>
@@ -165,7 +166,7 @@ export function Pos() {
                 </div>
                 <strong className="num">{money(state, Math.round(l.qty * l.price))}</strong>
                 <button className="icon" onClick={() => setCart(cart.filter((x) => x.key !== l.key))}>
-                  ✕
+                  <Icon name="close" size={16} />
                 </button>
               </div>
             );

@@ -1,4 +1,5 @@
 import { applyCommerceEvent, buildInvoice, repairToInvoiceLines, tailorDeposits, tailorToInvoiceLines, validateCommerceEvent, type InvoiceDraft, type InvoiceLineDraft } from './commerce';
+import { ACTIVITIES } from './activities';
 import { SYSTEM_ACCOUNTS } from './chart-templates';
 import { ALLOWED_CURRENCIES, convertMinor, type Currency } from './money';
 import {
@@ -164,6 +165,13 @@ export function validateEvent(state: CompanyState, event: CompanyEvent): void {
       }
       if ('lockedUntil' in event.info) fail('استخدم إقفال الفترة لتغيير تاريخ الإقفال');
       if (event.info.print?.logo && event.info.print.logo.length > 400_000) fail('حجم الشعار كبير، اختر صورة أصغر من 300 كيلوبايت');
+      if (event.info.activity !== undefined && !(event.info.activity in ACTIVITIES)) fail('نوع نشاط غير معروف');
+      if (event.info.customize) {
+        const c = event.info.customize;
+        for (const list of [c.featuresOn, c.featuresOff, c.categories, c.units, c.attributes]) {
+          if (list !== undefined && (!Array.isArray(list) || list.length > 500 || list.some((x) => typeof x !== 'string' || x.length > 80))) fail('قائمة تخصيص غير صالحة');
+        }
+      }
       return;
     case 'currency.saved':
       if (!ALLOWED_CURRENCIES.has(event.currency.code)) fail('العملات المدعومة: الليرة السورية الجديدة والدولار فقط');

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { DEFAULT_SCALE, type Paper, type PrintSettings } from '../../../core';
+import { ACTIVITIES, ACTIVITY_LIST, ALL_FEATURES, DEFAULT_SCALE, FEATURE_INFO, type Activity, type ActivityCustomization, type Feature, type Paper, type PrintSettings } from '../../../core';
+import { Icon } from '../components/icons';
 import { api, dateText, today, useCompany, type LanStatus } from '../api';
 import { PAPER_NAMES } from '../components/print';
 import { Field, Modal, PageHeader, Tabs } from '../components/ui';
 
-type Tab = 'company' | 'print' | 'taxes' | 'lan' | 'backup' | 'period' | 'account' | 'license';
+type Tab = 'company' | 'customize' | 'print' | 'taxes' | 'lan' | 'backup' | 'period' | 'account' | 'license';
 
 export function Settings({ tab: initial }: { tab?: string }) {
   const { can, session, user } = useCompany();
@@ -18,6 +19,7 @@ export function Settings({ tab: initial }: { tab?: string }) {
         onChange={setTab}
         tabs={[
           { key: 'company', label: 'الشركة', hidden: !can('settings.manage') },
+          { key: 'customize', label: 'تخصيص النشاط', hidden: !can('settings.manage') },
           { key: 'print', label: 'الطباعة والفواتير', hidden: !can('settings.manage') },
           { key: 'taxes', label: 'الضرائب والمخزون', hidden: !can('settings.manage') },
           { key: 'lan', label: 'الشبكة المحلية', hidden: !local || !can('settings.manage') },
@@ -28,6 +30,7 @@ export function Settings({ tab: initial }: { tab?: string }) {
         ]}
       />
       {tab === 'company' && <CompanyTab />}
+      {tab === 'customize' && <CustomizeTab />}
       {tab === 'print' && <PrintTab />}
       {tab === 'taxes' && <TaxesTab />}
       {tab === 'lan' && <LanTab />}
@@ -46,7 +49,7 @@ function CompanyTab() {
   return (
     <section className="card">
       <p className="muted">
-        نوع النشاط: {profile.icon} {profile.name} · العملة الأساسية: {state.currencies[c.baseCurrency]?.nameAr}
+        نوع النشاط: {profile.name} · العملة الأساسية: {state.currencies[c.baseCurrency]?.nameAr}
       </p>
       <form
         className="form-grid"
@@ -72,6 +75,153 @@ function CompanyTab() {
         </div>
       </form>
     </section>
+  );
+}
+
+/** حرية كاملة: كل محل يشغّل الميزات التي يحتاجها ويكتب تصنيفاته ووحداته وحقوله. */
+function CustomizeTab() {
+  const { state, call, notify } = useCompany();
+  const info = state.info!;
+  const [activity, setActivity] = useState<Activity>(info.activity ?? 'general');
+  const base = ACTIVITIES[activity];
+  const c = info.customize ?? {};
+  const initialFeatures = new Set<Feature>([...base.features.filter((f) => !(c.featuresOff ?? []).includes(f)), ...((c.featuresOn ?? []) as Feature[])]);
+  const [features, setFeatures] = useState<Set<Feature>>(initialFeatures);
+  const [categories, setCategories] = useState<string[]>(c.categories ?? base.categories);
+  const [units, setUnits] = useState<string[]>(c.units ?? base.units);
+  const [attributes, setAttributes] = useState<string[]>(c.attributes ?? base.attributes ?? []);
+  const [itemLabel, setItemLabel] = useState(c.itemLabel ?? '');
+  const [itemsLabel, setItemsLabel] = useState(c.itemsLabel ?? '');
+
+  const changeActivity = (a: Activity) => {
+    setActivity(a);
+    // عند تغيير النشاط نقترح ميزاته وقوائمه، ويبقى للمستخدم تعديلها
+    setFeatures(new Set(ACTIVITIES[a].features));
+    setCategories(ACTIVITIES[a].categories);
+    setUnits(ACTIVITIES[a].units);
+    setAttributes(ACTIVITIES[a].attributes ?? []);
+  };
+
+  const save = async () => {
+    const b = ACTIVITIES[activity];
+    const customize: ActivityCustomization = {
+      featuresOn: ALL_FEATURES.filter((f) => features.has(f) && !b.features.includes(f)),
+      featuresOff: b.features.filter((f) => !features.has(f)),
+      categories,
+      units,
+      attributes,
+      ...(itemLabel.trim() ? { itemLabel: itemLabel.trim() } : {}),
+      ...(itemsLabel.trim() ? { itemsLabel: itemsLabel.trim() } : {}),
+    };
+    if (await call('updateCompany', { activity, customize })) notify('تم حفظ التخصيص. القوائم والشاشات تحدّثت.');
+  };
+
+  return (
+    <>
+      <section className="card">
+        <h3>نوع النشاط</h3>
+        <p className="muted">تغيير النشاط لا يمس الحسابات أو الفواتير؛ يغيّر فقط الشاشات والاقتراحات.</p>
+        <div className="activity-grid compact">
+          {ACTIVITY_LIST.map((a) => (
+            <button key={a.id} type="button" className={`activity ${activity === a.id ? 'active' : ''}`} onClick={() => changeActivity(a.id)}>
+              <span className="activity-icon" style={{ background: a.color }}>
+                <Icon name={a.icon} size={20} />
+              </span>
+              <strong>{a.name}</strong>
+            </button>
+          ))}
+        </div>
+      </section>
+      <section className="card">
+        <h3>الميزات والشاشات</h3>
+        <p className="muted">شغّل أي ميزة تحتاجها حتى لو لم تكن من نشاطك (مثلاً مواعيد لمحل خياطة، أو أصناف مركّبة لمحل عادي).</p>
+        <div className="feature-grid">
+          {ALL_FEATURES.map((f) => (
+            <label key={f} className={`feature-toggle ${features.has(f) ? 'on' : ''}`}>
+              <input
+                type="checkbox"
+                checked={features.has(f)}
+                onChange={(e) => {
+                  const next = new Set(features);
+                  if (e.target.checked) next.add(f);
+                  else next.delete(f);
+                  setFeatures(next);
+                }}
+              />
+              <span>
+                <strong>{FEATURE_INFO[f].name}</strong>
+                <small>{FEATURE_INFO[f].description}</small>
+              </span>
+            </label>
+          ))}
+        </div>
+      </section>
+      <div className="two-col">
+        <section className="card">
+          <h3>تصنيفات المواد</h3>
+          <ListEditor values={categories} onChange={setCategories} placeholder="تصنيف جديد" />
+        </section>
+        <section className="card">
+          <h3>الوحدات</h3>
+          <ListEditor values={units} onChange={setUnits} placeholder="وحدة جديدة (متر، طقم...)" />
+        </section>
+        <section className="card">
+          <h3>حقول إضافية لكل مادة</h3>
+          <p className="muted">تظهر في نموذج المادة (مثلاً: اللون، المقاس، بلد المنشأ، رقم الموديل).</p>
+          <ListEditor values={attributes} onChange={setAttributes} placeholder="اسم الحقل" />
+        </section>
+        <section className="card form-grid">
+          <h3 className="wide">التسميات</h3>
+          <Field label={`اسم المادة الواحدة (الافتراضي: ${ACTIVITIES[activity].itemLabel})`}>
+            <input value={itemLabel} onChange={(e) => setItemLabel(e.target.value)} />
+          </Field>
+          <Field label={`اسم قائمة المواد (الافتراضي: ${ACTIVITIES[activity].itemsLabel})`}>
+            <input value={itemsLabel} onChange={(e) => setItemsLabel(e.target.value)} />
+          </Field>
+        </section>
+      </div>
+      <div className="form-actions">
+        <button className="primary big" onClick={save}>
+          حفظ التخصيص
+        </button>
+      </div>
+    </>
+  );
+}
+
+function ListEditor({ values, onChange, placeholder }: { values: string[]; onChange: (v: string[]) => void; placeholder: string }) {
+  const [text, setText] = useState('');
+  const add = () => {
+    const v = text.trim();
+    if (v && !values.includes(v)) onChange([...values, v]);
+    setText('');
+  };
+  return (
+    <>
+      <ul className="chips editable">
+        {values.map((v) => (
+          <li key={v}>
+            {v}
+            <button type="button" className="chip-x" title="حذف" onClick={() => onChange(values.filter((x) => x !== v))}>
+              <Icon name="close" size={12} />
+            </button>
+          </li>
+        ))}
+        {values.length === 0 && <li className="muted">فارغة</li>}
+      </ul>
+      <form
+        className="with-button"
+        onSubmit={(e) => {
+          e.preventDefault();
+          add();
+        }}
+      >
+        <input value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} />
+        <button className="icon" title="إضافة" disabled={!text.trim()}>
+          <Icon name="plus" size={16} />
+        </button>
+      </form>
+    </>
   );
 }
 

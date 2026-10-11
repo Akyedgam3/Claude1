@@ -3,6 +3,7 @@ import { generateVariants, type Item, type ItemKind, type ItemUnit, type RecipeL
 import { api, major, money, parseAmount, qtyText, toInput, uid, useCompany } from '../api';
 import { Barcode, ExportButtons, usePrinter } from '../components/print';
 import { CurrencySelect, Empty, Field, itemMatches, itemOptions, Modal, PageHeader, Picker, SearchBox, Tabs } from '../components/ui';
+import { Icon } from '../components/icons';
 
 export function Items() {
   const { state, profile, feature, can, call, notify } = useCompany();
@@ -215,7 +216,8 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
   const stockItems = useMemo(() => itemOptions(state, (i) => i.kind === 'stock' && i.id !== item?.id), [state, item]);
   const hasStock = !!item && (state.stock[item.id]?.totalQty ?? 0) !== 0;
-  const attributeNames = profile.attributes ?? [];
+  const [extraAttr, setExtraAttr] = useState('');
+  const attributeNames = [...new Set([...(profile.attributes ?? []), ...Object.keys(attrs)])];
 
   const save = async () => {
     let data: Item;
@@ -271,7 +273,7 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
           { key: 'basic', label: 'الأساسي' },
           { key: 'prices', label: 'الأسعار والوحدات' },
           { key: 'tracking', label: 'التتبع', hidden: f.kind !== 'stock' },
-          { key: 'recipe', label: f.kind === 'composite' ? 'المكوّنات' : 'وصفة الإنتاج', hidden: !(f.kind === 'composite' || feature('production') || feature('recipes')) },
+          { key: 'recipe', label: f.kind === 'composite' ? 'المكوّنات' : 'وصفة الإنتاج', hidden: f.kind === 'service' },
         ]}
       />
       <form
@@ -293,13 +295,13 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
               <select value={f.kind} onChange={set('kind')} disabled={hasStock}>
                 <option value="stock">مادة مخزنية</option>
                 <option value="service">خدمة (بدون مخزون)</option>
-                {(feature('recipes') || f.kind === 'composite') && <option value="composite">صنف مركّب (وجبة/مشروب من مكوّنات)</option>}
+                <option value="composite">صنف مركّب (يتكون من مواد أخرى)</option>
               </select>
             </Field>
             <Field label="التصنيف">
               <input value={f.category} onChange={set('category')} list="cats" />
               <datalist id="cats">
-                {profile.categories.map((c) => (
+                {[...new Set([...profile.categories, ...Object.values(state.items).map((i) => i.category ?? '')])].filter(Boolean).map((c) => (
                   <option key={c} value={c} />
                 ))}
               </datalist>
@@ -333,6 +335,23 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
                 <input value={attrs[a] ?? ''} onChange={(e) => setAttrs({ ...attrs, [a]: e.target.value })} />
               </Field>
             ))}
+            <Field label="حقل إضافي خاص بهذه المادة">
+              <div className="with-button">
+                <input value={extraAttr} onChange={(e) => setExtraAttr(e.target.value)} placeholder="مثلاً: اللون، بلد المنشأ، الوزن" />
+                <button
+                  type="button"
+                  className="icon"
+                  title="إضافة الحقل"
+                  disabled={!extraAttr.trim() || attributeNames.includes(extraAttr.trim())}
+                  onClick={() => {
+                    setAttrs({ ...attrs, [extraAttr.trim()]: attrs[extraAttr.trim()] ?? ' ' });
+                    setExtraAttr('');
+                  }}
+                >
+                  <Icon name="plus" size={16} />
+                </button>
+              </div>
+            </Field>
           </>
         )}
 
@@ -341,7 +360,7 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
             <Field label="الوحدة الأساسية">
               <input value={f.unit} onChange={set('unit')} list="units" />
               <datalist id="units">
-                {profile.units.map((u) => (
+                {[...new Set([...profile.units, ...Object.values(state.items).map((i) => i.unit)])].filter(Boolean).map((u) => (
                   <option key={u} value={u} />
                 ))}
               </datalist>
@@ -396,7 +415,7 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
                       </td>
                       <td>
                         <button type="button" className="icon" onClick={() => setUnits(units.filter((_, j) => j !== i))}>
-                          ✕
+                          <Icon name="close" size={16} />
                         </button>
                       </td>
                     </tr>
@@ -456,7 +475,7 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
                     </td>
                     <td>
                       <button type="button" className="icon" onClick={() => setRecipe(recipe.filter((_, j) => j !== i))}>
-                        ✕
+                        <Icon name="close" size={16} />
                       </button>
                     </td>
                   </tr>

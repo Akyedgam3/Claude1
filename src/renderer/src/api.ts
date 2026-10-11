@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import { ACTIVITIES, can as canDo, formatMinor, hasFeature, toMinor, type ActivityProfile, type CompanyState, type Feature, type Permission, type User } from '../../core';
+import { can as canDo, effectiveProfile, formatMinor, toMinor, type ActivityProfile, type CompanyState, type Feature, type Permission, type User } from '../../core';
 import type { LicenseStatus } from '../../license/manager';
 
 export interface SessionInfo {
@@ -91,12 +91,12 @@ export const useCompany = () => useContext(Company);
 
 export function makeCtxHelpers(state: CompanyState, user: User) {
   const current = state.users[user.id] ?? user;
-  const activity = state.info?.activity ?? 'general';
+  const profile = effectiveProfile(state.info);
   return {
     user: current,
-    profile: ACTIVITIES[activity],
+    profile,
     can: (p: Permission) => canDo(current, p),
-    feature: (f: Feature) => hasFeature(activity, f),
+    feature: (f: Feature) => profile.features.includes(f),
   };
 }
 

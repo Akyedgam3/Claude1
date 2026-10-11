@@ -205,7 +205,19 @@ button.link {
 }
 .company-name {
   font-size: 13px;
-  opacity: 0.8;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+.company-name .icon-svg {
+  color: #fff;
+  background: var(--activity, var(--primary));
+  border-radius: 6px;
+  padding: 3px;
+  width: 22px;
+  height: 22px;
+  flex: none;
 }
 .sidebar nav {
   display: flex;
@@ -234,13 +246,20 @@ button.link {
 }
 .sidebar nav button.active {
   background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset -3px 0 0 var(--activity, var(--accent));
   color: #fff;
   font-weight: 600;
 }
 .nav-icon {
-  width: 18px;
-  text-align: center;
+  flex: none;
   opacity: 0.85;
+}
+.icon-svg {
+  vertical-align: -3px;
+  flex: none;
+}
+button .icon-svg {
+  vertical-align: -3px;
 }
 .license-badge {
   margin: 12px 4px 6px;
@@ -609,6 +628,9 @@ fieldset.plain {
 .totals-bar {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
   font-size: 16px;
 }
 
@@ -1070,7 +1092,14 @@ input.mono {
   box-shadow: 0 0 0 2px var(--primary-soft);
 }
 .activity-icon {
-  font-size: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  color: #fff;
+  margin-bottom: 4px;
 }
 .activity small {
   color: var(--muted);
@@ -1396,4 +1425,156 @@ input.mono {
   height: 110px;
   display: block;
   margin: 0 auto 4px;
+}
+
+/* ───────────── الخياطة ───────────── */
+.measurements {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+.measure {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.measure input {
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+.measure.add {
+  grid-column: span 2;
+}
+.doc-measures {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px 12px;
+  font-size: 0.95em;
+}
+tr.late td {
+  background: rgba(192, 57, 43, 0.06);
+}
+td.bad,
+strong.bad {
+  color: var(--danger);
+}
+strong.good {
+  color: var(--good);
+}
+.stat.clickable {
+  cursor: pointer;
+}
+.stat.clickable:hover {
+  border-color: var(--primary);
+}
+.panel-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.row-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.row-title > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.chips li.clickable {
+  cursor: pointer;
+}
+
+.activity-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--activity, var(--primary)) 14%, var(--surface)), var(--surface));
+  border: 1px solid color-mix(in srgb, var(--activity, var(--primary)) 25%, var(--border));
+}
+.activity-hero h1 {
+  margin: 0;
+  font-size: 22px;
+}
+.activity-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  color: #fff;
+  background: var(--activity, var(--primary));
+  flex: none;
+}
+
+.activity-grid.compact {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  margin-bottom: 0;
+}
+.activity-grid.compact .activity {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+}
+.activity-grid.compact .activity-icon {
+  width: 32px;
+  height: 32px;
+  margin: 0;
+}
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px;
+}
+.feature-toggle {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px;
+  cursor: pointer;
+}
+.feature-toggle.on {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.feature-toggle span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.feature-toggle small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.chips.editable li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.chip-x {
+  border: none;
+  background: transparent;
+  padding: 0 2px;
+  min-height: 0;
+  color: var(--muted);
+  cursor: pointer;
+}
+.chip-x:hover {
+  color: var(--danger);
+}
+.chips.editable {
+  margin-bottom: 10px;
 }

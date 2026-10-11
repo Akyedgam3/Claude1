@@ -3,6 +3,7 @@ import { ADJUSTMENT_NAMES, expiringBatches, type Item } from '../../../core';
 import { dateText, major, money, parseAmount, qtyText, today, uid, useCompany } from '../api';
 import { ExportButtons, PrintButtons, DocHeader } from '../components/print';
 import { CurrencySelect, Empty, Field, itemMatches, itemOptions, PageHeader, partyOptions, Picker, SearchBox, Tabs } from '../components/ui';
+import { Icon } from '../components/icons';
 
 type Tab = 'opening' | 'count' | 'damage' | 'transfer' | 'expiry' | 'history';
 
@@ -109,7 +110,7 @@ function ItemRows({ rows, setRows, withCost, withBatch }: { rows: StockRow[]; se
                 </td>
                 <td>
                   <button className="icon" onClick={() => setRows(rows.filter((x) => x.key !== r.key))}>
-                    ✕
+                    <Icon name="close" size={16} />
                   </button>
                 </td>
               </tr>
@@ -213,7 +214,7 @@ function Opening() {
               </td>
               <td>
                 <button className="icon" onClick={() => setParties(parties.filter((x) => x.key !== p.key))}>
-                  ✕
+                  <Icon name="close" size={16} />
                 </button>
               </td>
             </tr>

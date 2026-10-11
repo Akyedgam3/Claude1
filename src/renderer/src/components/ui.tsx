@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { CompanyState, Item, Party } from '../../../core';
 import { useCompany } from '../api';
+import { Icon } from './icons';
 
 export function Field({ label, children, wide }: { label: string; children: ReactNode; wide?: boolean }) {
   return (
@@ -23,7 +24,7 @@ export function Modal({ title, onClose, children, width }: { title: string; onCl
         <header>
           <h3>{title}</h3>
           <button className="icon" onClick={onClose} aria-label="إغلاق">
-            ✕
+            <Icon name="close" size={16} />
           </button>
         </header>
         <div className="modal-body">{children}</div>

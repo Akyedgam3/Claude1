@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react';
 import { partyBalance, partyStatement, type Party } from '../../../core';
 import { major, money, parseAmount, toInput, uid, useCompany, dateText } from '../api';
 import { ExportButtons, PrintButtons, DocHeader } from '../components/print';
+import { Icon } from '../components/icons';
 import { Empty, Field, matches, Modal, PageHeader, SearchBox } from '../components/ui';
+import { MeasurementsEditor, TAILOR_STATUS } from './Tailor';
 
 const KIND_NAMES: Record<Party['kind'], string> = { customer: 'عميل', supplier: 'مورد', both: 'عميل ومورد' };
 
@@ -27,7 +29,7 @@ export function Parties({ focus }: { focus?: string }) {
       <PageHeader title="العملاء والموردون">
         {can('parties.manage') && (
           <button className="primary" onClick={() => setEditing('new')}>
-            + إضافة
+            <Icon name="plus" size={16} /> إضافة
           </button>
         )}
         <ExportButtons
@@ -107,8 +109,10 @@ export function BalanceText({ value, currency }: { value: number; currency?: str
 }
 
 function PartyPanel({ party, onEdit }: { party: Party; onEdit: () => void }) {
-  const { state, navigate } = useCompany();
+  const { state, navigate, feature } = useCompany();
   const [currency, setCurrency] = useState<string>('');
+  const orders = feature('tailoring') ? Object.values(state.tailorOrders).filter((o) => o.partyId === party.id).sort((a, b) => b.number - a.number) : [];
+  const measures = Object.entries(party.measurements ?? {});
   const balance = partyBalance(state, party.id);
   const st = partyStatement(state, party.id, {}, currency || undefined);
   const vehicles = Object.values(state.vehicles).filter((v) => v.partyId === party.id);
@@ -147,6 +151,36 @@ function PartyPanel({ party, onEdit }: { party: Party; onEdit: () => void }) {
               </li>
             ))}
           </ul>
+        </>
+      )}
+      {feature('tailoring') && (
+        <>
+          <h4 className="row-title">
+            <span>
+              <Icon name="ruler" size={16} /> القياسات
+            </span>
+            <button onClick={() => navigate('tailor-order')}>طلب تفصيل جديد</button>
+          </h4>
+          {measures.length === 0 ? (
+            <p className="muted">لا توجد قياسات محفوظة. أضفها من زر تعديل.</p>
+          ) : (
+            <div className="doc-measures">
+              {measures.map(([k, v]) => (
+                <span key={k}>
+                  {k}: <strong>{v}</strong>
+                </span>
+              ))}
+            </div>
+          )}
+          {orders.length > 0 && (
+            <ul className="chips">
+              {orders.slice(0, 8).map((o) => (
+                <li key={o.id} className="clickable" onClick={() => navigate('tailor-order', o.id)}>
+                  طلب {o.number} · {TAILOR_STATUS[o.status]}
+                </li>
+              ))}
+            </ul>
+          )}
         </>
       )}
       <div className="panel-actions">
@@ -224,9 +258,10 @@ export function PartyForm({
     priceTier: party?.priceTier ?? 'retail',
     creditLimit: party?.creditLimit ? toInput(state, party.creditLimit, base) : '',
   });
+  const [measurements, setMeasurements] = useState<Record<string, string>>(party?.measurements ?? {});
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
   return (
-    <Modal title={party ? 'تعديل' : 'إضافة عميل / مورد'} onClose={onClose}>
+    <Modal title={party ? 'تعديل' : 'إضافة عميل / مورد'} onClose={onClose} {...(feature('tailoring') ? { width: 760 } : {})}>
       <form
         className="form-grid"
         onSubmit={async (e) => {
@@ -246,6 +281,7 @@ export function PartyForm({
             ...(f.phone.trim() ? { phone: f.phone.trim() } : {}),
             ...(f.address.trim() ? { address: f.address.trim() } : {}),
             ...(f.notes.trim() ? { notes: f.notes.trim() } : {}),
+            ...(Object.keys(measurements).length ? { measurements } : {}),
           };
           if (await call('saveParty', data)) {
             notify('تم الحفظ');
@@ -289,6 +325,12 @@ export function PartyForm({
         <Field label="ملاحظات" wide>
           <textarea value={f.notes} onChange={set('notes')} rows={2} />
         </Field>
+        {feature('tailoring') && f.kind !== 'supplier' && (
+          <div className="wide">
+            <h4>القياسات (سم)</h4>
+            <MeasurementsEditor value={measurements} onChange={setMeasurements} />
+          </div>
+        )}
         <div className="form-actions wide">
           <button type="button" onClick={onClose}>
             إلغاء

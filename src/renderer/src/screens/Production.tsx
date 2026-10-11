@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { dateText, money, qtyText, today, uid, useCompany } from '../api';
 import { Empty, Field, itemOptions, PageHeader, Picker } from '../components/ui';
+import { Icon } from '../components/icons';
 
 /** الإنتاج (أفران، حلويات، تصنيع بسيط): مواد أولية ← منتج جاهز بتكلفته الحقيقية. */
 export function Production() {
@@ -47,7 +48,7 @@ export function Production() {
                     </td>
                     <td>
                       <button className="icon" onClick={() => setRows(rows.filter((x) => x.key !== r.key))}>
-                        ✕
+                        <Icon name="close" size={16} />
                       </button>
                     </td>
                   </tr>

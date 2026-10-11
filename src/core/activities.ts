@@ -1,4 +1,4 @@
-import type { Activity } from './types';
+import type { Activity, CompanyInfo } from './types';
 
 /** الميزات التي يمكن تفعيلها حسب النشاط. كل ميزة تُظهر شاشات وحقولاً إضافية. */
 export type Feature =
@@ -24,7 +24,8 @@ export interface ActivityProfile {
   id: Activity;
   name: string;
   description: string;
-  icon: string;
+  icon: string; // اسم أيقونة (تُرسم في الواجهة)
+  color: string; // لون مميز لواجهة هذا النشاط
   features: Feature[];
   itemLabel: string; // المادة / القطعة / الصنف / الدواء
   itemsLabel: string;
@@ -39,7 +40,8 @@ export const ACTIVITIES: Record<Activity, ActivityProfile> = {
     id: 'general',
     name: 'تجارة عامة / خدمات',
     description: 'محل أو شركة تبيع مواد وخدمات بدون ميزات خاصة',
-    icon: '🏪',
+    icon: 'store',
+    color: '#0f6e5c',
     features: ['pos', 'units', 'priceTiers'],
     itemLabel: 'مادة',
     itemsLabel: 'المواد والخدمات',
@@ -51,7 +53,8 @@ export const ACTIVITIES: Record<Activity, ActivityProfile> = {
     id: 'auto',
     name: 'قطع غيار وصيانة سيارات',
     description: 'بيع قطع، ورشة صيانة، أوامر إصلاح وبطاقات سيارات',
-    icon: '🚗',
+    icon: 'car',
+    color: '#1f5fa8',
     features: ['repairs', 'vehicles', 'partNumbers', 'pos', 'units', 'priceTiers'],
     itemLabel: 'قطعة',
     itemsLabel: 'القطع والمواد',
@@ -63,7 +66,8 @@ export const ACTIVITIES: Record<Activity, ActivityProfile> = {
     id: 'supermarket',
     name: 'سوبرماركت وبقالية',
     description: 'كاشير سريع بالباركود، مواد بالوزن، تواريخ صلاحية',
-    icon: '🛒',
+    icon: 'shopping-cart',
+    color: '#2f8f3a',
     features: ['pos', 'batches', 'scale', 'units', 'priceTiers'],
     itemLabel: 'صنف',
     itemsLabel: 'الأصناف',
@@ -75,7 +79,8 @@ export const ACTIVITIES: Record<Activity, ActivityProfile> = {
     id: 'pharmacy',
     name: 'صيدلية',
     description: 'أدوية بدفعات وتواريخ صلاحية، اسم علمي، تنبيه انتهاء الصلاحية',
-    icon: '💊',
+    icon: 'pill',
+    color: '#0e8a8a',
     features: ['pos', 'batches', 'units'],
     itemLabel: 'دواء',
     itemsLabel: 'الأدوية والمستحضرات',
@@ -88,7 +93,8 @@ export const ACTIVITIES: Record<Activity, ActivityProfile> = {
     id: 'restaurant',
     name: 'مطعم وكافيه',
     description: 'طاولات وطلبات، تذاكر مطبخ، وجبات تُنقص مكوّناتها من المخزون',
-    icon: '🍽',
+    icon: 'utensils',
+    color: '#b5531c',
     features: ['tables', 'recipes', 'pos', 'units'],
     itemLabel: 'صنف',
     itemsLabel: 'قائمة الطعام والمواد',
@@ -100,7 +106,8 @@ export const ACTIVITIES: Record<Activity, ActivityProfile> = {
     id: 'clothing',
     name: 'ألبسة وأحذية',
     description: 'موديلات بمقاسات وألوان، كاشير، تبديل ومرتجعات',
-    icon: '👕',
+    icon: 'shirt',
+    color: '#8a3fa0',
     features: ['variants', 'pos', 'priceTiers'],
     itemLabel: 'قطعة',
     itemsLabel: 'الموديلات والقطع',
@@ -113,7 +120,8 @@ export const ACTIVITIES: Record<Activity, ActivityProfile> = {
     id: 'mobile',
     name: 'موبايلات وإلكترونيات',
     description: 'أرقام IMEI وكفالات، صيانة أجهزة، إكسسوارات',
-    icon: '📱',
+    icon: 'smartphone',
+    color: '#3a4fb8',
     features: ['serials', 'repairs', 'devices', 'pos', 'priceTiers'],
     itemLabel: 'صنف',
     itemsLabel: 'الأجهزة والإكسسوارات',
@@ -125,7 +133,8 @@ export const ACTIVITIES: Record<Activity, ActivityProfile> = {
     id: 'building',
     name: 'مواد بناء وحديد',
     description: 'وحدات طن/كيس/متر، أسعار جملة، بيع بالدين للمتعهدين',
-    icon: '🧱',
+    icon: 'brick-wall',
+    color: '#8a5a2b',
     features: ['units', 'priceTiers', 'salesmen'],
     itemLabel: 'مادة',
     itemsLabel: 'مواد البناء',
@@ -137,7 +146,8 @@ export const ACTIVITIES: Record<Activity, ActivityProfile> = {
     id: 'butcher',
     name: 'لحوم وخضار وفواكه',
     description: 'بيع بالوزن وباركود الميزان، تالف يومي',
-    icon: '🥩',
+    icon: 'beef',
+    color: '#a52a2a',
     features: ['scale', 'pos', 'units'],
     itemLabel: 'صنف',
     itemsLabel: 'الأصناف',
@@ -149,7 +159,8 @@ export const ACTIVITIES: Record<Activity, ActivityProfile> = {
     id: 'bakery',
     name: 'أفران وحلويات',
     description: 'تصنيع من مواد أولية بوصفات، بيع بالوزن والقطعة',
-    icon: '🥐',
+    icon: 'croissant',
+    color: '#c07a12',
     features: ['production', 'recipes', 'scale', 'pos', 'batches', 'units'],
     itemLabel: 'صنف',
     itemsLabel: 'المنتجات والمواد الأولية',
@@ -161,7 +172,8 @@ export const ACTIVITIES: Record<Activity, ActivityProfile> = {
     id: 'wholesale',
     name: 'توزيع وتجارة جملة',
     description: 'مندوبو مبيعات، أسعار جملة وخاصة، كرتونة وقطعة، ذمم العملاء',
-    icon: '🚚',
+    icon: 'truck',
+    color: '#44617a',
     features: ['salesmen', 'priceTiers', 'units', 'batches'],
     itemLabel: 'صنف',
     itemsLabel: 'الأصناف',
@@ -173,7 +185,8 @@ export const ACTIVITIES: Record<Activity, ActivityProfile> = {
     id: 'clinic',
     name: 'عيادة / صالون / مركز خدمات',
     description: 'مواعيد، خدمات، ملفات المراجعين',
-    icon: '🩺',
+    icon: 'stethoscope',
+    color: '#1a7f9c',
     features: ['appointments', 'pos'],
     itemLabel: 'خدمة',
     itemsLabel: 'الخدمات والمواد',
@@ -185,7 +198,8 @@ export const ACTIVITIES: Record<Activity, ActivityProfile> = {
     id: 'tailor',
     name: 'خياطة وتفصيل',
     description: 'قياسات الزبائن، طلبات تفصيل بمواعيد تسليم وبروفة، عربون، بيع أقمشة بالمتر',
-    icon: '✂️',
+    icon: 'scissors',
+    color: '#9c3d6b',
     features: ['tailoring', 'pos', 'units'],
     itemLabel: 'مادة',
     itemsLabel: 'الأقمشة واللوازم',
@@ -219,4 +233,45 @@ export const ACTIVITY_LIST = Object.values(ACTIVITIES);
 
 export function hasFeature(activity: Activity | undefined, feature: Feature): boolean {
   return ACTIVITIES[activity ?? 'general'].features.includes(feature);
+}
+
+/** وصف كل ميزة ليختار المستخدم ما يناسبه بحرية مهما كان نشاطه. */
+export const FEATURE_INFO: Record<Feature, { name: string; description: string }> = {
+  pos: { name: 'نقطة البيع (كاشير)', description: 'شاشة بيع سريع بالباركود والبحث' },
+  repairs: { name: 'أوامر الصيانة', description: 'استلام أعطال، قطع وأجور يد، تسليم وفوترة' },
+  vehicles: { name: 'بطاقات السيارات', description: 'سجل سيارات الزبائن ولوحاتها وتاريخ صيانتها' },
+  devices: { name: 'بطاقات الأجهزة', description: 'سجل أجهزة الزبائن (موبايل، لابتوب) بالـ IMEI' },
+  partNumbers: { name: 'أرقام القطع والتوافق', description: 'رقم القطعة الأصلي والسيارات/الأجهزة المتوافقة' },
+  batches: { name: 'الدفعات والصلاحية', description: 'تتبع تواريخ الانتهاء والبيع من الأقرب انتهاءً' },
+  serials: { name: 'الأرقام التسلسلية', description: 'تسجيل IMEI أو الرقم التسلسلي لكل قطعة' },
+  variants: { name: 'المقاسات والألوان', description: 'توليد مواد بكل المقاسات والألوان من موديل واحد' },
+  scale: { name: 'البيع بالوزن', description: 'قراءة باركود الميزان الإلكتروني' },
+  recipes: { name: 'الأصناف المركّبة (مكوّنات)', description: 'صنف يتكون من مواد أخرى تنقص من المخزون عند بيعه' },
+  production: { name: 'الإنتاج والتصنيع', description: 'تحويل مواد أولية إلى منتجات بتكلفتها' },
+  tables: { name: 'الطاولات والطلبات', description: 'طلبات صالة وسفري وتوصيل وطباعة للمطبخ' },
+  appointments: { name: 'المواعيد', description: 'حجز مواعيد للزبائن والمراجعين وفوترتها' },
+  priceTiers: { name: 'شرائح الأسعار', description: 'سعر مفرق وجملة وخاص حسب الزبون' },
+  units: { name: 'وحدات متعددة', description: 'بيع وشراء بالقطعة والعلبة والكرتونة' },
+  salesmen: { name: 'مندوبو المبيعات', description: 'تسجيل المندوب على الفاتورة وتقرير مبيعاته' },
+  tailoring: { name: 'طلبات التفصيل والقياسات', description: 'قياسات الزبائن، طلبات بموعد تسليم وبروفة، عربون' },
+};
+
+export const ALL_FEATURES = Object.keys(FEATURE_INFO) as Feature[];
+
+/** ملف النشاط بعد تطبيق تخصيصات المستخدم. */
+export function effectiveProfile(info: Pick<CompanyInfo, 'activity' | 'customize'> | null | undefined): ActivityProfile {
+  const base = ACTIVITIES[info?.activity ?? 'general'] ?? ACTIVITIES.general;
+  const c = info?.customize;
+  if (!c) return base;
+  const on = (c.featuresOn ?? []).filter((f): f is Feature => f in FEATURE_INFO);
+  const off = new Set(c.featuresOff ?? []);
+  return {
+    ...base,
+    features: [...new Set([...base.features, ...on])].filter((f) => !off.has(f)),
+    categories: c.categories ?? base.categories,
+    units: c.units?.length ? c.units : base.units,
+    attributes: c.attributes ?? base.attributes ?? [],
+    itemLabel: c.itemLabel?.trim() || base.itemLabel,
+    itemsLabel: c.itemsLabel?.trim() || base.itemsLabel,
+  };
 }

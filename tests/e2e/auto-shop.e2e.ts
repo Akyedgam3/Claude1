@@ -30,7 +30,7 @@ test('a full day in an auto parts shop and workshop', async () => {
     // مورد وعميل
     await nav(page, 'العملاء والموردون');
     for (const [name, kind] of [['مستودع الشام', 'supplier'], ['أبو خالد', 'customer']] as const) {
-      await page.getByRole('button', { name: '+ إضافة' }).click();
+      await page.getByRole('button', { name: 'إضافة', exact: true }).click();
       await m.locator('.field', { hasText: 'الاسم' }).locator('input').fill(name);
       await m.locator('select').first().selectOption(kind);
       await m.getByRole('button', { name: 'حفظ' }).click();

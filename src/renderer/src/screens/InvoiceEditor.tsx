@@ -4,6 +4,7 @@ import { convertPrice, money, parseAmount, toInput, today, uid, useCompany } fro
 import { CurrencySelect, Field, itemMatches, itemOptions, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
 import { ItemForm } from './Items';
 import { PartyForm } from './Parties';
+import { Icon } from '../components/icons';
 
 interface LineState {
   key: string;
@@ -180,7 +181,7 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
             <Picker options={partyOptions(state, isSale ? 'customer' : 'supplier')} value={partyId} onChange={setPartyId} placeholder={isSale ? 'زبون نقدي (اختياري)' : 'مورد نقدي (اختياري)'} />
             {partyId && (
               <button type="button" className="icon" title="إزالة" onClick={() => setPartyId(null)}>
-                ✕
+                <Icon name="close" size={16} />
               </button>
             )}
             {can('parties.manage') && (
@@ -335,7 +336,7 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
                   <td>
                     {(l.itemId || l.description) && (
                       <button className="icon" title="حذف السطر" onClick={() => setLines((ls) => withEmpty(ls.filter((x) => x.key !== l.key)))}>
-                        ✕
+                        <Icon name="close" size={16} />
                       </button>
                     )}
                   </td>
