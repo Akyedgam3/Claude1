@@ -109,6 +109,8 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
 };
 
 export function permissionFor(method: string, args: unknown[]): Permission | null {
+  // نقبل فقط الأسماء المعرّفة صراحة (لا constructor ولا toString ولا غيرها من خصائص الكائنات)
+  if (!Object.prototype.hasOwnProperty.call(METHOD_PERMISSIONS, method)) return null;
   const p = METHOD_PERMISSIONS[method];
   if (!p) return null;
   return typeof p === 'function' ? p(args) : p;
