@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ميزان — إدارة التراخيص</title>
+<style>
+  :root { --p: #0f6e5c; --bg: #f4f5f7; --b: #e3e6eb; --muted: #6b7385; --bad: #c0392b; --warn: #b7791f; font-family: 'Segoe UI', Tahoma, sans-serif; font-size: 14px; }
+  body { margin: 0; background: var(--bg); color: #1d2433; }
+  header { background: #12302b; color: #fff; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; }
+  main { max-width: 1300px; margin: 0 auto; padding: 20px; }
+  .card { background: #fff; border: 1px solid var(--b); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  h1 { margin: 0; font-size: 20px; } h2 { margin: 0 0 12px; font-size: 16px; }
+  input, select, textarea { font: inherit; padding: 7px 9px; border: 1px solid var(--b); border-radius: 6px; width: 100%; box-sizing: border-box; }
+  button { font: inherit; padding: 7px 12px; border: 1px solid var(--b); border-radius: 6px; background: #fff; cursor: pointer; }
+  button.primary { background: var(--p); border-color: var(--p); color: #fff; }
+  button.danger { color: var(--bad); }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; align-items: end; }
+  label span { display: block; font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 8px; border-bottom: 1px solid #eef0f3; text-align: start; vertical-align: top; }
+  th { font-size: 12px; color: var(--muted); background: #f8f9fb; }
+  .tag { padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+  .active { background: #e3f6ea; color: #1e8a4c; } .suspended { background: #fff4e0; color: var(--warn); } .revoked { background: #fdecea; color: var(--bad); }
+  .mono { font-family: Consolas, monospace; direction: ltr; unicode-bidi: isolate; }
+  .key { font-family: Consolas, monospace; font-size: 11px; word-break: break-all; direction: ltr; background: #f7f8fa; padding: 6px; border-radius: 4px; max-width: 360px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 4px; }
+  .banner { background: #fff7e6; border: 1px solid #f3d8a6; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; }
+  .toast { position: fixed; bottom: 20px; left: 20px; background: #1d2433; color: #fff; padding: 12px 16px; border-radius: 8px; display: none; max-width: 460px; }
+  .toast.err { background: var(--bad); }
+  .muted { color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<header><h1>ميزان — إدارة التراخيص والاشتراكات</h1><button class="primary" onclick="publish()">نشر قائمة الحالة</button></header>
+<main>
+  <div id="warnings"></div>
+  <section class="card">
+    <h2>عميل جديد / ترخيص جديد</h2>
+    <form id="add" class="grid" onsubmit="add(event)">
+      <label><span>اسم العميل / المحل</span><input name="name" required /></label>
+      <label><span>الهاتف</span><input name="phone" /></label>
+      <label><span>بصمة الجهاز (من شاشة التفعيل)</span><input name="machineId" class="mono" placeholder="XXXX-XXXX-XXXX-XXXX" required /></label>
+      <label><span>الاشتراك</span><select name="plan" id="plans"></select></label>
+      <label><span>عدد الأجهزة</span><input name="devices" type="number" min="1" value="1" /></label>
+      <label><span>أيام العمل بدون إنترنت</span><input name="offlineDays" type="number" min="1" value="7" /></label>
+      <label style="grid-column: span 1"><span>ملاحظات</span><input name="notes" /></label>
+      <button class="primary">إصدار المفتاح</button>
+    </form>
+  </section>
+  <section class="card">
+    <h2>العملاء <span class="muted" id="count"></span></h2>
+    <input id="q" placeholder="بحث بالاسم أو الهاتف أو البصمة..." oninput="render()" style="margin-bottom:10px" />
+    <table>
+      <thead><tr><th>العميل</th><th>الاشتراك</th><th>ينتهي</th><th>الحالة</th><th>المفتاح</th><th>إجراءات</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </section>
+  <section class="card">
+    <h2>كيف يعمل الإيقاف عن بعد؟</h2>
+    <ol>
+      <li>أي تغيير (إيقاف، تمديد، إلغاء) يُحفظ هنا، ثم اضغط <b>نشر قائمة الحالة</b>.</li>
+      <li>يُكتب الملف <span class="mono" id="feedFile"></span> — ارفعه إلى الرابط المحدد في <span class="mono">src/license/config.ts</span>.</li>
+      <li>كل نسخة من البرنامج تتحقق من الرابط عند التشغيل وكل بضع ساعات، فتُطبَّق الحالة الجديدة خلال ساعات.</li>
+      <li>إن انقطع العميل عن الإنترنت أكثر من "أيام العمل بدون إنترنت" يتوقف البرنامج حتى يتصل.</li>
+      <li>للعميل بدون إنترنت: بعد التمديد أرسل له <b>المفتاح الجديد</b> ليلصقه في شاشة التفعيل.</li>
+    </ol>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+const TOKEN = '__TOKEN__';
+let state = { customers: [], plans: {} };
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function toast(msg, err) { const t = $('#toast'); t.textContent = msg; t.className = 'toast' + (err ? ' err' : ''); t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => (t.style.display = 'none'), err ? 6000 : 3000); }
+async function api(path, body) {
+  const res = await fetch(path, { method: body ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': TOKEN }, body: body ? JSON.stringify(body) : undefined });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'خطأ');
+  return data;
+}
+async function load() {
+  state = await api('/api/state');
+  $('#plans').innerHTML = Object.entries(state.plans).map(([k, v]) => `<option value="${k}">${esc(v.nameAr)}</option>`).join('');
+  $('#feedFile').textContent = state.feedFile;
+  const w = [];
+  if (state.devKey) w.push('⚠️ تستخدم مفتاح التطوير. قبل البيع شغّل <span class="mono">npm run license:keygen</span> ثم أعد بناء البرنامج.');
+  if (!state.feedUrls.length) w.push('⚠️ لم يُحدد رابط قائمة الحالة في البرنامج، فلن يعمل الإيقاف عن بعد. حدده في <span class="mono">src/license/config.ts</span>.');
+  w.push('آخر نشر: ' + (state.lastPublished ? new Date(state.lastPublished).toLocaleString('ar-SY') : 'لم يتم النشر بعد'));
+  $('#warnings').innerHTML = w.map((x) => `<div class="banner">${x}</div>`).join('');
+  render();
+}
+function render() {
+  const q = $('#q').value.trim().toLowerCase();
+  const list = state.customers.filter((c) => !q || [c.name, c.phone, c.machineId].some((f) => String(f ?? '').toLowerCase().includes(q)));
+  $('#count').textContent = `(${state.customers.length})`;
+  const statusName = { active: 'فعّال', suspended: 'موقوف', revoked: 'ملغى' };
+  $('#rows').innerHTML = list.map((c) => {
+    const exp = c.expiresAt ? c.expiresAt.slice(0, 10) : 'دائم';
+    const expired = c.expiresAt && new Date(c.expiresAt) < new Date();
+    const planOpts = Object.entries(state.plans).map(([k, v]) => `<option value="${k}">${esc(v.nameAr)}</option>`).join('');
+    return `<tr>
+      <td><b>${esc(c.name)}</b><div class="muted">${esc(c.phone)}</div><div class="mono muted">${esc(c.machineId)}</div><div class="muted">${esc(c.notes)}</div></td>
+      <td>${esc(state.plans[c.plan]?.nameAr)}<div class="muted">${c.devices} جهاز · ${c.offlineDays} أيام بدون إنترنت</div></td>
+      <td style="${expired ? 'color:var(--bad)' : ''}">${exp}</td>
+      <td><span class="tag ${c.status}">${statusName[c.status]}</span>${c.message ? `<div class="muted">${esc(c.message)}</div>` : ''}</td>
+      <td><div class="key">${esc(c.key)}</div><button onclick="copyKey('${c.id}')">نسخ</button></td>
+      <td class="actions">
+        <select id="plan-${c.id}">${planOpts}</select><button onclick="extend('${c.id}')">تمديد</button>
+        ${c.status !== 'active' ? `<button onclick="setStatus('${c.id}','active')">تفعيل</button>` : `<button class="danger" onclick="setStatus('${c.id}','suspended')">إيقاف</button>`}
+        ${c.status !== 'revoked' ? `<button class="danger" onclick="setStatus('${c.id}','revoked')">إلغاء نهائي</button>` : ''}
+        <button onclick="changeMachine('${c.id}')">تغيير الجهاز</button>
+      </td></tr>`;
+  }).join('') || '<tr><td colspan="6" class="muted">لا يوجد عملاء</td></tr>';
+}
+async function run(fn, ok) { try { await fn(); await load(); if (ok) toast(ok); } catch (e) { toast(e.message, true); } }
+function add(e) {
+  e.preventDefault();
+  const body = Object.fromEntries(new FormData(e.target));
+  run(async () => { const c = await api('/api/customers', body); await navigator.clipboard?.writeText(c.key).catch(() => {}); e.target.reset(); }, 'تم إصدار المفتاح ونسخه. لا تنسَ نشر قائمة الحالة.');
+}
+function extend(id) { run(() => api(`/api/customers/${id}/extend`, { plan: $(`#plan-${id}`).value }), 'تم التمديد. انشر القائمة، أو أرسل المفتاح الجديد للعميل بدون إنترنت.'); }
+function setStatus(id, status) {
+  const message = status === 'active' ? '' : prompt(status === 'revoked' ? 'سبب الإلغاء (يظهر للعميل):' : 'رسالة تظهر للعميل:', status === 'suspended' ? 'تم إيقاف البرنامج لعدم تسديد الاشتراك. يرجى التواصل مع البائع.' : '');
+  if (message === null) return;
+  if (status === 'revoked' && !confirm('إلغاء نهائي؟')) return;
+  run(() => api(`/api/customers/${id}/status`, { status, message }), 'تم. اضغط "نشر قائمة الحالة" لتطبيقه.');
+}
+function changeMachine(id) {
+  const machineId = prompt('بصمة الجهاز الجديد:');
+  if (machineId) run(() => api(`/api/customers/${id}/update`, { machineId }), 'تم إصدار مفتاح للجهاز الجديد');
+}
+function copyKey(id) { const c = state.customers.find((x) => x.id === id); navigator.clipboard.writeText(c.key).then(() => toast('تم نسخ المفتاح')); }
+function publish() { run(async () => { const r = await api('/api/publish', {}); toast('تم الكتابة إلى ' + r.file + ' — ارفعه الآن'); }); }
+load().catch((e) => toast(e.message, true));
+</script>
+</body>
+</html>

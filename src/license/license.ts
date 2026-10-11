@@ -1,8 +1,12 @@
+import { execFileSync } from 'node:child_process';
 import { createHash, createPrivateKey, createPublicKey, randomUUID, sign, verify } from 'node:crypto';
+import fs from 'node:fs';
 import os from 'node:os';
 
-// الترخيص يعمل بدون إنترنت: نحن نوقّع مفتاح الترخيص بمفتاح خاص (Ed25519) لا يخرج من عندنا،
-// والبرنامج يتحقق منه بالمفتاح العام المضمّن فيه. المفتاح مربوط ببصمة الجهاز ومدة الاشتراك.
+// الترخيص: نحن نوقّع مفتاح الترخيص بمفتاح خاص (Ed25519) لا يخرج من عندنا، والبرنامج يتحقق منه
+// بالمفتاح العام المضمّن فيه. المفتاح مربوط ببصمة الجهاز ومدة الاشتراك.
+// إضافة لذلك ننشر "قائمة حالة" موقّعة على الإنترنت يتحقق منها البرنامج دورياً، فنستطيع إيقاف
+// أي ترخيص أو تمديده في أي وقت دون الحاجة لمفتاح جديد.
 
 export type Plan = 'monthly' | 'quarterly' | 'semiannual' | 'annual' | 'lifetime';
 
@@ -14,101 +18,201 @@ export const PLANS: Record<Plan, { nameAr: string; days: number | null }> = {
   lifetime: { nameAr: 'شراء دائم', days: null },
 };
 
+export const DEFAULT_OFFLINE_DAYS = 7;
+
 export interface LicensePayload {
-  v: 1;
+  v: 2;
   id: string;
   customer: string;
   machineId: string;
   plan: Plan;
-  devices: number; // عدد الأجهزة المسموح بها على الشبكة المحلية (الجهاز الرئيسي + الفرعية)
+  devices: number; // عدد الأجهزة المسموح بها (الجهاز الرئيسي + أجهزة الشبكة)
   issuedAt: string; // ISO
   expiresAt: string | null; // null = دائم
+  offlineDays: number; // كم يوماً يعمل البرنامج بدون التحقق من الإنترنت
 }
 
-export type LicenseCheck =
-  | { status: 'valid'; payload: LicensePayload; daysLeft: number | null }
-  | { status: 'expired'; payload: LicensePayload } // البرنامج يعمل للقراءة والطباعة فقط
-  | { status: 'invalid'; reason: string };
+export type FeedStatus = 'active' | 'suspended' | 'revoked';
 
-const PREFIX = 'MZN1-';
+export interface FeedEntry {
+  status: FeedStatus;
+  expiresAt?: string | null; // تمديد/تعديل تاريخ الانتهاء دون مفتاح جديد
+  devices?: number;
+  message?: string; // رسالة تظهر للعميل (مثلاً: يرجى تسديد الاشتراك)
+}
+
+export interface LicenseFeed {
+  v: 1;
+  issuedAt: string; // وقت النشر — يُستخدم كوقت موثوق لكشف تلاعب الساعة
+  entries: Record<string, FeedEntry>;
+}
+
+const KEY_PREFIX = 'MZN2-';
+const FEED_PREFIX = 'MZNF1.';
 const DAY = 86_400_000;
 
 const b64 = (buf: Buffer) => buf.toString('base64url');
 
-/** بصمة ثابتة للجهاز تُرسل لنا لإصدار الترخيص. */
+function signText(json: unknown, privateKeyPem: string): string {
+  const body = Buffer.from(JSON.stringify(json), 'utf8');
+  return b64(body) + '.' + b64(sign(null, body, createPrivateKey(privateKeyPem)));
+}
+
+function verifyText<T>(text: string, publicKeyPem: string): T | null {
+  const [bodyPart, sigPart, extra] = text.trim().split('.');
+  if (!bodyPart || !sigPart || extra !== undefined) return null;
+  const body = Buffer.from(bodyPart, 'base64url');
+  try {
+    if (!verify(null, body, createPublicKey(publicKeyPem), Buffer.from(sigPart, 'base64url'))) return null;
+    return JSON.parse(body.toString('utf8')) as T;
+  } catch {
+    return null;
+  }
+}
+
+// ───────────── بصمة الجهاز ─────────────
+
+function readPlatformId(): string | null {
+  try {
+    if (process.platform === 'win32') {
+      const out = execFileSync('reg', ['query', 'HKLM\\SOFTWARE\\Microsoft\\Cryptography', '/v', 'MachineGuid'], { encoding: 'utf8', windowsHide: true });
+      return /MachineGuid\s+REG_SZ\s+(\S+)/i.exec(out)?.[1] ?? null;
+    }
+    if (process.platform === 'darwin') {
+      const out = execFileSync('ioreg', ['-rd1', '-c', 'IOPlatformExpertDevice'], { encoding: 'utf8' });
+      return /"IOPlatformUUID" = "([^"]+)"/.exec(out)?.[1] ?? null;
+    }
+    for (const f of ['/etc/machine-id', '/var/lib/dbus/machine-id']) {
+      if (fs.existsSync(f)) return fs.readFileSync(f, 'utf8').trim() || null;
+    }
+  } catch {
+    // نرجع للطريقة الاحتياطية
+  }
+  return null;
+}
+
+/**
+ * بصمة ثابتة للجهاز تُرسل لنا لإصدار الترخيص.
+ * على ويندوز نستخدم MachineGuid الذي لا يتغير بتغيير الشبكة أو اسم الجهاز.
+ */
 export function machineId(): string {
-  const macs = Object.values(os.networkInterfaces())
-    .flat()
-    .filter((n) => n && !n.internal && n.mac !== '00:00:00:00:00:00')
-    .map((n) => n!.mac)
-    .sort();
-  const raw = [os.hostname(), os.platform(), os.arch(), os.cpus()[0]?.model ?? '', ...new Set(macs)].join('|');
+  const platformId = readPlatformId();
+  const raw = platformId
+    ? `mizan|${platformId}`
+    : [os.platform(), os.arch(), os.cpus()[0]?.model ?? '', os.totalmem(), os.hostname()].join('|');
   const hex = createHash('sha256').update(raw).digest('hex').slice(0, 16).toUpperCase();
   return hex.match(/.{4}/g)!.join('-');
 }
+
+// ───────────── إصدار المفاتيح والقائمة (أداة البائع فقط) ─────────────
 
 export interface IssueOptions {
   customer: string;
   machineId: string;
   plan: Plan;
   devices?: number;
+  offlineDays?: number;
   issuedAt?: Date;
+  expiresAt?: Date | null; // لتحديد تاريخ انتهاء مخصص
+  id?: string; // لإعادة إصدار نفس الترخيص بمفتاح جديد
 }
 
-/** يُستخدم عندنا فقط (أداة إصدار التراخيص)، وليس داخل البرنامج المُوزَّع. */
-export function issueLicense(opts: IssueOptions, privateKeyPem: string): string {
+export function buildPayload(opts: IssueOptions): LicensePayload {
   const issuedAt = opts.issuedAt ?? new Date();
   const days = PLANS[opts.plan].days;
-  const payload: LicensePayload = {
-    v: 1,
-    id: randomUUID(),
+  const expiresAt =
+    opts.expiresAt !== undefined ? (opts.expiresAt ? opts.expiresAt.toISOString() : null) : days === null ? null : new Date(issuedAt.getTime() + days * DAY).toISOString();
+  return {
+    v: 2,
+    id: opts.id ?? randomUUID(),
     customer: opts.customer,
-    machineId: opts.machineId,
+    machineId: opts.machineId.trim().toUpperCase(),
     plan: opts.plan,
     devices: opts.devices ?? 1,
     issuedAt: issuedAt.toISOString(),
-    expiresAt: days === null ? null : new Date(issuedAt.getTime() + days * DAY).toISOString(),
+    expiresAt,
+    offlineDays: opts.offlineDays ?? DEFAULT_OFFLINE_DAYS,
   };
-  const body = Buffer.from(JSON.stringify(payload), 'utf8');
-  const signature = sign(null, body, createPrivateKey(privateKeyPem));
-  return PREFIX + b64(body) + '.' + b64(signature);
 }
+
+export function issueLicense(opts: IssueOptions, privateKeyPem: string): string {
+  return KEY_PREFIX + signText(buildPayload(opts), privateKeyPem);
+}
+
+export function signFeed(feed: LicenseFeed, privateKeyPem: string): string {
+  return FEED_PREFIX + signText(feed, privateKeyPem);
+}
+
+// ───────────── التحقق (داخل البرنامج) ─────────────
+
+export function parseLicense(key: string, publicKeyPem: string): LicensePayload | null {
+  const trimmed = key.trim().replace(/\s+/g, '');
+  if (!trimmed.startsWith(KEY_PREFIX)) return null;
+  const payload = verifyText<LicensePayload>(trimmed.slice(KEY_PREFIX.length), publicKeyPem);
+  return payload?.v === 2 ? payload : null;
+}
+
+export function parseFeed(text: string, publicKeyPem: string): LicenseFeed | null {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith(FEED_PREFIX)) return null;
+  const feed = verifyText<LicenseFeed>(trimmed.slice(FEED_PREFIX.length), publicKeyPem);
+  return feed?.v === 1 && typeof feed.issuedAt === 'string' && feed.entries ? feed : null;
+}
+
+export type LicenseCheck =
+  | { status: 'valid'; payload: LicensePayload; expiresAt: string | null; daysLeft: number | null; devices: number; message?: string }
+  | { status: 'locked'; reason: 'none' | 'invalid' | 'machine' | 'expired' | 'suspended' | 'revoked' | 'offline' | 'clock'; message: string; payload?: LicensePayload };
 
 export interface VerifyOptions {
   machineId: string;
   now?: Date;
   /** آخر وقت شوهد فيه البرنامج يعمل؛ لكشف إرجاع ساعة الجهاز للخلف. */
   lastSeen?: Date;
+  /** آخر قائمة حالة صالحة تم تنزيلها. */
+  feed?: LicenseFeed | null;
+  /** وقت آخر تحقق ناجح من الإنترنت (بساعة الجهاز). */
+  lastOnline?: Date | null;
+  /** هل التحقق من الإنترنت مفعّل في هذه النسخة. */
+  onlineRequired?: boolean;
 }
 
-export function verifyLicense(key: string, publicKeyPem: string, opts: VerifyOptions): LicenseCheck {
-  const trimmed = key.trim();
-  if (!trimmed.startsWith(PREFIX)) return { status: 'invalid', reason: 'صيغة مفتاح الترخيص غير صحيحة' };
-  const [bodyPart, sigPart] = trimmed.slice(PREFIX.length).split('.');
-  if (!bodyPart || !sigPart) return { status: 'invalid', reason: 'صيغة مفتاح الترخيص غير صحيحة' };
-
-  const body = Buffer.from(bodyPart, 'base64url');
-  let ok = false;
-  try {
-    ok = verify(null, body, createPublicKey(publicKeyPem), Buffer.from(sigPart, 'base64url'));
-  } catch {
-    ok = false;
-  }
-  if (!ok) return { status: 'invalid', reason: 'مفتاح الترخيص غير صالح' };
-
-  const payload = JSON.parse(body.toString('utf8')) as LicensePayload;
-  if (payload.machineId !== opts.machineId) return { status: 'invalid', reason: 'الترخيص صادر لجهاز آخر' };
+export function checkLicense(key: string | undefined, publicKeyPem: string, opts: VerifyOptions): LicenseCheck {
+  if (!key) return { status: 'locked', reason: 'none', message: 'البرنامج غير مفعّل. أدخل مفتاح الترخيص.' };
+  const payload = parseLicense(key, publicKeyPem);
+  if (!payload) return { status: 'locked', reason: 'invalid', message: 'مفتاح الترخيص غير صالح' };
+  if (payload.machineId !== opts.machineId) return { status: 'locked', reason: 'machine', message: 'الترخيص صادر لجهاز آخر', payload };
 
   const now = opts.now ?? new Date();
+  const clockWrong = { status: 'locked' as const, reason: 'clock' as const, message: 'تاريخ الجهاز غير صحيح، يرجى ضبط الساعة والتاريخ', payload };
   // نسمح بفرق يوم واحد (تغيير المنطقة الزمنية مثلاً)
-  if (opts.lastSeen && now.getTime() < opts.lastSeen.getTime() - DAY) {
-    return { status: 'invalid', reason: 'تاريخ الجهاز غير صحيح، يرجى ضبط الساعة' };
+  if (opts.lastSeen && now.getTime() < opts.lastSeen.getTime() - DAY) return clockWrong;
+  if (now.getTime() < new Date(payload.issuedAt).getTime() - DAY) return clockWrong;
+  if (opts.feed && now.getTime() < new Date(opts.feed.issuedAt).getTime() - DAY) return clockWrong;
+
+  const entry = opts.feed?.entries[payload.id];
+  if (entry?.status === 'revoked') return { status: 'locked', reason: 'revoked', message: entry.message || 'تم إلغاء هذا الترخيص', payload };
+  if (entry?.status === 'suspended') {
+    return { status: 'locked', reason: 'suspended', message: entry.message || 'تم إيقاف الترخيص مؤقتاً. يرجى التواصل مع البائع.', payload };
   }
-  if (now.getTime() < new Date(payload.issuedAt).getTime() - DAY) {
-    return { status: 'invalid', reason: 'تاريخ الجهاز غير صحيح، يرجى ضبط الساعة' };
+
+  if (opts.onlineRequired) {
+    const last = opts.lastOnline?.getTime() ?? 0;
+    const graceEnds = (last || new Date(payload.issuedAt).getTime()) + payload.offlineDays * DAY;
+    if (now.getTime() > graceEnds) {
+      return {
+        status: 'locked',
+        reason: 'offline',
+        message: `لم يتم التحقق من الاشتراك منذ أكثر من ${payload.offlineDays} أيام. اتصل بالإنترنت ليتم التحقق تلقائياً.`,
+        payload,
+      };
+    }
   }
-  if (payload.expiresAt === null) return { status: 'valid', payload, daysLeft: null };
-  const left = new Date(payload.expiresAt).getTime() - now.getTime();
-  if (left <= 0) return { status: 'expired', payload };
-  return { status: 'valid', payload, daysLeft: Math.ceil(left / DAY) };
+
+  const expiresAt = entry && entry.expiresAt !== undefined ? entry.expiresAt : payload.expiresAt;
+  const devices = entry?.devices ?? payload.devices;
+  const message = entry?.message;
+  if (expiresAt === null) return { status: 'valid', payload, expiresAt, daysLeft: null, devices, ...(message ? { message } : {}) };
+  const left = new Date(expiresAt).getTime() - now.getTime();
+  if (left <= 0) return { status: 'locked', reason: 'expired', message: 'انتهى الاشتراك. يرجى التجديد للمتابعة.', payload };
+  return { status: 'valid', payload, expiresAt, daysLeft: Math.ceil(left / DAY), devices, ...(message ? { message } : {}) };
 }
