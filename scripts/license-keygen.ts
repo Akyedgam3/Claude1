@@ -11,5 +11,5 @@ const { privateKey, publicKey } = generateKeyPairSync('ed25519');
 fs.mkdirSync('keys', { recursive: true });
 fs.writeFileSync('keys/license-private.pem', privateKey.export({ type: 'pkcs8', format: 'pem' }), { mode: 0o600 });
 const pub = publicKey.export({ type: 'spki', format: 'pem' }).toString();
-fs.writeFileSync('src/license/public-key.ts', `export const LICENSE_PUBLIC_KEY = \`${pub}\`;\n`);
+fs.writeFileSync('src/license/public-key.ts', `export const LICENSE_PUBLIC_KEY = \`${pub}\`;\nexport const IS_DEV_KEY = false;\n`);
 console.log('تم: keys/license-private.pem (احفظه بمكان آمن) و src/license/public-key.ts');

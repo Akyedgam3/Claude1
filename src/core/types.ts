@@ -138,6 +138,7 @@ export interface Invoice {
   lines: InvoiceLine[];
   discount: number; // خصم على الفاتورة
   taxIds: string[];
+  taxLines: { taxId: string; amount: number }[];
   subtotal: number;
   taxTotal: number;
   total: number;

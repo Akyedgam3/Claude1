@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { SYSTEM_ACCOUNTS } from './chart-templates';
 import type { EntryDraft, LineDraft } from './ledger';
 import { convertMinor } from './money';
@@ -262,7 +261,7 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft): { invoic
     }
   }
 
-  const id = randomUUID();
+  const id = crypto.randomUUID();
   const number = (state.counters[kind] ?? 0) + 1;
   const partySide = isSaleSide ? SYSTEM_ACCOUNTS.customers : SYSTEM_ACCOUNTS.suppliers;
   // "in" = الجهة التي يدخل فيها المال للشركة (مدين في المبيع)
@@ -322,6 +321,7 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft): { invoic
     lines,
     discount,
     taxIds: taxes.map((t) => t.id),
+    taxLines: taxResult.taxes.map((t) => ({ taxId: t.tax.id, amount: t.amount })),
     subtotal,
     taxTotal,
     total,

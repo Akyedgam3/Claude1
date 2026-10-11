@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { applyCommerceEvent, buildInvoice, repairToInvoiceLines, validateCommerceEvent, type InvoiceDraft } from './commerce';
 import { convertMinor, type Currency } from './money';
 import type {
@@ -192,6 +191,16 @@ function hasMovements(state: CompanyState, accountId: string): boolean {
   return state.entries.some((e) => e.lines.some((l) => l.accountId === accountId));
 }
 
+/** آخر سعر صرف مسجّل بالتاريخ المطلوب أو قبله (1 للعملة الأساسية). */
+export function findRate(state: CompanyState, currency: string, date: string, kind: RateKind = 'market'): number | undefined {
+  if (currency === state.info?.baseCurrency) return 1;
+  let best: ExchangeRate | undefined;
+  for (const r of state.rates) {
+    if (r.currency === currency && r.kind === kind && r.date <= date && (!best || r.date > best.date)) best = r;
+  }
+  return best?.rate;
+}
+
 // ───────────── واجهة العمليات ─────────────
 
 export interface LineDraft {
@@ -282,14 +291,8 @@ export class Ledger {
     this.emit({ type: 'rate.set', rate });
   }
 
-  /** آخر سعر صرف مسجّل بتاريخ القيد أو قبله. */
   rateFor(currency: string, date: string, kind: RateKind = 'market'): number | undefined {
-    if (currency === this.base.code) return 1;
-    let best: ExchangeRate | undefined;
-    for (const r of this.state.rates) {
-      if (r.currency === currency && r.kind === kind && r.date <= date && (!best || r.date > best.date)) best = r;
-    }
-    return best?.rate;
+    return findRate(this.state, currency, date, kind);
   }
 
   postEntry(draft: EntryDraft): JournalEntry {
@@ -325,7 +328,7 @@ export class Ledger {
     absorbRounding(lines);
 
     const entry: JournalEntry = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       number: this.state.entries.length + 1,
       date: draft.date,
       memo: draft.memo,
@@ -348,7 +351,7 @@ export class Ledger {
 
   private reversal(original: JournalEntry, date: string, createdBy: string): JournalEntry {
     return {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       number: this.state.entries.length + 1,
       date,
       memo: `إلغاء القيد رقم ${original.number}`,
@@ -428,7 +431,7 @@ export class Ledger {
           ...(party ? { partyId: party.id } : {}),
         },
       ],
-      source: { type: v.kind, id: randomUUID() },
+      source: { type: v.kind, id: crypto.randomUUID() },
       ...(v.createdBy ? { createdBy: v.createdBy } : {}),
     });
   }
