@@ -26,6 +26,7 @@ import {
   Ruler,
   ScanBarcode,
   Scissors,
+  Search,
   Settings,
   Shirt,
   ShoppingCart,
@@ -87,6 +88,7 @@ const ICONS: Record<string, LucideIcon> = {
   file: FileText,
   logout: LogOut,
   customize: SlidersHorizontal,
+  search: Search,
 };
 
 export type IconName = keyof typeof ICONS;

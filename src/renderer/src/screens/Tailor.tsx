@@ -294,6 +294,21 @@ export function TailorEditor({ id }: { id?: string }) {
     <div className="page">
       <PageHeader title={existing ? `طلب تفصيل رقم ${existing.number}` : 'طلب تفصيل جديد'}>
         {existing && <PrintButtons kind="receipt" name={`طلب تفصيل ${existing.number}`} papers={['80mm', 'a5', 'a4', '58mm']} />}
+        {existing && party && (status === 'ready' || status === 'fitting') && (
+          <button
+            title="نص جاهز لإرساله للزبون عبر واتساب أو رسالة"
+            onClick={() => {
+              const remaining = Math.max(0, subtotal - deposits);
+              const msg =
+                status === 'ready'
+                  ? `مرحباً ${party.name}، طلبك رقم ${existing.number} جاهز للاستلام لدى ${state.info!.name}.${remaining ? ` المبلغ المتبقي: ${money(state, remaining, currency)}.` : ''}`
+                  : `مرحباً ${party.name}، نذكّرك بموعد البروفة لطلبك رقم ${existing.number}${fittingDate ? ` بتاريخ ${dateText(fittingDate)}` : ''} لدى ${state.info!.name}.`;
+              void navigator.clipboard.writeText(msg).then(() => notify('تم نسخ الرسالة، الصقها في واتساب'));
+            }}
+          >
+            نسخ رسالة للزبون
+          </button>
+        )}
         {existing?.invoiceId && (
           <button className="primary" onClick={() => navigate('invoice', existing.invoiceId)}>
             عرض الفاتورة

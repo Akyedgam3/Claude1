@@ -5,9 +5,9 @@ import { Barcode, ExportButtons, usePrinter } from '../components/print';
 import { CurrencySelect, Empty, Field, itemMatches, itemOptions, Modal, PageHeader, Picker, SearchBox, Tabs } from '../components/ui';
 import { Icon } from '../components/icons';
 
-export function Items() {
+export function Items({ initialQuery }: { initialQuery?: string } = {}) {
   const { state, profile, feature, can, call, notify } = useCompany();
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialQuery ?? '');
   const [category, setCategory] = useState('');
   const [editing, setEditing] = useState<Item | 'new' | null>(null);
   const [variants, setVariants] = useState(false);

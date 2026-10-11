@@ -1578,3 +1578,76 @@ strong.good {
 .chips.editable {
   margin-bottom: 10px;
 }
+
+/* ───────────── البحث السريع ───────────── */
+.quick-search-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 4px 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #d8e6e2;
+  font-size: 13px;
+}
+.quick-search-button kbd,
+.nav-kbd {
+  margin-inline-start: auto;
+  font-family: inherit;
+  font-size: 10px;
+  opacity: 0.55;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  padding: 0 4px;
+  direction: ltr;
+}
+.quick-search {
+  position: fixed;
+  top: 12vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(640px, 92vw);
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+.quick-search input {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  padding: 16px 18px;
+  font-size: 17px;
+}
+.quick-search input:focus {
+  outline: none;
+  box-shadow: none;
+}
+.quick-search ul {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  max-height: 55vh;
+  overflow-y: auto;
+}
+.quick-search li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.quick-search li small {
+  margin-inline-start: auto;
+  color: var(--muted);
+}
+.quick-search li.active {
+  background: var(--primary-soft);
+}
+.quick-search footer {
+  padding: 8px 14px;
+  font-size: 12px;
+  border-top: 1px solid var(--border);
+}

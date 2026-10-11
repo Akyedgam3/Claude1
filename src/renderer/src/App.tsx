@@ -6,6 +6,7 @@ import { api, Company, makeCtxHelpers, type AppInfo, type CompanyCtx } from './a
 import logoSmall from './assets/logo-64.png';
 import logo from './assets/logo.png';
 import { Icon } from './components/icons';
+import { QuickSearch } from './components/QuickSearch';
 import { Accounts } from './screens/Accounts';
 import { Appointments } from './screens/Appointments';
 import { Dashboard } from './screens/Dashboard';
@@ -68,6 +69,10 @@ const NAV: (NavItem | string)[] = [
   { key: 'users', label: 'المستخدمون', icon: 'user-cog', perm: 'users.manage' },
   { key: 'settings', label: 'الإعدادات', icon: 'settings' },
 ];
+
+/** مفاتيح سريعة للشاشات الأكثر استخداماً. */
+const SHORTCUTS: Record<string, string> = { F2: 'sale', F3: 'pos', F4: 'purchase', F6: 'items', F7: 'parties', F8: 'reports' };
+const SHORTCUT_OF = Object.fromEntries(Object.entries(SHORTCUTS).map(([k, v]) => [v, k]));
 
 /** نسخة سطحية جديدة لكل مجموعة حتى تلاحظ React التغيير بعد تطبيق الأحداث. */
 function refreshRefs(s: CompanyState): CompanyState {
@@ -164,6 +169,28 @@ export function App() {
     return { state, info, session: info.session, call, notify, navigate, reloadInfo: loadInfo, ...makeCtxHelpers(state, info.session.user) };
   }, [info, state, call, notify, navigate, loadInfo]);
 
+  const [searching, setSearching] = useState(false);
+  const shortcuts = useRef<Record<string, string>>({});
+  useEffect(() => {
+    // اختصارات لوحة المفاتيح (تعمل مع العربية لأننا نقرأ مكان الزر لا الحرف)
+    const onKey = (e: KeyboardEvent) => {
+      if (!stateRef.current) return;
+      if ((e.ctrlKey || e.metaKey) && e.code === 'KeyK') {
+        e.preventDefault();
+        setSearching(true);
+        return;
+      }
+      const target = shortcuts.current[e.key];
+      if (target && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        setSearching(false);
+        navigate(target);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [navigate]);
+
   const splash = (
     <div className="splash">
       <img src={logo} alt="" />
@@ -205,6 +232,9 @@ export function App() {
     if (n.perms && !n.perms.some(ctx.can)) return false;
     return true;
   }).filter((n, i, arr) => typeof n !== 'string' || (arr[i + 1] !== undefined && typeof arr[i + 1] !== 'string'));
+  const screens = visible.filter((n): n is NavItem => typeof n !== 'string');
+  const allowed = new Set(screens.map((n) => n.key));
+  shortcuts.current = Object.fromEntries(Object.entries(SHORTCUTS).filter(([, key]) => allowed.has(key)));
 
   return (
     <Company.Provider value={ctx}>
@@ -223,6 +253,9 @@ export function App() {
               {ctx.session.kind === 'remote' && <span title={ctx.session.address}> · متصل بالجهاز الرئيسي</span>}
             </div>
           </div>
+          <button className="quick-search-button" onClick={() => setSearching(true)}>
+            <Icon name="search" size={16} /> بحث سريع <kbd>Ctrl+K</kbd>
+          </button>
           <nav>
             {visible.map((n) =>
               typeof n === 'string' ? (
@@ -233,6 +266,7 @@ export function App() {
                 <button key={n.key} className={screen.key === n.key ? 'active' : ''} onClick={() => navigate(n.key)}>
                   <Icon name={n.icon} className="nav-icon" />
                   {n.label}
+                  {SHORTCUT_OF[n.key] && <kbd className="nav-kbd">{SHORTCUT_OF[n.key]}</kbd>}
                 </button>
               ),
             )}
@@ -262,6 +296,7 @@ export function App() {
           <Screen screen={screen} />
         </main>
       </div>
+      {searching && <QuickSearch screens={screens} onClose={() => setSearching(false)} />}
       {toastEl}
     </Company.Provider>
   );
@@ -296,7 +331,7 @@ function Screen({ screen }: { screen: { key: string; param?: string } }) {
     case 'vehicles':
       return <Vehicles />;
     case 'items':
-      return <Items />;
+      return <Items key={p ?? ''} {...(p ? { initialQuery: p } : {})} />;
     case 'stock':
       return <StockOps {...(p ? { tab: p } : {})} />;
     case 'production':
