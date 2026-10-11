@@ -1,0 +1,19 @@
+{
+  "name": "mizan",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ميزان - نظام محاسبة لسطح المكتب يعمل بدون إنترنت",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "license:keygen": "tsx scripts/license-keygen.ts",
+    "license:issue": "tsx scripts/license-issue.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  }
+}
