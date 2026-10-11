@@ -1,0 +1,30 @@
+# يبني ملف تنصيب ويندوز (Mizan Setup.exe) على جهاز ويندوز حقيقي في GitHub.
+# التنزيل: صفحة Actions ← آخر تشغيل ← Artifacts ← Mizan-Windows
+name: Build Windows installer
+
+on:
+  push:
+    branches: ['claude/**', main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run dist:win
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Mizan-Windows
+          path: dist/*.exe
+          if-no-files-found: error
+          retention-days: 30
