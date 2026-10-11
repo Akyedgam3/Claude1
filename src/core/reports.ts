@@ -1,4 +1,4 @@
-import type { Account, CompanyState, JournalEntry } from './types';
+import type { Account, CompanyState, Item, JournalEntry, JournalLine } from './types';
 
 export interface Period {
   from?: string; // YYYY-MM-DD شامل
@@ -122,26 +122,18 @@ export interface AccountStatement {
   closing: number;
 }
 
-/**
- * كشف حساب مع رصيد تراكمي.
- * إن حُددت عملة يُعرض الكشف بمبالغ تلك العملة فقط (مثلاً كشف عميل بالدولار).
- */
-export function accountStatement(
-  state: CompanyState,
-  accountId: string,
-  period: Period = {},
-  currency?: string,
-): AccountStatement {
-  const ids = descendantsOf(state, accountId);
+type LineFilter = (l: JournalLine) => boolean;
+
+function statement(state: CompanyState, match: LineFilter, period: Period, currency?: string): AccountStatement {
   const sorted = [...state.entries].sort((a, b) => a.date.localeCompare(b.date) || a.number - b.number);
   let opening = 0;
-  const rows: StatementRow[] = [];
   let running = 0;
+  const rows: StatementRow[] = [];
   for (const e of sorted) {
     let debit = 0;
     let credit = 0;
     for (const l of e.lines) {
-      if (!ids.has(l.accountId)) continue;
+      if (!match(l)) continue;
       if (currency) {
         if (l.currency !== currency) continue;
         debit += l.debit;
@@ -162,6 +154,61 @@ export function accountStatement(
     rows.push({ entryId: e.id, number: e.number, date: e.date, memo: e.memo, debit, credit, running });
   }
   return { opening, rows, closing: rows.length ? running : opening };
+}
+
+/**
+ * كشف حساب مع رصيد تراكمي.
+ * إن حُددت عملة يُعرض الكشف بمبالغ تلك العملة فقط (مثلاً كشف عميل بالدولار).
+ */
+export function accountStatement(state: CompanyState, accountId: string, period: Period = {}, currency?: string): AccountStatement {
+  const ids = descendantsOf(state, accountId);
+  return statement(state, (l) => ids.has(l.accountId), period, currency);
+}
+
+/** كشف حساب عميل/مورد (موجب = له علينا دين لصالحنا، أي مدين). */
+export function partyStatement(state: CompanyState, partyId: string, period: Period = {}, currency?: string): AccountStatement {
+  return statement(state, (l) => l.partyId === partyId, period, currency);
+}
+
+/** رصيد العميل/المورد بالعملة الأساسية وبكل عملة. موجب = مدين لنا. */
+export function partyBalance(state: CompanyState, partyId: string): { base: number; byCurrency: Record<string, number> } {
+  let base = 0;
+  const byCurrency: Record<string, number> = {};
+  for (const e of state.entries) {
+    for (const l of e.lines) {
+      if (l.partyId !== partyId) continue;
+      base += l.baseDebit - l.baseCredit;
+      byCurrency[l.currency] = (byCurrency[l.currency] ?? 0) + l.debit - l.credit;
+    }
+  }
+  return { base, byCurrency };
+}
+
+export interface StockRow {
+  item: Item;
+  qty: number;
+  byWarehouse: Record<string, number>;
+  value: number;
+  avgCost: number;
+  low: boolean; // تحت الحد الأدنى
+}
+
+export function stockReport(state: CompanyState): StockRow[] {
+  return Object.values(state.items)
+    .filter((i) => i.kind === 'stock' && !i.archived)
+    .map((item) => {
+      const s = state.stock[item.id];
+      const qty = s?.totalQty ?? 0;
+      return {
+        item,
+        qty,
+        byWarehouse: s?.qty ?? {},
+        value: s?.value ?? 0,
+        avgCost: s && qty > 0 ? Math.round(s.value / qty) : (s?.lastCost ?? 0),
+        low: item.minStock !== undefined && qty <= item.minStock,
+      };
+    })
+    .sort((a, b) => a.item.code.localeCompare(b.item.code));
 }
 
 export interface IncomeStatement {

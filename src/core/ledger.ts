@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { applyCommerceEvent, buildInvoice, repairToInvoiceLines, validateCommerceEvent, type InvoiceDraft } from './commerce';
 import { convertMinor, type Currency } from './money';
 import type {
   Account,
@@ -7,15 +8,37 @@ import type {
   CompanyState,
   ExchangeRate,
   JournalEntry,
+  Invoice,
+  Item,
   JournalLine,
+  Party,
   RateKind,
+  RepairOrder,
   Tax,
+  Vehicle,
+  Warehouse,
 } from './types';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export function emptyState(): CompanyState {
-  return { info: null, currencies: {}, accounts: {}, rates: [], taxes: {}, entries: [], voided: {} };
+  return {
+    info: null,
+    currencies: {},
+    accounts: {},
+    rates: [],
+    taxes: {},
+    entries: [],
+    voided: {},
+    parties: {},
+    items: {},
+    warehouses: {},
+    stock: {},
+    invoices: [],
+    vehicles: {},
+    repairs: {},
+    counters: {},
+  };
 }
 
 // ───────────── التحقق من صحة الأحداث قبل تسجيلها ─────────────
@@ -119,6 +142,12 @@ export function validateEvent(state: CompanyState, event: CompanyEvent): void {
       return;
     case 'entry.posted':
       return validateEntry(state, event.entry);
+    case 'invoice.posted':
+    case 'invoice.voided':
+      validateCommerceEvent(state, event);
+      return validateEntry(state, event.entry);
+    default:
+      return validateCommerceEvent(state, event);
   }
 }
 
@@ -153,6 +182,8 @@ export function applyEvent(state: CompanyState, event: CompanyEvent): CompanySta
       state.entries.push(event.entry);
       if (event.entry.voidOf) state.voided[event.entry.voidOf] = event.entry.id;
       break;
+    default:
+      applyCommerceEvent(state, event);
   }
   return state;
 }
@@ -171,6 +202,7 @@ export interface LineDraft {
   rate?: number; // الافتراضي: سعر الصرف المسجّل في تاريخ القيد
   memo?: string;
   costCenter?: string;
+  partyId?: string;
 }
 
 export interface EntryDraft {
@@ -178,6 +210,19 @@ export interface EntryDraft {
   memo: string;
   lines: LineDraft[];
   source?: { type: string; id: string };
+  createdBy?: string;
+}
+
+export interface VoucherDraft {
+  kind: 'receipt' | 'payment'; // سند قبض / سند دفع
+  date: string;
+  amount: number; // بأصغر وحدة من العملة
+  currency?: string;
+  rate?: number;
+  partyId?: string; // إن وُجد يُرحَّل على حساب العملاء/الموردين
+  accountId?: string; // الحساب المقابل (مصروف مثلاً) إن لم يكن طرفاً
+  cashAccountId?: string;
+  memo: string;
   createdBy?: string;
 }
 
@@ -191,7 +236,7 @@ export class Ledger {
   ) {}
 
   /** يتحقق من الحدث، ثم يحفظه، ثم يطبّقه. إن فشل الحفظ تبقى الحالة كما هي. */
-  private emit(event: CompanyEvent): void {
+  emit(event: CompanyEvent): void {
     validateEvent(this.state, event);
     this.sink(event);
     applyEvent(this.state, event);
@@ -202,12 +247,19 @@ export class Ledger {
     return this.state.currencies[code]!;
   }
 
-  createCompany(info: CompanyInfo, currencies: Currency[], accounts: Account[] = [], taxes: Tax[] = []): void {
+  createCompany(
+    info: CompanyInfo,
+    currencies: Currency[],
+    accounts: Account[] = [],
+    taxes: Tax[] = [],
+    warehouses: Warehouse[] = [{ id: 'main', name: 'المستودع الرئيسي' }],
+  ): void {
     this.emit({ type: 'company.created', info, currencies });
     // الآباء قبل الأبناء
     const sorted = [...accounts].sort((a, b) => a.id.length - b.id.length || a.id.localeCompare(b.id));
     for (const account of sorted) this.saveAccount(account);
     for (const tax of taxes) this.saveTax(tax);
+    for (const warehouse of warehouses) this.saveWarehouse(warehouse);
   }
 
   updateCompany(info: Partial<CompanyInfo>): void {
@@ -241,6 +293,13 @@ export class Ledger {
   }
 
   postEntry(draft: EntryDraft): JournalEntry {
+    const entry = this.buildEntry(draft);
+    this.emit({ type: 'entry.posted', entry });
+    return entry;
+  }
+
+  /** يبني القيد ويحسب المقابل بالعملة الأساسية دون حفظه. */
+  buildEntry(draft: EntryDraft): JournalEntry {
     const base = this.base;
     const lines: JournalLine[] = draft.lines.map((d, i) => {
       const currency = this.state.currencies[d.currency ?? base.code] ?? fail(`السطر ${i + 1}: عملة غير معرّفة`);
@@ -260,6 +319,7 @@ export class Ledger {
         baseCredit: credit ? convertMinor(credit, currency, base, rate) : 0,
         ...(d.memo ? { memo: d.memo } : {}),
         ...(d.costCenter ? { costCenter: d.costCenter } : {}),
+        ...(d.partyId ? { partyId: d.partyId } : {}),
       };
     });
     absorbRounding(lines);
@@ -274,14 +334,20 @@ export class Ledger {
       createdAt: new Date().toISOString(),
       createdBy: draft.createdBy ?? 'system',
     };
-    this.emit({ type: 'entry.posted', entry });
     return entry;
   }
 
   /** لا يُحذف أي قيد؛ الإلغاء يكون بقيد عكسي يحفظ أثر العملية. */
   voidEntry(entryId: string, date: string, createdBy = 'system'): JournalEntry {
     const original = this.state.entries.find((e) => e.id === entryId) ?? fail('القيد غير موجود');
-    const entry: JournalEntry = {
+    if (original.source?.type === 'invoice') fail('هذا القيد تابع لفاتورة؛ ألغِ الفاتورة نفسها');
+    const entry = this.reversal(original, date, createdBy);
+    this.emit({ type: 'entry.posted', entry });
+    return entry;
+  }
+
+  private reversal(original: JournalEntry, date: string, createdBy: string): JournalEntry {
+    return {
       id: randomUUID(),
       number: this.state.entries.length + 1,
       date,
@@ -294,11 +360,113 @@ export class Ledger {
         baseCredit: l.baseDebit,
       })),
       voidOf: original.id,
+      ...(original.source ? { source: original.source } : {}),
       createdAt: new Date().toISOString(),
       createdBy,
     };
-    this.emit({ type: 'entry.posted', entry });
-    return entry;
+  }
+
+  // ───────────── التجارة ─────────────
+
+  saveParty(party: Party): void {
+    this.emit({ type: 'party.saved', party });
+  }
+
+  saveItem(item: Item): void {
+    this.emit({ type: 'item.saved', item });
+  }
+
+  saveWarehouse(warehouse: Warehouse): void {
+    this.emit({ type: 'warehouse.saved', warehouse });
+  }
+
+  postInvoice(draft: InvoiceDraft): Invoice {
+    const { invoice, entry } = buildInvoice(
+      {
+        state: this.state,
+        baseCode: this.base.code,
+        resolveRate: (c, d) => this.rateFor(c, d),
+        buildEntry: (d) => this.buildEntry(d),
+      },
+      draft,
+    );
+    this.emit({ type: 'invoice.posted', invoice, entry });
+    return invoice;
+  }
+
+  /** إلغاء الفاتورة: قيد عكسي وإرجاع حركة المخزون كما كانت. */
+  voidInvoice(invoiceId: string, date: string, createdBy = 'system'): void {
+    const invoice = this.state.invoices.find((i) => i.id === invoiceId) ?? fail('الفاتورة غير موجودة');
+    const original = this.state.entries.find((e) => e.id === invoice.entryId)!;
+    this.emit({ type: 'invoice.voided', invoiceId, entry: this.reversal(original, date, createdBy) });
+  }
+
+  /** سند قبض (من زبون مثلاً) أو سند دفع (لمورد أو مصروف). */
+  postVoucher(v: VoucherDraft): JournalEntry {
+    if (!(v.amount > 0)) fail('المبلغ يجب أن يكون أكبر من صفر');
+    const party = v.partyId ? (this.state.parties[v.partyId] ?? fail('الطرف غير موجود')) : null;
+    const counter =
+      v.accountId ??
+      (party
+        ? party.kind === 'supplier' || (party.kind === 'both' && v.kind === 'payment')
+          ? '2101'
+          : '1103'
+        : fail('اختر الحساب المقابل أو العميل/المورد'));
+    const cash = v.cashAccountId ?? '1101';
+    const fx = { currency: v.currency ?? this.base.code, ...(v.rate ? { rate: v.rate } : {}) };
+    const inflow = v.kind === 'receipt';
+    const number = this.state.entries.filter((e) => e.source?.type === v.kind && !e.voidOf).length + 1;
+    return this.postEntry({
+      date: v.date,
+      memo: `${inflow ? 'سند قبض' : 'سند دفع'} رقم ${number}: ${v.memo}`,
+      lines: [
+        { accountId: cash, ...(inflow ? { debit: v.amount } : { credit: v.amount }), ...fx },
+        {
+          accountId: counter,
+          ...(inflow ? { credit: v.amount } : { debit: v.amount }),
+          ...fx,
+          ...(party ? { partyId: party.id } : {}),
+        },
+      ],
+      source: { type: v.kind, id: randomUUID() },
+      ...(v.createdBy ? { createdBy: v.createdBy } : {}),
+    });
+  }
+
+  // ───────────── السيارات ─────────────
+
+  saveVehicle(vehicle: Vehicle): void {
+    this.emit({ type: 'vehicle.saved', vehicle });
+  }
+
+  /** حفظ أمر إصلاح جديد أو تعديله. الرقم يُعطى تلقائياً للأوامر الجديدة. */
+  saveRepair(repair: Omit<RepairOrder, 'number'> & { number?: number }): RepairOrder {
+    const existing = this.state.repairs[repair.id];
+    const full: RepairOrder = { ...repair, number: existing?.number ?? (this.state.counters['repair'] ?? 0) + 1 };
+    this.emit({ type: 'repair.saved', repair: full });
+    return full;
+  }
+
+  /** يحوّل أمر الإصلاح إلى فاتورة مبيع (قطع + أجور يد) ويعلّمه كمفوتر. */
+  invoiceRepair(
+    repairId: string,
+    opts: Pick<InvoiceDraft, 'date' | 'paid' | 'cashAccountId' | 'taxIds' | 'discount' | 'rate' | 'warehouseId' | 'createdBy'>,
+  ): Invoice {
+    const repair = this.state.repairs[repairId] ?? fail('أمر الإصلاح غير موجود');
+    if (repair.status === 'invoiced') fail('أمر الإصلاح مفوتر مسبقاً');
+    if (repair.status === 'cancelled') fail('أمر الإصلاح ملغى');
+    const vehicle = this.state.vehicles[repair.vehicleId]!;
+    const invoice = this.postInvoice({
+      ...opts,
+      kind: 'sale',
+      partyId: repair.partyId,
+      currency: repair.currency,
+      lines: repairToInvoiceLines(this.state, repair),
+      notes: `أمر إصلاح رقم ${repair.number} — ${vehicle.make} ${vehicle.model} (${vehicle.plate})`,
+      source: { type: 'repair', id: repair.id },
+    });
+    this.saveRepair({ ...repair, status: 'invoiced', invoiceId: invoice.id });
+    return invoice;
   }
 }
 

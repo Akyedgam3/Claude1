@@ -89,3 +89,20 @@ describe('CompanyStore', () => {
     expect(() => create()).toThrow(/مسبقاً/);
   });
 });
+
+describe('CompanyStore with commerce data', () => {
+  it('replays invoices and stock after reopening', () => {
+    const store = create();
+    const l = store.ledger;
+    l.saveParty({ id: 'c', kind: 'customer', name: 'زبون' });
+    l.saveItem({ id: 'i', code: '1', name: 'بواجي', kind: 'stock', unit: 'قطعة', price: 1000, priceCurrency: 'SYP' });
+    l.postInvoice({ kind: 'purchase', date: '2026-01-01', lines: [{ itemId: 'i', qty: 4, price: 500 }] });
+    l.postInvoice({ kind: 'sale', date: '2026-01-02', partyId: 'c', lines: [{ itemId: 'i', qty: 1, price: 1000 }] });
+    store.close();
+    fs.rmSync(path.join(dir, 'snapshot.json'));
+    const reopened = CompanyStore.open(dir);
+    expect(reopened.ledger.state.stock['i']).toMatchObject({ totalQty: 3, value: 1500 });
+    expect(reopened.ledger.state.counters['sale']).toBe(1);
+    reopened.close();
+  });
+});

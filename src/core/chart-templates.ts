@@ -1,4 +1,4 @@
-import type { Account, AccountType, Tax } from './types';
+import type { Account, AccountType, Activity, Tax, Warehouse } from './types';
 
 // دليل حسابات عام لنشاط تجاري/خدمي، بترقيم شجري (رقم الأب بادئة لرقم الابن).
 // ملاحظة: يحتاج مراجعة من محاسب قبل اعتماده كمطابق للنظام المحاسبي الموحد السوري.
@@ -67,6 +67,25 @@ function parentOf(id: string, ids: Set<string>): string | null {
   return null;
 }
 
+// تسميات خاصة بكل نشاط فوق الدليل العام
+const ACTIVITY_NAMES: Record<Activity, Record<string, string>> = {
+  general: {},
+  auto: {
+    '1104': 'مخزون قطع الغيار',
+    '4101': 'مبيعات قطع الغيار',
+    '4201': 'إيرادات الصيانة (أجور اليد)',
+  },
+};
+
+export function chartFor(activity: Activity = 'general'): Account[] {
+  const names = ACTIVITY_NAMES[activity];
+  return tradingChart().map((a) => ({ ...a, name: names[a.id] ?? a.name }));
+}
+
+export function defaultWarehouses(): Warehouse[] {
+  return [{ id: 'main', name: 'المستودع الرئيسي' }];
+}
+
 export function tradingChart(): Account[] {
   const ids = new Set(TRADING.map(([id]) => id));
   return TRADING.map(([id, name, type, isGroup = false]) => ({
@@ -96,6 +115,9 @@ export const SYSTEM_ACCOUNTS = {
   suppliers: '2101',
   sales: '4101',
   salesReturns: '4102',
+  discountAllowed: '4103',
+  serviceRevenue: '4201',
+  miscExpenses: '5209',
   cogs: '5101',
   fxGain: '4301',
   fxLoss: '5301',
