@@ -409,6 +409,9 @@ function createWindow(): void {
   else void win.loadFile(path.join(here, '../renderer/index.html'));
 }
 
+// صيغة التاريخ في حقول الإدخال: يوم/شهر/سنة كما هو معتاد في سوريا
+app.commandLine.appendSwitch('lang', 'en-GB');
+
 // نسخة واحدة فقط من البرنامج على الجهاز
 if (!app.requestSingleInstanceLock()) {
   app.quit();

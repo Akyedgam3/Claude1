@@ -703,7 +703,7 @@ export class Ledger {
       partyId: repair.partyId,
       currency: repair.currency,
       lines: repairToInvoiceLines(this.state, repair),
-      notes: `أمر إصلاح رقم ${repair.number} — ${v.make} ${v.model}${v.plate ? ` (${v.plate})` : ''}`,
+      notes: `أمر صيانة رقم ${repair.number} — ${v.make} ${v.model}${v.plate ? ` (${v.plate})` : ''}`,
       source: { type: 'repair', id: repair.id },
     });
     this.emit({ type: 'repair.saved', repair: { ...repair, status: 'invoiced', invoiceId: invoice.id } });

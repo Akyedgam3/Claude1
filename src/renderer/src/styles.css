@@ -1006,7 +1006,8 @@ input.mono {
 }
 .doc-lines small.mono,
 .line-item small .mono {
-  margin-inline-start: 8px;
+  /* العنصر معزول باتجاه LTR، فنضع هامشاً من الجهتين ليفصله عن النص العربي */
+  margin: 0 8px;
 }
 
 /* ───── إضافات الإصدار الثاني ───── */

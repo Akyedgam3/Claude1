@@ -37,7 +37,7 @@ export function Repairs() {
     <div className="page">
       <PageHeader title="أوامر الإصلاح">
         <button className="primary" onClick={() => navigate('repair')}>
-          + أمر إصلاح جديد
+          + أمر صيانة جديد
         </button>
       </PageHeader>
       <div className="toolbar">
