@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
 import { partyBalance, partyStatement, type Party } from '../../../core';
-import { money, uid, useCompany, dateText } from '../api';
+import { major, money, parseAmount, toInput, uid, useCompany, dateText } from '../api';
+import { ExportButtons, PrintButtons, DocHeader } from '../components/print';
 import { Empty, Field, matches, Modal, PageHeader, SearchBox } from '../components/ui';
 
 const KIND_NAMES: Record<Party['kind'], string> = { customer: 'عميل', supplier: 'مورد', both: 'عميل ومورد' };
 
 export function Parties({ focus }: { focus?: string }) {
-  const { state } = useCompany();
+  const { state, can } = useCompany();
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState<'all' | 'customer' | 'supplier'>('all');
   const [editing, setEditing] = useState<Party | 'new' | null>(null);
@@ -24,9 +25,26 @@ export function Parties({ focus }: { focus?: string }) {
   return (
     <div className="page">
       <PageHeader title="العملاء والموردون">
-        <button className="primary" onClick={() => setEditing('new')}>
-          + إضافة
-        </button>
+        {can('parties.manage') && (
+          <button className="primary" onClick={() => setEditing('new')}>
+            + إضافة
+          </button>
+        )}
+        <ExportButtons
+          name="العملاء والموردون"
+          sheets={() => [
+            {
+              name: 'الأرصدة',
+              columns: [
+                { header: 'الاسم', key: 'name' },
+                { header: 'النوع', key: 'kind' },
+                { header: 'الهاتف', key: 'phone' },
+                { header: 'الرصيد (موجب = عليه)', key: 'balance', type: 'money' },
+              ],
+              rows: rows.map((r) => ({ name: r.party.name, kind: KIND_NAMES[r.party.kind], phone: r.party.phone, balance: major(state, r.balance.base) })),
+            },
+          ]}
+        />
       </PageHeader>
       <div className="toolbar">
         <SearchBox value={query} onChange={setQuery} placeholder="ابحث بالاسم أو الهاتف..." />
@@ -100,7 +118,10 @@ function PartyPanel({ party, onEdit }: { party: Party; onEdit: () => void }) {
     <aside className="card panel">
       <header className="panel-header">
         <h3>{party.name}</h3>
-        <button onClick={onEdit}>تعديل</button>
+        <span className="button-row">
+          <PrintButtons kind="report" name={`كشف حساب ${party.name}`} papers={['a4', '80mm']} />
+          <button onClick={onEdit}>تعديل</button>
+        </span>
       </header>
       <div className="kv">
         <span>الهاتف</span>
@@ -144,6 +165,12 @@ function PartyPanel({ party, onEdit }: { party: Party; onEdit: () => void }) {
       {st.rows.length === 0 ? (
         <p className="muted">لا توجد حركات</p>
       ) : (
+        <div className="print-area">
+        <div className="print-only">
+          <DocHeader title="كشف حساب">
+            <div>{party.name}</div>
+          </DocHeader>
+        </div>
         <table className="table compact">
           <thead>
             <tr>
@@ -169,6 +196,7 @@ function PartyPanel({ party, onEdit }: { party: Party; onEdit: () => void }) {
             })}
           </tbody>
         </table>
+        </div>
       )}
     </aside>
   );
@@ -185,13 +213,16 @@ export function PartyForm({
   onSaved?: (p: Party) => void;
   defaultKind?: Party['kind'];
 }) {
-  const { call, notify } = useCompany();
+  const { state, call, notify, feature } = useCompany();
+  const base = state.info!.baseCurrency;
   const [f, setF] = useState({
     name: party?.name ?? '',
     kind: party?.kind ?? defaultKind,
     phone: party?.phone ?? '',
     address: party?.address ?? '',
     notes: party?.notes ?? '',
+    priceTier: party?.priceTier ?? 'retail',
+    creditLimit: party?.creditLimit ? toInput(state, party.creditLimit, base) : '',
   });
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
   return (
@@ -200,10 +231,18 @@ export function PartyForm({
         className="form-grid"
         onSubmit={async (e) => {
           e.preventDefault();
+          let creditLimit = 0;
+          try {
+            creditLimit = parseAmount(state, f.creditLimit, base);
+          } catch (err) {
+            return notify((err as Error).message, 'error');
+          }
           const data: Party = {
             id: party?.id ?? uid(),
             name: f.name.trim(),
             kind: f.kind as Party['kind'],
+            ...(f.priceTier !== 'retail' ? { priceTier: f.priceTier as Party['priceTier'] } : {}),
+            ...(creditLimit > 0 ? { creditLimit } : {}),
             ...(f.phone.trim() ? { phone: f.phone.trim() } : {}),
             ...(f.address.trim() ? { address: f.address.trim() } : {}),
             ...(f.notes.trim() ? { notes: f.notes.trim() } : {}),
@@ -233,6 +272,20 @@ export function PartyForm({
         <Field label="العنوان" wide>
           <input value={f.address} onChange={set('address')} />
         </Field>
+        {feature('priceTiers') && f.kind !== 'supplier' && (
+          <Field label="شريحة السعر">
+            <select value={f.priceTier} onChange={set('priceTier')}>
+              <option value="retail">مفرق</option>
+              <option value="wholesale">جملة</option>
+              <option value="special">سعر خاص</option>
+            </select>
+          </Field>
+        )}
+        {f.kind !== 'supplier' && (
+          <Field label={`حد الدين المسموح (${state.currencies[base]?.symbol}) — فارغ = بلا حد`}>
+            <input value={f.creditLimit} onChange={set('creditLimit')} inputMode="decimal" />
+          </Field>
+        )}
         <Field label="ملاحظات" wide>
           <textarea value={f.notes} onChange={set('notes')} rows={2} />
         </Field>

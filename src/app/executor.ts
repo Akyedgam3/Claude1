@@ -69,6 +69,11 @@ export function execute(store: CompanyStore, actor: User, method: string, args: 
 
   const permission = permissionFor(method, args) ?? fail(`عملية غير معروفة: ${method}`);
   requirePermission(user, permission);
+  if (method === 'postEntry') {
+    // القيود اليدوية لا يمكن أن تنتحل صفة مستند (فاتورة، سند...)
+    const src = (args[0] as { source?: { type?: string } } | undefined)?.source;
+    if (src && src.type !== 'manual') fail('نوع القيد غير مسموح');
+  }
   if (method === 'postInvoice' || method === 'closeOrder') {
     const d = args[method === 'postInvoice' ? 0 : 1] as Partial<InvoiceDraft> | undefined;
     const discounted = !!d?.discount || !!d?.lines?.some((l) => !!l.discount);

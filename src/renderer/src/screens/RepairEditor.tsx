@@ -3,9 +3,9 @@ import type { Invoice, RepairOrder, RepairStatus } from '../../../core';
 import { money, parseAmount, toInput, today, uid, useCompany, dateText } from '../api';
 import { CurrencySelect, Field, itemMatches, itemOptions, Modal, PageHeader, Picker } from '../components/ui';
 import { cashAccounts } from './InvoiceEditor';
-import { printDocument } from './InvoiceView';
 import { repairTotal, STATUS_NAMES } from './Repairs';
-import { VehicleForm } from './Vehicles';
+import { assetLabel, useAssetKind, VehicleForm } from './Vehicles';
+import { DocHeader, PrintButtons } from '../components/print';
 
 interface PartRow {
   key: string;
@@ -21,6 +21,7 @@ interface LaborRow {
 
 export function RepairEditor({ id }: { id?: string }) {
   const { state, call, notify, navigate } = useCompany();
+  const asset = useAssetKind();
   const base = state.info!.baseCurrency;
   const existing = id && !id.startsWith('new') ? state.repairs[id] : undefined;
   const presetVehicle = id?.startsWith('new:') ? id.slice(4) : null;
@@ -49,7 +50,7 @@ export function RepairEditor({ id }: { id?: string }) {
     () =>
       Object.values(state.vehicles).map((v) => ({
         id: v.id,
-        label: `${v.plate} — ${v.make} ${v.model}`,
+        label: assetLabel(v),
         hint: state.parties[v.partyId]?.name ?? '',
       })),
     [state],
@@ -105,8 +106,8 @@ export function RepairEditor({ id }: { id?: string }) {
 
   return (
     <div className="page">
-      <PageHeader title={existing ? `أمر إصلاح رقم ${existing.number}` : 'أمر إصلاح جديد'}>
-        {existing && <button onClick={() => printDocument('a4')}>طباعة كرت الصيانة</button>}
+      <PageHeader title={existing ? `أمر صيانة رقم ${existing.number}` : 'أمر صيانة جديد'}>
+        {existing && <PrintButtons kind="invoice" name={`أمر صيانة ${existing.number}`} />}
         {existing?.invoiceId && (
           <button className="primary" onClick={() => navigate('invoice', existing.invoiceId)}>
             عرض الفاتورة
@@ -125,14 +126,14 @@ export function RepairEditor({ id }: { id?: string }) {
           </>
         )}
       </PageHeader>
-      {locked && <div className="banner">هذا الأمر مفوتر. لتعديله ألغِ الفاتورة أولاً.</div>}
+      {locked && <div className="banner">هذا الأمر مفوتر. لتعديله ألغِ الفاتورة (يعود الأمر قابلاً للتعديل).</div>}
 
       <fieldset disabled={locked} className="plain">
         <section className="card form-grid four">
-          <Field label="السيارة" wide>
+          <Field label={asset.one === 'سيارة' ? 'السيارة' : 'الجهاز'} wide>
             <div className="with-button">
-              <Picker options={vehicleOptions} value={vehicleId} onChange={setVehicleId} placeholder="ابحث برقم اللوحة أو اسم الزبون..." />
-              <button type="button" className="icon" title="سيارة جديدة" onClick={() => setNewVehicle(true)}>
+              <Picker options={vehicleOptions} value={vehicleId} onChange={setVehicleId} placeholder="ابحث باللوحة / IMEI أو اسم الزبون..." />
+              <button type="button" className="icon" title="جديد" onClick={() => setNewVehicle(true)}>
                 +
               </button>
             </div>
@@ -153,9 +154,11 @@ export function RepairEditor({ id }: { id?: string }) {
           <Field label="التاريخ">
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </Field>
-          <Field label="العداد (كم)">
-            <input value={odometer} onChange={(e) => setOdometer(e.target.value.replace(/\D/g, ''))} inputMode="numeric" />
-          </Field>
+          {asset.kind === 'vehicle' && (
+            <Field label="العداد (كم)">
+              <input value={odometer} onChange={(e) => setOdometer(e.target.value.replace(/\D/g, ''))} inputMode="numeric" />
+            </Field>
+          )}
           <Field label="الفني">
             <input value={technician} onChange={(e) => setTechnician(e.target.value)} list="technicians" />
             <datalist id="technicians">
@@ -168,7 +171,7 @@ export function RepairEditor({ id }: { id?: string }) {
             <CurrencySelect value={currency} onChange={setCurrency} />
           </Field>
           <Field label="شكوى الزبون" wide>
-            <textarea rows={2} value={complaint} onChange={(e) => setComplaint(e.target.value)} placeholder="صوت بالفرامل، تغيير زيت..." />
+            <textarea rows={2} value={complaint} onChange={(e) => setComplaint(e.target.value)} placeholder={asset.kind === 'vehicle' ? 'صوت بالفرامل، تغيير زيت...' : 'الشاشة مكسورة، لا يشحن...'} />
           </Field>
           <Field label="التشخيص والعمل المنجز" wide>
             <textarea rows={2} value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)} />
@@ -366,17 +369,12 @@ function RepairCard({ repair }: { repair: RepairOrder }) {
   const party = state.parties[repair.partyId];
   return (
     <div className="print-area print-only invoice-doc">
-      <header className="doc-header">
+      <DocHeader title="أمر صيانة">
+        <div>رقم: {repair.number}</div>
         <div>
-          <h1>{state.info?.name}</h1>
-          {state.info?.phone && <div dir="ltr">{state.info.phone}</div>}
+          التاريخ: <span className="ltr">{dateText(repair.date)}</span>
         </div>
-        <div className="doc-title">
-          <h2>كرت صيانة</h2>
-          <div>رقم: {repair.number}</div>
-          <div>التاريخ: <span className="ltr">{dateText(repair.date)}</span></div>
-        </div>
-      </header>
+      </DocHeader>
       <div className="doc-party">
         <div>
           الزبون: <strong>{party?.name}</strong> {party?.phone && (
@@ -387,10 +385,7 @@ function RepairCard({ repair }: { repair: RepairOrder }) {
           )}
         </div>
         <div>
-          السيارة:{' '}
-          <strong>
-            {v?.make} {v?.model} {v?.year ?? ''} — {v?.plate}
-          </strong>
+          {v?.kind === 'device' ? 'الجهاز' : 'السيارة'}: <strong>{assetLabel(v)}</strong>
           {repair.odometer ? ` · العداد: ${repair.odometer.toLocaleString('en')} كم` : ''}
           {v?.vin && <span className="mono"> · {v.vin}</span>}
         </div>

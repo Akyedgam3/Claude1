@@ -69,7 +69,7 @@ export function matches(query: string, ...fields: (string | number | undefined)[
 }
 
 export function itemMatches(item: Item, query: string): boolean {
-  return matches(query, item.name, item.code, item.partNumber, item.barcode, item.compat, item.brand, item.category);
+  return matches(query, item.name, item.code, item.partNumber, item.barcode, item.compat, item.brand, item.category, item.group, ...Object.values(item.attributes ?? {}));
 }
 
 interface Option {
@@ -159,13 +159,21 @@ export function partyOptions(state: CompanyState, side?: 'customer' | 'supplier'
     .map((p) => ({ id: p.id, label: p.name, ...(p.phone ? { hint: p.phone } : {}) }));
 }
 
-export function itemOptions(state: CompanyState): (Option & { item: Item })[] {
+export function itemOptions(state: CompanyState, filter?: (i: Item) => boolean): (Option & { item: Item })[] {
   return Object.values(state.items)
-    .filter((i) => !i.archived)
+    .filter((i) => !i.archived && (!filter || filter(i)))
     .map((item) => ({
       id: item.id,
       label: `${item.name}`,
-      hint: [item.code, item.partNumber, item.compat, `الرصيد: ${state.stock[item.id]?.totalQty ?? 0}`].filter(Boolean).join(' · '),
+      hint: [
+        item.code,
+        item.partNumber,
+        item.compat,
+        item.attributes ? Object.values(item.attributes).join(' ') : '',
+        item.kind === 'stock' ? `الرصيد: ${state.stock[item.id]?.totalQty ?? 0}` : item.kind === 'composite' ? 'مركّب' : 'خدمة',
+      ]
+        .filter(Boolean)
+        .join(' · '),
       item,
     }));
 }
@@ -189,5 +197,64 @@ export function Stat({ label, value, tone }: { label: string; value: string; ton
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
+  );
+}
+
+export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { key: T; label: string; hidden?: boolean }[]; value: T; onChange: (t: T) => void }) {
+  return (
+    <div className="segmented tabs">
+      {tabs
+        .filter((t) => !t.hidden)
+        .map((t) => (
+          <button key={t.key} className={value === t.key ? 'active' : ''} onClick={() => onChange(t.key)}>
+            {t.label}
+          </button>
+        ))}
+    </div>
+  );
+}
+
+/** زر يطلب تأكيداً بضغطة ثانية (للإلغاء والحذف). */
+export function ConfirmButton({ label, confirmLabel, onConfirm, className }: { label: string; confirmLabel?: string; onConfirm: () => void | Promise<unknown>; className?: string }) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const t = setTimeout(() => setArmed(false), 4000);
+    return () => clearTimeout(t);
+  }, [armed]);
+  return armed ? (
+    <button
+      className={`danger ${className ?? ''}`}
+      onClick={async () => {
+        setArmed(false);
+        await onConfirm();
+      }}
+    >
+      {confirmLabel ?? 'تأكيد'}
+    </button>
+  ) : (
+    <button className={`ghost danger ${className ?? ''}`} onClick={() => setArmed(true)}>
+      {label}
+    </button>
+  );
+}
+
+/** حقل الماسح الضوئي: يقرأ الباركود أو الرمز أو رقم القطعة أو باركود الميزان. */
+export function ScanInput({ onScan, placeholder }: { onScan: (code: string) => void; placeholder?: string }) {
+  const [value, setValue] = useState('');
+  return (
+    <input
+      className="mono scan-input"
+      placeholder={placeholder ?? 'امسح الباركود أو اكتب الرمز ثم Enter'}
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (value.trim()) onScan(value.trim());
+          setValue('');
+        }
+      }}
+    />
   );
 }

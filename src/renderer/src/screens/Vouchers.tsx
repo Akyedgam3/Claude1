@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react';
-import { money, parseAmount, today, useCompany, dateText } from '../api';
-import { CurrencySelect, Empty, Field, PageHeader, partyOptions, Picker } from '../components/ui';
+import { amountInWords, type JournalEntry } from '../../../core';
+import { dateText, major, money, parseAmount, today, useCompany } from '../api';
+import { DocHeader, ExportButtons, PrintButtons } from '../components/print';
+import { ConfirmButton, CurrencySelect, Empty, Field, Modal, PageHeader, partyOptions, Picker } from '../components/ui';
 import { cashAccounts } from './InvoiceEditor';
 
 export function Vouchers() {
-  const { state, call, notify } = useCompany();
+  const { state, call, notify, can } = useCompany();
   const base = state.info!.baseCurrency;
   const [kind, setKind] = useState<'receipt' | 'payment'>('receipt');
   const [target, setTarget] = useState<'party' | 'account'>('party');
@@ -13,16 +15,19 @@ export function Vouchers() {
   const [amount, setAmount] = useState('');
   const [currency, setCurrency] = useState(base);
   const [rate, setRate] = useState('');
-  const [cash, setCash] = useState('1101');
+  const [cash, setCash] = useState('');
   const [date, setDate] = useState(today());
   const [memo, setMemo] = useState('');
+  const [printing, setPrinting] = useState<JournalEntry | null>(null);
 
+  const boxes = cashAccounts(state, currency);
+  const cashId = boxes.some((b) => b.id === cash) ? cash : (boxes.find((b) => b.currency === currency) ?? boxes[0])?.id ?? '1101';
   const counterAccounts = useMemo(
     () =>
       Object.values(state.accounts)
-        .filter((a) => !a.isGroup && !a.archived && (kind === 'payment' ? a.type === 'expense' || a.type === 'equity' || a.type === 'liability' : a.type === 'revenue' || a.type === 'equity'))
+        .filter((a) => !a.isGroup && !a.archived && (!a.currency || a.currency === currency) && (kind === 'payment' ? ['expense', 'equity', 'liability'].includes(a.type) : ['revenue', 'equity', 'liability'].includes(a.type)))
         .sort((a, b) => a.id.localeCompare(b.id)),
-    [state.accounts, kind],
+    [state.accounts, kind, currency],
   );
 
   const history = useMemo(
@@ -30,7 +35,7 @@ export function Vouchers() {
       state.entries
         .filter((e) => (e.source?.type === 'receipt' || e.source?.type === 'payment') && !e.voidOf)
         .sort((a, b) => b.date.localeCompare(a.date) || b.number - a.number)
-        .slice(0, 100),
+        .slice(0, 200),
     [state.entries],
   );
 
@@ -42,26 +47,55 @@ export function Vouchers() {
       return notify((e as Error).message, 'error');
     }
     if (target === 'party' && !partyId) return notify('اختر العميل أو المورد', 'error');
-    const res = await call('postVoucher', {
+    const res = await call<JournalEntry>('postVoucher', {
       kind,
       date,
       amount: minor,
       currency,
       ...(currency !== base && rate ? { rate: Number(rate) } : {}),
       ...(target === 'party' ? { partyId } : { accountId }),
-      cashAccountId: cash,
+      cashAccountId: cashId,
       memo: memo.trim() || (kind === 'receipt' ? 'قبض' : 'دفع'),
     });
     if (res) {
       notify('تم حفظ السند');
       setAmount('');
       setMemo('');
+      setPrinting(res.value);
     }
   };
 
   return (
     <div className="page">
-      <PageHeader title="سندات القبض والدفع" />
+      <PageHeader title="سندات القبض والدفع">
+        <ExportButtons
+          name="السندات"
+          sheets={() => [
+            {
+              name: 'السندات',
+              columns: [
+                { header: 'التاريخ', key: 'date' },
+                { header: 'البيان', key: 'memo' },
+                { header: 'الطرف / الحساب', key: 'counter' },
+                { header: 'العملة', key: 'currency' },
+                { header: 'قبض', key: 'in', type: 'money' },
+                { header: 'دفع', key: 'out', type: 'money' },
+              ],
+              rows: history.map((e) => {
+                const c = e.lines[1]!;
+                return {
+                  date: dateText(e.date),
+                  memo: e.memo,
+                  counter: c.partyId ? state.parties[c.partyId]?.name : state.accounts[c.accountId]?.name,
+                  currency: c.currency,
+                  in: e.source?.type === 'receipt' ? major(state, c.credit, c.currency) : null,
+                  out: e.source?.type === 'payment' ? major(state, c.debit, c.currency) : null,
+                };
+              }),
+            },
+          ]}
+        />
+      </PageHeader>
       <section className="card">
         <div className="segmented">
           <button className={kind === 'receipt' ? 'active' : ''} onClick={() => setKind('receipt')}>
@@ -111,8 +145,8 @@ export function Vouchers() {
             </Field>
           )}
           <Field label="الصندوق">
-            <select value={cash} onChange={(e) => setCash(e.target.value)}>
-              {cashAccounts(state).map((a) => (
+            <select value={cashId} onChange={(e) => setCash(e.target.value)}>
+              {boxes.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name}
                 </option>
@@ -155,14 +189,15 @@ export function Vouchers() {
                     <td>{dateText(e.date)}</td>
                     <td>{e.memo}</td>
                     <td>{counter.partyId ? state.parties[counter.partyId]?.name : state.accounts[counter.accountId]?.name}</td>
-                    <td className={`num ${e.source?.type === 'receipt' ? 'debit' : 'credit'}`}>{money(state, counter.debit || counter.credit, counter.currency)}</td>
-                    <td>
+                    <td className={`num ${e.source?.type === 'receipt' ? 'credit' : 'debit'}`}>{money(state, counter.debit || counter.credit, counter.currency)}</td>
+                    <td className="button-row">
+                      <button className="ghost" onClick={() => setPrinting(e)}>
+                        طباعة
+                      </button>
                       {voided ? (
                         <span className="tag bad">ملغى</span>
                       ) : (
-                        <button className="ghost danger" onClick={() => call('voidEntry', e.id, today()).then((r) => r && notify('تم إلغاء السند'))}>
-                          إلغاء
-                        </button>
+                        can('vouchers.void') && <ConfirmButton label="إلغاء" onConfirm={() => call('voidEntry', e.id, today()).then((r) => r && notify('تم إلغاء السند'))} />
                       )}
                     </td>
                   </tr>
@@ -172,6 +207,48 @@ export function Vouchers() {
           </table>
         )}
       </section>
+      {printing && <VoucherPrint entry={printing} onClose={() => setPrinting(null)} />}
     </div>
+  );
+}
+
+function VoucherPrint({ entry, onClose }: { entry: JournalEntry; onClose: () => void }) {
+  const { state } = useCompany();
+  const users = state.users;
+  const counter = entry.lines[1]!;
+  const amount = counter.debit || counter.credit;
+  const receipt = entry.source?.type === 'receipt';
+  const name = counter.partyId ? state.parties[counter.partyId]?.name : state.accounts[counter.accountId]?.name;
+  const decimals = state.currencies[counter.currency]?.decimals ?? 2;
+  return (
+    <Modal title="طباعة السند" onClose={onClose} width={760}>
+      <div className="button-row">
+        <PrintButtons kind="receipt" name={entry.memo} />
+      </div>
+      <div className="paper-preview">
+        <div className="print-area invoice-doc">
+          <DocHeader title={receipt ? 'سند قبض' : 'سند دفع'}>
+            <div>{entry.memo.split(':')[0]}</div>
+            <div>
+              التاريخ: <span className="ltr">{dateText(entry.date)}</span>
+            </div>
+          </DocHeader>
+          <div className="voucher-body">
+            <p>
+              {receipt ? 'استلمنا من' : 'دفعنا إلى'}: <strong>{name}</strong>
+            </p>
+            <p>
+              مبلغاً وقدره: <strong className="grand">{money(state, amount, counter.currency)}</strong>
+            </p>
+            <p className="doc-words">{amountInWords(amount, counter.currency, decimals)}</p>
+            <p>وذلك عن: {entry.memo.split(':').slice(1).join(':').trim() || '—'}</p>
+          </div>
+          <footer className="doc-footer signatures">
+            <span>المستلم</span>
+            <span>المحاسب: {users[entry.createdBy]?.displayName ?? ''}</span>
+          </footer>
+        </div>
+      </div>
+    </Modal>
   );
 }

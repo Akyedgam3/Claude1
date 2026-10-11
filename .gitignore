@@ -4,3 +4,5 @@ out/
 *.log
 # مفتاح التوقيع الخاص بإصدار التراخيص — لا يُرفع أبداً
 keys/
+test-results/
+playwright-report/

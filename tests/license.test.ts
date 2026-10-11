@@ -155,7 +155,7 @@ describe('LicenseManager', () => {
     m.activate(issueLicense({ customer: 'x', machineId: MACHINE, plan: 'annual', issuedAt }, priv));
     const file = path.join(dir, 'license.dat');
     const buf = fs.readFileSync(file);
-    buf[buf.length - 1] ^= 1;
+    buf[buf.length - 1] = buf[buf.length - 1]! ^ 1;
     fs.writeFileSync(file, buf);
     expect(m.status()).toMatchObject({ locked: true, reason: 'none' });
   });

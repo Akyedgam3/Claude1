@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { computeTaxes, findRate, INVOICE_KIND_NAMES, type Invoice, type InvoiceKind, type Item } from '../../../core';
-import { money, parseAmount, toInput, today, uid, useCompany } from '../api';
-import { CurrencySelect, Field, itemOptions, PageHeader, partyOptions, Picker, itemMatches } from '../components/ui';
+import { computeTaxes, findRate, INVOICE_KIND_NAMES, resolveScan, type CompanyState, type Invoice, type InvoiceKind, type Item, type Party } from '../../../core';
+import { convertPrice, money, parseAmount, toInput, today, uid, useCompany } from '../api';
+import { CurrencySelect, Field, itemMatches, itemOptions, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
 import { ItemForm } from './Items';
 import { PartyForm } from './Parties';
 
@@ -9,22 +9,47 @@ interface LineState {
   key: string;
   itemId: string | null;
   description: string;
+  unit: string; // '' = الوحدة الأساسية
   qty: string;
   price: string;
   discount: string;
+  batch: string;
+  expiry: string;
+  serials: string;
 }
 
-const emptyLine = (): LineState => ({ key: uid(), itemId: null, description: '', qty: '1', price: '', discount: '' });
+const emptyLine = (): LineState => ({ key: uid(), itemId: null, description: '', unit: '', qty: '1', price: '', discount: '', batch: '', expiry: '', serials: '' });
 
-/** الحسابات النقدية المتاحة لاستلام/دفع المال (الصناديق والبنوك). */
-export function cashAccounts(state: ReturnType<typeof useCompany>['state']) {
-  return Object.values(state.accounts).filter((a) => !a.isGroup && !a.archived && (a.id.startsWith('1101') || a.id.startsWith('1102') || a.parentId === '1101' || a.parentId === '1102'));
+/** الحسابات النقدية (الصناديق والبنك) المناسبة لعملة معيّنة. */
+export function cashAccounts(state: CompanyState, currency?: string) {
+  return Object.values(state.accounts).filter(
+    (a) => !a.isGroup && !a.archived && a.type === 'asset' && (/^110[128]/.test(a.id) || a.parentId === '1101') && (!currency || !a.currency || a.currency === currency),
+  );
 }
 
-export function InvoiceEditor({ kind }: { kind: InvoiceKind }) {
-  const { state, call, notify, navigate } = useCompany();
+/** سعر المادة حسب شريحة العميل والوحدة، محوّلاً لعملة الفاتورة. */
+export function itemPrice(state: CompanyState, item: Item, opts: { party?: Party | null; unit?: string; currency: string; date: string; purchase?: boolean }): string {
+  const rates = { [state.info!.baseCurrency]: 1, USD: findRate(state, 'USD', opts.date) ?? 0 };
+  if (opts.purchase) {
+    const unitCost = state.stock[item.id]?.lastCost ?? 0;
+    const factor = item.units?.find((u) => u.name === opts.unit)?.factor ?? 1;
+    const v = convertPrice(state, Math.round(unitCost * factor), state.info!.baseCurrency, opts.currency, rates);
+    return v === null || v === 0 ? '' : toInput(state, v, opts.currency);
+  }
+  const unit = item.units?.find((u) => u.name === opts.unit);
+  const tier = opts.party?.priceTier;
+  let price = tier === 'wholesale' ? (item.wholesalePrice ?? item.price) : tier === 'special' ? (item.specialPrice ?? item.wholesalePrice ?? item.price) : item.price;
+  if (unit) price = unit.price ?? Math.round(price * unit.factor);
+  const v = convertPrice(state, price, item.priceCurrency, opts.currency, rates);
+  return v === null ? '' : toInput(state, v, opts.currency);
+}
+
+export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
+  const kind = kindProp as InvoiceKind;
+  const { state, call, notify, navigate, feature, can } = useCompany();
   const base = state.info!.baseCurrency;
   const isSale = kind === 'sale' || kind === 'sale_return';
+  const stockIn = kind === 'purchase' || kind === 'sale_return';
   const [partyId, setPartyId] = useState<string | null>(null);
   const [date, setDate] = useState(today());
   const [currency, setCurrency] = useState(base);
@@ -33,69 +58,63 @@ export function InvoiceEditor({ kind }: { kind: InvoiceKind }) {
   const [lines, setLines] = useState<LineState[]>([emptyLine()]);
   const [discount, setDiscount] = useState('');
   const [taxIds, setTaxIds] = useState<string[]>(() => (isSale ? Object.values(state.taxes).filter((t) => t.active && t.percent > 0).map((t) => t.id) : []));
-  const [paidText, setPaidText] = useState<string | null>(null); // null = تلقائي
-  const [cashAccountId, setCashAccountId] = useState('1101');
+  const [paidText, setPaidText] = useState<string | null>(null);
+  const [cashAccountId, setCashAccountId] = useState('');
+  const [salesman, setSalesman] = useState('');
   const [notes, setNotes] = useState('');
-  const [scan, setScan] = useState('');
-  const [newItem, setNewItem] = useState<string | null>(null); // مفتاح السطر الذي نضيف له مادة جديدة
+  const [newItem, setNewItem] = useState<string | null>(null);
   const [newParty, setNewParty] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  const party = partyId ? state.parties[partyId] : null;
   const storedRate = findRate(state, currency, date);
   const rate = currency === base ? 1 : Number(rateText) || storedRate || 0;
-  const items = useMemo(() => itemOptions(state), [state]);
+  const items = useMemo(() => itemOptions(state, (i) => isSale || i.kind !== 'composite'), [state, isSale]);
+  const boxes = cashAccounts(state, currency);
+  const cashId = boxes.some((b) => b.id === cashAccountId) ? cashAccountId : (boxes.find((b) => b.currency === currency) ?? boxes[0])?.id ?? '1101';
+  const salesmen = useMemo(() => [...new Set(state.invoices.map((i) => i.salesman).filter(Boolean))] as string[], [state.invoices]);
 
-  /** سعر المادة محوّلاً إلى عملة الفاتورة. */
-  const priceFor = (item: Item): string => {
-    const raw = isSale ? item.price : (state.stock[item.id]?.lastCost ?? 0);
-    const from = isSale ? item.priceCurrency : base;
-    if (from === currency) return toInput(state, raw, currency);
-    const fromRate = findRate(state, from, date);
-    if (!fromRate || !rate) return '';
-    const scale = 10 ** (state.currencies[currency]!.decimals - state.currencies[from]!.decimals);
-    return toInput(state, Math.round(((raw * fromRate) / rate) * scale), currency);
-  };
-
+  const priceFor = (item: Item, unit = '') => itemPrice(state, item, { party, unit, currency, date, purchase: kind === 'purchase' || kind === 'purchase_return' });
   const setLine = (key: string, patch: Partial<LineState>) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+  const withEmpty = (ls: LineState[]) => (ls.some((l) => !l.itemId && !l.description) ? ls : [...ls, emptyLine()]);
 
-  const chooseItem = (key: string, itemId: string | null) => {
+  const chooseItem = (key: string, itemId: string | null, unit = '', qty = '1', price?: string) => {
     const item = itemId ? state.items[itemId] : null;
-    setLines((ls) => {
-      const next = ls.map((l) => (l.key === key ? { ...l, itemId, description: item?.name ?? '', price: item ? priceFor(item) : l.price } : l));
-      return next[next.length - 1]!.itemId || next[next.length - 1]!.description ? [...next, emptyLine()] : next;
-    });
+    setLines((ls) => withEmpty(ls.map((l) => (l.key === key ? { ...l, itemId, unit, qty, description: item?.name ?? '', price: price ?? (item ? priceFor(item, unit) : l.price) } : l))));
   };
 
-  const addByScan = () => {
-    const code = scan.trim();
-    if (!code) return;
-    const item = Object.values(state.items).find((i) => i.barcode === code || i.code === code || i.partNumber === code);
-    if (!item) return notify(`لا توجد مادة بالرمز ${code}`, 'error');
+  const scan = (code: string) => {
+    const r = resolveScan(state, code);
+    if (!r) return notify(`لا توجد مادة بالرمز ${code}`, 'error');
+    const unit = r.unit ?? '';
+    const priceOverride = r.price !== undefined ? toInput(state, r.price, currency) : undefined;
     setLines((ls) => {
-      const existing = ls.find((l) => l.itemId === item.id);
-      if (existing) return ls.map((l) => (l === existing ? { ...l, qty: String(Number(l.qty || 0) + 1) } : l));
+      const same = !r.qty && ls.find((l) => l.itemId === r.item.id && l.unit === unit && !r.item.trackSerial);
+      if (same) return ls.map((l) => (l === same ? { ...l, qty: String(Number(l.qty || 0) + 1) } : l));
       const filled = ls.filter((l) => l.itemId || l.description);
-      return [...filled, { key: uid(), itemId: item.id, description: item.name, qty: '1', price: priceFor(item), discount: '' }, emptyLine()];
+      return [
+        ...filled,
+        { ...emptyLine(), itemId: r.item.id, description: r.item.name, unit, qty: String(r.qty ?? 1), price: priceOverride ?? priceFor(r.item, unit) },
+        emptyLine(),
+      ];
     });
-    setScan('');
   };
 
-  // معاينة المجاميع بنفس منطق النواة
+  const used = useMemo(() => lines.filter((l) => l.itemId || l.description.trim()), [lines]);
   const preview = useMemo(() => {
     try {
-      const used = lines.filter((l) => l.itemId || l.description.trim());
       const amounts = used.map((l) => Math.round(Number(l.qty || 0) * parseAmount(state, l.price, currency)) - parseAmount(state, l.discount, currency));
       const subtotal = amounts.reduce((s, a) => s + a, 0);
       const disc = parseAmount(state, discount, currency);
-      const taxes = taxIds.map((id) => ({ ...state.taxes[id]!, active: true }));
-      const t = computeTaxes(subtotal - disc, taxes);
+      const t = computeTaxes(subtotal - disc, taxIds.map((id) => ({ ...state.taxes[id]!, active: true })));
       return { amounts, subtotal, disc, taxes: t.taxes, total: t.total, error: null as string | null };
     } catch (e) {
-      return { amounts: [], subtotal: 0, disc: 0, taxes: [], total: 0, error: (e as Error).message };
+      return { amounts: [] as number[], subtotal: 0, disc: 0, taxes: [], total: 0, error: (e as Error).message };
     }
-  }, [lines, discount, taxIds, currency, state]);
+  }, [used, discount, taxIds, currency, state]);
 
-  const paid = paidText === null ? (partyId ? 0 : preview.total) : (() => {
+  const paid = (() => {
+    if (paidText === null) return partyId ? 0 : preview.total;
     try {
       return parseAmount(state, paidText, currency);
     } catch {
@@ -108,7 +127,6 @@ export function InvoiceEditor({ kind }: { kind: InvoiceKind }) {
     if (currency !== base && !rate) return notify('أدخل سعر الصرف', 'error');
     setSaving(true);
     try {
-      const used = lines.filter((l) => l.itemId || l.description.trim());
       const draft = {
         kind,
         date,
@@ -120,13 +138,18 @@ export function InvoiceEditor({ kind }: { kind: InvoiceKind }) {
           itemId: l.itemId,
           description: l.description,
           qty: Number(l.qty),
+          ...(l.unit ? { unit: l.unit } : {}),
           price: parseAmount(state, l.price, currency),
           discount: parseAmount(state, l.discount, currency),
+          ...(l.batch.trim() ? { batch: l.batch.trim() } : {}),
+          ...(l.expiry ? { expiry: l.expiry } : {}),
+          ...(l.serials.trim() ? { serials: l.serials.split(/[\s,،]+/).map((s) => s.trim()).filter(Boolean) } : {}),
         })),
         discount: preview.disc,
         taxIds,
         paid,
-        cashAccountId,
+        cashAccountId: cashId,
+        ...(salesman.trim() ? { salesman: salesman.trim() } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
       };
       const res = await call<Invoice>('postInvoice', draft);
@@ -142,36 +165,31 @@ export function InvoiceEditor({ kind }: { kind: InvoiceKind }) {
   };
 
   const returnKind = kind === 'sale' ? 'sale_return' : kind === 'purchase' ? 'purchase_return' : null;
+  const allowDiscount = can('discount.give');
+  const warehouses = Object.values(state.warehouses);
 
   return (
-    <div
-      className="page invoice-editor"
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' && e.ctrlKey) void save();
-      }}
-    >
+    <div className="page invoice-editor" onKeyDown={(e) => e.key === 'Enter' && e.ctrlKey && void save()}>
       <PageHeader title={INVOICE_KIND_NAMES[kind]}>
-        {returnKind && <button onClick={() => navigate(returnKind)}>{INVOICE_KIND_NAMES[returnKind]}</button>}
+        {returnKind && can(returnKind === 'sale_return' ? 'returns.create' : 'purchases.create') && <button onClick={() => navigate(returnKind)}>{INVOICE_KIND_NAMES[returnKind]}</button>}
       </PageHeader>
 
       <section className="card form-grid four">
         <Field label={isSale ? 'العميل' : 'المورد'}>
           <div className="with-button">
-            <Picker
-              options={partyOptions(state, isSale ? 'customer' : 'supplier')}
-              value={partyId}
-              onChange={setPartyId}
-              placeholder={isSale ? 'زبون نقدي (اختياري)' : 'مورد نقدي (اختياري)'}
-            />
+            <Picker options={partyOptions(state, isSale ? 'customer' : 'supplier')} value={partyId} onChange={setPartyId} placeholder={isSale ? 'زبون نقدي (اختياري)' : 'مورد نقدي (اختياري)'} />
             {partyId && (
               <button type="button" className="icon" title="إزالة" onClick={() => setPartyId(null)}>
                 ✕
               </button>
             )}
-            <button type="button" className="icon" title="إضافة جديد" onClick={() => setNewParty(true)}>
-              +
-            </button>
+            {can('parties.manage') && (
+              <button type="button" className="icon" title="إضافة جديد" onClick={() => setNewParty(true)}>
+                +
+              </button>
+            )}
           </div>
+          {party?.priceTier && party.priceTier !== 'retail' && <small className="muted">شريحة السعر: {party.priceTier === 'wholesale' ? 'جملة' : 'خاص'}</small>}
         </Field>
         <Field label="التاريخ">
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
@@ -179,55 +197,58 @@ export function InvoiceEditor({ kind }: { kind: InvoiceKind }) {
         <Field label="العملة">
           <CurrencySelect value={currency} onChange={setCurrency} />
         </Field>
-        {currency !== base ? (
+        {currency !== base && (
           <Field label={`سعر الصرف (${state.currencies[base]?.symbol})`}>
             <input value={rateText} placeholder={storedRate ? String(storedRate) : 'أدخل السعر'} onChange={(e) => setRateText(e.target.value)} inputMode="decimal" />
           </Field>
-        ) : (
-          Object.keys(state.warehouses).length > 1 && (
-            <Field label="المستودع">
-              <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
-                {Object.values(state.warehouses).map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          )
+        )}
+        {warehouses.length > 1 && (
+          <Field label="المستودع">
+            <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
+              {warehouses.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+        {feature('salesmen') && isSale && (
+          <Field label="المندوب">
+            <input value={salesman} onChange={(e) => setSalesman(e.target.value)} list="salesmen" />
+            <datalist id="salesmen">
+              {salesmen.map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
+          </Field>
         )}
       </section>
 
       <section className="card">
         <div className="scan-row">
-          <input
-            className="mono"
-            placeholder="امسح الباركود أو اكتب رمز/رقم القطعة ثم Enter"
-            value={scan}
-            onChange={(e) => setScan(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                addByScan();
-              }
-            }}
-          />
+          <ScanInput onScan={scan} placeholder="امسح الباركود (أو باركود الميزان) أو اكتب الرمز / رقم القطعة ثم Enter" />
         </div>
         <table className="table lines">
           <thead>
             <tr>
-              <th style={{ width: '34%' }}>المادة / البيان</th>
+              <th style={{ width: '32%' }}>المادة / البيان</th>
+              <th>الوحدة</th>
               <th>الكمية</th>
               <th>السعر</th>
-              <th>الخصم</th>
+              {allowDiscount && <th>الخصم</th>}
               <th className="num">المجموع</th>
               <th />
             </tr>
           </thead>
           <tbody>
-            {lines.map((l, i) => {
+            {lines.map((l) => {
               const item = l.itemId ? state.items[l.itemId] : null;
-              const stock = item?.kind === 'stock' ? (state.stock[item.id]?.totalQty ?? 0) : null;
+              const stock = item?.kind === 'stock' ? (state.stock[item.id]?.qty[warehouseId] ?? 0) : null;
+              const factor = item?.units?.find((u) => u.name === l.unit)?.factor ?? 1;
+              const short = !stockIn && stock !== null && Number(l.qty) * factor > stock;
+              const idx = used.indexOf(l);
+              const batches = item?.trackExpiry ? Object.values(state.stock[item.id]?.batches ?? {}).filter((b) => b.warehouseId === warehouseId && b.qty > 0) : [];
               return (
                 <tr key={l.key}>
                   <td>
@@ -236,33 +257,67 @@ export function InvoiceEditor({ kind }: { kind: InvoiceKind }) {
                         <strong>{l.description}</strong>
                         <small>
                           {[item?.code, item?.partNumber, stock !== null ? `الرصيد: ${stock}` : null].filter(Boolean).join(' · ')}
-                          {isSale && stock !== null && Number(l.qty) > stock && <span className="bad"> — الكمية أكبر من الرصيد</span>}
+                          {short && <span className="bad"> — الكمية أكبر من الرصيد</span>}
                         </small>
+                        {item?.trackExpiry &&
+                          (stockIn ? (
+                            <span className="line-extra">
+                              <input placeholder="رقم الدفعة" value={l.batch} onChange={(e) => setLine(l.key, { batch: e.target.value })} />
+                              <input type="date" title="تاريخ الصلاحية" value={l.expiry} onChange={(e) => setLine(l.key, { expiry: e.target.value })} />
+                            </span>
+                          ) : (
+                            batches.length > 0 && (
+                              <select className="line-extra" value={l.batch} onChange={(e) => setLine(l.key, { batch: e.target.value })}>
+                                <option value="">الأقرب انتهاءً تلقائياً</option>
+                                {batches.map((b) => (
+                                  <option key={b.batch} value={b.batch}>
+                                    {b.batch} — {b.expiry ?? ''} ({b.qty})
+                                  </option>
+                                ))}
+                              </select>
+                            )
+                          ))}
+                        {item?.trackSerial && (
+                          <textarea
+                            className="line-extra mono"
+                            rows={1}
+                            placeholder={`الأرقام التسلسلية / IMEI (${Number(l.qty) * factor}) مفصولة بمسافة`}
+                            value={l.serials}
+                            onChange={(e) => setLine(l.key, { serials: e.target.value })}
+                          />
+                        )}
                       </div>
                     ) : (
-                      <div className="with-button">
-                        <Picker
-                          options={items}
-                          value={null}
-                          onChange={(id) => chooseItem(l.key, id)}
-                          placeholder="ابحث عن مادة..."
-                          filter={(o, q) => itemMatches((o as (typeof items)[number]).item, q)}
+                      <>
+                        <div className="with-button">
+                          <Picker options={items} value={null} onChange={(id) => chooseItem(l.key, id)} placeholder="ابحث عن مادة..." filter={(o, q) => itemMatches((o as (typeof items)[number]).item, q)} />
+                          {can('items.manage') && (
+                            <button type="button" className="icon" title="مادة جديدة" onClick={() => setNewItem(l.key)}>
+                              +
+                            </button>
+                          )}
+                        </div>
+                        <input
+                          className="line-desc"
+                          placeholder={isSale ? 'أو اكتب خدمة (أجور يد مثلاً)' : 'أو اكتب بياناً (مصاريف شحن مثلاً)'}
+                          value={l.description}
+                          onChange={(e) => setLines((ls) => withEmpty(ls.map((x) => (x.key === l.key ? { ...x, description: e.target.value } : x))))}
                         />
-                        <button type="button" className="icon" title="مادة جديدة" onClick={() => setNewItem(l.key)}>
-                          +
-                        </button>
-                      </div>
+                      </>
                     )}
-                    {!l.itemId && (
-                      <input
-                        className="line-desc"
-                        placeholder={isSale ? 'أو اكتب خدمة (أجور يد مثلاً)' : 'أو اكتب بياناً (مصاريف شحن مثلاً)'}
-                        value={l.description}
-                        onChange={(e) => {
-                          setLine(l.key, { description: e.target.value });
-                          if (i === lines.length - 1 && e.target.value) setLines((ls) => [...ls, emptyLine()]);
-                        }}
-                      />
+                  </td>
+                  <td>
+                    {item?.units?.length ? (
+                      <select value={l.unit} onChange={(e) => setLine(l.key, { unit: e.target.value, price: priceFor(item, e.target.value) })}>
+                        <option value="">{item.unit}</option>
+                        {item.units.map((u) => (
+                          <option key={u.name} value={u.name}>
+                            {u.name} ({u.factor})
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span className="muted">{item?.unit}</span>
                     )}
                   </td>
                   <td>
@@ -271,13 +326,15 @@ export function InvoiceEditor({ kind }: { kind: InvoiceKind }) {
                   <td>
                     <input className="num-input" value={l.price} onChange={(e) => setLine(l.key, { price: e.target.value })} inputMode="decimal" />
                   </td>
-                  <td>
-                    <input className="num-input" value={l.discount} onChange={(e) => setLine(l.key, { discount: e.target.value })} inputMode="decimal" />
-                  </td>
-                  <td className="num">{l.itemId || l.description ? money(state, preview.amounts[lines.filter((x) => x.itemId || x.description.trim()).indexOf(l)] ?? 0, currency) : ''}</td>
+                  {allowDiscount && (
+                    <td>
+                      <input className="num-input" value={l.discount} onChange={(e) => setLine(l.key, { discount: e.target.value })} inputMode="decimal" />
+                    </td>
+                  )}
+                  <td className="num">{idx >= 0 ? money(state, preview.amounts[idx] ?? 0, currency) : ''}</td>
                   <td>
                     {(l.itemId || l.description) && (
-                      <button className="icon" title="حذف السطر" onClick={() => setLines((ls) => (ls.length > 1 ? ls.filter((x) => x.key !== l.key) : [emptyLine()]))}>
+                      <button className="icon" title="حذف السطر" onClick={() => setLines((ls) => withEmpty(ls.filter((x) => x.key !== l.key)))}>
                         ✕
                       </button>
                     )}
@@ -294,7 +351,7 @@ export function InvoiceEditor({ kind }: { kind: InvoiceKind }) {
           <Field label="ملاحظات" wide>
             <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </Field>
-          {Object.values(state.taxes).filter((t) => t.percent > 0).length > 0 && (
+          {Object.values(state.taxes).some((t) => t.percent > 0) && (
             <div className="field wide">
               <span>الضرائب</span>
               <div className="checks">
@@ -302,11 +359,7 @@ export function InvoiceEditor({ kind }: { kind: InvoiceKind }) {
                   .filter((t) => t.percent > 0)
                   .map((t) => (
                     <label key={t.id}>
-                      <input
-                        type="checkbox"
-                        checked={taxIds.includes(t.id)}
-                        onChange={(e) => setTaxIds(e.target.checked ? [...taxIds, t.id] : taxIds.filter((x) => x !== t.id))}
-                      />
+                      <input type="checkbox" checked={taxIds.includes(t.id)} onChange={(e) => setTaxIds(e.target.checked ? [...taxIds, t.id] : taxIds.filter((x) => x !== t.id))} />
                       {t.name} ({t.percent}%)
                     </label>
                   ))}
@@ -319,8 +372,12 @@ export function InvoiceEditor({ kind }: { kind: InvoiceKind }) {
           <div className="kv">
             <span>المجموع</span>
             <strong>{money(state, preview.subtotal, currency)}</strong>
-            <span>خصم على الفاتورة</span>
-            <input className="num-input" value={discount} onChange={(e) => setDiscount(e.target.value)} inputMode="decimal" />
+            {allowDiscount && (
+              <>
+                <span>خصم على الفاتورة</span>
+                <input className="num-input" value={discount} onChange={(e) => setDiscount(e.target.value)} inputMode="decimal" />
+              </>
+            )}
             {preview.taxes.map((t) => (
               <span key={t.tax.id} style={{ display: 'contents' }}>
                 <span>{t.tax.name}</span>
@@ -335,18 +392,11 @@ export function InvoiceEditor({ kind }: { kind: InvoiceKind }) {
                 <strong className="muted">{money(state, Math.round(preview.total * rate * 10 ** (state.currencies[base]!.decimals - state.currencies[currency]!.decimals)), base)}</strong>
               </>
             )}
-            <span>{isSale ? 'المقبوض' : 'المدفوع'}</span>
-            <input
-              className="num-input"
-              value={paidText ?? toInput(state, paid, currency)}
-              onChange={(e) => setPaidText(e.target.value)}
-              disabled={!partyId}
-              title={!partyId ? 'الفاتورة النقدية تُدفع كاملة' : ''}
-              inputMode="decimal"
-            />
-            <span>{isSale ? 'الصندوق' : 'من صندوق'}</span>
-            <select value={cashAccountId} onChange={(e) => setCashAccountId(e.target.value)}>
-              {cashAccounts(state).map((a) => (
+            <span>{kind === 'sale' || kind === 'purchase_return' ? 'المقبوض' : 'المدفوع'}</span>
+            <input className="num-input" value={paidText ?? toInput(state, paid, currency)} onChange={(e) => setPaidText(e.target.value)} disabled={!partyId} title={!partyId ? 'الفاتورة النقدية تُدفع كاملة' : ''} inputMode="decimal" />
+            <span>الصندوق</span>
+            <select value={cashId} onChange={(e) => setCashAccountId(e.target.value)}>
+              {boxes.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name}
                 </option>
@@ -359,7 +409,7 @@ export function InvoiceEditor({ kind }: { kind: InvoiceKind }) {
               </>
             )}
           </div>
-          <button className="primary big" disabled={saving} onClick={save}>
+          <button className="primary big" disabled={saving || used.length === 0} onClick={save}>
             حفظ الفاتورة <small>(Ctrl+Enter)</small>
           </button>
         </section>
@@ -369,13 +419,7 @@ export function InvoiceEditor({ kind }: { kind: InvoiceKind }) {
         <ItemForm
           item={null}
           onClose={() => setNewItem(null)}
-          onSaved={(item) => {
-            // الحالة تتحدّث بعد الحفظ؛ نضع المادة في السطر مباشرة
-            setLines((ls) => {
-              const next = ls.map((l) => (l.key === newItem ? { ...l, itemId: item.id, description: item.name, price: isSale ? toInput(state, item.price, item.priceCurrency) : '' } : l));
-              return [...next, emptyLine()];
-            });
-          }}
+          onSaved={(item) => setLines((ls) => withEmpty(ls.map((l) => (l.key === newItem ? { ...l, itemId: item.id, description: item.name, price: isSale ? toInput(state, item.price, item.priceCurrency) : '' } : l))))}
         />
       )}
       {newParty && <PartyForm party={null} defaultKind={isSale ? 'customer' : 'supplier'} onClose={() => setNewParty(false)} onSaved={(p) => setPartyId(p.id)} />}
