@@ -389,6 +389,8 @@ export interface OrderLine {
   price: number;
   note?: string;
   sent?: boolean; // أُرسل للمطبخ
+  sentAt?: string; // وقت الإرسال للمطبخ
+  ready?: boolean; // جهز بالمطبخ
 }
 
 export interface Order {
@@ -404,6 +406,13 @@ export interface Order {
   openedAt: string;
   closedAt?: string;
   invoiceId?: string;
+  discount?: number; // خصم على الطلب بأصغر وحدة
+  servicePercent?: number; // نسبة خدمة الصالة
+  deliveryFee?: number; // أجور التوصيل
+  customerName?: string; // للسفري والتوصيل بدون حساب
+  phone?: string;
+  address?: string;
+  notes?: string;
 }
 
 // ───────────── المواعيد (عيادات، صالونات) ─────────────
@@ -451,6 +460,63 @@ export interface TailorOrder {
   notes?: string;
   deposits: { entryId: string; amount: number; date: string }[]; // العربون (سندات قبض)
   invoiceId?: string;
+}
+
+// ───────────── ورشة الإنتاج (قص وخياطة بالجملة لقماش الزبون) ─────────────
+
+/** توب قماش يجيبه الزبون للورشة. الأطوال كلها بالسنتيمتر (أعداد صحيحة). */
+export interface FabricRoll {
+  id: string;
+  code: string; // رقم التوب المكتوب عليه
+  partyId: string; // صاحب القماش
+  receiptNo: number; // رقم سند استلام الأقمشة
+  date: string; // تاريخ الاستلام
+  fabric: string; // نوع القماش
+  color?: string;
+  lengthCm: number;
+  widthCm?: number;
+  notes?: string;
+  returns: { date: string; cm: number; note?: string }[]; // بواقي مُرجعة للزبون
+}
+
+export type WorkOrderStatus = 'open' | 'done' | 'cancelled';
+
+/** قصّة: كم متر انقص من كل توب، وكم قطعة طلعت من كل مقاس. */
+export interface WorkCut {
+  id: string;
+  date: string;
+  rolls: { rollId: string; cm: number }[];
+  pieces: Record<string, number>;
+  notes?: string;
+}
+
+/** دفعة تسليم للزبون (قد تُفوتر أجرتها). */
+export interface WorkDelivery {
+  id: string;
+  number: number;
+  date: string;
+  pieces: Record<string, number>;
+  invoiceId?: string;
+  notes?: string;
+}
+
+/** طلبية إنتاج: موديل بمقاسات وكميات وأجرة للقطعة. */
+export interface WorkOrder {
+  id: string;
+  number: number;
+  partyId: string;
+  date: string;
+  dueDate?: string;
+  model: string;
+  modelCode?: string;
+  sizes: string[];
+  planned: Record<string, number>;
+  pieceRate: number; // أجرة القطعة بأصغر وحدة من العملة
+  currency: string;
+  status: WorkOrderStatus;
+  notes?: string;
+  cuts: WorkCut[];
+  deliveries: WorkDelivery[];
 }
 
 // ───────────── عروض الأسعار ─────────────
@@ -510,6 +576,8 @@ export interface CompanyState {
   appointments: Record<string, Appointment>;
   tailorOrders: Record<string, TailorOrder>;
   quotes: Record<string, Quote>;
+  rolls: Record<string, FabricRoll>;
+  workOrders: Record<string, WorkOrder>;
   counters: Record<string, number>; // آخر رقم لكل نوع مستند
 }
 
@@ -538,4 +606,6 @@ export type CompanyEvent =
   | { type: 'order.saved'; order: Order }
   | { type: 'appointment.saved'; appointment: Appointment }
   | { type: 'tailor.saved'; order: TailorOrder }
-  | { type: 'quote.saved'; quote: Quote };
+  | { type: 'quote.saved'; quote: Quote }
+  | { type: 'rolls.saved'; rolls: FabricRoll[] }
+  | { type: 'workorder.saved'; order: WorkOrder };

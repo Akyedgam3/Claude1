@@ -2330,3 +2330,315 @@ strong.good {
   direction: ltr;
   text-align: left;
 }
+
+/* ───────────── ورشة الإنتاج ───────────── */
+.meter {
+  display: inline-block;
+  position: relative;
+  width: 90px;
+  height: 8px;
+  border-radius: 6px;
+  background: var(--border);
+  overflow: hidden;
+  vertical-align: middle;
+}
+.meter > span {
+  position: absolute;
+  inset: 0 0 0 auto;
+  background: var(--primary);
+  border-radius: 6px;
+}
+.meter.good > span {
+  background: var(--good);
+}
+.meter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.chip {
+  display: inline-block;
+  padding: 1px 8px;
+  margin: 1px 2px;
+  border-radius: 10px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.row-actions {
+  white-space: nowrap;
+  text-align: left;
+}
+.size-matrix th,
+.size-matrix td {
+  text-align: center;
+}
+.size-matrix .num-input {
+  width: 72px;
+  text-align: center;
+}
+.size-matrix tr.highlight td,
+.size-matrix tr.highlight th {
+  background: var(--primary-soft);
+}
+.size-add {
+  width: 70px;
+}
+.icon.tiny {
+  padding: 0 2px;
+  min-height: 0;
+  height: 18px;
+  margin-inline-start: 4px;
+  vertical-align: middle;
+}
+.size-inputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 10px;
+  margin: 8px 0 14px;
+}
+.roll-pick {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 8px;
+  max-height: 260px;
+  overflow: auto;
+  margin-bottom: 12px;
+}
+.roll-chip {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.roll-chip small {
+  grid-column: 2;
+  color: var(--muted);
+}
+.roll-chip .num-input {
+  grid-column: 1 / -1;
+}
+.roll-chip.on {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.paste-box {
+  margin: 10px 0;
+}
+.paste-box textarea {
+  width: 100%;
+  margin: 6px 0;
+  font-family: monospace;
+}
+
+/* ───────────── المطعم ───────────── */
+.area-title {
+  margin: 6px 0 8px;
+  color: var(--muted);
+  font-size: 15px;
+}
+.table-card {
+  align-items: stretch;
+  text-align: start;
+  white-space: normal;
+}
+.table-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+.table-total {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text);
+}
+.table-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--muted);
+}
+.k-tag {
+  align-self: flex-start;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: var(--border);
+  color: var(--muted);
+}
+.k-tag.k-pending {
+  background: #fde7cf;
+  color: #9a4d0b;
+}
+.k-tag.k-cooking {
+  background: #e4ecfb;
+  color: #2f56b0;
+}
+.k-tag.k-ready {
+  background: #d7f2e3;
+  color: var(--good);
+}
+.table-card.busy.k-ready {
+  border-color: var(--good);
+  background: #eefaf3;
+}
+.table-card.busy.k-cooking {
+  border-color: #5b8def;
+  background: #f1f5fe;
+}
+.pos-item {
+  position: relative;
+}
+.pos-item.in-cart {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+.pos-item .badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  min-width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--primary);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+}
+.pos-line {
+  cursor: pointer;
+}
+.pos-line.active {
+  background: var(--primary-soft);
+  border-radius: 6px;
+}
+.quick-notes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 0;
+  border-top: 1px dashed var(--border);
+}
+.quick-notes button {
+  padding: 2px 10px;
+  font-size: 12px;
+  border-radius: 12px;
+}
+.quick-notes button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.order-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  margin-bottom: 10px;
+}
+.order-info label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.order-info label input {
+  width: 160px;
+}
+.order-info label .num-input {
+  width: 70px;
+}
+.order-info label.grow {
+  flex: 1;
+}
+.order-info label.grow input {
+  width: 100%;
+}
+.pay-modes {
+  margin: 8px 0;
+  display: flex;
+}
+.pay-modes button {
+  flex: 1;
+}
+.tag.good {
+  background: #d7f2e3;
+  color: var(--good);
+}
+.kitchen-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.kitchen-card {
+  background: var(--surface);
+  border: 2px solid #5b8def;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.kitchen-card.warn {
+  border-color: var(--warn);
+}
+.kitchen-card.late {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.15);
+}
+.kitchen-card.ready {
+  border-color: var(--good);
+  opacity: 0.85;
+}
+.kitchen-card header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.kitchen-card header strong {
+  font-size: 18px;
+}
+.kitchen-card .timer {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.kitchen-card.late .timer {
+  color: var(--danger);
+}
+.kitchen-card ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.kitchen-card li {
+  padding: 6px 4px;
+  border-bottom: 1px dashed var(--border);
+  font-size: 16px;
+  cursor: pointer;
+}
+.kitchen-card li small {
+  display: block;
+  color: var(--accent);
+  font-weight: 700;
+}
+.kitchen-card li.done {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+:root[data-theme='dark'] .table-card.busy.k-ready {
+  background: rgba(30, 138, 76, 0.15);
+}
+:root[data-theme='dark'] .table-card.busy.k-cooking {
+  background: rgba(91, 141, 239, 0.12);
+}

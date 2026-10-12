@@ -127,6 +127,7 @@ export function Welcome({
 function NewCompany({ notify, onCreated }: { notify: (m: string, k?: 'ok' | 'error') => void; onCreated: (recovery: string) => void }) {
   const [f, setF] = useState({ name: '', activity: 'general', baseCurrency: 'SYP', phone: '', address: '', ownerName: '', username: 'admin', password: '', confirm: '' });
   const [busy, setBusy] = useState(false);
+  const [demo, setDemo] = useState(false);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
 
   return (
@@ -155,6 +156,13 @@ function NewCompany({ notify, onCreated }: { notify: (m: string, k?: 'ok' | 'err
             const { confirm: _c, ...data } = f;
             void _c;
             const res = await api.createCompany(data);
+            if (demo) {
+              try {
+                await api.call('loadDemoData');
+              } catch (err) {
+                notify(`ما انضافت البيانات التجريبية: ${(err as Error).message}`, 'error');
+              }
+            }
             onCreated(res.recoveryCode);
           } catch (err) {
             notify((err as Error).message, 'error');
@@ -192,6 +200,13 @@ function NewCompany({ notify, onCreated }: { notify: (m: string, k?: 'ok' | 'err
         <Field label="تأكيد كلمة السر">
           <input type="password" value={f.confirm} onChange={set('confirm')} />
         </Field>
+        <label className="check wide demo-check">
+          <input type="checkbox" checked={demo} onChange={(e) => setDemo(e.target.checked)} />
+          <span>
+            <strong>عبّي بيانات تجريبية للعرض</strong>
+            <small className="muted"> — منيو وطاولات وطلبات للمطعم، أو زبائن وأتواب وطلبيات للخياطة... (لشركة تجريبية، مو لشركتك الحقيقية)</small>
+          </span>
+        </label>
         <div className="form-actions wide">
           <button className="primary big" disabled={busy}>
             إنشاء الشركة

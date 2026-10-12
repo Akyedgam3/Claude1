@@ -24,12 +24,13 @@ import { Rates } from './screens/Rates';
 import { RepairEditor } from './screens/RepairEditor';
 import { Repairs } from './screens/Repairs';
 import { Reports } from './screens/Reports';
-import { Restaurant } from './screens/Restaurant';
+import { KitchenDisplay, Restaurant } from './screens/Restaurant';
 import { Settings } from './screens/Settings';
 import { TailorEditor, TailorOrders } from './screens/Tailor';
 import { QuoteEditor, Quotes } from './screens/Quotes';
 import { StockOps } from './screens/StockOps';
 import { Users } from './screens/Users';
+import { Workshop, WorkOrderEditor } from './screens/Workshop';
 import { Vehicles } from './screens/Vehicles';
 import { Vouchers } from './screens/Vouchers';
 import { Welcome } from './screens/Welcome';
@@ -49,11 +50,13 @@ const NAV: (NavItem | string)[] = [
   'العمليات',
   { key: 'pos', label: 'نقطة البيع', icon: 'pos', feature: 'pos', perm: 'pos.use' },
   { key: 'restaurant', label: 'الطاولات والطلبات', icon: 'utensils', feature: 'tables', perm: 'restaurant.use' },
+  { key: 'kitchen', label: 'شاشة المطبخ', icon: 'beef', feature: 'tables', perm: 'restaurant.use' },
   { key: 'sale', label: 'فاتورة مبيع', icon: 'plus', perm: 'sales.create' },
   { key: 'quotes', label: 'عروض الأسعار', icon: 'file', perm: 'sales.create' },
   { key: 'repairs', label: 'أوامر الصيانة', icon: 'wrench', feature: 'repairs', perm: 'repairs.manage' },
   { key: 'appointments', label: 'المواعيد', icon: 'calendar', feature: 'appointments', perm: 'appointments.manage' },
   { key: 'tailor', label: 'طلبات التفصيل', icon: 'scissors', feature: 'tailoring', perm: 'tailoring.manage' },
+  { key: 'workshop', label: 'ورشة الإنتاج', icon: 'factory', feature: 'workshop', perm: 'tailoring.manage' },
   { key: 'purchase', label: 'فاتورة شراء', icon: 'purchase', perm: 'purchases.create' },
   { key: 'vouchers', label: 'سندات القبض والدفع', icon: 'wallet', perm: 'vouchers.create' },
   { key: 'invoices', label: 'سجل الفواتير', icon: 'receipt' },
@@ -333,6 +336,8 @@ function Screen({ screen }: { screen: { key: string; param?: string } }) {
       return <Pos />;
     case 'restaurant':
       return <Restaurant />;
+    case 'kitchen':
+      return <KitchenDisplay />;
     case 'sale':
     case 'purchase':
     case 'sale_return':
@@ -356,6 +361,10 @@ function Screen({ screen }: { screen: { key: string; param?: string } }) {
       return <TailorOrders />;
     case 'tailor-order':
       return <TailorEditor key={p ?? 'new'} {...(p ? { id: p } : {})} />;
+    case 'workshop':
+      return <Workshop key={p ?? ''} {...(p ? { tab: p } : {})} />;
+    case 'work-order':
+      return <WorkOrderEditor key={p ?? 'new'} {...(p ? { id: p } : {})} />;
     case 'vehicles':
       return <Vehicles />;
     case 'items':

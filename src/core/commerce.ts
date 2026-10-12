@@ -3,7 +3,7 @@ import type { EntryDraft, LineDraft } from './ledger';
 import { convertMinor } from './money';
 import { adjustmentMoves, applyMove, assertMovesPossible, invoiceMoves, negate, productionMoves, roundQty, StockPlanner, transferMoves } from './stock';
 import { computeTaxes } from './tax';
-import type { CompanyEvent, CompanyState, Invoice, InvoiceKind, InvoiceLine, JournalEntry, Quote, RepairOrder, TailorOrder } from './types';
+import type { CompanyEvent, CompanyState, FabricRoll, Invoice, InvoiceKind, InvoiceLine, JournalEntry, Order, Quote, RepairOrder, TailorOrder, WorkOrder } from './types';
 
 function fail(message: string): never {
   throw new Error(message);
@@ -104,6 +104,10 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
         if (!state.items[l.itemId]) fail('صنف غير موجود في الطلب');
         if (!(l.qty > 0)) fail('الكمية يجب أن تكون أكبر من صفر');
       }
+      if (o.discount !== undefined && (!Number.isSafeInteger(o.discount) || o.discount < 0)) fail('خصم غير صالح');
+      if (o.deliveryFee !== undefined && (!Number.isSafeInteger(o.deliveryFee) || o.deliveryFee < 0)) fail('أجور توصيل غير صالحة');
+      if (o.servicePercent !== undefined && !(o.servicePercent >= 0 && o.servicePercent <= 50)) fail('نسبة الخدمة بين 0 و 50');
+      if (o.partyId && !state.parties[o.partyId]) fail('الزبون غير موجود');
       const existing = state.orders[o.id];
       if (existing && existing.status !== 'open') fail('الطلب مغلق ولا يمكن تعديله');
       if (o.status === 'open' && o.tableId) {
@@ -154,6 +158,80 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       const prev = state.tailorOrders[o.id];
       if (prev && prev.number !== o.number) fail('لا يمكن تغيير رقم الطلب');
       if (prev?.invoiceId && !invoiceVoided(state, prev.invoiceId) && (o.status !== 'delivered' || o.invoiceId !== prev.invoiceId)) fail('الطلب مسلّم ومفوتر؛ ألغِ الفاتورة أولاً لتعديله');
+      return;
+    }
+    case 'rolls.saved': {
+      if (event.rolls.length === 0) fail('أضف توب قماش واحد على الأقل');
+      const codes = new Set<string>();
+      for (const r of event.rolls) {
+        if (!state.parties[r.partyId]) fail('صاحب القماش غير موجود');
+        if (!DATE_RE.test(r.date)) fail('تاريخ غير صالح');
+        if (!r.code.trim()) fail('اكتب رقم التوب');
+        if (!r.fabric.trim()) fail('اكتب نوع القماش');
+        if (!Number.isSafeInteger(r.lengthCm) || r.lengthCm <= 0) fail(`طول غير صالح للتوب ${r.code}`);
+        if (r.widthCm !== undefined && (!Number.isSafeInteger(r.widthCm) || r.widthCm <= 0)) fail(`عرض غير صالح للتوب ${r.code}`);
+        for (const x of r.returns) if (!DATE_RE.test(x.date) || !Number.isSafeInteger(x.cm) || x.cm <= 0) fail(`مرتجع غير صالح للتوب ${r.code}`);
+        const key = `${r.partyId}|${r.code.trim()}`;
+        if (codes.has(key)) fail(`رقم التوب ${r.code} مكرر`);
+        codes.add(key);
+        const dup = Object.values(state.rolls).find((x) => x.id !== r.id && x.partyId === r.partyId && x.code.trim() === r.code.trim());
+        if (dup) fail(`التوب رقم ${r.code} مسجّل مسبقاً لنفس الزبون`);
+        const prev = state.rolls[r.id];
+        if (prev && prev.partyId !== r.partyId && rollUsedCm(state, r.id) > 0) fail(`التوب ${r.code} مستعمل؛ لا يمكن تغيير صاحبه`);
+        if (rollUsedCm(state, r.id) + r.returns.reduce((t, x) => t + x.cm, 0) > r.lengthCm) fail(`المستعمل والمرتجع من التوب ${r.code} أكثر من طوله`);
+      }
+      return;
+    }
+    case 'workorder.saved': {
+      const o = event.order;
+      if (!state.parties[o.partyId]) fail('الزبون غير موجود');
+      if (!DATE_RE.test(o.date) || (o.dueDate && !DATE_RE.test(o.dueDate))) fail('تاريخ غير صالح');
+      if (!o.model.trim()) fail('اكتب اسم الموديل');
+      if (!state.currencies[o.currency]) fail('عملة غير معروفة');
+      if (!Number.isSafeInteger(o.pieceRate) || o.pieceRate < 0) fail('أجرة القطعة غير صالحة');
+      if (o.sizes.length === 0 || new Set(o.sizes).size !== o.sizes.length || o.sizes.some((z) => !z.trim())) fail('حدد المقاسات بدون تكرار');
+      const sizeOk = (rec: Record<string, number>) => Object.entries(rec).every(([k, v]) => o.sizes.includes(k) && Number.isSafeInteger(v) && v >= 0);
+      if (!sizeOk(o.planned)) fail('كميات المقاسات غير صالحة');
+      const prev = state.workOrders[o.id];
+      if (prev && prev.number !== o.number) fail('لا يمكن تغيير رقم الطلبية');
+      if (prev && prev.partyId !== o.partyId && (prev.cuts.length || prev.deliveries.length)) fail('على الطلبية قصّات أو تسليمات؛ لا يمكن تغيير الزبون');
+      // استهلاك كل توب من كل الطلبيات (مع هذه النسخة الجديدة) لازم ما يتجاوز المتاح
+      const other = new Map<string, number>();
+      for (const w of Object.values(state.workOrders)) {
+        if (w.id === o.id) continue;
+        for (const c of w.cuts) for (const r of c.rolls) other.set(r.rollId, (other.get(r.rollId) ?? 0) + r.cm);
+      }
+      const mine = new Map<string, number>();
+      for (const c of o.cuts) {
+        if (!DATE_RE.test(c.date)) fail('تاريخ القصّة غير صالح');
+        if (!sizeOk(c.pieces)) fail('عدد القطع بالقصّة غير صالح');
+        for (const r of c.rolls) {
+          const roll = state.rolls[r.rollId] ?? fail('توب غير موجود');
+          if (roll.partyId !== o.partyId) fail(`التوب ${roll.code} مو لنفس الزبون`);
+          if (!Number.isSafeInteger(r.cm) || r.cm <= 0) fail(`طول غير صالح من التوب ${roll.code}`);
+          mine.set(r.rollId, (mine.get(r.rollId) ?? 0) + r.cm);
+        }
+      }
+      for (const [rollId, cm] of mine) {
+        const roll = state.rolls[rollId]!;
+        const free = roll.lengthCm - rollReturnedCm(roll) - (other.get(rollId) ?? 0);
+        if (cm > free) fail(`التوب ${roll.code} ما فيه كفاية: المتاح ${(free / 100).toLocaleString('en')} متر`);
+      }
+      const cut = sumPieces(o.cuts.map((c) => c.pieces));
+      const delivered = sumPieces(o.deliveries.map((d) => d.pieces));
+      for (const d of o.deliveries) {
+        if (!DATE_RE.test(d.date) || !sizeOk(d.pieces)) fail('دفعة تسليم غير صالحة');
+        if (d.invoiceId && !state.invoices.some((i) => i.id === d.invoiceId)) fail('فاتورة التسليم غير موجودة');
+      }
+      for (const z of o.sizes) if ((delivered[z] ?? 0) > (cut[z] ?? 0)) fail(`المسلّم من مقاس ${z} أكثر من المقصوص`);
+      if (prev) {
+        // فواتير التسليمات ما بتنمحى ولا بتتغير من هون
+        for (const d of prev.deliveries) {
+          if (!d.invoiceId || invoiceVoided(state, d.invoiceId)) continue;
+          const now = o.deliveries.find((x) => x.id === d.id);
+          if (!now || now.invoiceId !== d.invoiceId || JSON.stringify(now.pieces) !== JSON.stringify(d.pieces)) fail('دفعة مفوترة؛ ألغِ فاتورتها أولاً');
+        }
+      }
       return;
     }
     case 'invoice.posted': {
@@ -240,6 +318,15 @@ export function applyCommerceEvent(state: CompanyState, event: CompanyEvent): vo
     case 'tailor.saved':
       state.tailorOrders[event.order.id] = { ...event.order };
       bump(state, 'tailor', event.order.number);
+      return;
+    case 'rolls.saved':
+      for (const r of event.rolls) state.rolls[r.id] = { ...r };
+      bump(state, 'rollReceipt', Math.max(...event.rolls.map((r) => r.receiptNo)));
+      return;
+    case 'workorder.saved':
+      state.workOrders[event.order.id] = { ...event.order };
+      bump(state, 'workorder', event.order.number);
+      bump(state, 'workDelivery', Math.max(0, ...event.order.deliveries.map((d) => d.number)));
       return;
     case 'invoice.posted':
       state.invoices.push(event.invoice);
@@ -552,4 +639,82 @@ export function quoteTotals(state: CompanyState, q: Pick<Quote, 'lines' | 'disco
   const subtotal = q.lines.reduce((s, l) => s + Math.round(l.qty * l.price) - (l.discount ?? 0), 0);
   const taxes = computeTaxes(subtotal - q.discount, q.taxIds.filter((id) => state.taxes[id]).map((id) => ({ ...state.taxes[id]!, active: true })));
   return { subtotal, discount: q.discount, taxes: taxes.taxes, total: taxes.total };
+}
+
+// ───────────── ورشة الإنتاج ─────────────
+
+export function sumPieces(list: Record<string, number>[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const rec of list) for (const [k, v] of Object.entries(rec)) out[k] = (out[k] ?? 0) + v;
+  return out;
+}
+
+export function piecesTotal(rec: Record<string, number>): number {
+  return Object.values(rec).reduce((t, v) => t + v, 0);
+}
+
+/** كم سنتيمتر انقص من التوب بكل القصّات. */
+export function rollUsedCm(state: CompanyState, rollId: string): number {
+  let t = 0;
+  for (const w of Object.values(state.workOrders)) for (const c of w.cuts) for (const r of c.rolls) if (r.rollId === rollId) t += r.cm;
+  return t;
+}
+
+export function rollReturnedCm(roll: FabricRoll): number {
+  return roll.returns.reduce((t, x) => t + x.cm, 0);
+}
+
+export function rollRemainingCm(state: CompanyState, roll: FabricRoll): number {
+  return roll.lengthCm - rollUsedCm(state, roll.id) - rollReturnedCm(roll);
+}
+
+export interface WorkOrderProgress {
+  planned: number;
+  cut: number;
+  delivered: number;
+  cutBySize: Record<string, number>;
+  deliveredBySize: Record<string, number>;
+  readyBySize: Record<string, number>; // مقصوص وما انسلّم
+  usedCm: number;
+  cmPerPiece: number | null;
+  invoiced: number; // عدد القطع المفوترة
+}
+
+export function workOrderProgress(state: CompanyState, o: WorkOrder): WorkOrderProgress {
+  const cutBySize = sumPieces(o.cuts.map((c) => c.pieces));
+  const deliveredBySize = sumPieces(o.deliveries.map((d) => d.pieces));
+  const readyBySize: Record<string, number> = {};
+  for (const z of o.sizes) readyBySize[z] = (cutBySize[z] ?? 0) - (deliveredBySize[z] ?? 0);
+  const usedCm = o.cuts.reduce((t, c) => t + c.rolls.reduce((s, r) => s + r.cm, 0), 0);
+  const cut = piecesTotal(cutBySize);
+  return {
+    planned: piecesTotal(o.planned),
+    cut,
+    delivered: piecesTotal(deliveredBySize),
+    cutBySize,
+    deliveredBySize,
+    readyBySize,
+    usedCm,
+    cmPerPiece: cut > 0 ? usedCm / cut : null,
+    invoiced: o.deliveries.filter((d) => d.invoiceId && !invoiceVoided(state, d.invoiceId)).reduce((t, d) => t + piecesTotal(d.pieces), 0),
+  };
+}
+
+// ───────────── المطاعم ─────────────
+
+export interface OrderTotals {
+  items: number;
+  service: number;
+  delivery: number;
+  discount: number;
+  total: number; // قبل الضريبة
+}
+
+/** مجموع الطلب: الأصناف + الخدمة + التوصيل - الخصم. */
+export function orderTotals(order: Pick<Order, 'lines' | 'servicePercent' | 'deliveryFee' | 'discount'>): OrderTotals {
+  const items = order.lines.reduce((s, l) => s + Math.round(l.qty * l.price), 0);
+  const service = order.servicePercent ? Math.round((items * order.servicePercent) / 100) : 0;
+  const delivery = order.deliveryFee ?? 0;
+  const discount = Math.min(order.discount ?? 0, items + service + delivery);
+  return { items, service, delivery, discount, total: items + service + delivery - discount };
 }

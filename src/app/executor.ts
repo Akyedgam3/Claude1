@@ -79,6 +79,12 @@ export function execute(store: CompanyStore, actor: User, method: string, args: 
     const discounted = !!d?.discount || !!d?.lines?.some((l) => !!l.discount);
     if (discounted) requirePermission(user, 'discount.give');
   }
+  if (method === 'saveOrder') {
+    // خصم الطلب بالمطعم بيحتاج نفس صلاحية الخصم (إذا تغيّر)
+    const o = args[0] as { id?: string; discount?: number } | undefined;
+    const before = o?.id ? store.ledger.state.orders[o.id]?.discount : undefined;
+    if (o?.discount && o.discount !== before) requirePermission(user, 'discount.give');
+  }
   // المنفّذ يُسجَّل دائماً باسم المستخدم الحالي؛ لا يُقبل createdBy من الواجهة أو الشبكة
   args = args.map((a) => {
     if (!a || typeof a !== 'object' || Array.isArray(a) || !('createdBy' in a)) return a;

@@ -108,6 +108,8 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
   saveTable: 'settings.manage',
   saveOrder: 'restaurant.use',
   closeOrder: 'restaurant.use',
+  moveOrder: 'restaurant.use',
+  mergeOrders: 'restaurant.use',
   saveAppointment: 'appointments.manage',
   invoiceAppointment: 'sales.create',
   saveQuote: 'sales.create',
@@ -115,6 +117,15 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
   saveTailorOrder: 'tailoring.manage',
   addTailorDeposit: 'vouchers.create',
   deliverTailorOrder: 'sales.create',
+  loadDemoData: 'settings.manage',
+  receiveRolls: 'tailoring.manage',
+  updateRoll: 'tailoring.manage',
+  returnRoll: 'tailoring.manage',
+  saveWorkOrder: 'tailoring.manage',
+  addCut: 'tailoring.manage',
+  removeCut: 'tailoring.manage',
+  deliverWork: (args) => ((args[1] as { invoice?: boolean } | undefined)?.invoice ? 'sales.create' : 'tailoring.manage'),
+  invoiceDelivery: 'sales.create',
 };
 
 export function permissionFor(method: string, args: unknown[]): Permission | null {

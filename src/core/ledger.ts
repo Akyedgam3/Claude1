@@ -1,5 +1,6 @@
-import { applyCommerceEvent, buildInvoice, repairToInvoiceLines, tailorDeposits, tailorToInvoiceLines, validateCommerceEvent, type InvoiceDraft, type InvoiceLineDraft } from './commerce';
+import { applyCommerceEvent, buildInvoice, orderTotals, piecesTotal, repairToInvoiceLines, rollRemainingCm, tailorDeposits, tailorToInvoiceLines, validateCommerceEvent, workOrderProgress, type InvoiceDraft, type InvoiceLineDraft } from './commerce';
 import { ACTIVITIES } from './activities';
+import { loadDemo } from './demo';
 import { SYSTEM_ACCOUNTS } from './chart-templates';
 import { ALLOWED_CURRENCIES, convertMinor, type Currency } from './money';
 import {
@@ -21,6 +22,7 @@ import type {
   CompanyState,
   DiningTable,
   ExchangeRate,
+  FabricRoll,
   Invoice,
   Item,
   JournalEntry,
@@ -39,6 +41,8 @@ import type {
   User,
   Vehicle,
   Warehouse,
+  WorkCut,
+  WorkOrder,
 } from './types';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -69,6 +73,8 @@ export function emptyState(): CompanyState {
     appointments: {},
     tailorOrders: {},
     quotes: {},
+    rolls: {},
+    workOrders: {},
     counters: {},
   };
 }
@@ -587,6 +593,10 @@ export class Ledger {
     } else if (src?.type === 'tailor') {
       const o = this.state.tailorOrders[src.id];
       if (o?.invoiceId === invoice.id) this.emit({ type: 'tailor.saved', order: { ...withoutInvoice(o), status: 'ready' } });
+    } else if (src?.type === 'workorder') {
+      // إلغاء فاتورة دفعة التسليم بيرجّع القطع جاهزة للتسليم
+      const o = this.state.workOrders[src.id];
+      if (o) this.emit({ type: 'workorder.saved', order: { ...o, status: o.status === 'done' ? 'open' : o.status, deliveries: o.deliveries.filter((d) => d.invoiceId !== invoice.id) } });
     }
   }
 
@@ -752,27 +762,50 @@ export class Ledger {
     return full;
   }
 
-  /** يغلق الطلب بفاتورة مبيع (تُنقص مكوّنات الوجبات من المخزون). */
+  /** يغلق الطلب بفاتورة مبيع (تُنقص مكوّنات الوجبات من المخزون). الخدمة والتوصيل أسطر خدمة بالفاتورة. */
   closeOrder(orderId: string, opts: CloseOrderOptions): Invoice {
     const order = this.state.orders[orderId] ?? fail('الطلب غير موجود');
     if (order.status !== 'open') fail('الطلب مغلق مسبقاً');
     if (order.lines.length === 0) fail('الطلب فارغ');
     const table = order.tableId ? this.state.tables[order.tableId] : null;
     const partyId = opts.partyId ?? order.partyId ?? null;
+    const t = orderTotals(order);
+    const extra: InvoiceLineDraft[] = [];
+    if (t.service > 0) extra.push({ description: `خدمة ${order.servicePercent}%`, qty: 1, price: t.service });
+    if (t.delivery > 0) extra.push({ description: 'أجور توصيل', qty: 1, price: t.delivery });
+    const discount = (opts.discount ?? 0) + t.discount;
+    const who = [order.customerName, order.phone, order.address].filter(Boolean).join(' — ');
     const invoice = this.postInvoice({
       kind: 'sale',
       date: opts.date,
       partyId,
-      lines: order.lines.map((l) => ({ itemId: l.itemId, qty: l.qty, price: l.price, ...(l.note ? { note: l.note } : {}) })),
-      ...(opts.discount ? { discount: opts.discount } : {}),
+      lines: [...order.lines.map((l) => ({ itemId: l.itemId, qty: l.qty, price: l.price, ...(l.note ? { note: l.note } : {}) })), ...extra],
+      ...(discount ? { discount } : {}),
       ...(opts.taxIds ? { taxIds: opts.taxIds } : {}),
       ...(opts.paid !== undefined ? { paid: opts.paid } : {}),
       ...(opts.cashAccountId ? { cashAccountId: opts.cashAccountId } : {}),
-      notes: `طلب رقم ${order.number}${table ? ` — ${table.name}` : ''}`,
+      notes: `طلب رقم ${order.number}${table ? ` — ${table.name}` : ''}${who ? ` — ${who}` : ''}`,
       source: { type: 'order', id: order.id },
     });
-    this.emit({ type: 'order.saved', order: { ...order, status: 'closed', closedAt: new Date().toISOString(), invoiceId: invoice.id } });
+    this.emit({ type: 'order.saved', order: { ...order, ...(partyId ? { partyId } : {}), status: 'closed', closedAt: new Date().toISOString(), invoiceId: invoice.id } });
     return invoice;
+  }
+
+  /** نقل طلب لطاولة تانية (فاضية). */
+  moveOrder(orderId: string, tableId: string): Order {
+    const order = this.state.orders[orderId] ?? fail('الطلب غير موجود');
+    if (order.status !== 'open') fail('الطلب مغلق');
+    return this.saveOrder({ ...order, tableId, type: 'dine_in' });
+  }
+
+  /** دمج طلب بطلب تاني (طاولتين صاروا وحدة). */
+  mergeOrders(fromId: string, intoId: string): Order {
+    const from = this.state.orders[fromId] ?? fail('الطلب غير موجود');
+    const into = this.state.orders[intoId] ?? fail('الطلب غير موجود');
+    if (fromId === intoId) fail('اختار طلب تاني');
+    if (from.status !== 'open' || into.status !== 'open') fail('الطلب مغلق');
+    this.emit({ type: 'order.saved', order: { ...from, status: 'cancelled', lines: [], notes: `دُمج بالطلب رقم ${into.number}` } });
+    return this.saveOrder({ ...into, lines: [...into.lines, ...from.lines], ...(from.guests || into.guests ? { guests: (from.guests ?? 0) + (into.guests ?? 0) } : {}) });
   }
 
   // ───────────── المواعيد ─────────────
@@ -912,6 +945,147 @@ export class Ledger {
     this.emit({ type: 'tailor.saved', order: { ...o, status: 'delivered', invoiceId: invoice.id } });
     return invoice;
   }
+
+  /** تعبئة شركة فاضية ببيانات تجريبية للعرض. */
+  loadDemoData(): void {
+    loadDemo(this);
+  }
+
+  // ───────────── ورشة الإنتاج ─────────────
+
+  /** استلام أتواب قماش من زبون بسند واحد. */
+  receiveRolls(input: { partyId: string; date: string; rolls: Omit<FabricRoll, 'id' | 'partyId' | 'date' | 'receiptNo' | 'returns'>[] }): FabricRoll[] {
+    const receiptNo = (this.state.counters['rollReceipt'] ?? 0) + 1;
+    const rolls: FabricRoll[] = input.rolls.map((r) => ({ ...r, code: r.code.trim(), fabric: r.fabric.trim(), id: crypto.randomUUID(), partyId: input.partyId, date: input.date, receiptNo, returns: [] }));
+    this.emit({ type: 'rolls.saved', rolls });
+    return rolls;
+  }
+
+  /** تعديل بيانات توب (الرقم، النوع، اللون، الطول...). */
+  updateRoll(roll: Omit<FabricRoll, 'returns' | 'receiptNo' | 'partyId'>): FabricRoll {
+    const prev = this.state.rolls[roll.id] ?? fail('التوب غير موجود');
+    const next: FabricRoll = { ...prev, ...roll, code: roll.code.trim(), fabric: roll.fabric.trim(), partyId: prev.partyId, receiptNo: prev.receiptNo, returns: prev.returns };
+    this.emit({ type: 'rolls.saved', rolls: [next] });
+    return next;
+  }
+
+  /** إرجاع بواقي توب للزبون. بدون طول = كل الباقي. */
+  returnRoll(rollId: string, opts: { date: string; cm?: number; note?: string }): FabricRoll {
+    const roll = this.state.rolls[rollId] ?? fail('التوب غير موجود');
+    const left = rollRemainingCm(this.state, roll);
+    const cm = opts.cm ?? left;
+    if (!(cm > 0)) fail('ما في باقي بهالتوب');
+    if (cm > left) fail(`الباقي بالتوب ${(left / 100).toLocaleString('en')} متر فقط`);
+    const next: FabricRoll = { ...roll, returns: [...roll.returns, { date: opts.date, cm, ...(opts.note ? { note: opts.note } : {}) }] };
+    this.emit({ type: 'rolls.saved', rolls: [next] });
+    return next;
+  }
+
+  saveWorkOrder(draft: WorkOrderDraft): WorkOrder {
+    const prev = this.state.workOrders[draft.id];
+    const order: WorkOrder = {
+      ...draft,
+      number: prev?.number ?? (this.state.counters['workorder'] ?? 0) + 1,
+      cuts: prev?.cuts ?? [],
+      deliveries: prev?.deliveries ?? [],
+    };
+    if (prev) {
+      const p = workOrderProgress(this.state, prev);
+      for (const z of prev.sizes) if (!order.sizes.includes(z) && ((p.cutBySize[z] ?? 0) > 0 || (p.deliveredBySize[z] ?? 0) > 0)) fail(`المقاس ${z} عليه قصّات؛ ما فيك تشيله`);
+    }
+    if (order.status === 'cancelled' && order.deliveries.some((d) => d.invoiceId)) fail('على الطلبية تسليمات مفوترة');
+    this.emit({ type: 'workorder.saved', order });
+    return order;
+  }
+
+  /** تسجيل قصّة: أمتار من كل توب وعدد القطع لكل مقاس. */
+  addCut(orderId: string, cut: Omit<WorkCut, 'id'>): WorkOrder {
+    const o = this.state.workOrders[orderId] ?? fail('الطلبية غير موجودة');
+    if (o.status === 'cancelled') fail('الطلبية ملغاة');
+    if (piecesTotal(cut.pieces) <= 0) fail('اكتب عدد القطع المقصوصة');
+    if (cut.rolls.length === 0) fail('اختار التوب اللي انقص منه');
+    const order: WorkOrder = { ...o, cuts: [...o.cuts, { ...cut, id: crypto.randomUUID() }] };
+    this.emit({ type: 'workorder.saved', order });
+    return order;
+  }
+
+  removeCut(orderId: string, cutId: string): WorkOrder {
+    const o = this.state.workOrders[orderId] ?? fail('الطلبية غير موجودة');
+    const order: WorkOrder = { ...o, cuts: o.cuts.filter((c) => c.id !== cutId) };
+    this.emit({ type: 'workorder.saved', order });
+    return order;
+  }
+
+  /** تسليم دفعة قطع للزبون، ومعها فاتورة بالأجرة إذا بدك. */
+  deliverWork(orderId: string, opts: WorkDeliverOptions): { order: WorkOrder; invoice?: Invoice } {
+    const o = this.state.workOrders[orderId] ?? fail('الطلبية غير موجودة');
+    if (o.status === 'cancelled') fail('الطلبية ملغاة');
+    const qty = piecesTotal(opts.pieces);
+    if (qty <= 0) fail('اكتب عدد القطع المسلّمة');
+    const number = (this.state.counters['workDelivery'] ?? 0) + 1;
+    let invoice: Invoice | undefined;
+    if (opts.invoice) {
+      const sizes = o.sizes.filter((z) => (opts.pieces[z] ?? 0) > 0).map((z) => `${z}: ${opts.pieces[z]}`).join('، ');
+      invoice = this.postInvoice({
+        kind: 'sale',
+        date: opts.date,
+        partyId: o.partyId,
+        currency: o.currency,
+        lines: [{ description: `أجرة خياطة ${o.model}${o.modelCode ? ` (${o.modelCode})` : ''} — ${sizes}`, qty, price: o.pieceRate }],
+        ...(opts.paid !== undefined ? { paid: opts.paid } : { paid: 0 }),
+        ...(opts.cashAccountId ? { cashAccountId: opts.cashAccountId } : {}),
+        ...(opts.rate ? { rate: opts.rate } : {}),
+        notes: `طلبية إنتاج رقم ${o.number} — تسليم رقم ${number}`,
+        source: { type: 'workorder', id: o.id },
+      });
+    }
+    const fresh = this.state.workOrders[orderId]!;
+    const order: WorkOrder = {
+      ...fresh,
+      deliveries: [...fresh.deliveries, { id: crypto.randomUUID(), number, date: opts.date, pieces: opts.pieces, ...(invoice ? { invoiceId: invoice.id } : {}), ...(opts.notes ? { notes: opts.notes } : {}) }],
+    };
+    const p = workOrderProgress(this.state, order);
+    if (opts.close || (p.planned > 0 && p.delivered >= p.planned)) order.status = 'done';
+    this.emit({ type: 'workorder.saved', order });
+    return { order, ...(invoice ? { invoice } : {}) };
+  }
+
+  /** فوترة دفعة تسليم سابقة ما انفوترت. */
+  invoiceDelivery(orderId: string, deliveryId: string, opts: { date: string; paid?: number; cashAccountId?: string; rate?: number }): Invoice {
+    const o = this.state.workOrders[orderId] ?? fail('الطلبية غير موجودة');
+    const d = o.deliveries.find((x) => x.id === deliveryId) ?? fail('الدفعة غير موجودة');
+    if (d.invoiceId && !this.state.invoices.find((i) => i.id === d.invoiceId)?.voidEntryId) fail('الدفعة مفوترة مسبقاً');
+    const qty = piecesTotal(d.pieces);
+    const sizes = o.sizes.filter((z) => (d.pieces[z] ?? 0) > 0).map((z) => `${z}: ${d.pieces[z]}`).join('، ');
+    const invoice = this.postInvoice({
+      kind: 'sale',
+      date: opts.date,
+      partyId: o.partyId,
+      currency: o.currency,
+      lines: [{ description: `أجرة خياطة ${o.model}${o.modelCode ? ` (${o.modelCode})` : ''} — ${sizes}`, qty, price: o.pieceRate }],
+      paid: opts.paid ?? 0,
+      ...(opts.cashAccountId ? { cashAccountId: opts.cashAccountId } : {}),
+      ...(opts.rate ? { rate: opts.rate } : {}),
+      notes: `طلبية إنتاج رقم ${o.number} — تسليم رقم ${d.number}`,
+      source: { type: 'workorder', id: o.id },
+    });
+    const fresh = this.state.workOrders[orderId]!;
+    this.emit({ type: 'workorder.saved', order: { ...fresh, deliveries: fresh.deliveries.map((x) => (x.id === deliveryId ? { ...x, invoiceId: invoice.id } : x)) } });
+    return invoice;
+  }
+}
+
+export type WorkOrderDraft = Omit<WorkOrder, 'number' | 'cuts' | 'deliveries'> & { number?: number };
+
+export interface WorkDeliverOptions {
+  date: string;
+  pieces: Record<string, number>;
+  invoice?: boolean;
+  paid?: number;
+  cashAccountId?: string;
+  rate?: number;
+  notes?: string;
+  close?: boolean;
 }
 
 export type QuoteDraft = Omit<Quote, 'number' | 'invoiceId' | 'createdBy'> & { number?: number };

@@ -18,7 +18,8 @@ export type Feature =
   | 'priceTiers' // أسعار مفرق/جملة/خاص حسب العميل
   | 'units' // وحدات متعددة (قطعة/كرتونة/طن)
   | 'salesmen' // مندوبو مبيعات
-  | 'tailoring'; // طلبات تفصيل وقياسات الزبائن
+  | 'tailoring' // طلبات تفصيل وقياسات الزبائن
+  | 'workshop'; // ورشة إنتاج: أتواب قماش الزبون، قصّات وتسليمات بالقطعة
 
 export interface ActivityProfile {
   id: Activity;
@@ -197,10 +198,10 @@ export const ACTIVITIES: Record<Activity, ActivityProfile> = {
   tailor: {
     id: 'tailor',
     name: 'خياطة وتفصيل',
-    description: 'قياسات الزبائن، طلبات تفصيل بمواعيد تسليم وبروفة، عربون، بيع أقمشة بالمتر',
+    description: 'قياسات الزبائن وطلبات التفصيل، وورشة إنتاج بالجملة: أتواب قماش الزبون، قصّات وتسليمات بالقطعة',
     icon: 'scissors',
     color: '#9c3d6b',
-    features: ['tailoring', 'pos', 'units'],
+    features: ['tailoring', 'workshop', 'pos', 'units'],
     itemLabel: 'مادة',
     itemsLabel: 'الأقمشة واللوازم',
     units: ['متر', 'قطعة', 'ثوب', 'بكرة', 'علبة'],
@@ -254,6 +255,7 @@ export const FEATURE_INFO: Record<Feature, { name: string; description: string }
   units: { name: 'وحدات متعددة', description: 'بيع وشراء بالقطعة والعلبة والكرتونة' },
   salesmen: { name: 'مندوبو المبيعات', description: 'تسجيل المندوب على الفاتورة وتقرير مبيعاته' },
   tailoring: { name: 'طلبات التفصيل والقياسات', description: 'قياسات الزبائن، طلبات بموعد تسليم وبروفة، عربون' },
+  workshop: { name: 'ورشة الإنتاج (قص وخياطة بالجملة)', description: 'استلام أتواب قماش الزبون برقم وطول، قصّات بالمقاسات، تسليم دفعات وفوترة بالقطعة' },
 };
 
 export const ALL_FEATURES = Object.keys(FEATURE_INFO) as Feature[];

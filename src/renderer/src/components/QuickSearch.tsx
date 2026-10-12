@@ -55,6 +55,17 @@ export function QuickSearch({ screens, onClose }: { screens: { key: string; labe
         out.push({ key: `t:${o.id}`, icon: 'scissors', label: `طلب تفصيل رقم ${o.number}`, hint: state.parties[o.partyId]?.name ?? '', go: go('tailor-order', o.id) });
       }
     }
+    if (feature('workshop') && can('tailoring.manage')) {
+      for (const o of Object.values(state.workOrders)) {
+        if (num !== null ? o.number !== num : !matches(text, o.model, o.modelCode, state.parties[o.partyId]?.name)) continue;
+        out.push({ key: `w:${o.id}`, icon: 'factory', label: `طلبية إنتاج رقم ${o.number} — ${o.model}`, hint: state.parties[o.partyId]?.name ?? '', go: go('work-order', o.id) });
+      }
+      // رقم التوب: بيفتح قائمة الأتواب
+      for (const r of Object.values(state.rolls)) {
+        if (!text || !matches(text, r.code)) continue;
+        out.push({ key: `roll:${r.id}`, icon: 'ruler', label: `توب ${r.code} — ${r.fabric}`, hint: state.parties[r.partyId]?.name ?? '', go: go('workshop', 'rolls') });
+      }
+    }
     if (feature('repairs') && can('repairs.manage')) {
       for (const r of Object.values(state.repairs)) {
         const v = state.vehicles[r.vehicleId];
