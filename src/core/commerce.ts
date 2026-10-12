@@ -3,7 +3,7 @@ import type { EntryDraft, LineDraft } from './ledger';
 import { convertMinor } from './money';
 import { adjustmentMoves, applyMove, assertMovesPossible, invoiceMoves, negate, productionMoves, roundQty, StockPlanner, transferMoves } from './stock';
 import { computeTaxes } from './tax';
-import type { CompanyEvent, CompanyState, Invoice, InvoiceKind, InvoiceLine, JournalEntry, RepairOrder, TailorOrder } from './types';
+import type { CompanyEvent, CompanyState, Invoice, InvoiceKind, InvoiceLine, JournalEntry, Quote, RepairOrder, TailorOrder } from './types';
 
 function fail(message: string): never {
   throw new Error(message);
@@ -121,6 +121,22 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       if (prev?.invoiceId && a.status !== 'done' && !invoiceVoided(state, prev.invoiceId)) fail('الموعد مفوتر');
       return;
     }
+    case 'quote.saved': {
+      const q = event.quote;
+      if (!DATE_RE.test(q.date) || (q.validUntil && !DATE_RE.test(q.validUntil))) fail('تاريخ غير صالح');
+      if (q.partyId && !state.parties[q.partyId]) fail('الزبون غير موجود');
+      if (!state.currencies[q.currency]) fail('عملة غير معروفة');
+      for (const l of q.lines) {
+        if (l.itemId && !state.items[l.itemId]) fail(`مادة غير موجودة: ${l.description}`);
+        if (!(l.qty > 0) || !Number.isSafeInteger(l.price) || l.price < 0) fail(`كمية أو سعر غير صالح: ${l.description}`);
+        if (l.discount !== undefined && (!Number.isSafeInteger(l.discount) || l.discount < 0)) fail('خصم غير صالح');
+      }
+      for (const t of q.taxIds) if (!state.taxes[t]) fail('ضريبة غير معروفة');
+      const prev = state.quotes[q.id];
+      if (prev && prev.number !== q.number) fail('لا يمكن تغيير رقم العرض');
+      if (prev?.invoiceId && !invoiceVoided(state, prev.invoiceId) && (q.status !== 'converted' || q.invoiceId !== prev.invoiceId)) fail('العرض تحوّل إلى فاتورة');
+      return;
+    }
     case 'tailor.saved': {
       const o = event.order;
       if (!state.parties[o.partyId]) fail('الزبون غير موجود');
@@ -216,6 +232,10 @@ export function applyCommerceEvent(state: CompanyState, event: CompanyEvent): vo
       return;
     case 'appointment.saved':
       state.appointments[event.appointment.id] = { ...event.appointment };
+      return;
+    case 'quote.saved':
+      state.quotes[event.quote.id] = { ...event.quote };
+      bump(state, 'quote', event.quote.number);
       return;
     case 'tailor.saved':
       state.tailorOrders[event.order.id] = { ...event.order };
@@ -525,4 +545,11 @@ export function tailorDeposits(state: CompanyState, order: TailorOrder): number 
 /** مجموع الطلب قبل الخصم والضريبة. */
 export function tailorSubtotal(order: Pick<TailorOrder, 'garments' | 'fabrics'>): number {
   return order.garments.reduce((s, g) => s + Math.round(g.qty * g.price), 0) + order.fabrics.reduce((s, f) => s + Math.round(f.qty * f.price), 0);
+}
+
+/** مجاميع عرض السعر (للعرض والطباعة). */
+export function quoteTotals(state: CompanyState, q: Pick<Quote, 'lines' | 'discount' | 'taxIds'>) {
+  const subtotal = q.lines.reduce((s, l) => s + Math.round(l.qty * l.price) - (l.discount ?? 0), 0);
+  const taxes = computeTaxes(subtotal - q.discount, q.taxIds.filter((id) => state.taxes[id]).map((id) => ({ ...state.taxes[id]!, active: true })));
+  return { subtotal, discount: q.discount, taxes: taxes.taxes, total: taxes.total };
 }

@@ -18,6 +18,8 @@ import {
   House,
   ListTree,
   LogOut,
+  Moon,
+  Sun,
   Package,
   Pill,
   Plus,
@@ -89,6 +91,8 @@ const ICONS: Record<string, LucideIcon> = {
   logout: LogOut,
   customize: SlidersHorizontal,
   search: Search,
+  moon: Moon,
+  sun: Sun,
 };
 
 export type IconName = keyof typeof ICONS;

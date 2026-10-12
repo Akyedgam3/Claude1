@@ -381,3 +381,81 @@ export function cashMovement(state: CompanyState, period: Period) {
     return { account: a, byCurrency: rows };
   });
 }
+
+// ───────────── تقرير إغلاق اليوم ─────────────
+
+export interface DailyCurrencyRow {
+  currency: string;
+  sales: number; // إجمالي فواتير المبيع
+  salesCash: number; // المقبوض منها نقداً
+  salesCredit: number; // الباقي بالدين
+  returns: number; // مرتجعات المبيع
+  returnsCash: number; // المدفوع للزبائن عن المرتجعات
+  purchases: number;
+  purchasesCash: number;
+  receipts: number; // سندات القبض
+  payments: number; // سندات الدفع
+  cashIn: number; // صافي حركة الصناديق بهذه العملة (داخل - خارج)
+}
+
+export interface DailySummary {
+  date: string;
+  userId?: string;
+  invoices: number; // عدد فواتير المبيع
+  voided: number; // فواتير أُلغيت في ذلك اليوم
+  discounts: number; // بالعملة الأساسية
+  rows: DailyCurrencyRow[];
+  topItems: { itemId: string; name: string; qty: number }[];
+}
+
+/** ملخص يوم عمل (أو موظف واحد): المبيعات، النقد، الدين، المرتجعات، السندات. يُطبع آخر الدوام. */
+export function dailySummary(state: CompanyState, date: string, userId?: string): DailySummary {
+  const rows = new Map<string, DailyCurrencyRow>();
+  const row = (c: string) => {
+    let r = rows.get(c);
+    if (!r) rows.set(c, (r = { currency: c, sales: 0, salesCash: 0, salesCredit: 0, returns: 0, returnsCash: 0, purchases: 0, purchasesCash: 0, receipts: 0, payments: 0, cashIn: 0 }));
+    return r;
+  };
+  const mine = (by: string | undefined) => !userId || by === userId;
+  let invoices = 0;
+  let voided = 0;
+  let discounts = 0;
+  const items = new Map<string, number>();
+  for (const inv of state.invoices) {
+    if (inv.date !== date || !mine(inv.createdBy)) continue;
+    if (inv.voidEntryId) {
+      voided++;
+      continue;
+    }
+    const r = row(inv.currency);
+    if (inv.kind === 'sale') {
+      invoices++;
+      r.sales += inv.total;
+      r.salesCash += inv.paid;
+      r.salesCredit += inv.total - inv.paid;
+      discounts += Math.round((inv.discount + inv.lines.reduce((s, l) => s + l.discount, 0)) * inv.rate);
+      for (const l of inv.lines) if (l.itemId) items.set(l.itemId, (items.get(l.itemId) ?? 0) + l.qty * (l.factor ?? 1));
+    } else if (inv.kind === 'sale_return') {
+      r.returns += inv.total;
+      r.returnsCash += inv.paid;
+    } else if (inv.kind === 'purchase') {
+      r.purchases += inv.total;
+      r.purchasesCash += inv.paid;
+    }
+  }
+  const cashIds = new Set(Object.values(state.accounts).filter((a) => !a.isGroup && /^110[128]/.test(a.id)).map((a) => a.id));
+  for (const e of state.entries) {
+    if (e.date !== date || !mine(e.createdBy)) continue;
+    const kind = e.source?.type;
+    if ((kind === 'receipt' || kind === 'payment') && !e.voidOf && !state.voided[e.id]) {
+      const cash = e.lines.find((l) => cashIds.has(l.accountId));
+      if (cash) row(cash.currency)[kind === 'receipt' ? 'receipts' : 'payments'] += kind === 'receipt' ? cash.debit : cash.credit;
+    }
+    for (const l of e.lines) if (cashIds.has(l.accountId)) row(l.currency).cashIn += l.debit - l.credit;
+  }
+  const topItems = [...items]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([itemId, qty]) => ({ itemId, name: state.items[itemId]?.name ?? '', qty: Math.round(qty * 1000) / 1000 }));
+  return { date, ...(userId ? { userId } : {}), invoices, voided, discounts, rows: [...rows.values()], topItems };
+}

@@ -1651,3 +1651,653 @@ strong.good {
   font-size: 12px;
   border-top: 1px solid var(--border);
 }
+
+/* ═══════════ قوالب الفواتير (عصري / كلاسيكي / بسيط) ═══════════ */
+.invoice-doc {
+  --doc-color: #0f6e5c;
+  position: relative;
+  color: #1d2433;
+  background: #fff;
+}
+.invoice-doc .doc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.invoice-doc .doc-brand {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+.invoice-doc .doc-brand h1 {
+  margin: 0;
+  font-size: 22px;
+}
+.invoice-doc .doc-tagline {
+  font-size: 12px;
+  opacity: 0.85;
+}
+.invoice-doc .doc-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 12px;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+.invoice-doc .doc-titlebox {
+  text-align: end;
+  flex: none;
+}
+.invoice-doc .doc-titlebox h2 {
+  margin: 0;
+  font-size: 22px;
+}
+.invoice-doc .doc-number {
+  font-size: 13px;
+}
+.invoice-doc .doc-info {
+  display: grid;
+  grid-template-columns: 2fr repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.invoice-doc .doc-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #f5f7f8;
+}
+.invoice-doc .doc-label {
+  font-size: 11px;
+  color: #6b7385;
+}
+.invoice-doc .doc-refs {
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.invoice-doc .doc-lines td.n,
+.invoice-doc .doc-lines th.n {
+  width: 34px;
+  text-align: center;
+}
+.invoice-doc .nowrap {
+  white-space: nowrap;
+}
+.invoice-doc .doc-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+.invoice-doc .doc-side {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  flex: 1;
+}
+.invoice-doc .doc-qr {
+  flex: none;
+}
+.invoice-doc .doc-totals {
+  width: 340px;
+  margin: 0;
+}
+.invoice-doc .doc-totals .after {
+  font-size: 12px;
+}
+.invoice-doc .doc-stamp {
+  position: absolute;
+  top: 130px;
+  left: 40px;
+  transform: rotate(-14deg);
+  border: 4px double currentColor;
+  border-radius: 10px;
+  padding: 4px 22px;
+  font-size: 30px;
+  font-weight: 900;
+  opacity: 0.55;
+  pointer-events: none;
+}
+.invoice-doc .doc-stamp.paid {
+  color: #1e8a4c;
+}
+.invoice-doc .doc-stamp.credit {
+  color: #c2671c;
+}
+.invoice-doc .doc-stamp.void {
+  color: #c0392b;
+  font-size: 64px;
+  top: 40%;
+  left: 25%;
+  opacity: 0.35;
+}
+.invoice-doc .doc-stamp.quote {
+  color: var(--doc-color);
+}
+.invoice-doc .doc-terms {
+  margin-top: 14px;
+  font-size: 11px;
+  color: #6b7385;
+  white-space: pre-line;
+  border-top: 1px solid #e3e6eb;
+  padding-top: 8px;
+}
+.invoice-doc .doc-signatures {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 36px;
+}
+.invoice-doc .doc-signatures span {
+  border-top: 1px solid #999;
+  padding: 6px 30px 0;
+  font-size: 12px;
+}
+.invoice-doc .doc-foot {
+  margin-top: 18px;
+  text-align: center;
+  font-size: 12px;
+  color: #6b7385;
+}
+
+/* عصري: شريط بلون الشركة وجدول بترويسة ملوّنة */
+.doc-modern .doc-head {
+  background: var(--doc-color);
+  color: #fff;
+  margin: -32px -32px 18px;
+  padding: 24px 32px;
+  border-radius: 0 0 22px 22px;
+}
+.doc-modern .doc-logo {
+  background: #fff;
+  border-radius: 12px;
+  padding: 4px;
+}
+.doc-modern .doc-titlebox h2 {
+  font-size: 26px;
+}
+.doc-modern .doc-number b {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  padding: 0 10px;
+}
+.doc-modern .doc-card {
+  background: color-mix(in srgb, var(--doc-color) 7%, #fff);
+  border: 1px solid color-mix(in srgb, var(--doc-color) 18%, #fff);
+}
+.doc-modern .doc-card.party strong {
+  font-size: 15px;
+}
+.doc-modern .doc-lines {
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #e3e6eb;
+}
+.doc-modern .doc-lines th {
+  background: var(--doc-color);
+  color: #fff;
+  border: none;
+  padding: 8px 10px;
+}
+.doc-modern .doc-lines td {
+  border: none;
+  border-bottom: 1px solid #eef0f3;
+  padding: 7px 10px;
+}
+.doc-modern .doc-lines tbody tr:nth-child(even) td {
+  background: #fafbfc;
+}
+.doc-modern .doc-totals > div {
+  border-bottom: 1px solid #eef0f3;
+}
+.doc-modern .doc-totals .grand {
+  background: var(--doc-color);
+  color: #fff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 6px 0;
+  border: none;
+  font-size: 17px;
+}
+
+/* كلاسيكي: إطارات واضحة وخط سفلي */
+.doc-classic .doc-head {
+  border-bottom: 3px double #1d2433;
+  padding-bottom: 12px;
+}
+.doc-classic .doc-titlebox h2 {
+  border: 2px solid #1d2433;
+  padding: 2px 14px;
+  border-radius: 4px;
+}
+.doc-classic .doc-card {
+  background: none;
+  border: 1px solid #c9ced6;
+  border-radius: 4px;
+}
+.doc-classic .doc-lines th {
+  background: #eef0f3;
+}
+
+/* بسيط: أبيض وأسود بدون خلفيات (يوفّر الحبر) */
+.doc-minimal .doc-head {
+  border-bottom: 1px solid #1d2433;
+  padding-bottom: 10px;
+}
+.doc-minimal .doc-card {
+  background: none;
+  padding: 0;
+}
+.doc-minimal .doc-lines th {
+  background: none;
+  border: none;
+  border-bottom: 1px solid #1d2433;
+}
+.doc-minimal .doc-lines td {
+  border: none;
+  border-bottom: 1px solid #eef0f3;
+}
+
+@media print {
+  .doc-modern .doc-head {
+    margin: 0 0 14px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .invoice-doc * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  /* الطابعات الحرارية: نسخة مضغوطة بعمود واحد مهما كان التصميم */
+  body[data-paper='80mm'] .invoice-doc .doc-head,
+  body[data-paper='58mm'] .invoice-doc .doc-head {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    background: none;
+    color: #000;
+    margin: 0 0 6px;
+    padding: 0 0 6px;
+    border-radius: 0;
+    border-bottom: 1px dashed #000;
+  }
+  body[data-paper='80mm'] .invoice-doc .doc-brand,
+  body[data-paper='58mm'] .invoice-doc .doc-brand {
+    flex-direction: column;
+  }
+  body[data-paper='80mm'] .invoice-doc .doc-contact,
+  body[data-paper='58mm'] .invoice-doc .doc-contact {
+    justify-content: center;
+  }
+  body[data-paper='80mm'] .invoice-doc .doc-titlebox,
+  body[data-paper='58mm'] .invoice-doc .doc-titlebox {
+    text-align: center;
+  }
+  body[data-paper='80mm'] .invoice-doc .doc-titlebox h2,
+  body[data-paper='58mm'] .invoice-doc .doc-titlebox h2 {
+    font-size: 15px;
+    border: none;
+  }
+  body[data-paper='80mm'] .invoice-doc .doc-info,
+  body[data-paper='58mm'] .invoice-doc .doc-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  body[data-paper='80mm'] .invoice-doc .doc-card,
+  body[data-paper='58mm'] .invoice-doc .doc-card {
+    flex-direction: row;
+    justify-content: space-between;
+    background: none;
+    border: none;
+    padding: 1px 0;
+  }
+  body[data-paper='80mm'] .invoice-doc .doc-lines th,
+  body[data-paper='58mm'] .invoice-doc .doc-lines th {
+    background: none;
+    color: #000;
+    border-bottom: 1px solid #000;
+  }
+  body[data-paper='80mm'] .invoice-doc .doc-lines,
+  body[data-paper='58mm'] .invoice-doc .doc-lines {
+    border: none;
+  }
+  body[data-paper='80mm'] .invoice-doc .doc-bottom,
+  body[data-paper='58mm'] .invoice-doc .doc-bottom {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+  body[data-paper='80mm'] .invoice-doc .doc-side,
+  body[data-paper='58mm'] .invoice-doc .doc-side {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  body[data-paper='80mm'] .invoice-doc .doc-totals,
+  body[data-paper='58mm'] .invoice-doc .doc-totals {
+    width: 100%;
+  }
+  body[data-paper='80mm'] .invoice-doc .doc-totals .grand,
+  body[data-paper='58mm'] .invoice-doc .doc-totals .grand {
+    background: none;
+    color: #000;
+    border-top: 2px solid #000;
+    border-bottom: 2px solid #000;
+    border-radius: 0;
+  }
+  body[data-paper='80mm'] .invoice-doc .doc-stamp,
+  body[data-paper='58mm'] .invoice-doc .doc-stamp {
+    position: static;
+    transform: none;
+    display: block;
+    width: fit-content;
+    margin: 6px auto;
+    font-size: 16px;
+    opacity: 0.8;
+  }
+  body[data-paper='80mm'] .invoice-doc .doc-qr {
+    width: 90px;
+    height: 90px;
+  }
+  body[data-paper='58mm'] .invoice-doc .doc-qr {
+    width: 70px;
+    height: 70px;
+  }
+}
+
+/* مصمم الفاتورة في الإعدادات */
+.print-designer {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+.designer-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.designer-controls h3,
+.designer-controls h4 {
+  margin: 0;
+}
+.template-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.template-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 6px;
+  white-space: normal;
+  text-align: center;
+}
+.template-card small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.template-card.active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  box-shadow: 0 0 0 2px var(--primary-soft);
+}
+.mini {
+  width: 70px;
+  height: 90px;
+  background: #fff;
+  border: 1px solid #d5d9df;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 0 6px;
+  overflow: hidden;
+}
+.mini i {
+  display: block;
+  height: 18px;
+}
+.mini b {
+  display: block;
+  height: 6px;
+  margin: 0 8px;
+  border-radius: 3px;
+  background: #e3e6eb;
+}
+.mini-modern i {
+  background: var(--doc-color);
+}
+.mini-modern b:first-of-type {
+  background: color-mix(in srgb, var(--doc-color) 45%, #fff);
+}
+.mini-classic i {
+  border-bottom: 3px double #1d2433;
+  margin: 0 6px;
+}
+.mini-minimal i {
+  border-bottom: 1px solid #1d2433;
+  margin: 0 6px;
+}
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.swatch {
+  width: 30px;
+  height: 30px;
+  min-height: 0;
+  padding: 0;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 1px var(--border);
+}
+.swatch.active {
+  box-shadow: 0 0 0 3px var(--text);
+}
+.swatches input[type='color'] {
+  width: 38px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: none;
+}
+.toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.designer-preview {
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 16px;
+  overflow: hidden;
+  max-height: 640px;
+}
+.preview-scale {
+  transform: scale(0.72);
+  transform-origin: top right;
+  width: 139%;
+}
+.preview-scale .paper-preview {
+  max-width: none;
+}
+@media print {
+  .invoice-doc.sample {
+    display: none !important;
+  }
+}
+.daily-card .kv .grand {
+  font-size: 17px;
+  font-weight: 800;
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+}
+.daily-head,
+.daily-sign {
+  margin: 8px 0;
+}
+
+/* ═══════════ الوضع الداكن ═══════════ */
+:root[data-theme='dark'] {
+  --bg: #0e1513;
+  --surface: #17201e;
+  --border: #2a3633;
+  --text: #e6ece9;
+  --muted: #93a39e;
+  --primary: #1a9a80;
+  --primary-soft: rgba(26, 154, 128, 0.18);
+  --danger: #ef6b5b;
+  --good: #3ccf7f;
+  --warn: #e3a84a;
+  --sidebar: #0a110f;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+:root[data-theme='dark'] body {
+  background: var(--bg);
+}
+:root[data-theme='dark'] input,
+:root[data-theme='dark'] select,
+:root[data-theme='dark'] textarea,
+:root[data-theme='dark'] .picker-list {
+  background: #111a18;
+  border-color: var(--border);
+}
+:root[data-theme='dark'] input[readonly],
+:root[data-theme='dark'] input:disabled,
+:root[data-theme='dark'] fieldset:disabled input,
+:root[data-theme='dark'] fieldset:disabled select,
+:root[data-theme='dark'] fieldset:disabled textarea {
+  background: #0f1715;
+  color: var(--muted);
+}
+:root[data-theme='dark'] button:hover:not(:disabled) {
+  background: #22302c;
+}
+:root[data-theme='dark'] button.primary:hover:not(:disabled) {
+  background: var(--primary);
+  filter: brightness(1.1);
+}
+:root[data-theme='dark'] .table th,
+:root[data-theme='dark'] .table tfoot td,
+:root[data-theme='dark'] .table tr.group-row td {
+  background: #1c2724;
+}
+:root[data-theme='dark'] .table td,
+:root[data-theme='dark'] .tree-row {
+  border-color: #222d2a;
+}
+:root[data-theme='dark'] .table tr.clickable:hover td {
+  background: #1f2b28;
+}
+:root[data-theme='dark'] .table tr.warn-row td,
+:root[data-theme='dark'] tr.late td {
+  background: rgba(227, 168, 74, 0.08);
+}
+:root[data-theme='dark'] .banner {
+  background: rgba(227, 168, 74, 0.12);
+  border-color: rgba(227, 168, 74, 0.35);
+}
+:root[data-theme='dark'] .banner.bad {
+  background: rgba(239, 107, 91, 0.12);
+  border-color: rgba(239, 107, 91, 0.35);
+}
+:root[data-theme='dark'] .tag,
+:root[data-theme='dark'] .status,
+:root[data-theme='dark'] .chips li {
+  background: #24302d;
+  color: var(--text);
+}
+:root[data-theme='dark'] .status.open {
+  background: rgba(90, 140, 255, 0.18);
+}
+:root[data-theme='dark'] .status.in_progress {
+  background: rgba(227, 168, 74, 0.18);
+}
+:root[data-theme='dark'] .status.done {
+  background: rgba(60, 207, 127, 0.18);
+}
+:root[data-theme='dark'] .status.cancelled,
+:root[data-theme='dark'] .tag.bad {
+  background: rgba(239, 107, 91, 0.18);
+}
+:root[data-theme='dark'] .table-card.busy {
+  background: rgba(194, 103, 28, 0.15);
+}
+:root[data-theme='dark'] .designer-preview {
+  background: #0a100e;
+}
+:root[data-theme='dark'] .activity-hero {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--activity, var(--primary)) 25%, var(--surface)), var(--surface));
+}
+:root[data-theme='dark'] .mini {
+  border-color: #3a4744;
+}
+/* الوثائق تبقى بيضاء (كما ستُطبع) */
+:root[data-theme='dark'] .paper-preview {
+  background: #fff;
+  color: #1d2433;
+  border-color: #2a3633;
+}
+:root[data-theme='dark'] .paper-preview .muted {
+  color: #6b7385;
+}
+
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 4px 6px;
+  background: transparent;
+  border: none;
+  color: #d8e6e2;
+  font-size: 13px;
+  opacity: 0.8;
+}
+.theme-toggle:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08) !important;
+  opacity: 1;
+}
+/* الطباعة دائماً بألوان فاتحة حتى لو كان البرنامج بالوضع الداكن */
+@media print {
+  :root[data-theme='dark'] {
+    --bg: #fff;
+    --surface: #fff;
+    --border: #e3e6eb;
+    --text: #1d2433;
+    --muted: #6b7385;
+    --primary: #0f6e5c;
+    --primary-soft: #e3f2ee;
+    color-scheme: light;
+  }
+  :root[data-theme='dark'] .table th,
+  :root[data-theme='dark'] .table tfoot td,
+  :root[data-theme='dark'] .tag,
+  :root[data-theme='dark'] .status,
+  :root[data-theme='dark'] .chips li {
+    background: #f1f3f6;
+    color: #1d2433;
+  }
+}
+.crash pre {
+  background: var(--bg);
+  padding: 10px;
+  border-radius: 6px;
+  white-space: pre-wrap;
+  direction: ltr;
+  text-align: left;
+}

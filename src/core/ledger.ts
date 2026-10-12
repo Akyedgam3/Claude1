@@ -33,6 +33,7 @@ import type {
   Role,
   StockAdjustment,
   StockTransfer,
+  Quote,
   TailorOrder,
   Tax,
   User,
@@ -67,6 +68,7 @@ export function emptyState(): CompanyState {
     orders: {},
     appointments: {},
     tailorOrders: {},
+    quotes: {},
     counters: {},
   };
 }
@@ -165,6 +167,8 @@ export function validateEvent(state: CompanyState, event: CompanyEvent): void {
       }
       if ('lockedUntil' in event.info) fail('استخدم إقفال الفترة لتغيير تاريخ الإقفال');
       if (event.info.print?.logo && event.info.print.logo.length > 400_000) fail('حجم الشعار كبير، اختر صورة أصغر من 300 كيلوبايت');
+      if (event.info.print?.color && !/^#[0-9a-fA-F]{6}$/.test(event.info.print.color)) fail('لون غير صالح');
+      if (event.info.print?.terms && event.info.print.terms.length > 2000) fail('نص الشروط طويل جداً');
       if (event.info.activity !== undefined && !(event.info.activity in ACTIVITIES)) fail('نوع نشاط غير معروف');
       if (event.info.customize) {
         const c = event.info.customize;
@@ -577,6 +581,9 @@ export class Ledger {
     } else if (src?.type === 'appointment') {
       const a = this.state.appointments[src.id];
       if (a?.invoiceId === invoice.id) this.emit({ type: 'appointment.saved', appointment: { ...withoutInvoice(a), status: 'arrived' } });
+    } else if (src?.type === 'quote') {
+      const q = this.state.quotes[src.id];
+      if (q?.invoiceId === invoice.id) this.emit({ type: 'quote.saved', quote: { ...withoutInvoice(q), status: 'accepted' } });
     } else if (src?.type === 'tailor') {
       const o = this.state.tailorOrders[src.id];
       if (o?.invoiceId === invoice.id) this.emit({ type: 'tailor.saved', order: { ...withoutInvoice(o), status: 'ready' } });
@@ -794,6 +801,42 @@ export class Ledger {
     return invoice;
   }
 
+  // ───────────── عروض الأسعار ─────────────
+
+  saveQuote(draft: QuoteDraft): Quote {
+    const existing = this.state.quotes[draft.id];
+    if (existing?.invoiceId) fail('العرض تحوّل إلى فاتورة؛ ألغِ الفاتورة أولاً لتعديله');
+    if (draft.status === 'converted') fail('استخدم "تحويل إلى فاتورة"');
+    if (draft.lines.length === 0) fail('أضف سطراً واحداً على الأقل');
+    const quote: Quote = { ...draft, number: existing?.number ?? (this.state.counters['quote'] ?? 0) + 1, createdBy: existing?.createdBy ?? this.actor };
+    this.emit({ type: 'quote.saved', quote });
+    return quote;
+  }
+
+  /** يحوّل العرض إلى فاتورة مبيع (تنقص البضاعة من المخزون وتُرحَّل القيود). */
+  convertQuote(id: string, opts: { date: string; paid?: number; cashAccountId?: string; warehouseId?: string; rate?: number }): Invoice {
+    const q = this.state.quotes[id] ?? fail('العرض غير موجود');
+    if (q.invoiceId) fail('العرض تحوّل إلى فاتورة مسبقاً');
+    if (q.status === 'rejected') fail('العرض مرفوض');
+    const invoice = this.postInvoice({
+      kind: 'sale',
+      date: opts.date,
+      partyId: q.partyId,
+      currency: q.currency,
+      lines: q.lines.map((l) => ({ itemId: l.itemId ?? null, description: l.description, qty: l.qty, price: l.price, ...(l.unit ? { unit: l.unit } : {}), ...(l.discount ? { discount: l.discount } : {}) })),
+      ...(q.discount ? { discount: q.discount } : {}),
+      taxIds: q.taxIds,
+      ...(opts.paid !== undefined ? { paid: opts.paid } : {}),
+      ...(opts.cashAccountId ? { cashAccountId: opts.cashAccountId } : {}),
+      ...(opts.warehouseId ? { warehouseId: opts.warehouseId } : {}),
+      ...(opts.rate ? { rate: opts.rate } : {}),
+      notes: `عرض سعر رقم ${q.number}${q.customerName && !q.partyId ? ` — ${q.customerName}` : ''}`,
+      source: { type: 'quote', id: q.id },
+    });
+    this.emit({ type: 'quote.saved', quote: { ...q, status: 'converted', invoiceId: invoice.id } });
+    return invoice;
+  }
+
   // ───────────── الخياطة والتفصيل ─────────────
 
   /** حفظ طلب تفصيل جديد أو تعديله. العربون والفاتورة لا يُعدَّلان من هنا. */
@@ -870,6 +913,8 @@ export class Ledger {
     return invoice;
   }
 }
+
+export type QuoteDraft = Omit<Quote, 'number' | 'invoiceId' | 'createdBy'> & { number?: number };
 
 export type TailorOrderDraft = Omit<TailorOrder, 'number' | 'deposits' | 'invoiceId'> & { number?: number };
 

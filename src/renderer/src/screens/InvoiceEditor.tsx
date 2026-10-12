@@ -315,7 +315,7 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
                           <Picker options={items} value={null} onChange={(id) => chooseItem(l.key, id)} placeholder="ابحث عن مادة..." filter={(o, q) => itemMatches((o as (typeof items)[number]).item, q)} />
                           {can('items.manage') && (
                             <button type="button" className="icon" title="مادة جديدة" onClick={() => setNewItem(l.key)}>
-                              +
+                              <Icon name="plus" size={16} />
                             </button>
                           )}
                         </div>

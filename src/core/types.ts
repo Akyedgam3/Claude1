@@ -84,6 +84,12 @@ export interface PrintSettings {
   receiptPaper?: Paper;
   copies?: number;
   printers?: Partial<Record<'invoice' | 'receipt' | 'kitchen' | 'label', string>>;
+  template?: 'modern' | 'classic' | 'minimal'; // تصميم الفاتورة
+  color?: string; // لون الشركة في الفواتير (#rrggbb)
+  showQr?: boolean; // رمز QR بملخص الفاتورة (افتراضياً نعم)
+  showStamp?: boolean; // ختم مدفوعة / آجل / ملغاة (افتراضياً نعم)
+  showSignatures?: boolean; // خانات التوقيع
+  terms?: string; // الشروط والأحكام أسفل الفاتورة
 }
 
 /** إعدادات باركود الميزان (مواد الوزن): 2 + رمز المادة + الوزن/السعر + رقم تحقق. */
@@ -447,6 +453,37 @@ export interface TailorOrder {
   invoiceId?: string;
 }
 
+// ───────────── عروض الأسعار ─────────────
+
+export type QuoteStatus = 'open' | 'accepted' | 'rejected' | 'converted';
+
+export interface QuoteLine {
+  itemId?: string | null;
+  description: string;
+  qty: number;
+  unit?: string;
+  price: number; // بأصغر وحدة من عملة العرض
+  discount?: number;
+}
+
+/** عرض سعر للزبون: لا يمس الحسابات ولا المخزون حتى يتحول إلى فاتورة. */
+export interface Quote {
+  id: string;
+  number: number;
+  date: string;
+  validUntil?: string;
+  partyId: string | null;
+  customerName?: string; // لزبون غير مسجّل
+  currency: string;
+  lines: QuoteLine[];
+  discount: number;
+  taxIds: string[];
+  notes?: string;
+  status: QuoteStatus;
+  invoiceId?: string;
+  createdBy?: string;
+}
+
 // ───────────── الحالة الكاملة والأحداث ─────────────
 
 export interface CompanyState {
@@ -472,6 +509,7 @@ export interface CompanyState {
   orders: Record<string, Order>;
   appointments: Record<string, Appointment>;
   tailorOrders: Record<string, TailorOrder>;
+  quotes: Record<string, Quote>;
   counters: Record<string, number>; // آخر رقم لكل نوع مستند
 }
 
@@ -499,4 +537,5 @@ export type CompanyEvent =
   | { type: 'table.saved'; table: DiningTable }
   | { type: 'order.saved'; order: Order }
   | { type: 'appointment.saved'; appointment: Appointment }
-  | { type: 'tailor.saved'; order: TailorOrder };
+  | { type: 'tailor.saved'; order: TailorOrder }
+  | { type: 'quote.saved'; quote: Quote };

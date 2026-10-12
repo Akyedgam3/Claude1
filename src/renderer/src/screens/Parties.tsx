@@ -109,7 +109,7 @@ export function BalanceText({ value, currency }: { value: number; currency?: str
 }
 
 function PartyPanel({ party, onEdit }: { party: Party; onEdit: () => void }) {
-  const { state, navigate, feature, can } = useCompany();
+  const { state, navigate, feature, can, notify } = useCompany();
   const [currency, setCurrency] = useState<string>('');
   const orders = feature('tailoring') ? Object.values(state.tailorOrders).filter((o) => o.partyId === party.id).sort((a, b) => b.number - a.number) : [];
   const measures = Object.entries(party.measurements ?? {});
@@ -124,6 +124,18 @@ function PartyPanel({ party, onEdit }: { party: Party; onEdit: () => void }) {
         <h3>{party.name}</h3>
         <span className="button-row">
           <PrintButtons kind="report" name={`كشف حساب ${party.name}`} papers={['a4', '80mm']} />
+          {balance.base > 0 && (
+            <button
+              title="رسالة تذكير بالدين جاهزة للإرسال"
+              onClick={() => {
+                const parts = Object.entries(balance.byCurrency).filter(([, v]) => v > 0).map(([c, v]) => money(state, v, c));
+                const text = `مرحباً ${party.name}،\nنذكّركم بأن الرصيد المستحق لدى ${state.info!.name} هو: ${parts.join(' + ')}.\nشكراً لتعاملكم معنا.`;
+                void navigator.clipboard.writeText(text).then(() => notify('تم نسخ رسالة التذكير، الصقها في واتساب'));
+              }}
+            >
+              تذكير بالدين
+            </button>
+          )}
           {can('parties.manage') && <button onClick={onEdit}>تعديل</button>}
         </span>
       </header>

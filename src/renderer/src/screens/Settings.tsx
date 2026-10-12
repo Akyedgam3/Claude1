@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ACTIVITIES, ACTIVITY_LIST, ALL_FEATURES, DEFAULT_SCALE, FEATURE_INFO, type Activity, type ActivityCustomization, type Feature, type Paper, type PrintSettings } from '../../../core';
 import { Icon } from '../components/icons';
+import { CommercialDoc, sampleModel } from '../components/CommercialDoc';
 import { api, dateText, today, useCompany, type LanStatus } from '../api';
 import { PAPER_NAMES } from '../components/print';
 import { Field, Modal, PageHeader, Tabs } from '../components/ui';
@@ -245,8 +246,68 @@ function PrintTab() {
       </select>
     </Field>
   );
+  const templates: { id: NonNullable<PrintSettings['template']>; name: string; hint: string }[] = [
+    { id: 'modern', name: 'عصري', hint: 'شريط بلون شركتك وجدول ملوّن' },
+    { id: 'classic', name: 'كلاسيكي', hint: 'إطارات واضحة، رسمي' },
+    { id: 'minimal', name: 'بسيط', hint: 'أبيض وأسود، يوفّر الحبر' },
+  ];
+  const colors = ['#0f6e5c', '#1f5fa8', '#8a3fa0', '#b5531c', '#a52a2a', '#12302b', '#c07a12', '#2f8f3a'];
   return (
     <section className="card">
+      <div className="print-designer">
+        <div className="designer-controls">
+          <h3>تصميم الفاتورة</h3>
+          <div className="template-cards">
+            {templates.map((t) => (
+              <button type="button" key={t.id} className={`template-card ${(p.template ?? 'modern') === t.id ? 'active' : ''}`} onClick={() => setP({ ...p, template: t.id })}>
+                <span className={`mini mini-${t.id}`} style={{ ['--doc-color' as string]: p.color ?? '#0f6e5c' }}>
+                  <i />
+                  <b />
+                  <b />
+                  <b />
+                </span>
+                <strong>{t.name}</strong>
+                <small>{t.hint}</small>
+              </button>
+            ))}
+          </div>
+          <h4>لون الشركة</h4>
+          <div className="swatches">
+            {colors.map((c) => (
+              <button type="button" key={c} title={c} className={`swatch ${(p.color ?? '#0f6e5c') === c ? 'active' : ''}`} style={{ background: c }} onClick={() => setP({ ...p, color: c })} />
+            ))}
+            <input type="color" value={p.color ?? '#0f6e5c'} onChange={(e) => setP({ ...p, color: e.target.value })} title="لون مخصص" />
+          </div>
+          <div className="toggles">
+            <label className="check">
+              <input type="checkbox" checked={p.showQr !== false} onChange={(e) => setP({ ...p, showQr: e.target.checked })} />
+              رمز QR بملخص الفاتورة
+            </label>
+            <label className="check">
+              <input type="checkbox" checked={p.showStamp !== false} onChange={(e) => setP({ ...p, showStamp: e.target.checked })} />
+              ختم (مدفوعة / آجل / ملغاة)
+            </label>
+            <label className="check">
+              <input type="checkbox" checked={!!p.showSignatures} onChange={(e) => setP({ ...p, showSignatures: e.target.checked })} />
+              خانات التوقيع
+            </label>
+          </div>
+          <Field label="الشروط والأحكام (اختياري)">
+            <textarea rows={3} value={p.terms ?? ''} onChange={(e) => setP({ ...p, terms: e.target.value })} placeholder={'البضاعة المباعة لا ترد بعد 7 أيام\nالكفالة لا تشمل سوء الاستخدام'} />
+          </Field>
+          <button className="primary" onClick={async () => (await call('updateCompany', { print: p })) && notify('تم حفظ تصميم الفاتورة')}>
+            حفظ التصميم
+          </button>
+        </div>
+        <div className="designer-preview">
+          <div className="preview-scale">
+            <div className="paper-preview">
+              <CommercialDoc model={sampleModel(state.currencies[state.info!.baseCurrency]?.symbol ?? '')} preview={p} className="sample" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr />
       <form
         className="form-grid"
         onSubmit={async (e) => {

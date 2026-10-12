@@ -3,6 +3,7 @@ import {
   accountStatement,
   balanceSheet,
   cashMovement,
+  dailySummary,
   incomeStatement,
   receivablesAging,
   salesByItem,
@@ -16,9 +17,10 @@ import { dateText, major, money, qtyText, today, useCompany } from '../api';
 import { DocHeader, ExportButtons, PrintButtons } from '../components/print';
 import { Empty, Field, PageHeader, Stat, Tabs } from '../components/ui';
 
-type Tab = 'income' | 'balance' | 'cash' | 'items' | 'people' | 'aging' | 'stock' | 'statement' | 'trial';
+type Tab = 'daily' | 'income' | 'balance' | 'cash' | 'items' | 'people' | 'aging' | 'stock' | 'statement' | 'trial';
 
 const TITLES: Record<Tab, string> = {
+  daily: 'إغلاق اليوم',
   income: 'الأرباح والخسائر',
   balance: 'الميزانية',
   cash: 'حركة الصناديق',
@@ -33,12 +35,12 @@ const TITLES: Record<Tab, string> = {
 export function Reports({ tab: initial }: { tab?: string }) {
   const { state, can } = useCompany();
   const fin = can('reports.financial');
-  const [tab, setTab] = useState<Tab>((initial as Tab) ?? (fin ? 'income' : 'stock'));
+  const [tab, setTab] = useState<Tab>((initial as Tab) ?? (fin ? 'income' : can('reports.stock') ? 'stock' : 'daily'));
   const [from, setFrom] = useState(today().slice(0, 8) + '01');
   const [to, setTo] = useState(today());
   const period = useMemo<Period>(() => ({ from, to }), [from, to]);
   const [sheet, setSheet] = useState<ExportSheet | null>(null);
-  const usesPeriod = !['balance', 'aging', 'stock'].includes(tab);
+  const usesPeriod = !['daily', 'balance', 'aging', 'stock'].includes(tab);
 
   return (
     <div className="page">
@@ -49,7 +51,7 @@ export function Reports({ tab: initial }: { tab?: string }) {
       <Tabs<Tab>
         value={tab}
         onChange={setTab}
-        tabs={(Object.keys(TITLES) as Tab[]).map((k) => ({ key: k, label: TITLES[k], hidden: k === 'stock' ? !can('reports.stock') : !fin || (k === 'items' && !can('costs.view')) }))}
+        tabs={(Object.keys(TITLES) as Tab[]).map((k) => ({ key: k, label: TITLES[k], hidden: k === 'daily' ? !(fin || can('sales.create')) : k === 'stock' ? !can('reports.stock') : !fin || (k === 'items' && !can('costs.view')) }))}
       />
       {usesPeriod && (
         <div className="toolbar period">
@@ -65,6 +67,7 @@ export function Reports({ tab: initial }: { tab?: string }) {
         <div className="print-only">
           <DocHeader title={TITLES[tab]}>{usesPeriod ? <div className="ltr">{`${dateText(from)} - ${dateText(to)}`}</div> : <div className="ltr">{dateText(today())}</div>}</DocHeader>
         </div>
+        {tab === 'daily' && <Daily onSheet={setSheet} />}
         {tab === 'income' && <Income period={period} onSheet={setSheet} />}
         {tab === 'balance' && <Balance onSheet={setSheet} />}
         {tab === 'cash' && <Cash period={period} onSheet={setSheet} />}
@@ -583,5 +586,118 @@ function Trial({ period, onSheet }: { period: Period } & SheetProps) {
         </tr>
       </tfoot>
     </table>
+  );
+}
+
+/** تقرير إغلاق اليوم: لكل موظف أو للمحل كله، يُطبع على الطابعة الحرارية آخر الدوام. */
+function Daily({ onSheet }: { onSheet: (s: ExportSheet | null) => void }) {
+  const { state, can, user } = useCompany();
+  const fin = can('reports.financial');
+  const [date, setDate] = useState(today());
+  const [who, setWho] = useState<string>(fin ? '' : user.id);
+  const d = useMemo(() => dailySummary(state, date, fin ? who || undefined : user.id), [state, date, who, fin, user.id]);
+  const users = Object.values(state.users).filter((u) => u.active);
+  const cur = (c: string) => state.currencies[c]?.nameAr ?? c;
+  useEffect(() => {
+    onSheet({
+      name: 'إغلاق اليوم',
+      columns: [
+        { header: 'العملة', key: 'c' },
+        { header: 'المبيعات', key: 'sales', type: 'money' },
+        { header: 'نقداً', key: 'cash', type: 'money' },
+        { header: 'آجل', key: 'credit', type: 'money' },
+        { header: 'المرتجعات', key: 'ret', type: 'money' },
+        { header: 'سندات القبض', key: 'rec', type: 'money' },
+        { header: 'سندات الدفع', key: 'pay', type: 'money' },
+        { header: 'صافي حركة الصندوق', key: 'net', type: 'money' },
+      ],
+      rows: d.rows.map((r) => ({
+        c: cur(r.currency),
+        sales: major(state, r.sales, r.currency),
+        cash: major(state, r.salesCash, r.currency),
+        credit: major(state, r.salesCredit, r.currency),
+        ret: major(state, r.returns, r.currency),
+        rec: major(state, r.receipts, r.currency),
+        pay: major(state, r.payments, r.currency),
+        net: major(state, r.cashIn, r.currency),
+      })),
+    });
+  }, [d, onSheet, state]);
+  return (
+    <>
+      <div className="toolbar no-print">
+        <Field label="اليوم">
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </Field>
+        {fin && (
+          <Field label="الموظف">
+            <select value={who} onChange={(e) => setWho(e.target.value)}>
+              <option value="">كل الموظفين</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.displayName}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+      </div>
+      <div className="print-only daily-head">
+        <div>اليوم: <span className="ltr">{dateText(date)}</span></div>
+        <div>الموظف: {who || !fin ? (state.users[who || user.id]?.displayName ?? '') : 'الكل'}</div>
+      </div>
+      <div className="stats">
+        <Stat label="عدد فواتير المبيع" value={String(d.invoices)} />
+        <Stat label="فواتير ملغاة" value={String(d.voided)} tone={d.voided ? 'bad' : undefined} />
+        <Stat label="الخصومات الممنوحة" value={money(state, d.discounts)} />
+      </div>
+      {d.rows.length === 0 ? (
+        <Empty>لا توجد حركات في هذا اليوم</Empty>
+      ) : (
+        d.rows.map((r) => (
+          <section key={r.currency} className="card daily-card">
+            <h3>{cur(r.currency)}</h3>
+            <div className="kv">
+              <span>المبيعات</span>
+              <strong>{money(state, r.sales, r.currency)}</strong>
+              <span>منها نقداً</span>
+              <strong>{money(state, r.salesCash, r.currency)}</strong>
+              <span>منها آجل (دين)</span>
+              <strong>{money(state, r.salesCredit, r.currency)}</strong>
+              <span>مرتجعات المبيع</span>
+              <strong>{money(state, r.returns, r.currency)}</strong>
+              <span>سندات القبض</span>
+              <strong>{money(state, r.receipts, r.currency)}</strong>
+              <span>سندات الدفع</span>
+              <strong>{money(state, r.payments, r.currency)}</strong>
+              {r.purchases > 0 && (
+                <>
+                  <span>المشتريات</span>
+                  <strong>{money(state, r.purchases, r.currency)}</strong>
+                </>
+              )}
+              <span className="grand">صافي حركة الصندوق</span>
+              <strong className={`grand ${r.cashIn < 0 ? 'bad' : 'good'}`}>{money(state, r.cashIn, r.currency)}</strong>
+            </div>
+          </section>
+        ))
+      )}
+      {d.topItems.length > 0 && (
+        <section className="card">
+          <h3>الأكثر مبيعاً اليوم</h3>
+          <table className="table compact">
+            <tbody>
+              {d.topItems.map((t) => (
+                <tr key={t.itemId}>
+                  <td>{t.name}</td>
+                  <td className="num">{qtyText(t.qty)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+      <div className="print-only daily-sign">توقيع الكاشير: ............ &nbsp; توقيع المدير: ............</div>
+    </>
   );
 }

@@ -7,6 +7,7 @@ import logoSmall from './assets/logo-64.png';
 import logo from './assets/logo.png';
 import { Icon } from './components/icons';
 import { QuickSearch } from './components/QuickSearch';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Accounts } from './screens/Accounts';
 import { Appointments } from './screens/Appointments';
 import { Dashboard } from './screens/Dashboard';
@@ -26,6 +27,7 @@ import { Reports } from './screens/Reports';
 import { Restaurant } from './screens/Restaurant';
 import { Settings } from './screens/Settings';
 import { TailorEditor, TailorOrders } from './screens/Tailor';
+import { QuoteEditor, Quotes } from './screens/Quotes';
 import { StockOps } from './screens/StockOps';
 import { Users } from './screens/Users';
 import { Vehicles } from './screens/Vehicles';
@@ -48,6 +50,7 @@ const NAV: (NavItem | string)[] = [
   { key: 'pos', label: 'نقطة البيع', icon: 'pos', feature: 'pos', perm: 'pos.use' },
   { key: 'restaurant', label: 'الطاولات والطلبات', icon: 'utensils', feature: 'tables', perm: 'restaurant.use' },
   { key: 'sale', label: 'فاتورة مبيع', icon: 'plus', perm: 'sales.create' },
+  { key: 'quotes', label: 'عروض الأسعار', icon: 'file', perm: 'sales.create' },
   { key: 'repairs', label: 'أوامر الصيانة', icon: 'wrench', feature: 'repairs', perm: 'repairs.manage' },
   { key: 'appointments', label: 'المواعيد', icon: 'calendar', feature: 'appointments', perm: 'appointments.manage' },
   { key: 'tailor', label: 'طلبات التفصيل', icon: 'scissors', feature: 'tailoring', perm: 'tailoring.manage' },
@@ -61,7 +64,7 @@ const NAV: (NavItem | string)[] = [
   { key: 'parties', label: 'العملاء والموردون', icon: 'users' },
   { key: 'vehicles', label: 'السيارات والأجهزة', icon: 'car', features: ['vehicles', 'devices'], perm: 'repairs.manage' },
   'المحاسبة',
-  { key: 'reports', label: 'التقارير', icon: 'reports', perms: ['reports.financial', 'reports.stock'] },
+  { key: 'reports', label: 'التقارير', icon: 'reports', perms: ['reports.financial', 'reports.stock', 'sales.create'] },
   { key: 'journal', label: 'القيود اليومية', icon: 'journal', perm: 'journal.create' },
   { key: 'rates', label: 'سعر الدولار', icon: 'dollar', perm: 'rates.manage' },
   { key: 'accounts', label: 'دليل الحسابات', icon: 'accounts', perm: 'accounts.manage' },
@@ -170,6 +173,22 @@ export function App() {
   }, [info, state, call, notify, navigate, loadInfo]);
 
   const [searching, setSearching] = useState(false);
+  // الوضع الداكن: تفضيل لكل جهاز
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    try {
+      return localStorage.getItem('mizan.theme') === 'dark' ? 'dark' : 'light';
+    } catch {
+      return 'light';
+    }
+  });
+  useEffect(() => {
+    document.documentElement.dataset['theme'] = theme;
+    try {
+      localStorage.setItem('mizan.theme', theme);
+    } catch {
+      // لا شيء
+    }
+  }, [theme]);
   const shortcuts = useRef<Record<string, string>>({});
   useEffect(() => {
     // اختصارات لوحة المفاتيح (تعمل مع العربية لأننا نقرأ مكان الزر لا الحرف)
@@ -277,6 +296,9 @@ export function App() {
               {lic.daysLeft !== null && lic.daysLeft !== undefined && <small> · متبقٍ {lic.daysLeft} يوم</small>}
             </div>
           )}
+          <button className="theme-toggle" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+            <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={16} /> {theme === 'dark' ? 'الوضع الفاتح' : 'الوضع الداكن'}
+          </button>
           <button
             className="ghost close-company"
             onClick={async () => {
@@ -293,7 +315,9 @@ export function App() {
             <div className="banner bad">اتصل بالإنترنت للتحقق من الاشتراك خلال {lic.offlineDaysLeft} يوم وإلا سيتوقف البرنامج.</div>
           )}
           {ctx.session.viaRecovery && <div className="banner bad">دخلت برمز الاسترداد. غيّر كلمة السر الآن من الإعدادات ← حسابي.</div>}
-          <Screen screen={screen} />
+          <ErrorBoundary resetKey={`${screen.key}:${screen.param ?? ''}`}>
+            <Screen screen={screen} />
+          </ErrorBoundary>
         </main>
       </div>
       {searching && <QuickSearch screens={screens} onClose={() => setSearching(false)} />}
@@ -324,6 +348,10 @@ function Screen({ screen }: { screen: { key: string; param?: string } }) {
       return <RepairEditor key={p ?? 'new'} {...(p ? { id: p } : {})} />;
     case 'appointments':
       return <Appointments />;
+    case 'quotes':
+      return <Quotes />;
+    case 'quote':
+      return <QuoteEditor key={p ?? 'new'} {...(p ? { id: p } : {})} />;
     case 'tailor':
       return <TailorOrders />;
     case 'tailor-order':

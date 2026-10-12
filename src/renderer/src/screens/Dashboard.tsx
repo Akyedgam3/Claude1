@@ -84,6 +84,11 @@ export function Dashboard() {
             <Icon name="calendar" size={20} /> المواعيد
           </button>
         )}
+        {can('sales.create') && (
+          <button className="big" onClick={() => navigate('quote')}>
+            <Icon name="file" size={20} /> عرض سعر
+          </button>
+        )}
         {can('purchases.create') && (
           <button className="big" onClick={() => navigate('purchase')}>
             <Icon name="purchase" size={20} /> فاتورة شراء

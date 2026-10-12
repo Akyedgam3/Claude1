@@ -110,6 +110,8 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
   closeOrder: 'restaurant.use',
   saveAppointment: 'appointments.manage',
   invoiceAppointment: 'sales.create',
+  saveQuote: 'sales.create',
+  convertQuote: 'sales.create',
   saveTailorOrder: 'tailoring.manage',
   addTailorDeposit: 'vouchers.create',
   deliverTailorOrder: 'sales.create',
