@@ -32,6 +32,15 @@ export function Dashboard() {
       tailor: Object.values(state.tailorOrders)
         .filter((o) => !o.invoiceId && o.status !== 'cancelled' && o.status !== 'delivered')
         .sort((a, b) => (a.fittingDate && a.fittingDate >= d ? a.fittingDate : a.dueDate ?? '9999').localeCompare(b.fittingDate && b.fittingDate >= d ? b.fittingDate : b.dueDate ?? '9999')),
+      tailorCounts: (() => {
+        const active = Object.values(state.tailorOrders).filter((o) => !o.invoiceId && o.status !== 'cancelled' && o.status !== 'delivered');
+        return {
+          active: active.length,
+          late: active.filter((o) => o.dueDate && o.dueDate < d).length,
+          today: active.filter((o) => o.dueDate === d || o.fittingDate === d).length,
+          ready: active.filter((o) => o.status === 'ready').length,
+        };
+      })(),
       appointments: Object.values(state.appointments).filter((a) => a.date === d && a.status !== 'cancelled').sort((a, b) => a.time.localeCompare(b.time)),
       usd: base === 'USD' ? 1 : findRate(state, 'USD', d),
     };
@@ -100,6 +109,27 @@ export function Dashboard() {
           </button>
         )}
       </div>
+
+      {feature('tailoring') && can('tailoring.manage') && (
+        <div className="stats">
+          <div className="stat clickable" onClick={() => navigate('tailor')}>
+            <span>الطلبات الجارية</span>
+            <strong>{data.tailorCounts.active}</strong>
+          </div>
+          <div className="stat clickable" onClick={() => navigate('tailor')}>
+            <span>متأخرة عن موعدها</span>
+            <strong className={data.tailorCounts.late ? 'bad' : ''}>{data.tailorCounts.late}</strong>
+          </div>
+          <div className="stat clickable" onClick={() => navigate('tailor')}>
+            <span>تسليم أو بروفة اليوم</span>
+            <strong>{data.tailorCounts.today}</strong>
+          </div>
+          <div className="stat clickable" onClick={() => navigate('tailor')}>
+            <span>جاهزة للتسليم</span>
+            <strong className="good">{data.tailorCounts.ready}</strong>
+          </div>
+        </div>
+      )}
 
       {fin && (
         <div className="stats">

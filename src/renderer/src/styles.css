@@ -1000,10 +1000,11 @@ fieldset.plain {
     border-bottom: 1px dashed #999;
     padding: 2px;
   }
-  body[data-paper='80mm'] .doc-lines th:first-child,
-  body[data-paper='80mm'] .doc-lines td:first-child,
-  body[data-paper='58mm'] .doc-lines th:first-child,
-  body[data-paper='58mm'] .doc-lines td:first-child {
+  /* عمود الترقيم فقط (وصل الخياطة والصيانة أول عمود فيهم هو البيان) */
+  body[data-paper='80mm'] .doc-lines th.n,
+  body[data-paper='80mm'] .doc-lines td.n,
+  body[data-paper='58mm'] .doc-lines th.n,
+  body[data-paper='58mm'] .doc-lines td.n {
     display: none;
   }
   body[data-paper='80mm'] .doc-totals,
@@ -2011,6 +2012,10 @@ strong.good {
   .invoice-doc.print-area {
     position: absolute;
     inset: 0 0 auto 0;
+  }
+  /* باقي الصفحة مخفي بالطباعة، وإلا عرضه بيوسّع الورقة وبيصغّر الإيصال الحراري */
+  .page > :not(.print-area):not(:has(.print-area)) {
+    display: none !important;
   }
   /* الأسماء الطويلة والمبالغ الكبيرة لازم تنلف ضمن عرض الورقة بدل ما تنقص من الأطراف */
   body[data-paper='80mm'] .invoice-doc .doc-lines,
