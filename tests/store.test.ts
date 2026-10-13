@@ -33,7 +33,9 @@ describe('CompanyStore (encrypted)', () => {
     store.close();
     const raw = fs.readFileSync(path.join(dir, 'journal.mzl'), 'utf8') + fs.readFileSync(path.join(dir, 'snapshot.enc'), 'utf8');
     expect(raw).not.toContain('محل');
-    expect(raw).not.toContain('1101');
+    // نصوص ما بتطلع بالصدفة جوّا التشفير (base64/hex)، عكس أرقام متل 1101
+    expect(raw).not.toContain('بيع');
+    expect(raw).not.toContain('"accountId"');
     const reopened = CompanyStore.open(dir, login);
     expect(accountBalance(reopened.ledger.state, '1101').balance).toBe(1500);
     expect(reopened.user.role).toBe('owner');
