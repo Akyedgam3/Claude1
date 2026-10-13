@@ -24,9 +24,10 @@
 - لوحة الإدارة: `npm run admin` (محلية على 127.0.0.1). فيها العملاء، الوكلاء (رصيد الباقات)، وإعلان التحديثات. بعد أي تغيير: "نشر قائمة الحالة" ثم رفع `keys/feed.txt` إلى `mizan-updates/feed.txt`.
 
 ## إصدار نسخة جديدة
-1. ارفع رقم `version` في `package.json`.
-2. ادفع للفرع؛ GitHub Actions يبني `Mizan-Setup.exe` (Artifacts ← Mizan-Windows).
-3. صاحب المشروع يرفعه كـ Release جديد في `mizan-updates` باسم `Mizan-Setup.exe` (Tag مثل `v1.1.0`).
+صاحب المشروع على الموبايل غالباً، فـ **Claude بيعمل النشر كامل لحالو**:
+1. ارفع رقم `version` في `package.json` وادفع للفرع.
+2. شغّل `scripts/publish-release.sh release-notes.md`: بيبني ملف التنصيب هون (عبر wine) وبيدفعه على فرع مؤقت `upload/<النسخة>` بـ `mizan-updates`، والـ workflow هناك (`.github/workflows/release.yml`) بيعمل Release `v<النسخة>` وبيحذف الفرع. تأكد بـ `get_latest_release`.
+3. رابط التحميل الثابت بيآشّر تلقائياً على آخر Release.
 4. من لوحة الإدارة ← تحديثات البرنامج: رقم النسخة + الرابط + شو الجديد، ثم نشر القائمة ورفع `feed.txt`. البرامج المنصّبة تُظهر شاشة "في نسخة جديدة".
 
 ## ملف التنصيب (NSIS)
