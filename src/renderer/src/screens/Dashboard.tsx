@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { accountBalance, balancesByCurrency, expiringBatches, findRate, incomeStatement, stockReport } from '../../../core';
-import { dateText, money, qtyText, today, useCompany } from '../api';
+import { accountBalance, balancesByCurrency, expiringBatches, findRate, incomeStatement, installmentState, stockReport } from '../../../core';
+import { addDays, dateText, money, qtyText, today, useCompany } from '../api';
 import { Stat } from '../components/ui';
 import { STATUS_NAMES } from './Repairs';
 import { TAILOR_STATUS } from './Tailor';
@@ -130,6 +130,31 @@ export function Dashboard() {
           </div>
         </div>
       )}
+
+      {feature('installments') && (() => {
+        const plans = Object.values(state.installments).filter((p) => p.status === 'active').map((p) => installmentState(state, p, d));
+        const week = addDays(d, 7);
+        return (
+          <div className="stats">
+            <div className="stat clickable" onClick={() => navigate('installments')}>
+              <span>خطط تقسيط فعّالة</span>
+              <strong>{plans.length}</strong>
+            </div>
+            <div className="stat clickable" onClick={() => navigate('installments')}>
+              <span>أقساط مستحقة هالأسبوع</span>
+              <strong>{money(state, plans.reduce((t, s) => t + s.rows.filter((r) => r.remaining > 0 && r.due >= d && r.due <= week).reduce((x, r) => x + r.remaining, 0), 0))}</strong>
+            </div>
+            <div className="stat clickable" onClick={() => navigate('installments')}>
+              <span>أقساط متأخرة</span>
+              <strong className={plans.some((s) => s.overdueCount) ? 'bad' : ''}>{money(state, plans.reduce((t, s) => t + s.overdueAmount, 0))}</strong>
+            </div>
+            <div className="stat clickable" onClick={() => navigate('installments')}>
+              <span>الباقي عند الزبائن</span>
+              <strong>{money(state, plans.reduce((t, s) => t + s.remaining, 0))}</strong>
+            </div>
+          </div>
+        );
+      })()}
 
       {fin && (
         <div className="stats">

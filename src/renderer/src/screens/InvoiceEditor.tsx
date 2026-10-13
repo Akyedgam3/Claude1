@@ -108,6 +108,14 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
     const scanned = r.price !== undefined ? convertPrice(state, r.price, r.item.priceCurrency, currency, { [base]: 1, USD: findRate(state, 'USD', date) ?? 0 }) : null;
     const priceOverride = scanned !== null ? toInput(state, scanned, currency) : undefined;
     setLines((ls) => {
+      if (r.serial) {
+        const has = (l: LineState) => l.serials.split(/[\s,،]+/).includes(r.serial!);
+        if (ls.some(has)) return ls;
+        const filled = ls.filter((l) => l.itemId || l.description);
+        const same = filled.find((l) => l.itemId === r.item.id);
+        if (same) return [...filled.map((l) => (l === same ? { ...l, qty: String(Number(l.qty || 0) + 1), serials: `${l.serials} ${r.serial}`.trim() } : l)), emptyLine()];
+        return [...filled, { ...emptyLine(), itemId: r.item.id, description: r.item.name, unit, qty: '1', price: priceFor(r.item, unit), serials: r.serial }, emptyLine()];
+      }
       const same = !r.qty && ls.find((l) => l.itemId === r.item.id && l.unit === unit && !r.item.trackSerial);
       if (same) return ls.map((l) => (l === same ? { ...l, qty: String(Number(l.qty || 0) + 1) } : l));
       const filled = ls.filter((l) => l.itemId || l.description);

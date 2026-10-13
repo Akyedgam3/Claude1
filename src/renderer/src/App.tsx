@@ -31,6 +31,7 @@ import { QuoteEditor, Quotes } from './screens/Quotes';
 import { StockOps } from './screens/StockOps';
 import { Users } from './screens/Users';
 import { Workshop, WorkOrderEditor } from './screens/Workshop';
+import { DeviceLookup, Installments, TradeIn } from './screens/Electronics';
 import { Vehicles } from './screens/Vehicles';
 import { Vouchers } from './screens/Vouchers';
 import { Welcome } from './screens/Welcome';
@@ -47,6 +48,10 @@ interface NavItem {
 
 const NAV: (NavItem | string)[] = [
   { key: 'dashboard', label: 'الرئيسية', icon: 'home' },
+  'الموبايلات والإلكترونيات',
+  { key: 'devices', label: 'سجل الأجهزة (IMEI)', icon: 'smartphone', feature: 'serials' },
+  { key: 'installments', label: 'التقسيط', icon: 'calendar', feature: 'installments', perms: ['sales.create', 'vouchers.create'] },
+  { key: 'trade-in', label: 'بيع مع استبدال', icon: 'transfer', feature: 'tradeIn', perm: 'sales.create' },
   'الخياطة',
   { key: 'workshop', label: 'ورشة الخياطة (الجملة)', icon: 'factory', feature: 'workshop', perm: 'tailoring.manage' },
   { key: 'tailor', label: 'طلبات التفصيل', icon: 'scissors', feature: 'tailoring', perm: 'tailoring.manage' },
@@ -362,6 +367,12 @@ function Screen({ screen }: { screen: { key: string; param?: string } }) {
       return <TailorOrders />;
     case 'tailor-order':
       return <TailorEditor key={p ?? 'new'} {...(p ? { id: p } : {})} />;
+    case 'devices':
+      return <DeviceLookup key={p ?? ''} {...(p ? { serial: p } : {})} />;
+    case 'installments':
+      return <Installments />;
+    case 'trade-in':
+      return <TradeIn />;
     case 'workshop':
       return <Workshop key={p ?? ''} {...(p ? { tab: p } : {})} />;
     case 'work-order':

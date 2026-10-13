@@ -11,3 +11,4 @@ export * from './stock';
 export * from './operations';
 export * from './words';
 export * from './barcode';
+export * from './electronics';

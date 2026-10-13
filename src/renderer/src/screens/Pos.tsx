@@ -47,12 +47,22 @@ export function Pos() {
   const scanRef = useRef<HTMLInputElement>(null);
   const refocus = () => setTimeout(() => scanRef.current?.focus(), 0);
 
-  const add = (item: Item, opts: { unit?: string; qty?: number; price?: number } = {}) => {
+  const add = (item: Item, opts: { unit?: string; qty?: number; price?: number; serial?: string } = {}) => {
     const unit = opts.unit ?? '';
     const price = opts.price ?? priceOf(item, unit);
     refocus();
     if (price === null) return notify(`سجّل سعر الدولار اليوم أولاً — سعر "${item.name}" بالدولار`, 'error');
     setCart((c) => {
+      if (opts.serial) {
+        if (c.some((l) => l.serials.includes(opts.serial!))) {
+          notify(`الجهاز ${opts.serial} موجود بالسلة`, 'error');
+          return c;
+        }
+        // جهاز بنفس الصنف بدون رقم بعد: منعبّي رقمه بدل ما نفتح سطر جديد
+        const empty = c.find((l) => l.itemId === item.id && l.serials.length < l.qty);
+        if (empty) return c.map((l) => (l === empty ? { ...l, serials: [...l.serials, opts.serial!] } : l));
+        return [...c, { key: uid(), itemId: item.id, unit, qty: 1, price, serials: [opts.serial] }];
+      }
       const same = !opts.qty && !item.trackSerial && c.find((l) => l.itemId === item.id && l.unit === unit);
       if (same) return c.map((l) => (l === same ? { ...l, qty: l.qty + 1 } : l));
       return [...c, { key: uid(), itemId: item.id, unit, qty: opts.qty ?? 1, price, serials: [] }];
@@ -69,7 +79,7 @@ export function Pos() {
       if (v === null) return notify('سجّل سعر الدولار اليوم أولاً', 'error');
       price = v;
     }
-    add(r.item, { ...(r.unit ? { unit: r.unit } : {}), ...(r.qty ? { qty: r.qty } : {}), ...(price !== undefined ? { price } : {}) });
+    add(r.item, { ...(r.unit ? { unit: r.unit } : {}), ...(r.qty ? { qty: r.qty } : {}), ...(price !== undefined ? { price } : {}), ...(r.serial ? { serial: r.serial } : {}) });
   };
 
   const subtotal = cart.reduce((s, l) => s + Math.round(l.qty * l.price), 0);

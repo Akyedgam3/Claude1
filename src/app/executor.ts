@@ -79,6 +79,8 @@ export function execute(store: CompanyStore, actor: User, method: string, args: 
     const discounted = !!d?.discount || !!d?.lines?.some((l) => !!l.discount);
     if (discounted) requirePermission(user, 'discount.give');
   }
+  // الاستبدال فيه شراء كمان
+  if (method === 'tradeIn') requirePermission(user, 'purchases.create');
   if (method === 'saveOrder') {
     // خصم الطلب بالمطعم بيحتاج نفس صلاحية الخصم (إذا تغيّر)
     const o = args[0] as { id?: string; discount?: number } | undefined;

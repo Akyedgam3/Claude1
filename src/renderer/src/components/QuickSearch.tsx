@@ -55,6 +55,18 @@ export function QuickSearch({ screens, onClose }: { screens: { key: string; labe
         out.push({ key: `t:${o.id}`, icon: 'scissors', label: `طلب تفصيل رقم ${o.number}`, hint: state.parties[o.partyId]?.name ?? '', go: go('tailor-order', o.id) });
       }
     }
+    if (feature('serials') && /^[\w-]{6,}$/.test(text.trim())) {
+      // رقم IMEI: بيفتح سجل الجهاز
+      const t = text.trim();
+      const known = Object.values(state.stock).some((s) => s.serials?.[t]) || state.invoices.some((i) => i.lines.some((l) => l.serials?.includes(t)));
+      if (known) out.push({ key: `imei:${t}`, icon: 'smartphone', label: `سجل الجهاز ${t}`, hint: 'IMEI', go: go('devices', t) });
+    }
+    if (feature('installments')) {
+      for (const pl of Object.values(state.installments)) {
+        if (num !== null ? pl.number !== num : !matches(text, state.parties[pl.partyId]?.name, pl.guarantor)) continue;
+        out.push({ key: `inst:${pl.id}`, icon: 'calendar', label: `خطة تقسيط رقم ${pl.number}`, hint: state.parties[pl.partyId]?.name ?? '', go: go('installments') });
+      }
+    }
     if (feature('workshop') && can('tailoring.manage')) {
       for (const o of Object.values(state.workOrders)) {
         if (num !== null ? o.number !== num : !matches(text, o.model, o.modelCode, state.parties[o.partyId]?.name)) continue;

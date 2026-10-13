@@ -37,6 +37,15 @@ describe('demo data', () => {
     expect(Object.keys(l.state.tailorOrders).length).toBe(2);
   });
 
+  it('fills a phone shop with IMEIs, an installment plan and a trade-in', () => {
+    const l = company('mobile');
+    l.loadDemoData();
+    expect(Object.keys(l.state.installments).length).toBe(1);
+    expect(l.state.stock['p-used']!.totalQty).toBe(1);
+    const tb = trialBalance(l.state);
+    expect(tb.totalDebit).toBe(tb.totalCredit);
+  });
+
   it('fills a general shop', () => {
     const l = company('general');
     l.loadDemoData();

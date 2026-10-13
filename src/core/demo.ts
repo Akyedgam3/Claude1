@@ -214,6 +214,58 @@ function tailor(l: Ledger): void {
   });
 }
 
+function mobile(l: Ledger): void {
+  l.setRate({ date: day(-40), currency: 'USD', rate: 120, kind: 'market' });
+  l.saveParty({ id: 's-agent', kind: 'supplier', name: 'الوكيل الدولي للاتصالات', phone: '0944 100 200' });
+  l.saveParty({ id: 'c-ali', kind: 'customer', name: 'أبو علي', phone: '0933 456 789' });
+  l.saveParty({ id: 'c-rana', kind: 'customer', name: 'رنا الحسن', phone: '0955 222 111' });
+  l.saveParty({ id: 'c-samer', kind: 'customer', name: 'سامر يوسف', phone: '0988 333 444' });
+  const phones: [string, string, number, number, Record<string, string>][] = [
+    ['p-a15', 'Samsung Galaxy A15 128GB', 150, 4, { الذاكرة: '128GB', الرام: '6GB', الحالة: 'جديد' }],
+    ['p-a55', 'Samsung Galaxy A55 256GB', 380, 3, { الذاكرة: '256GB', الرام: '8GB', الحالة: 'جديد' }],
+    ['p-ip13', 'iPhone 13 128GB', 520, 2, { الذاكرة: '128GB', الحالة: 'جديد' }],
+    ['p-redmi', 'Redmi Note 13 256GB', 190, 4, { الذاكرة: '256GB', الرام: '8GB', الحالة: 'جديد' }],
+  ];
+  let imei = 356_700_000_000_100;
+  const serialsOf: Record<string, string[]> = {};
+  for (const [id, name, usd, qty, attributes] of phones) {
+    item(l, { id, code: id.slice(2).toUpperCase(), name, kind: 'stock', unit: 'قطعة', price: P(usd), priceCurrency: 'USD', category: 'موبايلات', trackSerial: true, warrantyMonths: 12, attributes, minStock: 2 });
+    serialsOf[id] = Array.from({ length: qty }, () => String((imei += 17)));
+  }
+  item(l, { id: 'p-used', code: 'USED', name: 'موبايل مستعمل', kind: 'stock', unit: 'قطعة', price: 0, category: 'موبايلات مستعملة', trackSerial: true, attributes: { الحالة: 'مستعمل' } });
+  const acc: [string, string, string, number, number][] = [
+    ['x-charger', 'شاحن سريع 25W', 'شواحن', 250, 30],
+    ['x-cable', 'كبل Type-C', 'شواحن', 80, 50],
+    ['x-buds', 'سماعات بلوتوث', 'سماعات', 600, 15],
+    ['x-cover', 'كفر سيليكون', 'إكسسوارات', 60, 80],
+    ['x-glass', 'لزقة شاشة زجاج', 'إكسسوارات', 40, 100],
+  ];
+  for (const [id, name, category, price] of acc) item(l, { id, code: id.slice(2).toUpperCase(), name, kind: 'stock', unit: 'قطعة', price: P(price), category, minStock: 10 });
+  l.postInvoice({
+    kind: 'purchase',
+    date: day(-30),
+    partyId: 's-agent',
+    currency: 'USD',
+    lines: phones.map(([id, , usd, qty]) => ({ itemId: id, qty, price: P(Math.round(usd * 0.85)), serials: serialsOf[id]! })),
+    paid: 0,
+  });
+  l.adjustStock({ kind: 'opening', date: day(-30), lines: acc.map(([id, , , price, qty]) => ({ itemId: id, qty, unitCost: P(price * 0.5) })) });
+  // بيع نقدي بالليرة
+  l.postInvoice({ kind: 'sale', date: day(-6), partyId: 'c-rana', lines: [{ itemId: 'p-a15', qty: 1, price: P(150 * 121), serials: [serialsOf['p-a15']![0]!] }, { itemId: 'x-cover', qty: 1, price: P(60) }, { itemId: 'x-glass', qty: 1, price: P(40) }], paid: P(150 * 121 + 100) });
+  // بيع بالتقسيط: دفعة أولى والباقي على 6 أشهر
+  const inst = l.postInvoice({ kind: 'sale', date: day(-65), partyId: 'c-ali', lines: [{ itemId: 'p-a55', qty: 1, price: P(380 * 120), serials: [serialsOf['p-a55']![0]!] }], paid: P(10000) });
+  const plan = l.createInstallmentPlan({ partyId: 'c-ali', date: day(-65), invoiceId: inst.id, principal: inst.total - inst.paid, markupPercent: 10, count: 6, firstDue: day(-35), guarantor: 'أبو محمد', guarantorPhone: '0944 999 888' });
+  l.collectInstallment(plan.id, { date: day(-34), amount: plan.schedule[0]!.amount });
+  // بيع مع استبدال
+  l.tradeIn({
+    date: day(-2),
+    partyId: 'c-samer',
+    sale: [{ itemId: 'p-ip13', qty: 1, price: P(520 * 121), serials: [serialsOf['p-ip13']![0]!] }],
+    tradeIn: [{ itemId: 'p-used', description: 'iPhone 11 64GB مستعمل', qty: 1, price: P(230 * 121), serials: ['353999000011122'], note: 'بطارية 84% — نظيف' }],
+    received: P(290 * 121),
+  });
+}
+
 function general(l: Ledger): void {
   l.saveParty({ id: 'c-1', kind: 'customer', name: 'أبو خالد', phone: '0933 111 222' });
   l.saveParty({ id: 'c-2', kind: 'customer', name: 'ميني ماركت الريان', phone: '0944 555 666', priceTier: 'wholesale' });
@@ -240,5 +292,6 @@ export function loadDemo(l: Ledger): void {
   if (!s.rates.some((r) => r.currency === 'USD') && s.info?.baseCurrency === 'SYP') l.setRate({ date: today, currency: 'USD', rate: 121, kind: 'market' });
   if (activity === 'restaurant') restaurant(l);
   else if (activity === 'tailor') tailor(l);
+  else if (activity === 'mobile') mobile(l);
   else general(l);
 }

@@ -251,6 +251,22 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       }
       return;
     }
+    case 'installment.saved': {
+      const pl = event.plan;
+      if (!state.parties[pl.partyId]) fail('الزبون غير موجود');
+      if (!DATE_RE.test(pl.date)) fail('تاريخ غير صالح');
+      if (!state.currencies[pl.currency]) fail('عملة غير معروفة');
+      if (pl.invoiceId && !state.invoices.some((i) => i.id === pl.invoiceId)) fail('الفاتورة غير موجودة');
+      if (!Number.isSafeInteger(pl.principal) || pl.principal <= 0) fail('المبلغ المقسّط غير صالح');
+      if (!Number.isSafeInteger(pl.markup) || pl.markup < 0) fail('زيادة التقسيط غير صالحة');
+      if (pl.schedule.length === 0 || pl.schedule.length > 120) fail('عدد الأقساط بين 1 و 120');
+      for (const r of pl.schedule) if (!DATE_RE.test(r.due) || !Number.isSafeInteger(r.amount) || r.amount <= 0) fail('قسط غير صالح');
+      if (pl.schedule.reduce((t, r) => t + r.amount, 0) !== pl.principal + pl.markup) fail('مجموع الأقساط لازم يساوي المبلغ مع الزيادة');
+      for (const p of pl.payments) if (!state.entries.some((e) => e.id === p.entryId)) fail('سند القسط غير موجود');
+      const prev = state.installments[pl.id];
+      if (prev && prev.number !== pl.number) fail('لا يمكن تغيير رقم الخطة');
+      return;
+    }
     case 'invoice.posted': {
       const inv = event.invoice;
       checkDate(state, inv.date);
@@ -344,6 +360,10 @@ export function applyCommerceEvent(state: CompanyState, event: CompanyEvent): vo
       state.workOrders[event.order.id] = normalizeWorkOrder(event.order);
       bump(state, 'workorder', event.order.number);
       bump(state, 'workDelivery', Math.max(0, ...event.order.deliveries.map((d) => d.number)));
+      return;
+    case 'installment.saved':
+      state.installments[event.plan.id] = { ...event.plan };
+      bump(state, 'installment', event.plan.number);
       return;
     case 'invoice.posted':
       state.invoices.push(event.invoice);

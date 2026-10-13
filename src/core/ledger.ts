@@ -1,6 +1,7 @@
 import { applyCommerceEvent, buildInvoice, orderTotals, piecesTotal, repairToInvoiceLines, rollRemaining, UNIT_NAMES, tailorDeposits, tailorToInvoiceLines, validateCommerceEvent, workOrderProgress, type InvoiceDraft, type InvoiceLineDraft } from './commerce';
 import { ACTIVITIES } from './activities';
 import { loadDemo } from './demo';
+import { buildSchedule, installmentState } from './electronics';
 import { SYSTEM_ACCOUNTS } from './chart-templates';
 import { ALLOWED_CURRENCIES, convertMinor, type Currency } from './money';
 import {
@@ -23,6 +24,7 @@ import type {
   DiningTable,
   ExchangeRate,
   FabricRoll,
+  InstallmentPlan,
   LengthUnit,
   Invoice,
   Item,
@@ -77,6 +79,7 @@ export function emptyState(): CompanyState {
     quotes: {},
     rolls: {},
     workOrders: {},
+    installments: {},
     counters: {},
   };
 }
@@ -467,7 +470,7 @@ export class Ledger {
   /** لا يُحذف أي قيد؛ الإلغاء يكون بقيد عكسي يحفظ أثر العملية. */
   voidEntry(entryId: string, date: string): JournalEntry {
     const original = this.state.entries.find((e) => e.id === entryId) ?? fail('القيد غير موجود');
-    if (original.source && !['receipt', 'payment', 'manual', 'opening'].includes(original.source.type)) {
+    if (original.source && !['receipt', 'payment', 'manual', 'opening', 'work-adjust'].includes(original.source.type)) {
       fail('هذا القيد تابع لمستند؛ ألغِ المستند نفسه');
     }
     const entry = this.reversal(original, date);
@@ -953,6 +956,120 @@ export class Ledger {
     loadDemo(this);
   }
 
+  // ───────────── التقسيط ─────────────
+
+  /** خطة أقساط: المبلغ المقسّط + زيادة التقسيط (إيراد) موزّع على أقساط. */
+  createInstallmentPlan(d: InstallmentDraft): InstallmentPlan {
+    const party = this.state.parties[d.partyId] ?? fail('الزبون غير موجود');
+    if (!(d.principal > 0)) fail('اكتب المبلغ المقسّط');
+    const currency = d.currency ?? this.base.code;
+    if (d.invoiceId) {
+      const inv = this.state.invoices.find((i) => i.id === d.invoiceId) ?? fail('الفاتورة غير موجودة');
+      if (inv.voidEntryId) fail('الفاتورة ملغاة');
+      if (inv.partyId !== d.partyId) fail('الفاتورة لزبون تاني');
+      if (Object.values(this.state.installments).some((p) => p.invoiceId === inv.id && p.status !== 'cancelled')) fail('على الفاتورة خطة أقساط مسبقاً');
+      if (d.principal > inv.total - inv.paid) fail('المبلغ المقسّط أكبر من الباقي على الفاتورة');
+    }
+    const markup = d.markup ?? Math.round((d.principal * (d.markupPercent ?? 0)) / 100);
+    const number = (this.state.counters['installment'] ?? 0) + 1;
+    let markupEntryId: string | undefined;
+    if (markup > 0) {
+      const entry = this.postEntry({
+        date: d.date,
+        memo: `زيادة تقسيط — خطة رقم ${number} — ${party.name}`,
+        lines: [
+          { accountId: SYSTEM_ACCOUNTS.customers, debit: markup, currency, partyId: party.id },
+          { accountId: SYSTEM_ACCOUNTS.serviceRevenue, credit: markup, currency },
+        ],
+        source: { type: 'installment', id: crypto.randomUUID() },
+        createdBy: this.actor,
+      });
+      markupEntryId = entry.id;
+    }
+    const plan: InstallmentPlan = {
+      id: d.id ?? crypto.randomUUID(),
+      number,
+      partyId: party.id,
+      date: d.date,
+      currency,
+      ...(d.invoiceId ? { invoiceId: d.invoiceId } : {}),
+      principal: d.principal,
+      markup,
+      ...(markupEntryId ? { markupEntryId } : {}),
+      schedule: d.schedule ?? buildSchedule(d.principal + markup, d.count ?? 1, d.firstDue ?? d.date, d.everyMonths ?? 1),
+      payments: [],
+      ...(d.guarantor ? { guarantor: d.guarantor } : {}),
+      ...(d.guarantorPhone ? { guarantorPhone: d.guarantorPhone } : {}),
+      ...(d.notes ? { notes: d.notes } : {}),
+      status: 'active',
+    };
+    this.emit({ type: 'installment.saved', plan });
+    return plan;
+  }
+
+  /** قبض قسط (أو أكثر): سند قبض على حساب الزبون، وبيتوزع على الأقساط بالترتيب. */
+  collectInstallment(planId: string, p: { date: string; amount: number; cashAccountId?: string }): InstallmentPlan {
+    const plan = this.state.installments[planId] ?? fail('الخطة غير موجودة');
+    if (plan.status !== 'active') fail('الخطة مو فعّالة');
+    const st = installmentState(this.state, plan, p.date);
+    if (p.amount > st.remaining) fail(`الباقي على الخطة ${(st.remaining / 100).toLocaleString('en')} فقط`);
+    const entry = this.postVoucher({
+      kind: 'receipt',
+      date: p.date,
+      amount: p.amount,
+      currency: plan.currency,
+      partyId: plan.partyId,
+      memo: `قسط — خطة تقسيط رقم ${plan.number}`,
+      ...(p.cashAccountId ? { cashAccountId: p.cashAccountId } : {}),
+      createdBy: this.actor,
+    });
+    const next: InstallmentPlan = { ...plan, payments: [...plan.payments, { entryId: entry.id, date: p.date, amount: p.amount }] };
+    if (installmentState(this.state, next, p.date).remaining === 0) next.status = 'done';
+    this.emit({ type: 'installment.saved', plan: next });
+    return next;
+  }
+
+  /** إلغاء خطة ما انقبض منها شي: بترجع زيادة التقسيط. */
+  cancelInstallmentPlan(planId: string, date: string): InstallmentPlan {
+    const plan = this.state.installments[planId] ?? fail('الخطة غير موجودة');
+    if (plan.payments.some((p) => !this.state.voided[p.entryId])) fail('على الخطة أقساط مقبوضة؛ ألغِ سنداتها أولاً');
+    if (plan.markupEntryId && !this.state.voided[plan.markupEntryId]) {
+      const original = this.state.entries.find((e) => e.id === plan.markupEntryId) ?? fail('قيد الزيادة غير موجود');
+      this.emit({ type: 'entry.posted', entry: this.reversal(original, date) });
+    }
+    const next: InstallmentPlan = { ...plan, status: 'cancelled' };
+    this.emit({ type: 'installment.saved', plan: next });
+    return next;
+  }
+
+  // ───────────── الاستبدال (جهاز مستعمل مقابل جديد) ─────────────
+
+  /** شراء الجهاز القديم من الزبون وبيعه الجديد بنفس العملية، والفرق نقداً. */
+  tradeIn(d: TradeInDraft): { sale: Invoice; purchase: Invoice; entry?: JournalEntry } {
+    const party = this.state.parties[d.partyId] ?? fail('اختار الزبون');
+    if (!d.sale.length || !d.tradeIn.length) fail('حدد الجهاز الجديد والجهاز القديم');
+    // الزبون صار كمان مورّد للجهاز المستعمل
+    if (party.kind === 'customer') this.emit({ type: 'party.saved', party: { ...party, kind: 'both' } });
+    const currency = d.currency ?? this.base.code;
+    const common = { date: d.date, partyId: d.partyId, currency, ...(d.rate ? { rate: d.rate } : {}), ...(d.warehouseId ? { warehouseId: d.warehouseId } : {}) };
+    const purchase = this.postInvoice({ ...common, kind: 'purchase', lines: d.tradeIn, paid: 0, notes: 'جهاز مستعمل مستلم بالاستبدال' });
+    const sale = this.postInvoice({ ...common, kind: 'sale', lines: d.sale, paid: 0, notes: `بيع مع استبدال — مقابل فاتورة شراء رقم ${purchase.number}` });
+    let entry: JournalEntry | undefined;
+    if (d.received) {
+      entry = this.postVoucher({
+        kind: d.received > 0 ? 'receipt' : 'payment',
+        date: d.date,
+        amount: Math.abs(d.received),
+        currency,
+        partyId: d.partyId,
+        memo: `فرق استبدال — مبيع ${sale.number} / شراء ${purchase.number}`,
+        ...(d.cashAccountId ? { cashAccountId: d.cashAccountId } : {}),
+        createdBy: this.actor,
+      });
+    }
+    return { sale, purchase, ...(entry ? { entry } : {}) };
+  }
+
   // ───────────── ورشة الإنتاج ─────────────
 
   /** استلام أتواب قماش من زبون بسند واحد. */
@@ -1146,6 +1263,36 @@ export class Ledger {
     this.emit({ type: 'workorder.saved', order: { ...fresh, deliveries: fresh.deliveries.map((x) => (x.id === deliveryId ? { ...x, invoiceId: invoice.id } : x)) } });
     return invoice;
   }
+}
+
+export interface InstallmentDraft {
+  id?: string;
+  partyId: string;
+  date: string;
+  currency?: string;
+  invoiceId?: string;
+  principal: number;
+  markup?: number;
+  markupPercent?: number;
+  count?: number;
+  firstDue?: string;
+  everyMonths?: number;
+  schedule?: { due: string; amount: number }[];
+  guarantor?: string;
+  guarantorPhone?: string;
+  notes?: string;
+}
+
+export interface TradeInDraft {
+  date: string;
+  partyId: string;
+  currency?: string;
+  rate?: number;
+  warehouseId?: string;
+  sale: InvoiceLineDraft[];
+  tradeIn: InvoiceLineDraft[];
+  received?: number; // المقبوض من الزبون (سالب = دفعنا له)
+  cashAccountId?: string;
 }
 
 export type WorkOrderDraft = Omit<WorkOrder, 'number' | 'cuts' | 'stages' | 'expenses' | 'deliveries'> & { number?: number };

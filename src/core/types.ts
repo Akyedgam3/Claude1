@@ -548,6 +548,29 @@ export interface WorkOrder {
   deliveries: WorkDelivery[];
 }
 
+// ───────────── التقسيط ─────────────
+
+export type InstallmentStatus = 'active' | 'done' | 'cancelled';
+
+/** خطة أقساط على زبون: جدول دفعات، وكل قسط مقبوض بسند قبض. */
+export interface InstallmentPlan {
+  id: string;
+  number: number;
+  partyId: string;
+  date: string;
+  currency: string;
+  invoiceId?: string; // الفاتورة اللي انقسّطت
+  principal: number; // المبلغ المقسّط (بعد الدفعة الأولى)
+  markup: number; // زيادة التقسيط
+  markupEntryId?: string;
+  schedule: { due: string; amount: number }[];
+  payments: { entryId: string; date: string; amount: number }[];
+  guarantor?: string; // الكفيل
+  guarantorPhone?: string;
+  notes?: string;
+  status: InstallmentStatus;
+}
+
 // ───────────── عروض الأسعار ─────────────
 
 export type QuoteStatus = 'open' | 'accepted' | 'rejected' | 'converted';
@@ -607,6 +630,7 @@ export interface CompanyState {
   quotes: Record<string, Quote>;
   rolls: Record<string, FabricRoll>;
   workOrders: Record<string, WorkOrder>;
+  installments: Record<string, InstallmentPlan>;
   counters: Record<string, number>; // آخر رقم لكل نوع مستند
 }
 
@@ -637,4 +661,5 @@ export type CompanyEvent =
   | { type: 'tailor.saved'; order: TailorOrder }
   | { type: 'quote.saved'; quote: Quote }
   | { type: 'rolls.saved'; rolls: FabricRoll[] }
-  | { type: 'workorder.saved'; order: WorkOrder };
+  | { type: 'workorder.saved'; order: WorkOrder }
+  | { type: 'installment.saved'; plan: InstallmentPlan };

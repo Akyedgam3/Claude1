@@ -14,6 +14,7 @@ export interface ScanResult {
   unit?: string; // إن طابق الباركود وحدة إضافية (كرتونة)
   qty?: number; // من باركود الميزان (وزن)
   price?: number; // من باركود الميزان (سعر)
+  serial?: string; // إذا الممسوح رقم IMEI / تسلسلي لجهاز موجود بالمخزون
 }
 
 /**
@@ -41,7 +42,10 @@ export function resolveScan(state: CompanyState, code: string): ScanResult | nul
     }
   }
   const byPart = items.find((i) => i.partNumber === c);
-  return byPart ? { item: byPart } : null;
+  if (byPart) return { item: byPart };
+  // رقم IMEI أو تسلسلي لجهاز بالمخزون: بينزل الجهاز نفسه مع رقمه
+  for (const item of items) if (item.trackSerial && state.stock[item.id]?.serials?.[c]) return { item, serial: c };
+  return null;
 }
 
 /** يولّد مواد المقاسات والألوان لموديل ألبسة/أحذية. */

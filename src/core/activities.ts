@@ -19,7 +19,9 @@ export type Feature =
   | 'units' // وحدات متعددة (قطعة/كرتونة/طن)
   | 'salesmen' // مندوبو مبيعات
   | 'tailoring' // طلبات تفصيل وقياسات الزبائن
-  | 'workshop'; // ورشة إنتاج: أتواب قماش الزبون، قصّات وتسليمات بالقطعة
+  | 'workshop' // ورشة إنتاج: أتواب قماش الزبون، قصّات وتسليمات بالقطعة
+  | 'installments' // تقسيط: خطط أقساط وتحصيل ومتأخرات
+  | 'tradeIn'; // شراء أجهزة مستعملة والبيع مع الاستبدال
 
 export interface ActivityProfile {
   id: Activity;
@@ -120,14 +122,15 @@ export const ACTIVITIES: Record<Activity, ActivityProfile> = {
   mobile: {
     id: 'mobile',
     name: 'موبايلات وإلكترونيات',
-    description: 'أرقام IMEI وكفالات، صيانة أجهزة، إكسسوارات',
+    description: 'أرقام IMEI وكفالات، تقسيط، شراء مستعمل واستبدال، صيانة أجهزة، إكسسوارات',
     icon: 'smartphone',
     color: '#3a4fb8',
-    features: ['serials', 'repairs', 'devices', 'pos', 'priceTiers'],
+    features: ['serials', 'tradeIn', 'installments', 'repairs', 'devices', 'pos', 'priceTiers'],
     itemLabel: 'صنف',
     itemsLabel: 'الأجهزة والإكسسوارات',
     units: ['قطعة', 'علبة'],
-    categories: ['موبايلات', 'تابلت', 'إكسسوارات', 'شواحن', 'سماعات', 'قطع صيانة'],
+    categories: ['موبايلات', 'موبايلات مستعملة', 'تابلت', 'لابتوب', 'إكسسوارات', 'شواحن', 'سماعات', 'قطع صيانة'],
+    attributes: ['الذاكرة', 'الرام', 'اللون', 'الحالة', 'البطارية'],
     accountNames: { '4101': 'مبيعات الأجهزة', '4201': 'إيرادات الصيانة' },
   },
   building: {
@@ -255,6 +258,8 @@ export const FEATURE_INFO: Record<Feature, { name: string; description: string }
   units: { name: 'وحدات متعددة', description: 'بيع وشراء بالقطعة والعلبة والكرتونة' },
   salesmen: { name: 'مندوبو المبيعات', description: 'تسجيل المندوب على الفاتورة وتقرير مبيعاته' },
   tailoring: { name: 'طلبات التفصيل والقياسات', description: 'قياسات الزبائن، طلبات بموعد تسليم وبروفة، عربون' },
+  installments: { name: 'التقسيط', description: 'خطط أقساط شهرية مع زيادة تقسيط وكفيل، تحصيل الأقساط ومتابعة المتأخر' },
+  tradeIn: { name: 'شراء مستعمل واستبدال', description: 'شراء أجهزة مستعملة من الزبائن برقمها وحالتها، والبيع مع استبدال الجهاز القديم' },
   workshop: { name: 'ورشة الخياطة (قص وخياطة بالجملة)', description: 'استلام أتواب قماش الزبون برقم وطول، قصّات بالمقاسات، تسليم دفعات وفوترة بالقطعة' },
 };
 
