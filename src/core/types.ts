@@ -464,7 +464,10 @@ export interface TailorOrder {
 
 // ───────────── ورشة الإنتاج (قص وخياطة بالجملة لقماش الزبون) ─────────────
 
-/** توب قماش يجيبه الزبون للورشة. الأطوال كلها بالسنتيمتر (أعداد صحيحة). */
+/** وحدة طول القماش: ياردة أو متر. الأطوال مخزنة بأجزاء المئة من الوحدة (أعداد صحيحة). */
+export type LengthUnit = 'yd' | 'm';
+
+/** توب قماش يجيبه الزبون للورشة. */
 export interface FabricRoll {
   id: string;
   code: string; // رقم التوب المكتوب عليه
@@ -473,21 +476,42 @@ export interface FabricRoll {
   date: string; // تاريخ الاستلام
   fabric: string; // نوع القماش
   color?: string;
-  lengthCm: number;
+  unit: LengthUnit;
+  length: number; // الطول عند الاستلام × 100
   widthCm?: number;
   notes?: string;
-  returns: { date: string; cm: number; note?: string }[]; // بواقي مُرجعة للزبون
+  returns: { date: string; length: number; note?: string }[]; // بواقي مُرجعة للزبون (بنفس وحدة التوب × 100)
 }
 
 export type WorkOrderStatus = 'open' | 'done' | 'cancelled';
 
-/** قصّة: كم متر انقص من كل توب، وكم قطعة طلعت من كل مقاس. */
+/** مدّ وقص: كم مدة أعطى كل توب وكم انقص منه، وكم قطعة طلعت من كل نمرة. */
 export interface WorkCut {
   id: string;
   date: string;
-  rolls: { rollId: string; cm: number }[];
+  rolls: { rollId: string; lays?: number; used: number }[]; // used بوحدة التوب × 100
   pieces: Record<string, number>;
   notes?: string;
+}
+
+/** حركة مرحلة: دخل الخياطة، خلص، أو تالف. */
+export interface WorkStage {
+  id: string;
+  date: string;
+  stage: 'sewing' | 'done' | 'damaged';
+  pieces: Record<string, number>;
+  note?: string;
+}
+
+/** مصروف على الطلبية (استيك، خيط، بطانة...) — على الزبون أو على الورشة. */
+export interface WorkExpense {
+  id: string;
+  date: string;
+  kind: string;
+  description?: string;
+  amount: number; // بأصغر وحدة من عملة الطلبية
+  billTo: 'customer' | 'workshop';
+  entryId: string; // سند الدفع
 }
 
 /** دفعة تسليم للزبون (قد تُفوتر أجرتها). */
@@ -500,7 +524,7 @@ export interface WorkDelivery {
   notes?: string;
 }
 
-/** طلبية إنتاج: موديل بمقاسات وكميات وأجرة للقطعة. */
+/** طلبية إنتاج: موديل بنمر وكميات وأجرة للقطعة ورسمة قص. */
 export interface WorkOrder {
   id: string;
   number: number;
@@ -511,11 +535,16 @@ export interface WorkOrder {
   modelCode?: string;
   sizes: string[];
   planned: Record<string, number>;
+  unit?: LengthUnit; // وحدة طول الرسمة
+  markerLength?: number; // طول الرسمة × 100
+  ratio?: Record<string, number>; // كم قطعة من كل نمرة بالمدة الوحدة
   pieceRate: number; // أجرة القطعة بأصغر وحدة من العملة
   currency: string;
   status: WorkOrderStatus;
   notes?: string;
   cuts: WorkCut[];
+  stages: WorkStage[];
+  expenses: WorkExpense[];
   deliveries: WorkDelivery[];
 }
 

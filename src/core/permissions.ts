@@ -124,6 +124,11 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
   saveWorkOrder: 'tailoring.manage',
   addCut: 'tailoring.manage',
   removeCut: 'tailoring.manage',
+  addStage: 'tailoring.manage',
+  removeStage: 'tailoring.manage',
+  addWorkExpense: 'vouchers.create',
+  removeWorkExpense: 'vouchers.void',
+  addWorkAdjustment: 'vouchers.create',
   deliverWork: (args) => ((args[1] as { invoice?: boolean } | undefined)?.invoice ? 'sales.create' : 'tailoring.manage'),
   invoiceDelivery: 'sales.create',
 };

@@ -27,10 +27,13 @@ describe('demo data', () => {
   it('fills a tailor shop with orders, rolls and a production order', () => {
     const l = company('tailor');
     l.loadDemoData();
-    expect(Object.keys(l.state.rolls).length).toBe(8);
+    expect(Object.keys(l.state.rolls).length).toBe(6);
     const p = workOrderProgress(l.state, l.state.workOrders['wo-1']!);
-    expect(p.cut).toBe(110);
-    expect(p.delivered).toBe(70);
+    expect(p.lays).toBe(46);
+    expect(p.cut).toBe(138);
+    expect(p.done).toBe(120);
+    expect(p.delivered).toBe(110);
+    expect(p.expensesCustomer).toBe(24000);
     expect(Object.keys(l.state.tailorOrders).length).toBe(2);
   });
 

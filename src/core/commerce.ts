@@ -3,7 +3,7 @@ import type { EntryDraft, LineDraft } from './ledger';
 import { convertMinor } from './money';
 import { adjustmentMoves, applyMove, assertMovesPossible, invoiceMoves, negate, productionMoves, roundQty, StockPlanner, transferMoves } from './stock';
 import { computeTaxes } from './tax';
-import type { CompanyEvent, CompanyState, FabricRoll, Invoice, InvoiceKind, InvoiceLine, JournalEntry, Order, Quote, RepairOrder, TailorOrder, WorkOrder } from './types';
+import type { CompanyEvent, CompanyState, FabricRoll, Invoice, InvoiceKind, InvoiceLine, JournalEntry, LengthUnit, Order, Quote, RepairOrder, TailorOrder, WorkOrder, WorkStage } from './types';
 
 function fail(message: string): never {
   throw new Error(message);
@@ -161,69 +161,86 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       return;
     }
     case 'rolls.saved': {
-      if (event.rolls.length === 0) fail('أضف توب قماش واحد على الأقل');
+      const rolls = event.rolls.map(normalizeRoll);
+      if (rolls.length === 0) fail('أضف توب قماش واحد على الأقل');
       const codes = new Set<string>();
-      for (const r of event.rolls) {
+      for (const r of rolls) {
         if (!state.parties[r.partyId]) fail('صاحب القماش غير موجود');
         if (!DATE_RE.test(r.date)) fail('تاريخ غير صالح');
         if (!r.code.trim()) fail('اكتب رقم التوب');
         if (!r.fabric.trim()) fail('اكتب نوع القماش');
-        if (!Number.isSafeInteger(r.lengthCm) || r.lengthCm <= 0) fail(`طول غير صالح للتوب ${r.code}`);
+        if (r.unit !== 'yd' && r.unit !== 'm') fail('وحدة الطول غير صالحة');
+        if (!Number.isSafeInteger(r.length) || r.length <= 0) fail(`طول غير صالح للتوب ${r.code}`);
         if (r.widthCm !== undefined && (!Number.isSafeInteger(r.widthCm) || r.widthCm <= 0)) fail(`عرض غير صالح للتوب ${r.code}`);
-        for (const x of r.returns) if (!DATE_RE.test(x.date) || !Number.isSafeInteger(x.cm) || x.cm <= 0) fail(`مرتجع غير صالح للتوب ${r.code}`);
+        for (const x of r.returns) if (!DATE_RE.test(x.date) || !Number.isSafeInteger(x.length) || x.length <= 0) fail(`مرتجع غير صالح للتوب ${r.code}`);
         const key = `${r.partyId}|${r.code.trim()}`;
         if (codes.has(key)) fail(`رقم التوب ${r.code} مكرر`);
         codes.add(key);
         const dup = Object.values(state.rolls).find((x) => x.id !== r.id && x.partyId === r.partyId && x.code.trim() === r.code.trim());
         if (dup) fail(`التوب رقم ${r.code} مسجّل مسبقاً لنفس الزبون`);
         const prev = state.rolls[r.id];
-        if (prev && prev.partyId !== r.partyId && rollUsedCm(state, r.id) > 0) fail(`التوب ${r.code} مستعمل؛ لا يمكن تغيير صاحبه`);
-        if (rollUsedCm(state, r.id) + r.returns.reduce((t, x) => t + x.cm, 0) > r.lengthCm) fail(`المستعمل والمرتجع من التوب ${r.code} أكثر من طوله`);
+        const used = rollUsed(state, r.id);
+        if (prev && used > 0 && (prev.partyId !== r.partyId || prev.unit !== r.unit)) fail(`التوب ${r.code} مستعمل؛ لا يمكن تغيير صاحبه أو وحدته`);
+        if (used + rollReturned(r) > r.length) fail(`المستعمل والمرتجع من التوب ${r.code} أكثر من طوله`);
       }
       return;
     }
     case 'workorder.saved': {
-      const o = event.order;
+      const o = normalizeWorkOrder(event.order);
       if (!state.parties[o.partyId]) fail('الزبون غير موجود');
       if (!DATE_RE.test(o.date) || (o.dueDate && !DATE_RE.test(o.dueDate))) fail('تاريخ غير صالح');
       if (!o.model.trim()) fail('اكتب اسم الموديل');
       if (!state.currencies[o.currency]) fail('عملة غير معروفة');
       if (!Number.isSafeInteger(o.pieceRate) || o.pieceRate < 0) fail('أجرة القطعة غير صالحة');
-      if (o.sizes.length === 0 || new Set(o.sizes).size !== o.sizes.length || o.sizes.some((z) => !z.trim())) fail('حدد المقاسات بدون تكرار');
+      if (o.sizes.length === 0 || new Set(o.sizes).size !== o.sizes.length || o.sizes.some((z) => !z.trim())) fail('حدد النمر بدون تكرار');
+      if (o.unit && o.unit !== 'yd' && o.unit !== 'm') fail('وحدة الطول غير صالحة');
+      if (o.markerLength !== undefined && (!Number.isSafeInteger(o.markerLength) || o.markerLength <= 0)) fail('طول الرسمة غير صالح');
       const sizeOk = (rec: Record<string, number>) => Object.entries(rec).every(([k, v]) => o.sizes.includes(k) && Number.isSafeInteger(v) && v >= 0);
-      if (!sizeOk(o.planned)) fail('كميات المقاسات غير صالحة');
-      const prev = state.workOrders[o.id];
+      if (!sizeOk(o.planned)) fail('كميات النمر غير صالحة');
+      if (o.ratio && !sizeOk(o.ratio)) fail('توزيع الرسمة غير صالح');
+      const prev = state.workOrders[o.id] ? normalizeWorkOrder(state.workOrders[o.id]!) : undefined;
       if (prev && prev.number !== o.number) fail('لا يمكن تغيير رقم الطلبية');
-      if (prev && prev.partyId !== o.partyId && (prev.cuts.length || prev.deliveries.length)) fail('على الطلبية قصّات أو تسليمات؛ لا يمكن تغيير الزبون');
+      if (prev && prev.partyId !== o.partyId && (prev.cuts.length || prev.deliveries.length || prev.expenses.length)) fail('على الطلبية حركات؛ لا يمكن تغيير الزبون');
       // استهلاك كل توب من كل الطلبيات (مع هذه النسخة الجديدة) لازم ما يتجاوز المتاح
       const other = new Map<string, number>();
       for (const w of Object.values(state.workOrders)) {
         if (w.id === o.id) continue;
-        for (const c of w.cuts) for (const r of c.rolls) other.set(r.rollId, (other.get(r.rollId) ?? 0) + r.cm);
+        for (const c of w.cuts) for (const r of c.rolls) other.set(r.rollId, (other.get(r.rollId) ?? 0) + cutUsed(r));
       }
       const mine = new Map<string, number>();
       for (const c of o.cuts) {
-        if (!DATE_RE.test(c.date)) fail('تاريخ القصّة غير صالح');
-        if (!sizeOk(c.pieces)) fail('عدد القطع بالقصّة غير صالح');
+        if (!DATE_RE.test(c.date)) fail('تاريخ المدّ غير صالح');
+        if (!sizeOk(c.pieces)) fail('عدد القطع غير صالح');
         for (const r of c.rolls) {
           const roll = state.rolls[r.rollId] ?? fail('توب غير موجود');
           if (roll.partyId !== o.partyId) fail(`التوب ${roll.code} مو لنفس الزبون`);
-          if (!Number.isSafeInteger(r.cm) || r.cm <= 0) fail(`طول غير صالح من التوب ${roll.code}`);
-          mine.set(r.rollId, (mine.get(r.rollId) ?? 0) + r.cm);
+          if (!Number.isSafeInteger(r.used) || r.used <= 0) fail(`طول غير صالح من التوب ${roll.code}`);
+          if (r.lays !== undefined && (!Number.isSafeInteger(r.lays) || r.lays < 0)) fail(`عدد مدات غير صالح للتوب ${roll.code}`);
+          mine.set(r.rollId, (mine.get(r.rollId) ?? 0) + r.used);
         }
       }
-      for (const [rollId, cm] of mine) {
-        const roll = state.rolls[rollId]!;
-        const free = roll.lengthCm - rollReturnedCm(roll) - (other.get(rollId) ?? 0);
-        if (cm > free) fail(`التوب ${roll.code} ما فيه كفاية: المتاح ${(free / 100).toLocaleString('en')} متر`);
+      for (const [rollId, used] of mine) {
+        const roll = normalizeRoll(state.rolls[rollId]!);
+        const free = roll.length - rollReturned(roll) - (other.get(rollId) ?? 0);
+        if (used > free) fail(`التوب ${roll.code} ما فيه كفاية: المتاح ${(free / 100).toLocaleString('en')} ${UNIT_NAMES[roll.unit]}`);
       }
-      const cut = sumPieces(o.cuts.map((c) => c.pieces));
-      const delivered = sumPieces(o.deliveries.map((d) => d.pieces));
+      for (const st of o.stages) if (!DATE_RE.test(st.date) || !sizeOk(st.pieces) || !['sewing', 'done', 'damaged'].includes(st.stage)) fail('حركة مرحلة غير صالحة');
+      for (const e of o.expenses) if (!DATE_RE.test(e.date) || !Number.isSafeInteger(e.amount) || e.amount <= 0 || !e.kind.trim()) fail('مصروف غير صالح');
       for (const d of o.deliveries) {
         if (!DATE_RE.test(d.date) || !sizeOk(d.pieces)) fail('دفعة تسليم غير صالحة');
         if (d.invoiceId && !state.invoices.some((i) => i.id === d.invoiceId)) fail('فاتورة التسليم غير موجودة');
       }
-      for (const z of o.sizes) if ((delivered[z] ?? 0) > (cut[z] ?? 0)) fail(`المسلّم من مقاس ${z} أكثر من المقصوص`);
+      const p = workOrderProgress(state, o);
+      for (const z of o.sizes) {
+        // التالف ممكن يصير بأي مرحلة (قص أو خياطة)
+        const cutZ = p.cutBySize[z] ?? 0;
+        const good = cutZ - (p.damagedBySize[z] ?? 0);
+        if (good < 0) fail(`التالف من نمرة ${z} أكثر من المقصوص`);
+        if ((p.sewingBySize[z] ?? 0) > cutZ) fail(`الداخل للخياطة من نمرة ${z} أكثر من المقصوص`);
+        if ((p.doneBySize[z] ?? 0) > good) fail(`المنجز من نمرة ${z} أكثر من المقصوص السليم`);
+        if (p.usesSewing && (p.doneBySize[z] ?? 0) > (p.sewingBySize[z] ?? 0)) fail(`المنجز من نمرة ${z} أكثر من الداخل للخياطة`);
+        if ((p.deliveredBySize[z] ?? 0) > (p.usesDone ? (p.doneBySize[z] ?? 0) : good)) fail(`المسلّم من نمرة ${z} أكثر من ${p.usesDone ? 'المنجز' : 'المقصوص'}`);
+      }
       if (prev) {
         // فواتير التسليمات ما بتنمحى ولا بتتغير من هون
         for (const d of prev.deliveries) {
@@ -320,11 +337,11 @@ export function applyCommerceEvent(state: CompanyState, event: CompanyEvent): vo
       bump(state, 'tailor', event.order.number);
       return;
     case 'rolls.saved':
-      for (const r of event.rolls) state.rolls[r.id] = { ...r };
+      for (const r of event.rolls) state.rolls[r.id] = normalizeRoll(r);
       bump(state, 'rollReceipt', Math.max(...event.rolls.map((r) => r.receiptNo)));
       return;
     case 'workorder.saved':
-      state.workOrders[event.order.id] = { ...event.order };
+      state.workOrders[event.order.id] = normalizeWorkOrder(event.order);
       bump(state, 'workorder', event.order.number);
       bump(state, 'workDelivery', Math.max(0, ...event.order.deliveries.map((d) => d.number)));
       return;
@@ -643,6 +660,40 @@ export function quoteTotals(state: CompanyState, q: Pick<Quote, 'lines' | 'disco
 
 // ───────────── ورشة الإنتاج ─────────────
 
+export const UNIT_NAMES: Record<LengthUnit, string> = { yd: 'يارد', m: 'متر' };
+const YARD_M = 0.9144;
+
+/** تحويل طول (× 100) بين الياردة والمتر. */
+export function convertLength(value: number, from: LengthUnit, to: LengthUnit): number {
+  if (from === to) return value;
+  return Math.round(from === 'yd' ? value * YARD_M : value / YARD_M);
+}
+
+// أحداث الإصدار الأول كانت بالسنتيمتر (lengthCm / cm): منحوّلها لأمتار × 100 وهي نفس القيمة
+type LegacyRoll = Omit<FabricRoll, 'returns' | 'length' | 'unit'> & { unit?: LengthUnit; length?: number; lengthCm?: number; returns: { date: string; length?: number; cm?: number; note?: string }[] };
+export function normalizeRoll(r: FabricRoll): FabricRoll {
+  const x = r as unknown as LegacyRoll;
+  if (x.length !== undefined && x.unit && x.returns.every((y) => y.length !== undefined)) return r;
+  const { lengthCm, ...rest } = x;
+  return {
+    ...rest,
+    unit: x.unit ?? 'm',
+    length: x.length ?? lengthCm ?? 0,
+    returns: x.returns.map(({ cm, ...y }) => ({ ...y, length: y.length ?? cm ?? 0 })),
+  };
+}
+type LegacyCutRoll = { rollId: string; lays?: number; used?: number; cm?: number };
+const cutUsed = (r: LegacyCutRoll): number => r.used ?? r.cm ?? 0;
+export function normalizeWorkOrder(o: WorkOrder): WorkOrder {
+  if (o.stages && o.expenses && o.cuts.every((c) => c.rolls.every((r) => r.used !== undefined))) return o;
+  return {
+    ...o,
+    stages: o.stages ?? [],
+    expenses: o.expenses ?? [],
+    cuts: o.cuts.map((c) => ({ ...c, rolls: c.rolls.map((r) => ({ rollId: r.rollId, ...(r.lays !== undefined ? { lays: r.lays } : {}), used: cutUsed(r as LegacyCutRoll) })) })),
+  };
+}
+
 export function sumPieces(list: Record<string, number>[]): Record<string, number> {
   const out: Record<string, number> = {};
   for (const rec of list) for (const [k, v] of Object.entries(rec)) out[k] = (out[k] ?? 0) + v;
@@ -653,50 +704,115 @@ export function piecesTotal(rec: Record<string, number>): number {
   return Object.values(rec).reduce((t, v) => t + v, 0);
 }
 
-/** كم سنتيمتر انقص من التوب بكل القصّات. */
-export function rollUsedCm(state: CompanyState, rollId: string): number {
+/** كم انقص من التوب بكل المدات (بوحدة التوب × 100). */
+export function rollUsed(state: CompanyState, rollId: string): number {
   let t = 0;
-  for (const w of Object.values(state.workOrders)) for (const c of w.cuts) for (const r of c.rolls) if (r.rollId === rollId) t += r.cm;
+  for (const w of Object.values(state.workOrders)) for (const c of w.cuts) for (const r of c.rolls) if (r.rollId === rollId) t += cutUsed(r);
   return t;
 }
 
-export function rollReturnedCm(roll: FabricRoll): number {
-  return roll.returns.reduce((t, x) => t + x.cm, 0);
+export function rollReturned(roll: FabricRoll): number {
+  return normalizeRoll(roll).returns.reduce((t, x) => t + x.length, 0);
 }
 
-export function rollRemainingCm(state: CompanyState, roll: FabricRoll): number {
-  return roll.lengthCm - rollUsedCm(state, roll.id) - rollReturnedCm(roll);
+export function rollRemaining(state: CompanyState, roll: FabricRoll): number {
+  return normalizeRoll(roll).length - rollUsed(state, roll.id) - rollReturned(roll);
+}
+
+/** كم مدة بيعطي طول معيّن (بوحدة التوب) لرسمة طولها markerLength (بوحدة الطلبية). */
+export function laysFrom(length: number, rollUnit: LengthUnit, markerLength: number, orderUnit: LengthUnit): number {
+  const marker = convertLength(markerLength, orderUnit, rollUnit);
+  return marker > 0 ? Math.floor(length / marker) : 0;
 }
 
 export interface WorkOrderProgress {
   planned: number;
+  piecesPerLay: number;
+  lays: number; // المدات المنفذة
+  laysNeeded: number | null; // المدات المطلوبة حسب الرسمة
+  lengthNeeded: number | null; // الطول المطلوب (بوحدة الطلبية × 100)
   cut: number;
+  sewing: number;
+  done: number;
+  damaged: number;
   delivered: number;
   cutBySize: Record<string, number>;
+  sewingBySize: Record<string, number>;
+  doneBySize: Record<string, number>;
+  damagedBySize: Record<string, number>;
   deliveredBySize: Record<string, number>;
-  readyBySize: Record<string, number>; // مقصوص وما انسلّم
-  usedCm: number;
-  cmPerPiece: number | null;
-  invoiced: number; // عدد القطع المفوترة
+  readyBySize: Record<string, number>; // جاهز للتسليم
+  usesSewing: boolean;
+  usesDone: boolean;
+  used: number; // الطول المستهلك (بوحدة الطلبية × 100)
+  perPiece: number | null; // متوسط الطول للقطعة (× 100)
+  shortage: number; // نقص القطع عن المطلوب بعد القص (المطلوب - المقصوص السليم)
+  invoiced: number;
+  earned: number; // قيمة القطع المسلّمة (أجرة × عدد)
+  expensesCustomer: number;
+  expensesWorkshop: number;
 }
 
-export function workOrderProgress(state: CompanyState, o: WorkOrder): WorkOrderProgress {
+export function workOrderProgress(state: CompanyState, order: WorkOrder): WorkOrderProgress {
+  const o = normalizeWorkOrder(order);
+  const unit = o.unit ?? 'm';
+  const byStage = (k: WorkStage['stage']) => sumPieces(o.stages.filter((s) => s.stage === k).map((s) => s.pieces));
   const cutBySize = sumPieces(o.cuts.map((c) => c.pieces));
+  const sewingBySize = byStage('sewing');
+  const doneBySize = byStage('done');
+  const damagedBySize = byStage('damaged');
   const deliveredBySize = sumPieces(o.deliveries.map((d) => d.pieces));
+  const usesSewing = o.stages.some((s) => s.stage === 'sewing');
+  const usesDone = o.stages.some((s) => s.stage === 'done');
   const readyBySize: Record<string, number> = {};
-  for (const z of o.sizes) readyBySize[z] = (cutBySize[z] ?? 0) - (deliveredBySize[z] ?? 0);
-  const usedCm = o.cuts.reduce((t, c) => t + c.rolls.reduce((s, r) => s + r.cm, 0), 0);
+  for (const z of o.sizes) {
+    const good = (cutBySize[z] ?? 0) - (damagedBySize[z] ?? 0);
+    readyBySize[z] = (usesDone ? (doneBySize[z] ?? 0) : good) - (deliveredBySize[z] ?? 0);
+  }
+  let used = 0;
+  for (const c of o.cuts)
+    for (const r of c.rolls) {
+      const roll = state.rolls[r.rollId];
+      used += roll ? convertLength(r.used, normalizeRoll(roll).unit, unit) : r.used;
+    }
+  const lays = o.cuts.reduce((t, c) => t + c.rolls.reduce((s, r) => s + (r.lays ?? 0), 0), 0);
+  const ratio = o.ratio ?? {};
+  const piecesPerLay = piecesTotal(ratio);
+  let laysNeeded: number | null = null;
+  if (piecesPerLay > 0) {
+    laysNeeded = 0;
+    for (const z of o.sizes) if ((ratio[z] ?? 0) > 0) laysNeeded = Math.max(laysNeeded, Math.ceil((o.planned[z] ?? 0) / ratio[z]!));
+  }
   const cut = piecesTotal(cutBySize);
+  const damaged = piecesTotal(damagedBySize);
+  const delivered = piecesTotal(deliveredBySize);
+  const planned = piecesTotal(o.planned);
   return {
-    planned: piecesTotal(o.planned),
+    planned,
+    piecesPerLay,
+    lays,
+    laysNeeded,
+    lengthNeeded: laysNeeded !== null && o.markerLength ? laysNeeded * o.markerLength : null,
     cut,
-    delivered: piecesTotal(deliveredBySize),
+    sewing: piecesTotal(sewingBySize),
+    done: piecesTotal(doneBySize),
+    damaged,
+    delivered,
     cutBySize,
+    sewingBySize,
+    doneBySize,
+    damagedBySize,
     deliveredBySize,
     readyBySize,
-    usedCm,
-    cmPerPiece: cut > 0 ? usedCm / cut : null,
+    usesSewing,
+    usesDone,
+    used,
+    perPiece: cut > 0 ? used / cut : null,
+    shortage: Math.max(0, planned - (cut - damaged)),
     invoiced: o.deliveries.filter((d) => d.invoiceId && !invoiceVoided(state, d.invoiceId)).reduce((t, d) => t + piecesTotal(d.pieces), 0),
+    earned: delivered * o.pieceRate,
+    expensesCustomer: o.expenses.filter((e) => e.billTo === 'customer' && !state.voided[e.entryId]).reduce((t, e) => t + e.amount, 0),
+    expensesWorkshop: o.expenses.filter((e) => e.billTo === 'workshop' && !state.voided[e.entryId]).reduce((t, e) => t + e.amount, 0),
   };
 }
 

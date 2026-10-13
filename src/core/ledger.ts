@@ -1,4 +1,4 @@
-import { applyCommerceEvent, buildInvoice, orderTotals, piecesTotal, repairToInvoiceLines, rollRemainingCm, tailorDeposits, tailorToInvoiceLines, validateCommerceEvent, workOrderProgress, type InvoiceDraft, type InvoiceLineDraft } from './commerce';
+import { applyCommerceEvent, buildInvoice, orderTotals, piecesTotal, repairToInvoiceLines, rollRemaining, UNIT_NAMES, tailorDeposits, tailorToInvoiceLines, validateCommerceEvent, workOrderProgress, type InvoiceDraft, type InvoiceLineDraft } from './commerce';
 import { ACTIVITIES } from './activities';
 import { loadDemo } from './demo';
 import { SYSTEM_ACCOUNTS } from './chart-templates';
@@ -23,6 +23,7 @@ import type {
   DiningTable,
   ExchangeRate,
   FabricRoll,
+  LengthUnit,
   Invoice,
   Item,
   JournalEntry,
@@ -43,6 +44,7 @@ import type {
   Warehouse,
   WorkCut,
   WorkOrder,
+  WorkStage,
 } from './types';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -954,9 +956,19 @@ export class Ledger {
   // ───────────── ورشة الإنتاج ─────────────
 
   /** استلام أتواب قماش من زبون بسند واحد. */
-  receiveRolls(input: { partyId: string; date: string; rolls: Omit<FabricRoll, 'id' | 'partyId' | 'date' | 'receiptNo' | 'returns'>[] }): FabricRoll[] {
+  receiveRolls(input: { partyId: string; date: string; unit?: LengthUnit; rolls: (Omit<FabricRoll, 'id' | 'partyId' | 'date' | 'receiptNo' | 'returns' | 'unit'> & { unit?: LengthUnit })[] }): FabricRoll[] {
     const receiptNo = (this.state.counters['rollReceipt'] ?? 0) + 1;
-    const rolls: FabricRoll[] = input.rolls.map((r) => ({ ...r, code: r.code.trim(), fabric: r.fabric.trim(), id: crypto.randomUUID(), partyId: input.partyId, date: input.date, receiptNo, returns: [] }));
+    const rolls: FabricRoll[] = input.rolls.map((r) => ({
+      ...r,
+      unit: r.unit ?? input.unit ?? 'm',
+      code: r.code.trim(),
+      fabric: r.fabric.trim(),
+      id: crypto.randomUUID(),
+      partyId: input.partyId,
+      date: input.date,
+      receiptNo,
+      returns: [],
+    }));
     this.emit({ type: 'rolls.saved', rolls });
     return rolls;
   }
@@ -970,13 +982,13 @@ export class Ledger {
   }
 
   /** إرجاع بواقي توب للزبون. بدون طول = كل الباقي. */
-  returnRoll(rollId: string, opts: { date: string; cm?: number; note?: string }): FabricRoll {
+  returnRoll(rollId: string, opts: { date: string; length?: number; note?: string }): FabricRoll {
     const roll = this.state.rolls[rollId] ?? fail('التوب غير موجود');
-    const left = rollRemainingCm(this.state, roll);
-    const cm = opts.cm ?? left;
-    if (!(cm > 0)) fail('ما في باقي بهالتوب');
-    if (cm > left) fail(`الباقي بالتوب ${(left / 100).toLocaleString('en')} متر فقط`);
-    const next: FabricRoll = { ...roll, returns: [...roll.returns, { date: opts.date, cm, ...(opts.note ? { note: opts.note } : {}) }] };
+    const left = rollRemaining(this.state, roll);
+    const length = opts.length ?? left;
+    if (!(length > 0)) fail('ما في باقي بهالتوب');
+    if (length > left) fail(`الباقي بالتوب ${(left / 100).toLocaleString('en')} ${UNIT_NAMES[roll.unit]} فقط`);
+    const next: FabricRoll = { ...roll, returns: [...roll.returns, { date: opts.date, length, ...(opts.note ? { note: opts.note } : {}) }] };
     this.emit({ type: 'rolls.saved', rolls: [next] });
     return next;
   }
@@ -987,23 +999,30 @@ export class Ledger {
       ...draft,
       number: prev?.number ?? (this.state.counters['workorder'] ?? 0) + 1,
       cuts: prev?.cuts ?? [],
+      stages: prev?.stages ?? [],
+      expenses: prev?.expenses ?? [],
       deliveries: prev?.deliveries ?? [],
     };
     if (prev) {
       const p = workOrderProgress(this.state, prev);
-      for (const z of prev.sizes) if (!order.sizes.includes(z) && ((p.cutBySize[z] ?? 0) > 0 || (p.deliveredBySize[z] ?? 0) > 0)) fail(`المقاس ${z} عليه قصّات؛ ما فيك تشيله`);
+      for (const z of prev.sizes) if (!order.sizes.includes(z) && ((p.cutBySize[z] ?? 0) > 0 || (p.deliveredBySize[z] ?? 0) > 0)) fail(`النمرة ${z} عليها قص؛ ما فيك تشيلها`);
     }
     if (order.status === 'cancelled' && order.deliveries.some((d) => d.invoiceId)) fail('على الطلبية تسليمات مفوترة');
     this.emit({ type: 'workorder.saved', order });
     return order;
   }
 
-  /** تسجيل قصّة: أمتار من كل توب وعدد القطع لكل مقاس. */
-  addCut(orderId: string, cut: Omit<WorkCut, 'id'>): WorkOrder {
-    const o = this.state.workOrders[orderId] ?? fail('الطلبية غير موجودة');
+  private workOrder(id: string): WorkOrder {
+    const o = this.state.workOrders[id] ?? fail('الطلبية غير موجودة');
     if (o.status === 'cancelled') fail('الطلبية ملغاة');
+    return o;
+  }
+
+  /** تسجيل مدّ وقص: كم مدة أعطى كل توب وكم انقص منه، وعدد القطع لكل نمرة. */
+  addCut(orderId: string, cut: Omit<WorkCut, 'id'>): WorkOrder {
+    const o = this.workOrder(orderId);
     if (piecesTotal(cut.pieces) <= 0) fail('اكتب عدد القطع المقصوصة');
-    if (cut.rolls.length === 0) fail('اختار التوب اللي انقص منه');
+    if (cut.rolls.length === 0) fail('اختار التوب اللي انمدّ');
     const order: WorkOrder = { ...o, cuts: [...o.cuts, { ...cut, id: crypto.randomUUID() }] };
     this.emit({ type: 'workorder.saved', order });
     return order;
@@ -1016,29 +1035,96 @@ export class Ledger {
     return order;
   }
 
+  /** حركة مرحلة: دخل الخياطة، خلص، أو تالف. */
+  addStage(orderId: string, stage: Omit<WorkStage, 'id'>): WorkOrder {
+    const o = this.workOrder(orderId);
+    if (piecesTotal(stage.pieces) <= 0) fail('اكتب عدد القطع');
+    const order: WorkOrder = { ...o, stages: [...o.stages, { ...stage, id: crypto.randomUUID() }] };
+    this.emit({ type: 'workorder.saved', order });
+    return order;
+  }
+
+  removeStage(orderId: string, stageId: string): WorkOrder {
+    const o = this.state.workOrders[orderId] ?? fail('الطلبية غير موجودة');
+    const order: WorkOrder = { ...o, stages: o.stages.filter((s) => s.id !== stageId) };
+    this.emit({ type: 'workorder.saved', order });
+    return order;
+  }
+
+  /** مصروف على الطلبية: سند دفع من الصندوق، على حساب الزبون (زيادة عليه) أو على الورشة. */
+  addWorkExpense(orderId: string, e: { date: string; kind: string; description?: string; amount: number; billTo: 'customer' | 'workshop'; cashAccountId?: string }): WorkOrder {
+    const o = this.workOrder(orderId);
+    if (!e.kind.trim()) fail('اكتب نوع المصروف');
+    const entry = this.postVoucher({
+      kind: 'payment',
+      date: e.date,
+      amount: e.amount,
+      currency: o.currency,
+      ...(e.billTo === 'customer' ? { partyId: o.partyId } : { accountId: SYSTEM_ACCOUNTS.consumption }),
+      memo: `${e.kind}${e.description ? ` — ${e.description}` : ''} (طلبية إنتاج ${o.number}${e.billTo === 'customer' ? '، على الزبون' : ''})`,
+      ...(e.cashAccountId ? { cashAccountId: e.cashAccountId } : {}),
+      createdBy: this.actor,
+    });
+    const fresh = this.state.workOrders[orderId]!;
+    const order: WorkOrder = {
+      ...fresh,
+      expenses: [...fresh.expenses, { id: crypto.randomUUID(), date: e.date, kind: e.kind.trim(), ...(e.description ? { description: e.description } : {}), amount: e.amount, billTo: e.billTo, entryId: entry.id }],
+    };
+    this.emit({ type: 'workorder.saved', order });
+    return order;
+  }
+
+  /** إلغاء مصروف: سند عكسي ويضل ظاهر كملغى. */
+  removeWorkExpense(orderId: string, expenseId: string, date: string): WorkOrder {
+    const o = this.state.workOrders[orderId] ?? fail('الطلبية غير موجودة');
+    const e = o.expenses.find((x) => x.id === expenseId) ?? fail('المصروف غير موجود');
+    if (!this.state.voided[e.entryId]) this.voidEntry(e.entryId, date);
+    return this.state.workOrders[orderId]!;
+  }
+
+  /** إضافة أو خصم على حساب صاحب الشغل حسب الاتفاق. */
+  addWorkAdjustment(partyId: string, a: { date: string; amount: number; direction: 'add' | 'deduct'; note: string; orderId?: string; currency?: string }): JournalEntry {
+    const party = this.state.parties[partyId] ?? fail('الزبون غير موجود');
+    if (!(a.amount > 0) || !Number.isSafeInteger(a.amount)) fail('المبلغ يجب أن يكون أكبر من صفر');
+    if (!a.note.trim()) fail('اكتب سبب الإضافة أو الخصم');
+    const o = a.orderId ? this.state.workOrders[a.orderId] : undefined;
+    const fx = { currency: a.currency ?? o?.currency ?? this.base.code };
+    const add = a.direction === 'add';
+    return this.postEntry({
+      date: a.date,
+      memo: `${add ? 'إضافة' : 'خصم'} على حساب الشغل: ${a.note.trim()}${o ? ` (طلبية ${o.number})` : ''}`,
+      lines: [
+        { accountId: SYSTEM_ACCOUNTS.customers, ...(add ? { debit: a.amount } : { credit: a.amount }), ...fx, partyId: party.id },
+        { accountId: SYSTEM_ACCOUNTS.serviceRevenue, ...(add ? { credit: a.amount } : { debit: a.amount }), ...fx },
+      ],
+      source: { type: 'work-adjust', id: crypto.randomUUID() },
+      createdBy: this.actor,
+    });
+  }
+
+  private workInvoice(o: WorkOrder, pieces: Record<string, number>, number: number, opts: { date: string; paid?: number; cashAccountId?: string; rate?: number }): Invoice {
+    const qty = piecesTotal(pieces);
+    const sizes = o.sizes.filter((z) => (pieces[z] ?? 0) > 0).map((z) => `${z}: ${pieces[z]}`).join('، ');
+    return this.postInvoice({
+      kind: 'sale',
+      date: opts.date,
+      partyId: o.partyId,
+      currency: o.currency,
+      lines: [{ description: `أجرة خياطة ${o.model}${o.modelCode ? ` (${o.modelCode})` : ''} — ${sizes}`, qty, price: o.pieceRate }],
+      paid: opts.paid ?? 0,
+      ...(opts.cashAccountId ? { cashAccountId: opts.cashAccountId } : {}),
+      ...(opts.rate ? { rate: opts.rate } : {}),
+      notes: `طلبية إنتاج رقم ${o.number} — تسليم رقم ${number}`,
+      source: { type: 'workorder', id: o.id },
+    });
+  }
+
   /** تسليم دفعة قطع للزبون، ومعها فاتورة بالأجرة إذا بدك. */
   deliverWork(orderId: string, opts: WorkDeliverOptions): { order: WorkOrder; invoice?: Invoice } {
-    const o = this.state.workOrders[orderId] ?? fail('الطلبية غير موجودة');
-    if (o.status === 'cancelled') fail('الطلبية ملغاة');
-    const qty = piecesTotal(opts.pieces);
-    if (qty <= 0) fail('اكتب عدد القطع المسلّمة');
+    const o = this.workOrder(orderId);
+    if (piecesTotal(opts.pieces) <= 0) fail('اكتب عدد القطع المسلّمة');
     const number = (this.state.counters['workDelivery'] ?? 0) + 1;
-    let invoice: Invoice | undefined;
-    if (opts.invoice) {
-      const sizes = o.sizes.filter((z) => (opts.pieces[z] ?? 0) > 0).map((z) => `${z}: ${opts.pieces[z]}`).join('، ');
-      invoice = this.postInvoice({
-        kind: 'sale',
-        date: opts.date,
-        partyId: o.partyId,
-        currency: o.currency,
-        lines: [{ description: `أجرة خياطة ${o.model}${o.modelCode ? ` (${o.modelCode})` : ''} — ${sizes}`, qty, price: o.pieceRate }],
-        ...(opts.paid !== undefined ? { paid: opts.paid } : { paid: 0 }),
-        ...(opts.cashAccountId ? { cashAccountId: opts.cashAccountId } : {}),
-        ...(opts.rate ? { rate: opts.rate } : {}),
-        notes: `طلبية إنتاج رقم ${o.number} — تسليم رقم ${number}`,
-        source: { type: 'workorder', id: o.id },
-      });
-    }
+    const invoice = opts.invoice ? this.workInvoice(o, opts.pieces, number, opts) : undefined;
     const fresh = this.state.workOrders[orderId]!;
     const order: WorkOrder = {
       ...fresh,
@@ -1055,27 +1141,14 @@ export class Ledger {
     const o = this.state.workOrders[orderId] ?? fail('الطلبية غير موجودة');
     const d = o.deliveries.find((x) => x.id === deliveryId) ?? fail('الدفعة غير موجودة');
     if (d.invoiceId && !this.state.invoices.find((i) => i.id === d.invoiceId)?.voidEntryId) fail('الدفعة مفوترة مسبقاً');
-    const qty = piecesTotal(d.pieces);
-    const sizes = o.sizes.filter((z) => (d.pieces[z] ?? 0) > 0).map((z) => `${z}: ${d.pieces[z]}`).join('، ');
-    const invoice = this.postInvoice({
-      kind: 'sale',
-      date: opts.date,
-      partyId: o.partyId,
-      currency: o.currency,
-      lines: [{ description: `أجرة خياطة ${o.model}${o.modelCode ? ` (${o.modelCode})` : ''} — ${sizes}`, qty, price: o.pieceRate }],
-      paid: opts.paid ?? 0,
-      ...(opts.cashAccountId ? { cashAccountId: opts.cashAccountId } : {}),
-      ...(opts.rate ? { rate: opts.rate } : {}),
-      notes: `طلبية إنتاج رقم ${o.number} — تسليم رقم ${d.number}`,
-      source: { type: 'workorder', id: o.id },
-    });
+    const invoice = this.workInvoice(o, d.pieces, d.number, opts);
     const fresh = this.state.workOrders[orderId]!;
     this.emit({ type: 'workorder.saved', order: { ...fresh, deliveries: fresh.deliveries.map((x) => (x.id === deliveryId ? { ...x, invoiceId: invoice.id } : x)) } });
     return invoice;
   }
 }
 
-export type WorkOrderDraft = Omit<WorkOrder, 'number' | 'cuts' | 'deliveries'> & { number?: number };
+export type WorkOrderDraft = Omit<WorkOrder, 'number' | 'cuts' | 'stages' | 'expenses' | 'deliveries'> & { number?: number };
 
 export interface WorkDeliverOptions {
   date: string;

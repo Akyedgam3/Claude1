@@ -2407,25 +2407,41 @@ strong.good {
   margin-bottom: 12px;
 }
 .roll-chip {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 2px 8px;
-  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
+}
+.roll-chip > label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   cursor: pointer;
+  font-size: 15px;
 }
 .roll-chip small {
-  grid-column: 2;
   color: var(--muted);
-}
-.roll-chip .num-input {
-  grid-column: 1 / -1;
 }
 .roll-chip.on {
   border-color: var(--primary);
   background: var(--primary-soft);
+}
+.roll-inputs {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.roll-inputs label {
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+  color: var(--muted);
+}
+.roll-inputs .num-input {
+  width: 70px;
 }
 .paste-box {
   margin: 10px 0;
@@ -2641,4 +2657,220 @@ strong.good {
 }
 :root[data-theme='dark'] .table-card.busy.k-cooking {
   background: rgba(91, 141, 239, 0.12);
+}
+
+/* ورقة الطلبية (شاشة وطباعة) */
+.order-sheet {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-bottom: 16px;
+}
+.order-sheet .sheet-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  border-bottom: 2px solid var(--primary);
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+}
+.order-sheet h2 {
+  margin: 2px 0;
+  font-size: 22px;
+}
+.order-sheet h2 small {
+  font-size: 14px;
+  color: var(--muted);
+}
+.sheet-kicker {
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 13px;
+}
+.sheet-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 18px;
+  border-radius: 12px;
+  background: var(--primary);
+  color: #fff;
+  min-width: 130px;
+}
+.sheet-marker span,
+.sheet-marker small {
+  font-size: 12px;
+  opacity: 0.85;
+}
+.sheet-marker strong {
+  font-size: 22px;
+}
+.sheet-tables {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.sheet-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 15px;
+}
+.sheet-table th {
+  background: var(--primary-soft);
+  color: var(--primary);
+  padding: 7px 8px;
+  font-weight: 800;
+  text-align: center;
+}
+.sheet-table td {
+  padding: 6px 8px;
+  text-align: center;
+  border-top: 1px solid var(--border);
+}
+.sheet-table td.strong {
+  font-weight: 800;
+}
+.sheet-table tfoot td {
+  background: var(--primary);
+  color: #fff;
+  font-weight: 800;
+}
+.sheet-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0;
+}
+.sheet-stats > div {
+  flex: 1;
+  min-width: 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px;
+  border-radius: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+.sheet-stats span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.sheet-stats strong {
+  font-size: 20px;
+}
+.sheet-stats .bad strong {
+  color: var(--danger);
+}
+.sheet-money {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 520px;
+  margin-inline-start: auto;
+}
+.sheet-money > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--border);
+}
+.sheet-money .grand {
+  border: none;
+  margin-top: 4px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 800;
+  font-size: 16px;
+}
+.sheet-money .grand.bad {
+  background: var(--danger);
+}
+.plan-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.plan-strip > div {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: var(--primary-soft);
+  min-width: 130px;
+}
+.plan-strip span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.plan-strip strong {
+  font-size: 18px;
+}
+.plan-strip .bad {
+  background: #fdecea;
+}
+.plan-strip .bad strong {
+  color: var(--danger);
+}
+.plan-strip .good strong {
+  color: var(--good);
+}
+.action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.size-matrix tr.bad-row td {
+  color: var(--danger);
+}
+tr.strike td {
+  text-decoration: line-through;
+}
+.inline-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.account-view h4 {
+  margin: 16px 0 6px;
+}
+.account-view .sheet-money {
+  max-width: none;
+}
+@media print {
+  .order-sheet {
+    border: none;
+    padding: 0;
+  }
+  .sheet-table tfoot td,
+  .sheet-marker,
+  .sheet-money .grand {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+:root[data-theme='dark'] .plan-strip .bad {
+  background: rgba(192, 57, 43, 0.15);
+}
+.size-matrix td.num,
+.size-matrix th.num {
+  text-align: center;
+}
+@media print {
+  .sheet-stats > div {
+    min-width: 70px;
+  }
 }

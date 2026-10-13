@@ -143,31 +143,75 @@ function tailor(l: Ledger): void {
   });
   l.saveTailorOrder({ id: 'to-2', partyId: 'c-reem', date: day(-9), dueDate: day(-1), status: 'sewing', currency: 'SYP', garments: [{ description: 'فستان سهرة', qty: 1, price: P(900) }], fabrics: [], measurements: {}, ownFabric: '4 متر كريب زيتي', tailor: 'أم فادي' });
 
-  // ورشة الإنتاج: أتواب من المعمل، طلبية قمصان، قصّة وتسليم
+  // ورشة الإنتاج: متل دفتر الخياط — رسمة 5 يارد، كل مدة قطعة من كل نمرة
   const rolls = l.receiveRolls({
     partyId: 'c-factory',
     date: day(-10),
+    unit: 'yd',
     rolls: [
-      { code: 'N-501', fabric: 'قطن بوبلين', color: 'أبيض', lengthCm: 5200 },
-      { code: 'N-502', fabric: 'قطن بوبلين', color: 'أبيض', lengthCm: 4950 },
-      { code: 'N-503', fabric: 'قطن بوبلين', color: 'أبيض', lengthCm: 5075 },
-      { code: 'N-504', fabric: 'قطن بوبلين', color: 'سماوي', lengthCm: 5000 },
-      { code: 'N-505', fabric: 'قطن بوبلين', color: 'سماوي', lengthCm: 4880 },
-      { code: 'N-506', fabric: 'قطن بوبلين', color: 'كحلي', lengthCm: 5150 },
+      { code: '120', fabric: 'جوخ صوف', color: 'كحلي', length: 11000 },
+      { code: '140', fabric: 'جوخ صوف', color: 'كحلي', length: 12000 },
+      { code: '141', fabric: 'جوخ صوف', color: 'كحلي', length: 9500 },
+      { code: '142', fabric: 'جوخ صوف', color: 'أسود', length: 10500 },
     ],
   });
   l.receiveRolls({
     partyId: 'c-trader',
     date: day(-3),
+    unit: 'yd',
     rolls: [
-      { code: '7781', fabric: 'جينز 12 أونصة', color: 'أزرق غامق', lengthCm: 6000 },
-      { code: '7782', fabric: 'جينز 12 أونصة', color: 'أزرق غامق', lengthCm: 5850 },
+      { code: '7781', fabric: 'جينز 12 أونصة', color: 'أزرق غامق', length: 6500 },
+      { code: '7782', fabric: 'جينز 12 أونصة', color: 'أزرق غامق', length: 6400 },
     ],
   });
-  l.saveWorkOrder({ id: 'wo-1', partyId: 'c-factory', date: day(-9), dueDate: day(5), model: 'قميص رجالي كم طويل', modelCode: 'SH-220', sizes: ['M', 'L', 'XL', 'XXL'], planned: { M: 60, L: 80, XL: 60, XXL: 30 }, pieceRate: P(35), currency: 'SYP', status: 'open' });
-  l.addCut('wo-1', { date: day(-7), rolls: [{ rollId: rolls[0]!.id, cm: 5200 }, { rollId: rolls[1]!.id, cm: 4950 }, { rollId: rolls[2]!.id, cm: 2100 }], pieces: { M: 30, L: 40, XL: 30, XXL: 10 } });
-  l.deliverWork('wo-1', { date: day(-2), pieces: { M: 20, L: 30, XL: 20 }, invoice: true, paid: P(1000) });
-  l.saveWorkOrder({ id: 'wo-2', partyId: 'c-trader', date: day(-2), dueDate: day(12), model: 'بنطال جينز رجالي', modelCode: 'JN-05', sizes: ['30', '32', '34', '36', '38'], planned: { '30': 20, '32': 40, '34': 40, '36': 30, '38': 20 }, pieceRate: P(45), currency: 'SYP', status: 'open' });
+  l.saveWorkOrder({
+    id: 'wo-1',
+    partyId: 'c-factory',
+    date: day(-9),
+    dueDate: day(5),
+    model: 'جلابية رجالي',
+    modelCode: 'J-38',
+    sizes: ['38', '40', '42'],
+    planned: { '38': 46, '40': 46, '42': 46 },
+    unit: 'yd',
+    markerLength: 500,
+    ratio: { '38': 1, '40': 1, '42': 1 },
+    pieceRate: P(40),
+    currency: 'SYP',
+    status: 'open',
+  });
+  l.addCut('wo-1', {
+    date: day(-7),
+    rolls: [
+      { rollId: rolls[0]!.id, lays: 22, used: 11000 },
+      { rollId: rolls[1]!.id, lays: 24, used: 12000 },
+    ],
+    pieces: { '38': 46, '40': 46, '42': 46 },
+  });
+  l.addStage('wo-1', { date: day(-6), stage: 'sewing', pieces: { '38': 46, '40': 46, '42': 46 } });
+  l.addStage('wo-1', { date: day(-3), stage: 'done', pieces: { '38': 40, '40': 42, '42': 38 } });
+  l.addStage('wo-1', { date: day(-3), stage: 'damaged', pieces: { '42': 2 }, note: 'غلط بالقص' });
+  l.addWorkExpense('wo-1', { date: day(-6), kind: 'خيط', amount: P(150), billTo: 'customer' });
+  l.addWorkExpense('wo-1', { date: day(-5), kind: 'استيك', description: '3 لفات', amount: P(90), billTo: 'customer' });
+  l.addWorkExpense('wo-1', { date: day(-5), kind: 'نقل', amount: P(40), billTo: 'workshop' });
+  l.deliverWork('wo-1', { date: day(-2), pieces: { '38': 40, '40': 40, '42': 30 }, invoice: true });
+  l.postVoucher({ kind: 'receipt', date: day(-1), amount: P(3000), partyId: 'c-factory', memo: 'دفعة على حساب الشغل' });
+  l.saveWorkOrder({
+    id: 'wo-2',
+    partyId: 'c-trader',
+    date: day(-2),
+    dueDate: day(12),
+    model: 'بنطال جينز رجالي',
+    modelCode: 'JN-05',
+    sizes: ['30', '32', '34', '36'],
+    planned: { '30': 30, '32': 30, '34': 30, '36': 30 },
+    unit: 'yd',
+    markerLength: 600,
+    ratio: { '30': 1, '32': 1, '34': 1, '36': 1 },
+    pieceRate: P(45),
+    currency: 'SYP',
+    status: 'open',
+  });
 }
 
 function general(l: Ledger): void {
