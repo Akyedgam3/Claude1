@@ -8,6 +8,7 @@ import logo from './assets/logo.png';
 import { Icon } from './components/icons';
 import { QuickSearch } from './components/QuickSearch';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { UpdateNotice } from './components/UpdateNotice';
 import { Accounts } from './screens/Accounts';
 import { Appointments } from './screens/Appointments';
 import { Dashboard } from './screens/Dashboard';
@@ -247,6 +248,7 @@ export function App() {
             onLicense={loadInfo}
           />
         )}
+        <UpdateNotice update={lic.update} current={info.version} notify={notify} floating />
         {toastEl}
       </>
     );
@@ -306,6 +308,7 @@ export function App() {
               {lic.daysLeft !== null && lic.daysLeft !== undefined && <small> · متبقٍ {lic.daysLeft} يوم</small>}
             </div>
           )}
+          <UpdateNotice update={lic.update} current={info.version} notify={notify} />
           <button className="theme-toggle" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
             <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={16} /> {theme === 'dark' ? 'الوضع الفاتح' : 'الوضع الداكن'}
           </button>

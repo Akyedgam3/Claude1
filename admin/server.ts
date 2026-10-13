@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { PLANS, type FeedStatus, type Plan } from '../src/license/license';
 import { LICENSE_FEED_URLS } from '../src/license/config';
 import { IS_DEV_KEY } from '../src/license/public-key';
-import { Registry } from './registry';
+import { agentBalance, AGENT_DEFAULT_DEVICES, PACKAGE_PRICE, PACKAGE_SIZE, Registry } from './registry';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const keyFile = fs.existsSync(path.join(root, 'keys/license-private.pem')) ? 'keys/license-private.pem' : 'dev-keys/license-private.dev.pem';
@@ -54,6 +54,9 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname === '/api/state') {
       return send(200, {
         customers: registry.customers,
+        agents: registry.agents.map((a) => ({ ...a, balance: agentBalance(a) })),
+        update: registry.appUpdate ?? null,
+        pkg: { size: PACKAGE_SIZE, price: PACKAGE_PRICE, devices: AGENT_DEFAULT_DEVICES },
         plans: PLANS,
         devKey: IS_DEV_KEY || keyFile.startsWith('dev-keys'),
         feedUrls: LICENSE_FEED_URLS,
@@ -72,8 +75,61 @@ const server = http.createServer(async (req, res) => {
         ...(str(body['notes']) ? { notes: str(body['notes'])! } : {}),
         ...(num(body['devices']) ? { devices: num(body['devices'])! } : {}),
         ...(num(body['offlineDays']) ? { offlineDays: num(body['offlineDays'])! } : {}),
+        ...(str(body['agentId']) ? { agentId: str(body['agentId'])! } : {}),
       });
       return send(200, c);
+    }
+    // الوكلاء
+    if (req.method === 'POST' && url.pathname === '/api/agents') {
+      return send(
+        200,
+        registry.addAgent({
+          name: str(body['name']) ?? '',
+          ...(str(body['phone']) ? { phone: str(body['phone'])! } : {}),
+          ...(str(body['city']) ? { city: str(body['city'])! } : {}),
+          ...(str(body['notes']) ? { notes: str(body['notes'])! } : {}),
+          ...(num(body['packages']) ? { packages: num(body['packages'])! } : {}),
+        }),
+      );
+    }
+    const ma = /^\/api\/agents\/([^/]+)\/(package|update)$/.exec(url.pathname);
+    if (req.method === 'POST' && ma) {
+      const [, id, action] = ma;
+      if (action === 'package') {
+        return send(
+          200,
+          registry.addPackage(id!, {
+            ...(num(body['count']) !== undefined ? { count: num(body['count'])! } : {}),
+            ...(num(body['price']) !== undefined ? { price: num(body['price'])! } : {}),
+            ...(str(body['note']) ? { note: str(body['note'])! } : {}),
+          }),
+        );
+      }
+      return send(
+        200,
+        registry.updateAgent(id!, {
+          ...(str(body['name']) !== undefined ? { name: str(body['name'])! } : {}),
+          ...(str(body['phone']) !== undefined ? { phone: str(body['phone'])! } : {}),
+          ...(str(body['city']) !== undefined ? { city: str(body['city'])! } : {}),
+          ...(str(body['notes']) !== undefined ? { notes: str(body['notes'])! } : {}),
+          ...(typeof body['active'] === 'boolean' ? { active: body['active'] } : {}),
+        }),
+      );
+    }
+    // إعلان نسخة جديدة
+    if (req.method === 'POST' && url.pathname === '/api/update') {
+      if (body['clear']) return send(200, { update: registry.setUpdate(null) ?? null });
+      return send(
+        200,
+        {
+          update: registry.setUpdate({
+            version: str(body['version']) ?? '',
+            url: str(body['url']) ?? '',
+            notes: str(body['notes']) ?? '',
+            ...(str(body['minVersion']) ? { minVersion: str(body['minVersion'])! } : {}),
+          }),
+        },
+      );
     }
     if (req.method === 'POST' && m) {
       const [, id, action] = m;

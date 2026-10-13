@@ -41,10 +41,40 @@ export interface FeedEntry {
   message?: string; // رسالة تظهر للعميل (مثلاً: يرجى تسديد الاشتراك)
 }
 
+/** إعلان نسخة جديدة من البرنامج، ينشر مع قائمة الحالة الموقّعة فلا يمكن تزويره. */
+export interface UpdateInfo {
+  version: string; // مثل 0.3.0
+  url: string; // رابط تحميل ملف التنصيب
+  notes: string[]; // شو الجديد
+  date: string; // ISO
+  /** النسخ الأقدم من هذه لازم تتحدث قبل ما تكمل شغل. */
+  minVersion?: string;
+}
+
 export interface LicenseFeed {
   v: 1;
   issuedAt: string; // وقت النشر — يُستخدم كوقت موثوق لكشف تلاعب الساعة
   entries: Record<string, FeedEntry>;
+  update?: UpdateInfo;
+}
+
+/** مقارنة أرقام النسخ (1.2.10 > 1.2.9). */
+export function compareVersions(a: string, b: string): number {
+  const pa = a.split(/[.-]/).map((x) => parseInt(x, 10) || 0);
+  const pb = b.split(/[.-]/).map((x) => parseInt(x, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (d) return d < 0 ? -1 : 1;
+  }
+  return 0;
+}
+
+/** هل في تحديث لهالنسخة؟ وهل هو إجباري؟ */
+export function updateFor(feed: LicenseFeed | null | undefined, current: string): (UpdateInfo & { mandatory: boolean }) | null {
+  const u = feed?.update;
+  if (!u || typeof u.version !== 'string' || !/^https:\/\//.test(u.url ?? '')) return null;
+  if (compareVersions(u.version, current) <= 0) return null;
+  return { ...u, notes: Array.isArray(u.notes) ? u.notes.map(String) : [], mandatory: !!u.minVersion && compareVersions(current, u.minVersion) < 0 };
 }
 
 const KEY_PREFIX = 'MZN2-';

@@ -51,6 +51,7 @@ export const api = {
   info: () => inv<AppInfo>('app:info'),
   activate: (key: string) => inv<LicenseStatus>('license:activate', key),
   refreshLicense: () => inv<LicenseStatus>('license:refresh'),
+  openUpdate: () => inv<boolean>('app:openUpdate'),
   createCompany: (o: Record<string, string>) => inv<{ dir: string; recoveryCode: string }>('company:create', o),
   peek: (dir?: string) => inv<CompanyPeek | null>('company:peek', dir),
   login: (dir: string, creds: { username?: string; password?: string; recoveryCode?: string }) => inv<SessionInfo>('company:login', dir, creds),

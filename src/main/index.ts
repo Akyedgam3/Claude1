@@ -102,7 +102,7 @@ async function refreshLicenseNow(): Promise<void> {
   await license.refresh();
   const before = lastLicense;
   const now = licenseStatus();
-  if (!before || before.locked !== now.locked || before.message !== now.message || before.daysLeft !== now.daysLeft) {
+  if (!before || before.locked !== now.locked || before.message !== now.message || before.daysLeft !== now.daysLeft || before.update?.version !== now.update?.version) {
     send('license:changed', now);
   }
   // إيقاف فوري عند قفل الترخيص (إلا الأجهزة الفرعية التي يتحكم بها الجهاز الرئيسي)
@@ -248,6 +248,14 @@ function registerIpc(): void {
   handle('license:refresh', async () => {
     await refreshLicense();
     return lastLicense;
+  }, { allowLocked: true });
+
+  // تحميل التحديث: الرابط فقط من القائمة الموقّعة، الواجهة ما بتقدر تفتح رابط من عندها
+  handle('app:openUpdate', async () => {
+    const u = (lastLicense ?? licenseStatus()).update;
+    if (!u) throw new Error('لا يوجد تحديث');
+    await shell.openExternal(u.url);
+    return true;
   }, { allowLocked: true });
 
   handle('app:activities', () => Object.values(ACTIVITIES).map((a) => ({ id: a.id, name: a.name, description: a.description, icon: a.icon })), { allowLocked: true });
@@ -455,7 +463,7 @@ if (!app.requestSingleInstanceLock()) {
     electronSession.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
     // رابط بديل للتجربة فقط في نسخة التطوير
     const feedUrls = isDev && process.env['MIZAN_FEED_URL'] ? [process.env['MIZAN_FEED_URL']] : LICENSE_FEED_URLS;
-    license = new LicenseManager({ dataDir: app.getPath('userData'), publicKey: LICENSE_PUBLIC_KEY, feedUrls });
+    license = new LicenseManager({ dataDir: app.getPath('userData'), publicKey: LICENSE_PUBLIC_KEY, feedUrls, appVersion: app.getVersion() });
     licenseStatus();
     registerIpc();
     createWindow();

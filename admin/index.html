@@ -29,14 +29,74 @@
   .toast { position: fixed; bottom: 20px; left: 20px; background: #1d2433; color: #fff; padding: 12px 16px; border-radius: 8px; display: none; max-width: 460px; }
   .toast.err { background: var(--bad); }
   .muted { color: var(--muted); font-size: 12px; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+  .tabs button { padding: 9px 18px; font-weight: 600; }
+  .tabs button.on { background: var(--p); border-color: var(--p); color: #fff; }
+  .tab { display: none; } .tab.on { display: block; }
+  .agents { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; }
+  .agent { background: #fff; border: 1px solid var(--b); border-radius: 10px; padding: 14px; cursor: pointer; }
+  .agent:hover, .agent.sel { border-color: var(--p); box-shadow: 0 0 0 2px #0f6e5c22; }
+  .agent.off { opacity: .55; }
+  .agent .head { display: flex; justify-content: space-between; align-items: start; gap: 8px; }
+  .agent .bal { font-size: 34px; font-weight: 800; color: var(--p); direction: ltr; text-align: right; margin-top: 6px; }
+  .agent .bal small { font-size: 16px; color: var(--muted); font-weight: 600; }
+  .agent .bal.low { color: var(--warn); } .agent .bal.zero { color: var(--bad); }
+  .meter { height: 8px; background: #eef0f3; border-radius: 4px; overflow: hidden; margin-top: 6px; }
+  .meter i { display: block; height: 100%; background: var(--p); }
+  .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  .stat { background: #fff; border: 1px solid var(--b); border-radius: 8px; padding: 10px 16px; min-width: 150px; }
+  .stat b { display: block; font-size: 22px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .wa { background: #25d366; border-color: #25d366; color: #fff; }
+  .newkey { background: #e3f6ea; border: 1px solid #b7e4c7; padding: 12px; border-radius: 8px; margin-top: 12px; display: none; }
 </style>
 </head>
 <body>
 <header><h1>ميزان — إدارة التراخيص والاشتراكات</h1><button class="primary" onclick="publish()">نشر قائمة الحالة</button></header>
 <main>
   <div id="warnings"></div>
+  <div class="tabs">
+    <button data-tab="agents" class="on" onclick="tab('agents')">الوكلاء</button>
+    <button data-tab="customers" onclick="tab('customers')">كل الزبائن</button>
+    <button data-tab="updates" onclick="tab('updates')">تحديثات البرنامج</button>
+  </div>
+
+  <div class="tab on" id="tab-agents">
+    <div class="stats" id="agentStats"></div>
+    <section class="card">
+      <h2>وكيل جديد</h2>
+      <form class="grid" onsubmit="addAgent(event)">
+        <label><span>اسم الوكيل</span><input name="name" required /></label>
+        <label><span>الموبايل (واتساب)</span><input name="phone" class="mono" placeholder="+963..." /></label>
+        <label><span>المدينة</span><input name="city" /></label>
+        <label><span>عدد الباقات المدفوعة الآن</span><input name="packages" type="number" min="0" value="1" /></label>
+        <label style="grid-column: span 3"><span>ملاحظات</span><input name="notes" /></label>
+        <button class="primary">إضافة الوكيل</button>
+      </form>
+    </section>
+    <input id="aq" placeholder="بحث عن وكيل..." oninput="renderAgents()" style="margin-bottom:10px" />
+    <div class="agents" id="agentCards"></div>
+    <section class="card" id="agentPanel" style="margin-top:16px;display:none"></section>
+  </div>
+
+  <div class="tab" id="tab-updates">
+    <section class="card">
+      <h2>إعلان نسخة جديدة</h2>
+      <p class="muted">بعد ما ترفع ملف التنصيب الجديد، حط رقم النسخة ورابط التحميل هون، واكبس "نشر قائمة الحالة". كل البرامج بيطلعلها شاشة "في نسخة جديدة" خلال ساعات.</p>
+      <div id="curUpdate"></div>
+      <form class="grid" onsubmit="setUpdate(event)">
+        <label><span>رقم النسخة الجديدة</span><input name="version" class="mono" placeholder="0.3.0" required /></label>
+        <label style="grid-column: span 2"><span>رابط التحميل (https)</span><input name="url" class="mono" placeholder="https://github.com/.../Mizan-Setup-0.3.0.exe" required /></label>
+        <label><span>تحديث إجباري للنسخ الأقدم من (اختياري)</span><input name="minVersion" class="mono" placeholder="مثلاً 0.2.0" /></label>
+        <label style="grid-column: span 3"><span>شو الجديد؟ (كل سطر نقطة)</span><textarea name="notes" rows="5"></textarea></label>
+        <button class="primary">حفظ الإعلان</button>
+      </form>
+    </section>
+  </div>
+
+  <div class="tab" id="tab-customers">
   <section class="card">
-    <h2>عميل جديد / ترخيص جديد</h2>
+    <h2>عميل جديد / ترخيص جديد (بيع مباشر بدون وكيل)</h2>
     <form id="add" class="grid" onsubmit="add(event)">
       <label><span>اسم العميل / المحل</span><input name="name" required /></label>
       <label><span>الهاتف</span><input name="phone" /></label>
@@ -52,10 +112,11 @@
     <h2>العملاء <span class="muted" id="count"></span></h2>
     <input id="q" placeholder="بحث بالاسم أو الهاتف أو البصمة..." oninput="render()" style="margin-bottom:10px" />
     <table>
-      <thead><tr><th>العميل</th><th>الاشتراك</th><th>ينتهي</th><th>الحالة</th><th>المفتاح</th><th>إجراءات</th></tr></thead>
+      <thead><tr><th>العميل</th><th>الوكيل</th><th>الاشتراك</th><th>ينتهي</th><th>الحالة</th><th>المفتاح</th><th>إجراءات</th></tr></thead>
       <tbody id="rows"></tbody>
     </table>
   </section>
+  </div>
   <section class="card">
     <h2>كيف يعمل الإيقاف عن بعد؟</h2>
     <ol>
@@ -70,7 +131,8 @@
 <div class="toast" id="toast"></div>
 <script>
 const TOKEN = '__TOKEN__';
-let state = { customers: [], plans: {} };
+let state = { customers: [], agents: [], plans: {}, pkg: { size: 10, price: 59.99, devices: 2 } };
+let selAgent = null;
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function toast(msg, err) { const t = $('#toast'); t.textContent = msg; t.className = 'toast' + (err ? ' err' : ''); t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => (t.style.display = 'none'), err ? 6000 : 3000); }
@@ -90,6 +152,15 @@ async function load() {
   w.push('آخر نشر: ' + (state.lastPublished ? new Date(state.lastPublished).toLocaleString('ar-SY') : 'لم يتم النشر بعد'));
   $('#warnings').innerHTML = w.map((x) => `<div class="banner">${x}</div>`).join('');
   render();
+  if (lastIssued) {
+    const c = state.customers.find((x) => x.id === lastIssued);
+    const box = $('#newKey');
+    if (c && box) {
+      box.style.display = 'block';
+      box.innerHTML = `<b>تم تفعيل ${esc(c.name)}</b> — المفتاح منسوخ.<div class="key" style="max-width:none;margin:8px 0">${esc(c.key)}</div><button class="wa" onclick="sendWa('${c.agentId}','${c.id}')">ابعتو للوكيل واتساب</button>`;
+    }
+    lastIssued = null;
+  }
 }
 function render() {
   const q = $('#q').value.trim().toLowerCase();
@@ -102,6 +173,7 @@ function render() {
     const planOpts = Object.entries(state.plans).map(([k, v]) => `<option value="${k}">${esc(v.nameAr)}</option>`).join('');
     return `<tr>
       <td><b>${esc(c.name)}</b><div class="muted">${esc(c.phone)}</div><div class="mono muted">${esc(c.machineId)}</div><div class="muted">${esc(c.notes)}</div></td>
+      <td>${c.agentId ? esc(agentName(c.agentId)) : '<span class="muted">مباشر</span>'}</td>
       <td>${esc(state.plans[c.plan]?.nameAr)}<div class="muted">${c.devices} جهاز · ${c.offlineDays} أيام بدون إنترنت</div></td>
       <td style="${expired ? 'color:var(--bad)' : ''}">${exp}</td>
       <td><span class="tag ${c.status}">${statusName[c.status]}</span>${c.message ? `<div class="muted">${esc(c.message)}</div>` : ''}</td>
@@ -112,8 +184,156 @@ function render() {
         ${c.status !== 'revoked' ? `<button class="danger" onclick="setStatus('${c.id}','revoked')">إلغاء نهائي</button>` : ''}
         <button onclick="changeMachine('${c.id}')">تغيير الجهاز</button>
       </td></tr>`;
-  }).join('') || '<tr><td colspan="6" class="muted">لا يوجد عملاء</td></tr>';
+  }).join('') || '<tr><td colspan="7" class="muted">لا يوجد عملاء</td></tr>';
+  renderAgents();
+  renderUpdate();
 }
+function agentName(id) { return state.agents.find((a) => a.id === id)?.name ?? '—'; }
+function tab(name) {
+  document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === name));
+  document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('on', t.id === 'tab-' + name));
+}
+const fmtDate = (d) => (d ? d.slice(0, 10) : 'دائم');
+const money = (n) => '$' + Number(n).toFixed(2);
+function renderAgents() {
+  const q = $('#aq').value.trim().toLowerCase();
+  const all = state.agents;
+  const sold = all.reduce((s, a) => s + a.balance.used, 0);
+  const paid = all.reduce((s, a) => s + a.packages.reduce((x, p) => x + p.price, 0), 0);
+  $('#agentStats').innerHTML = [
+    ['الوكلاء', all.filter((a) => a.active).length],
+    ['رخص مباعة للوكلاء', all.reduce((s, a) => s + a.balance.total, 0)],
+    ['رخص مفعّلة لزبائن', sold],
+    ['رصيد عند الوكلاء', all.reduce((s, a) => s + a.balance.left, 0)],
+    ['مدفوعات الوكلاء', money(paid)],
+  ].map(([k, v]) => `<div class="stat"><span class="muted">${k}</span><b>${v}</b></div>`).join('');
+  const list = all.filter((a) => !q || [a.name, a.phone, a.city].some((f) => String(f ?? '').toLowerCase().includes(q)));
+  $('#agentCards').innerHTML = list.map((a) => {
+    const b = a.balance;
+    const cls = b.left <= 0 ? 'zero' : b.left <= 2 ? 'low' : '';
+    const pct = b.total ? Math.round((b.left / b.total) * 100) : 0;
+    return `<div class="agent ${a.active ? '' : 'off'} ${selAgent === a.id ? 'sel' : ''}" onclick="openAgent('${a.id}')">
+      <div class="head"><div><b>${esc(a.name)}</b><div class="muted">${esc(a.city)} ${a.phone ? '· <span class="mono">' + esc(a.phone) + '</span>' : ''}</div></div>${a.active ? '' : '<span class="tag suspended">موقوف</span>'}</div>
+      <div class="bal ${cls}">${b.left} <small>/ ${b.total} license</small></div>
+      <div class="meter"><i style="width:${pct}%"></i></div>
+      <div class="muted" style="margin-top:6px">مفعّل لزبائن: ${b.used}</div>
+    </div>`;
+  }).join('') || '<div class="muted">لا يوجد وكلاء بعد</div>';
+  renderAgentPanel();
+}
+function openAgent(id) { selAgent = selAgent === id ? null : id; renderAgents(); if (selAgent) $('#agentPanel').scrollIntoView({ behavior: 'smooth' }); }
+function renderAgentPanel() {
+  const panel = $('#agentPanel');
+  const a = state.agents.find((x) => x.id === selAgent);
+  if (!a) { panel.style.display = 'none'; return; }
+  panel.style.display = 'block';
+  const b = a.balance;
+  const customers = state.customers.filter((c) => c.agentId === a.id);
+  const now = Date.now();
+  panel.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <h2 style="margin:0">${esc(a.name)} — رصيده <span class="mono">${b.left} / ${b.total}</span></h2>
+      <div class="actions">
+        <button class="primary" onclick="addPackage('${a.id}')">+ باقة ${state.pkg.size} رخص (${money(state.pkg.price)})</button>
+        <button onclick="customPackage('${a.id}')">باقة بعدد/سعر مختلف</button>
+        <button onclick="editAgent('${a.id}')">تعديل</button>
+        <button class="${a.active ? 'danger' : ''}" onclick="toggleAgent('${a.id}', ${!a.active})">${a.active ? 'إيقاف الوكيل' : 'تفعيل الوكيل'}</button>
+      </div>
+    </div>
+    <div class="row2" style="margin-top:14px">
+      <div>
+        <h2>تفعيل زبون من رصيد الوكيل</h2>
+        <p class="muted">الوكيل بيبعتلك بصمة جهاز الزبون (من شاشة التفعيل). الاشتراك سنوي، وكل تفعيل أو تجديد بينخصم رخصة.</p>
+        <form class="grid" style="grid-template-columns:1fr 1fr" onsubmit="activateForAgent(event, '${a.id}')">
+          <label><span>اسم الزبون / المحل</span><input name="name" required /></label>
+          <label><span>موبايل الزبون</span><input name="phone" /></label>
+          <label style="grid-column: span 2"><span>بصمة الجهاز</span><input name="machineId" class="mono" placeholder="XXXX-XXXX-XXXX-XXXX" required /></label>
+          <label><span>عدد الأجهزة</span><input name="devices" type="number" min="1" max="50" value="${state.pkg.devices}" /></label>
+          <button class="primary" ${a.active && b.left > 0 ? '' : 'disabled'}>تفعيل وإصدار المفتاح</button>
+        </form>
+        ${b.left <= 0 ? '<div class="banner" style="margin-top:10px">رصيد الوكيل خلص. ضيفله باقة قبل التفعيل.</div>' : ''}
+        <div class="newkey" id="newKey"></div>
+      </div>
+      <div>
+        <h2>الباقات</h2>
+        <table><thead><tr><th>التاريخ</th><th>الرخص</th><th>المبلغ</th><th>ملاحظة</th></tr></thead><tbody>
+        ${a.packages.slice().reverse().map((p) => `<tr><td>${fmtDate(p.at)}</td><td>${p.count}</td><td>${money(p.price)}</td><td class="muted">${esc(p.note)}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">لا يوجد</td></tr>'}
+        </tbody></table>
+        ${a.notes ? `<p class="muted">${esc(a.notes)}</p>` : ''}
+      </div>
+    </div>
+    <h2 style="margin-top:16px">زبائن الوكيل (${customers.length})</h2>
+    <table><thead><tr><th>الزبون</th><th>البصمة</th><th>الأجهزة</th><th>ينتهي</th><th>الحالة</th><th>إجراءات</th></tr></thead><tbody>
+    ${customers.map((c) => {
+      const left = c.expiresAt ? Math.ceil((new Date(c.expiresAt).getTime() - now) / 86400000) : null;
+      const soon = left !== null && left <= 30;
+      return `<tr><td><b>${esc(c.name)}</b><div class="muted">${esc(c.phone)}</div></td><td class="mono">${esc(c.machineId)}</td><td>${c.devices}</td>
+        <td style="${soon ? 'color:var(--bad)' : ''}">${fmtDate(c.expiresAt)}${left !== null ? `<div class="muted">${left > 0 ? 'باقي ' + left + ' يوم' : 'منتهي'}</div>` : ''}</td>
+        <td><span class="tag ${c.status}">${{ active: 'فعّال', suspended: 'موقوف', revoked: 'ملغى' }[c.status]}</span></td>
+        <td class="actions"><button onclick="copyKey('${c.id}')">نسخ المفتاح</button><button class="wa" onclick="sendWa('${a.id}','${c.id}')">واتساب للوكيل</button><button onclick="renew('${c.id}')">تجديد سنة</button></td></tr>`;
+    }).join('') || '<tr><td colspan="6" class="muted">لا يوجد زبائن بعد</td></tr>'}
+    </tbody></table>`;
+}
+function addAgent(e) {
+  e.preventDefault();
+  const body = Object.fromEntries(new FormData(e.target));
+  run(async () => { const a = await api('/api/agents', body); selAgent = a.id; e.target.reset(); }, 'تمت إضافة الوكيل');
+}
+function addPackage(id) { run(() => api(`/api/agents/${id}/package`, {}), 'انضافت الباقة لرصيد الوكيل'); }
+function customPackage(id) {
+  const count = prompt('عدد الرخص:', String(state.pkg.size)); if (count === null) return;
+  const price = prompt('المبلغ المدفوع ($):', String(state.pkg.price)); if (price === null) return;
+  const note = prompt('ملاحظة (اختياري):', '') ?? '';
+  run(() => api(`/api/agents/${id}/package`, { count, price, note }), 'انضافت الباقة');
+}
+function editAgent(id) {
+  const a = state.agents.find((x) => x.id === id);
+  const name = prompt('اسم الوكيل:', a.name); if (name === null) return;
+  const phone = prompt('الموبايل:', a.phone ?? ''); if (phone === null) return;
+  const city = prompt('المدينة:', a.city ?? ''); if (city === null) return;
+  run(() => api(`/api/agents/${id}/update`, { name, phone, city }), 'تم الحفظ');
+}
+function toggleAgent(id, active) {
+  if (!active && !confirm('إيقاف الوكيل؟ زبائنه بيضلوا شغالين، بس ما بتقدر تفعّل من رصيده لبين ما ترجع تفعّله.')) return;
+  run(() => api(`/api/agents/${id}/update`, { active }), 'تم');
+}
+function activateForAgent(e, agentId) {
+  e.preventDefault();
+  const body = { ...Object.fromEntries(new FormData(e.target)), agentId };
+  run(async () => {
+    const c = await api('/api/customers', body);
+    await navigator.clipboard?.writeText(c.key).catch(() => {});
+    lastIssued = c.id;
+  }, 'تم التفعيل ونسخ المفتاح. لا تنسَ نشر قائمة الحالة.');
+}
+let lastIssued = null;
+function waText(c) {
+  return `ترخيص ميزان للزبون: ${c.name}\nالاشتراك: سنوي حتى ${fmtDate(c.expiresAt)}\nعدد الأجهزة: ${c.devices}\n\nمفتاح التفعيل (انسخه كامل والصقه بشاشة التفعيل):\n${c.key}`;
+}
+function sendWa(agentId, customerId) {
+  const a = state.agents.find((x) => x.id === agentId);
+  const c = state.customers.find((x) => x.id === customerId);
+  const phone = String(a.phone ?? '').replace(/[^0-9]/g, '');
+  if (!phone) { navigator.clipboard.writeText(waText(c)).then(() => toast('ما في رقم للوكيل، نسخت الرسالة')); return; }
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(waText(c))}`, '_blank', 'noopener');
+}
+function renew(id) {
+  const c = state.customers.find((x) => x.id === id);
+  if (!confirm(`تجديد ${c.name} سنة؟ بتنخصم رخصة من رصيد الوكيل.`)) return;
+  run(() => api(`/api/customers/${id}/extend`, { plan: 'annual' }), 'تم التجديد. انشر القائمة أو ابعت المفتاح الجديد.');
+}
+function renderUpdate() {
+  const u = state.update;
+  $('#curUpdate').innerHTML = u
+    ? `<div class="banner">المعلن حالياً: <b class="mono">${esc(u.version)}</b>${u.minVersion ? ` · إجباري للأقدم من <span class="mono">${esc(u.minVersion)}</span>` : ''}<div class="mono muted">${esc(u.url)}</div><ul>${u.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul><button class="danger" onclick="clearUpdate()">إلغاء الإعلان</button></div>`
+    : '<div class="muted" style="margin-bottom:10px">ما في إعلان تحديث حالياً.</div>';
+}
+function setUpdate(e) {
+  e.preventDefault();
+  const body = Object.fromEntries(new FormData(e.target));
+  run(async () => { await api('/api/update', body); e.target.reset(); }, 'انحفظ. اكبس "نشر قائمة الحالة" ليوصل للكل.');
+}
+function clearUpdate() { if (confirm('إلغاء إعلان التحديث؟')) run(() => api('/api/update', { clear: true }), 'انلغى. انشر القائمة.'); }
 async function run(fn, ok) { try { await fn(); await load(); if (ok) toast(ok); } catch (e) { toast(e.message, true); } }
 function add(e) {
   e.preventDefault();

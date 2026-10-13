@@ -1,4 +1,6 @@
 import {
+  Download,
+  Sparkles,
   Cpu,
   Laptop,
   AlertTriangle,
@@ -97,6 +99,8 @@ const ICONS: Record<string, LucideIcon> = {
   search: Search,
   moon: Moon,
   sun: Sun,
+  download: Download,
+  sparkles: Sparkles,
 };
 
 export type IconName = keyof typeof ICONS;

@@ -1,7 +1,7 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { checkLicense, machineId as readMachineId, parseFeed, parseLicense, PLANS, type LicenseCheck, type LicenseFeed } from './license';
+import { checkLicense, machineId as readMachineId, parseFeed, parseLicense, PLANS, updateFor, type LicenseCheck, type LicenseFeed, type UpdateInfo } from './license';
 
 // يحفظ مفتاح الترخيص وآخر قائمة حالة ووقت آخر تحقق في ملف مشفّر على الجهاز.
 // التلاعب بالملف يجعله غير صالح فيُعامل كأنه لم يتم أي تحقق.
@@ -28,6 +28,8 @@ export interface LicenseStatus {
   lastOnline?: string;
   /** أيام متبقية قبل القفل إن لم يتصل بالإنترنت. */
   offlineDaysLeft?: number;
+  /** نسخة أحدث منشورة (من القائمة الموقّعة). */
+  update?: UpdateInfo & { mandatory: boolean };
 }
 
 export interface ManagerOptions {
@@ -37,6 +39,8 @@ export interface ManagerOptions {
   fetcher?: (url: string) => Promise<string>;
   now?: () => Date;
   machineId?: string;
+  /** نسخة البرنامج الحالية، لمعرفة إذا في تحديث. */
+  appVersion?: string;
 }
 
 const DAY = 86_400_000;
@@ -108,12 +112,14 @@ export class LicenseManager {
       if (!data.lastSeen || new Date(data.lastSeen) < now) this.write({ ...data, lastSeen: now.toISOString() });
     }
     const payload = check.payload;
+    const update = this.o.appVersion ? updateFor(this.feedOf(data), this.o.appVersion) : null;
     const base: LicenseStatus = {
       machineId: this.machineId,
       locked: check.status === 'locked',
       devices: check.status === 'valid' ? check.devices : (payload?.devices ?? 1),
       onlineEnabled: this.onlineEnabled,
       ...(data.lastOnline ? { lastOnline: data.lastOnline } : {}),
+      ...(update ? { update } : {}),
       ...(payload ? { licenseId: payload.id, customer: payload.customer, planName: PLANS[payload.plan].nameAr } : {}),
     };
     if (check.status === 'locked') return { ...base, reason: check.reason, message: check.message };
