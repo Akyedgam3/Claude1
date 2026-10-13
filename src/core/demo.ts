@@ -250,6 +250,58 @@ function mobile(l: Ledger): void {
     paid: 0,
   });
   l.adjustStock({ kind: 'opening', date: day(-30), lines: acc.map(([id, , , price, qty]) => ({ itemId: id, qty, unitCost: P(price * 0.5) })) });
+  // لابتوبات وكمبيوترات وقطع
+  const laptops: [string, string, number, number, Record<string, string>][] = [
+    ['l-dell', 'Dell Latitude 5440', 650, 3, { المعالج: 'Core i5-1335U', الرام: '16GB', التخزين: 'SSD 512GB', الشاشة: '14 FHD', النظام: 'Windows 11', الحالة: 'جديد' }],
+    ['l-hp', 'HP ProBook 450 G10', 720, 2, { المعالج: 'Core i7-1355U', الرام: '16GB', التخزين: 'SSD 512GB', الشاشة: '15.6 FHD', الحالة: 'جديد' }],
+    ['l-lenovo', 'Lenovo IdeaPad 3', 430, 3, { المعالج: 'Ryzen 5 7520U', الرام: '8GB', التخزين: 'SSD 256GB', الشاشة: '15.6 FHD', الحالة: 'جديد' }],
+  ];
+  let sn = 0;
+  for (const [id, name, usd, qty, attributes] of laptops) {
+    item(l, { id, code: id.slice(2).toUpperCase(), name, kind: 'stock', unit: 'قطعة', price: P(usd), priceCurrency: 'USD', category: 'لابتوب', trackSerial: true, warrantyMonths: 12, attributes, minStock: 1 });
+    serialsOf[id] = Array.from({ length: qty }, () => `${id.slice(2, 4).toUpperCase()}${String(48201 + sn++).padStart(7, '0')}`);
+  }
+  item(l, { id: 'l-used', code: 'LUSED', name: 'لابتوب مستعمل', kind: 'stock', unit: 'قطعة', price: 0, category: 'لابتوب مستعمل', trackSerial: true, attributes: { الحالة: 'مستعمل' } });
+  const parts: [string, string, string, number, number, boolean][] = [
+    ['c-cpu', 'Intel Core i5-12400F', 'معالجات', 140, 4, false],
+    ['c-board', 'MSI PRO B760M-E DDR4', 'مازربورد', 115, 4, false],
+    ['c-ram', 'RAM 16GB DDR4 3200', 'رامات', 38, 10, false],
+    ['c-ssd', 'SSD NVMe 512GB', 'هاردات و SSD', 42, 10, false],
+    ['c-gpu', 'RTX 3060 12GB', 'كروت شاشة', 290, 2, true],
+    ['c-psu', 'باور 650W + كيس', 'باور وكيسات', 75, 4, false],
+    ['c-mon', 'شاشة 24 بوصة IPS 75Hz', 'شاشات', 115, 4, false],
+  ];
+  for (const [id, name, category, usd, , serial] of parts) item(l, { id, code: id.slice(2).toUpperCase(), name, kind: 'stock', unit: 'قطعة', price: P(usd), priceCurrency: 'USD', category, ...(serial ? { trackSerial: true, warrantyMonths: 24 } : {}), minStock: 2 });
+  serialsOf['c-gpu'] = ['RTX3060-77120', 'RTX3060-77121'];
+  l.postInvoice({
+    kind: 'purchase',
+    date: day(-28),
+    partyId: 's-agent',
+    currency: 'USD',
+    lines: [
+      ...laptops.map(([id, , usd, qty]) => ({ itemId: id, qty, price: P(Math.round(usd * 0.85)), serials: serialsOf[id]! })),
+      ...parts.map(([id, , , usd, qty, serial]) => ({ itemId: id, qty, price: P(Math.round(usd * 0.8)), ...(serial ? { serials: serialsOf[id]! } : {}) })),
+    ],
+    paid: 0,
+  });
+  // تجميعة كمبيوتر مبيوعة
+  const usd = (n: number) => P(n * 121);
+  l.postInvoice({
+    kind: 'sale',
+    date: day(-4),
+    partyId: 'c-samer',
+    lines: [
+      { itemId: 'c-cpu', qty: 1, price: usd(140) },
+      { itemId: 'c-board', qty: 1, price: usd(115) },
+      { itemId: 'c-ram', qty: 2, price: usd(38) },
+      { itemId: 'c-ssd', qty: 1, price: usd(42) },
+      { itemId: 'c-gpu', qty: 1, price: usd(290), serials: ['RTX3060-77120'] },
+      { itemId: 'c-psu', qty: 1, price: usd(75) },
+      { description: 'أجور تجميع وتنصيب', qty: 1, price: P(1500) },
+    ],
+    paid: usd(738) + P(1500),
+    notes: 'تجميعة جيمنج i5 — معالج i5-12400F · RTX 3060 · 32GB',
+  });
   // بيع نقدي بالليرة
   l.postInvoice({ kind: 'sale', date: day(-6), partyId: 'c-rana', lines: [{ itemId: 'p-a15', qty: 1, price: P(150 * 121), serials: [serialsOf['p-a15']![0]!] }, { itemId: 'x-cover', qty: 1, price: P(60) }, { itemId: 'x-glass', qty: 1, price: P(40) }], paid: P(150 * 121 + 100) });
   // بيع بالتقسيط: دفعة أولى والباقي على 6 أشهر

@@ -21,7 +21,8 @@ export type Feature =
   | 'tailoring' // طلبات تفصيل وقياسات الزبائن
   | 'workshop' // ورشة إنتاج: أتواب قماش الزبون، قصّات وتسليمات بالقطعة
   | 'installments' // تقسيط: خطط أقساط وتحصيل ومتأخرات
-  | 'tradeIn'; // شراء أجهزة مستعملة والبيع مع الاستبدال
+  | 'tradeIn' // شراء أجهزة مستعملة والبيع مع الاستبدال
+  | 'pcBuild'; // تجميعات كمبيوتر من القطع
 
 export interface ActivityProfile {
   id: Activity;
@@ -35,6 +36,7 @@ export interface ActivityProfile {
   units: string[]; // وحدات مقترحة
   categories: string[]; // تصنيفات مقترحة
   attributes?: string[]; // خصائص إضافية للمادة
+  attributeSets?: { match: RegExp; attributes: string[] }[]; // خصائص حسب التصنيف (لابتوب، موبايل...)
   accountNames: Record<string, string>; // تسميات خاصة في دليل الحسابات
 }
 
@@ -121,16 +123,43 @@ export const ACTIVITIES: Record<Activity, ActivityProfile> = {
   },
   mobile: {
     id: 'mobile',
-    name: 'موبايلات وإلكترونيات',
-    description: 'أرقام IMEI وكفالات، تقسيط، شراء مستعمل واستبدال، صيانة أجهزة، إكسسوارات',
-    icon: 'smartphone',
+    name: 'موبايلات وكمبيوتر وإلكترونيات',
+    description: 'موبايلات ولابتوبات وكمبيوترات: IMEI والرقم التسلسلي، كفالات، تقسيط، شراء مستعمل واستبدال، تجميعات كمبيوتر، صيانة',
+    icon: 'laptop',
     color: '#3a4fb8',
-    features: ['serials', 'tradeIn', 'installments', 'repairs', 'devices', 'pos', 'priceTiers'],
+    features: ['serials', 'tradeIn', 'installments', 'pcBuild', 'repairs', 'devices', 'pos', 'priceTiers'],
     itemLabel: 'صنف',
     itemsLabel: 'الأجهزة والإكسسوارات',
     units: ['قطعة', 'علبة'],
-    categories: ['موبايلات', 'موبايلات مستعملة', 'تابلت', 'لابتوب', 'إكسسوارات', 'شواحن', 'سماعات', 'قطع صيانة'],
-    attributes: ['الذاكرة', 'الرام', 'اللون', 'الحالة', 'البطارية'],
+    categories: [
+      'موبايلات',
+      'موبايلات مستعملة',
+      'تابلت',
+      'لابتوب',
+      'لابتوب مستعمل',
+      'كمبيوتر مكتبي',
+      'شاشات',
+      'معالجات',
+      'رامات',
+      'هاردات و SSD',
+      'كروت شاشة',
+      'مازربورد',
+      'باور وكيسات',
+      'طابعات',
+      'شبكات وراوترات',
+      'كاميرات مراقبة',
+      'إكسسوارات',
+      'شواحن',
+      'سماعات',
+      'قطع صيانة',
+    ],
+    attributes: ['الحالة', 'اللون'],
+    attributeSets: [
+      { match: /موبايل|تابلت/, attributes: ['الذاكرة', 'الرام', 'اللون', 'الحالة', 'البطارية'] },
+      { match: /لابتوب|كمبيوتر/, attributes: ['المعالج', 'الرام', 'التخزين', 'كرت الشاشة', 'الشاشة', 'النظام', 'الحالة', 'البطارية'] },
+      { match: /شاشات/, attributes: ['القياس', 'الدقة', 'التردد', 'الحالة'] },
+      { match: /معالجات|رامات|هاردات|كروت شاشة|مازربورد|باور/, attributes: ['الموديل', 'السعة / السرعة', 'المقبس / النوع', 'الحالة'] },
+    ],
     accountNames: { '4101': 'مبيعات الأجهزة', '4201': 'إيرادات الصيانة' },
   },
   building: {
@@ -259,6 +288,7 @@ export const FEATURE_INFO: Record<Feature, { name: string; description: string }
   salesmen: { name: 'مندوبو المبيعات', description: 'تسجيل المندوب على الفاتورة وتقرير مبيعاته' },
   tailoring: { name: 'طلبات التفصيل والقياسات', description: 'قياسات الزبائن، طلبات بموعد تسليم وبروفة، عربون' },
   installments: { name: 'التقسيط', description: 'خطط أقساط شهرية مع زيادة تقسيط وكفيل، تحصيل الأقساط ومتابعة المتأخر' },
+  pcBuild: { name: 'تجميعات كمبيوتر', description: 'تجميع كمبيوتر من القطع (معالج، رام، هارد، كرت...) مع أجور التجميع، كعرض سعر أو بيع مباشر' },
   tradeIn: { name: 'شراء مستعمل واستبدال', description: 'شراء أجهزة مستعملة من الزبائن برقمها وحالتها، والبيع مع استبدال الجهاز القديم' },
   workshop: { name: 'ورشة الخياطة (قص وخياطة بالجملة)', description: 'استلام أتواب قماش الزبون برقم وطول، قصّات بالمقاسات، تسليم دفعات وفوترة بالقطعة' },
 };
@@ -281,4 +311,10 @@ export function effectiveProfile(info: Pick<CompanyInfo, 'activity' | 'customize
     itemLabel: c.itemLabel?.trim() || base.itemLabel,
     itemsLabel: c.itemsLabel?.trim() || base.itemsLabel,
   };
+}
+
+/** خصائص المادة المقترحة حسب تصنيفها ضمن النشاط. */
+export function attributesFor(profile: ActivityProfile, category?: string): string[] {
+  const set = category ? profile.attributeSets?.find((x) => x.match.test(category)) : undefined;
+  return set ? set.attributes : (profile.attributes ?? []);
 }

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { generateVariants, type Item, type ItemKind, type ItemUnit, type RecipeLine } from '../../../core';
+import { attributesFor, generateVariants, type Item, type ItemKind, type ItemUnit, type RecipeLine } from '../../../core';
 import { api, major, money, parseAmount, qtyText, toInput, uid, useCompany } from '../api';
 import { Barcode, ExportButtons, usePrinter } from '../components/print';
 import { CurrencySelect, Empty, Field, itemMatches, itemOptions, Modal, PageHeader, Picker, SearchBox, Tabs } from '../components/ui';
@@ -154,7 +154,7 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
                     {i.kind === 'service' && <span className="tag">خدمة</span>}
                     {i.kind === 'composite' && <span className="tag">مركّب</span>}
                     {i.trackExpiry && <span className="tag">صلاحية</span>}
-                    {i.trackSerial && <span className="tag">IMEI</span>}
+                    {i.trackSerial && <span className="tag">S/N</span>}
                     {i.weighed && <span className="tag">وزن</span>}
                   </td>
                   {feature('partNumbers') && <td className="mono">{i.partNumber}</td>}
@@ -218,7 +218,7 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
   const stockItems = useMemo(() => itemOptions(state, (i) => i.kind === 'stock' && i.id !== item?.id), [state, item]);
   const hasStock = !!item && (state.stock[item.id]?.totalQty ?? 0) !== 0;
   const [extraAttr, setExtraAttr] = useState('');
-  const attributeNames = [...new Set([...(profile.attributes ?? []), ...Object.keys(attrs)])];
+  const attributeNames = [...new Set([...attributesFor(profile, f.category), ...Object.keys(attrs)])];
 
   const save = async () => {
     let data: Item;

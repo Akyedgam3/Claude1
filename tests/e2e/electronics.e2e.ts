@@ -69,6 +69,26 @@ test('phone shop: IMEI scan in POS, device history, installments and trade-in', 
     await page.locator('.imei-search input').fill('354111222333444');
     await page.locator('.imei-search input').press('Enter');
     await expect(page.locator('.device-card')).toContainText('بالمخزون');
+
+    // لابتوب بالرقم التسلسلي
+    await nav(page, 'سجل الأجهزة');
+    await page.locator('.card', { hasText: 'الأجهزة الموجودة' }).locator('input').fill('Dell');
+    await page.locator('table.table tbody tr', { hasText: 'Dell Latitude' }).first().click();
+    await expect(page.locator('.device-card')).toContainText('Core i5');
+
+    // تجميعة كمبيوتر من القطع
+    await nav(page, 'تجميعة كمبيوتر');
+    const row = (label: string) => page.locator('.build-table tbody tr', { hasText: label });
+    await pick(page, row('المعالج').locator('.picker input'), 'i5');
+    await pick(page, row('الرام').locator('.picker input'), '16GB');
+    await row('الرام').locator('input.num-input').first().fill('2');
+    await pick(page, row('كرت الشاشة').locator('.picker input'), 'RTX');
+    await row('كرت الشاشة').locator('select').selectOption({ index: 1 });
+    await page.locator('.field', { hasText: 'أجور التجميع' }).locator('input').fill('1500');
+    await shot(page, '53-pc-build');
+    await page.getByRole('button', { name: 'بيع التجميعة' }).click();
+    await toast(page, /تم بيع التجميعة/);
+    await expect(page.locator('.invoice-doc').first()).toContainText('أجور تجميع');
     void m;
   } finally {
     await close();

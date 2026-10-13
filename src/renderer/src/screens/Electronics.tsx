@@ -19,7 +19,7 @@ export function DeviceLookup({ serial: initial }: { serial?: string }) {
   const party = (id?: string | null) => (id ? state.parties[id]?.name : 'زبون نقدي');
   return (
     <div className="page">
-      <PageHeader title="سجل الأجهزة (IMEI)" />
+      <PageHeader title="سجل الأجهزة (السيريال / IMEI)" />
       <form
         className="imei-search card"
         onSubmit={(e) => {
@@ -28,7 +28,7 @@ export function DeviceLookup({ serial: initial }: { serial?: string }) {
         }}
       >
         <Icon name="search" size={22} />
-        <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="امسح أو اكتب رقم IMEI / الرقم التسلسلي..." dir="ltr" autoFocus />
+        <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="امسح أو اكتب الرقم التسلسلي (S/N) أو IMEI..." dir="ltr" autoFocus />
         <button className="primary">بحث</button>
       </form>
       {shown && !h && <Empty>ما في جهاز بهالرقم بالسجلات.</Empty>}
@@ -609,10 +609,10 @@ export function TradeIn() {
                 const it = v ? state.items[v] : undefined;
                 if (it) setNewPrice(itemPrice(state, it, { currency: base, date: today() }) || '');
               }}
-              placeholder="اختار الموبايل..."
+              placeholder="اختار الجهاز (موبايل، لابتوب...)"
             />
           </Field>
-          <Field label="IMEI" wide>
+          <Field label="IMEI / S/N" wide>
             <select value={newSerial} onChange={(e) => setNewSerial(e.target.value)} dir="ltr">
               <option value="">{available.length ? 'اختار الجهاز...' : 'ما في أجهزة من هالصنف بالمخزون'}</option>
               {available.map((s) => (
@@ -634,9 +634,9 @@ export function TradeIn() {
             <Picker options={serialItems} value={oldItem} onChange={setOldItem} placeholder="موبايل مستعمل..." />
           </Field>
           <Field label="الموديل" wide>
-            <input value={oldModel} onChange={(e) => setOldModel(e.target.value)} placeholder="iPhone 11 64GB..." />
+            <input value={oldModel} onChange={(e) => setOldModel(e.target.value)} placeholder="iPhone 11 64GB، Dell Latitude 5490..." />
           </Field>
-          <Field label="IMEI">
+          <Field label="IMEI / S/N">
             <input value={oldSerial} onChange={(e) => setOldSerial(e.target.value)} dir="ltr" />
           </Field>
           <Field label="البطارية %">
@@ -716,6 +716,238 @@ export function TradeIn() {
         </div>
       </section>
       {newParty && <PartyForm party={null} onClose={() => setNewParty(false)} onSaved={(pt) => setPartyId(pt.id)} />}
+    </div>
+  );
+}
+
+// ───────────── تجميعة كمبيوتر ─────────────
+
+const SLOTS: { label: string; match?: RegExp }[] = [
+  { label: 'المعالج', match: /معالج/ },
+  { label: 'المازربورد', match: /مازربورد/ },
+  { label: 'الرام', match: /رام/ },
+  { label: 'التخزين (SSD / هارد)', match: /هارد|SSD/i },
+  { label: 'كرت الشاشة', match: /كرت/ },
+  { label: 'الباور والكيس', match: /باور|كيس/ },
+  { label: 'الشاشة', match: /شاشات/ },
+];
+
+interface BuildRow {
+  key: string;
+  label: string;
+  match?: RegExp;
+  itemId: string | null;
+  qty: string;
+  price: string;
+  serial: string;
+}
+
+export function PcBuild() {
+  const { state, call, notify, navigate, can } = useCompany();
+  const base = state.info!.baseCurrency;
+  const [rows, setRows] = useState<BuildRow[]>(() => SLOTS.map((s, i) => ({ key: String(i), label: s.label, ...(s.match ? { match: s.match } : {}), itemId: null, qty: '1', price: '', serial: '' })));
+  const [name, setName] = useState('تجميعة كمبيوتر');
+  const [fee, setFee] = useState('');
+  const [partyId, setPartyId] = useState<string | null>(null);
+  const [paid, setPaid] = useState('');
+  const cashes = cashAccounts(state, base);
+  const [cash, setCash] = useState(cashes[0]?.id ?? '1101');
+  const customers = useMemo(() => partyOptions(state, 'customer'), [state]);
+  const all = useMemo(() => itemOptions(state, (i: Item) => i.kind !== 'service' && i.price > 0), [state]);
+  const amt = (t: string) => {
+    try {
+      return t.trim() ? parseAmount(state, t, base) : 0;
+    } catch {
+      return NaN;
+    }
+  };
+  const used = rows.filter((r) => r.itemId);
+  const parts = used.reduce((t, r) => t + Math.round((Number(r.qty) || 0) * amt(r.price)), 0);
+  const total = parts + amt(fee);
+  const upd = (key: string, patch: Partial<BuildRow>) => setRows(rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  const specs = used.map((r) => `${r.label}: ${state.items[r.itemId!]?.name}`).join(' · ');
+
+  const lines = () => {
+    for (const r of used) {
+      const it = state.items[r.itemId!]!;
+      if (it.trackSerial && !r.serial) throw new Error(`اختار الرقم التسلسلي لـ ${it.name}`);
+      if (!Number.isFinite(amt(r.price))) throw new Error(`سعر غير صالح: ${it.name}`);
+    }
+    return [
+      ...used.map((r) => ({ itemId: r.itemId!, qty: Number(r.qty) || 1, price: amt(r.price), ...(r.serial ? { serials: [r.serial] } : {}) })),
+      ...(amt(fee) > 0 ? [{ itemId: null, description: 'أجور تجميع وتنصيب', qty: 1, price: amt(fee) }] : []),
+    ];
+  };
+
+  return (
+    <div className="page">
+      <PageHeader title="تجميعة كمبيوتر" />
+      <section className="card form-grid">
+        <Field label="اسم التجميعة" wide>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="تجميعة جيمنج i5، كمبيوتر مكتبي..." />
+        </Field>
+        <Field label="الزبون (اختياري)" wide>
+          <Picker options={[{ id: '', label: 'زبون نقدي' }, ...customers]} value={partyId ?? ''} onChange={(v) => setPartyId(v || null)} placeholder="زبون نقدي" />
+        </Field>
+      </section>
+      <section className="card">
+        <table className="table lines build-table">
+          <thead>
+            <tr>
+              <th>القطعة</th>
+              <th>الصنف</th>
+              <th>S/N</th>
+              <th>العدد</th>
+              <th>السعر</th>
+              <th className="num">المجموع</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const opts = r.match ? all.filter((o) => r.match!.test(o.item.category ?? '') || r.match!.test(o.item.name)) : all;
+              const it = r.itemId ? state.items[r.itemId] : undefined;
+              const serials = it?.trackSerial ? Object.keys(state.stock[it.id]?.serials ?? {}).filter((s) => s === r.serial || !rows.some((x) => x.serial === s)) : [];
+              return (
+                <tr key={r.key}>
+                  <td>
+                    <strong>{r.label}</strong>
+                  </td>
+                  <td style={{ minWidth: 260 }}>
+                    <Picker
+                      options={opts.length ? opts : all}
+                      value={r.itemId}
+                      onChange={(v) => {
+                        const item = v ? state.items[v] : undefined;
+                        upd(r.key, { itemId: v, serial: '', price: item ? itemPrice(state, item, { currency: base, date: today(), ...(partyId ? { party: state.parties[partyId] ?? null } : {}) }) || '' : '' });
+                      }}
+                      placeholder="اختار..."
+                    />
+                  </td>
+                  <td>
+                    {it?.trackSerial ? (
+                      <select value={r.serial} onChange={(e) => upd(r.key, { serial: e.target.value })} dir="ltr">
+                        <option value="">—</option>
+                        {serials.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span className="muted">—</span>
+                    )}
+                  </td>
+                  <td>
+                    <input className="num-input" value={r.qty} onChange={(e) => upd(r.key, { qty: e.target.value.replace(/[^\d.]/g, '') })} disabled={!r.itemId || !!it?.trackSerial} />
+                  </td>
+                  <td>
+                    <input className="num-input" value={r.price} onChange={(e) => upd(r.key, { price: e.target.value })} disabled={!r.itemId} />
+                  </td>
+                  <td className="num">{r.itemId ? money(state, Math.round((Number(r.qty) || 0) * (amt(r.price) || 0))) : ''}</td>
+                  <td>
+                    {r.itemId && (
+                      <button type="button" className="icon" title="تفريغ" onClick={() => upd(r.key, { itemId: null, price: '', serial: '' })}>
+                        <Icon name="close" size={14} />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        <div className="button-row">
+          <button type="button" onClick={() => setRows([...rows, { key: String(Date.now()), label: 'قطعة إضافية', itemId: null, qty: '1', price: '', serial: '' }])}>
+            <Icon name="plus" size={16} /> قطعة إضافية (ماوس، كيبورد، كولر...)
+          </button>
+        </div>
+        <div className="form-grid">
+          <Field label="أجور التجميع والتنصيب">
+            <input value={fee} onChange={(e) => setFee(e.target.value)} inputMode="decimal" />
+          </Field>
+        </div>
+        <div className="plan-strip">
+          <div>
+            <span>القطع ({used.length})</span>
+            <strong>{money(state, parts || 0)}</strong>
+          </div>
+          <div>
+            <span>أجور التجميع</span>
+            <strong>{money(state, amt(fee) || 0)}</strong>
+          </div>
+          <div className="good">
+            <span>سعر التجميعة</span>
+            <strong>{Number.isFinite(total) ? money(state, total) : '—'}</strong>
+          </div>
+        </div>
+      </section>
+      <section className="card form-grid">
+        <Field label="المقبوض الآن">
+          <input value={paid} onChange={(e) => setPaid(e.target.value)} placeholder={Number.isFinite(total) ? toInput(state, total, base) : ''} inputMode="decimal" />
+        </Field>
+        <Field label="الصندوق">
+          <select value={cash} onChange={(e) => setCash(e.target.value)}>
+            {cashes.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <div className="form-actions wide">
+          <button
+            disabled={!used.length}
+            onClick={async () => {
+              try {
+                const ls = lines();
+                const res = await call<{ id: string; number: number }>('saveQuote', {
+                  id: crypto.randomUUID(),
+                  date: today(),
+                  validUntil: addDays(today(), 7),
+                  partyId,
+                  ...(partyId ? {} : { customerName: 'زبون' }),
+                  currency: base,
+                  lines: ls.map((l) => ({ itemId: l.itemId, description: l.itemId ? state.items[l.itemId]!.name : 'أجور تجميع وتنصيب', qty: l.qty, price: l.price })),
+                  discount: 0,
+                  taxIds: [],
+                  notes: `${name.trim()} — ${specs}`,
+                  status: 'open',
+                });
+                if (res) {
+                  notify(`تم حفظ عرض السعر رقم ${res.value.number}`);
+                  navigate('quote', res.value.id);
+                }
+              } catch (e) {
+                notify((e as Error).message, 'error');
+              }
+            }}
+          >
+            <Icon name="file" size={16} /> حفظ كعرض سعر
+          </button>
+          <button
+            className="primary big"
+            disabled={!used.length || !can('sales.create')}
+            onClick={async () => {
+              try {
+                const ls = lines();
+                const p = paid.trim() ? amt(paid) : total;
+                if (!Number.isFinite(p)) return notify('مبلغ غير صالح', 'error');
+                if (!partyId && p < total) return notify('البيع بالدين بدو زبون؛ اختار الزبون', 'error');
+                const res = await call<Invoice>('postInvoice', { kind: 'sale', date: today(), partyId, currency: base, lines: ls, paid: p, cashAccountId: cash, notes: `${name.trim()} — ${specs}` });
+                if (res) {
+                  notify(`تم بيع التجميعة — فاتورة رقم ${res.value.number}`);
+                  navigate('invoice', res.value.id);
+                }
+              } catch (e) {
+                notify((e as Error).message, 'error');
+              }
+            }}
+          >
+            بيع التجميعة
+          </button>
+        </div>
+      </section>
     </div>
   );
 }

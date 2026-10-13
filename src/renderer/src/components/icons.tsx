@@ -1,4 +1,6 @@
 import {
+  Cpu,
+  Laptop,
   AlertTriangle,
   ArrowDownToLine,
   ArrowLeftRight,
@@ -55,6 +57,8 @@ const ICONS: Record<string, LucideIcon> = {
   utensils: Utensils,
   shirt: Shirt,
   smartphone: Smartphone,
+  laptop: Laptop,
+  cpu: Cpu,
   'brick-wall': BrickWall,
   beef: Beef,
   croissant: Croissant,

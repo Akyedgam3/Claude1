@@ -59,7 +59,7 @@ export function QuickSearch({ screens, onClose }: { screens: { key: string; labe
       // رقم IMEI: بيفتح سجل الجهاز
       const t = text.trim();
       const known = Object.values(state.stock).some((s) => s.serials?.[t]) || state.invoices.some((i) => i.lines.some((l) => l.serials?.includes(t)));
-      if (known) out.push({ key: `imei:${t}`, icon: 'smartphone', label: `سجل الجهاز ${t}`, hint: 'IMEI', go: go('devices', t) });
+      if (known) out.push({ key: `imei:${t}`, icon: 'smartphone', label: `سجل الجهاز ${t}`, hint: 'S/N · IMEI', go: go('devices', t) });
     }
     if (feature('installments')) {
       for (const pl of Object.values(state.installments)) {
