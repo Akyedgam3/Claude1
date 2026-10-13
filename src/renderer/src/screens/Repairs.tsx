@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type { RepairOrder, RepairStatus } from '../../../core';
 import { money, useCompany, dateText } from '../api';
 import { Empty, matches, PageHeader, SearchBox } from '../components/ui';
+import { useAssetKind } from './Vehicles';
 
 export const STATUS_NAMES: Record<RepairStatus, string> = {
   open: 'مفتوح',
@@ -17,6 +18,7 @@ export function repairTotal(r: RepairOrder): number {
 
 export function Repairs() {
   const { state, navigate } = useCompany();
+  const asset = useAssetKind();
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<'active' | RepairStatus | 'all'>('active');
 
@@ -27,7 +29,7 @@ export function Repairs() {
           if (status === 'active' && (r.status === 'invoiced' || r.status === 'cancelled')) return false;
           if (status !== 'active' && status !== 'all' && r.status !== status) return false;
           const v = state.vehicles[r.vehicleId];
-          return matches(query, r.number, v?.plate, v?.make, v?.model, state.parties[r.partyId]?.name, r.complaint, r.technician);
+          return matches(query, r.number, v?.plate, v?.vin, v?.make, v?.model, state.parties[r.partyId]?.name, r.complaint, r.technician);
         })
         .sort((a, b) => b.number - a.number),
     [state, query, status],
@@ -41,7 +43,7 @@ export function Repairs() {
         </button>
       </PageHeader>
       <div className="toolbar">
-        <SearchBox value={query} onChange={setQuery} placeholder="ابحث برقم اللوحة، اسم الزبون، أو الفني..." />
+        <SearchBox value={query} onChange={setQuery} placeholder={asset.kind === 'vehicle' ? 'ابحث برقم اللوحة، اسم الزبون، أو الفني...' : 'ابحث بالجهاز، IMEI، اسم الزبون، أو الفني...'} />
         <select value={status} onChange={(e) => setStatus(e.target.value as typeof status)}>
           <option value="active">الأوامر الجارية</option>
           <option value="all">الكل</option>
