@@ -8,7 +8,7 @@ import { hostCompanyFor } from '../app/host-company';
 import { DEFAULT_LAN_PORT, LanClient, LanHost, newPairingCode } from '../app/lan';
 import { FEED_CHECK_HOURS, LICENSE_FEED_URLS } from '../license/config';
 import { LicenseManager, type LicenseStatus } from '../license/manager';
-import { LICENSE_PUBLIC_KEY } from '../license/public-key';
+import { IS_TEST_BUILD, LICENSE_PUBLIC_KEY } from '../license/public-key';
 import { CompanyStore, peekCompany, type Credentials } from '../storage/company-store';
 import { LocalBackend, RemoteBackend, type Backend } from './backend';
 import { buildCsv, buildWorkbook, readWorkbook, type ExportSheet } from './exporter';
@@ -462,7 +462,8 @@ if (!app.requestSingleInstanceLock()) {
     // رفض كل طلبات الأذونات (كاميرا، ميكروفون، موقع...)
     electronSession.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
     // رابط بديل للتجربة فقط في نسخة التطوير
-    const feedUrls = isDev && process.env['MIZAN_FEED_URL'] ? [process.env['MIZAN_FEED_URL']] : LICENSE_FEED_URLS;
+    const testFeed = (isDev || IS_TEST_BUILD) && process.env['MIZAN_FEED_URL'] ? [process.env['MIZAN_FEED_URL']] : null;
+    const feedUrls = testFeed ?? (IS_TEST_BUILD ? [] : LICENSE_FEED_URLS);
     license = new LicenseManager({ dataDir: app.getPath('userData'), publicKey: LICENSE_PUBLIC_KEY, feedUrls, appVersion: app.getVersion() });
     licenseStatus();
     registerIpc();

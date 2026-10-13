@@ -1,6 +1,6 @@
 {
   "name": "mizan",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "private": true,
   "description": "ميزان - نظام محاسبة لسطح المكتب يعمل بدون إنترنت",
   "type": "module",
@@ -61,6 +61,7 @@
       "icon": "build/icon.ico"
     },
     "nsis": {
+      "artifactName": "Mizan-Setup.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "language": "1025",

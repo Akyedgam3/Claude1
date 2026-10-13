@@ -7,6 +7,8 @@ export default defineConfig(({ command }) => {
   return {
     main: {
       plugins: [externalizeDepsPlugin()],
+      // نسخة الاختبارات الآلية بتثق بمفتاح التطوير وما بتتصل بالنت؛ نسخة البيع ما فيها هالشي أبداً
+      define: { __MIZAN_TEST_BUILD__: JSON.stringify(process.env['MIZAN_TEST_BUILD'] === '1') },
       build: {
         minify: production,
         sourcemap: false,

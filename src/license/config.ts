@@ -2,7 +2,11 @@
 // ضع هنا رابط ملف feed.txt بعد رفعه (GitHub Pages، Cloudflare Pages، أو موقعك الخاص).
 // يمكن وضع أكثر من رابط احتياطاً لحجب أحدها.
 // إن تُركت فارغة يعمل البرنامج بالمفتاح فقط دون إمكانية الإيقاف عن بعد.
-export const LICENSE_FEED_URLS: string[] = [];
+export const LICENSE_FEED_URLS: string[] = [
+  'https://raw.githubusercontent.com/Akyedgam3/mizan-updates/main/feed.txt',
+  // نسخة احتياطية عبر jsDelivr إذا انحجب الرابط الأول
+  'https://cdn.jsdelivr.net/gh/Akyedgam3/mizan-updates@main/feed.txt',
+];
 
 /** كل كم ساعة يعيد البرنامج التحقق أثناء التشغيل. */
 export const FEED_CHECK_HOURS = 3;
