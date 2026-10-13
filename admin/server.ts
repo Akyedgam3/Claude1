@@ -1,5 +1,6 @@
 // لوحة إدارة التراخيص (للبائع فقط): npm run admin ثم افتح الرابط الظاهر.
 // تعمل على جهازك فقط (127.0.0.1) ولا تحتاج إنترنت.
+import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import http from 'node:http';
@@ -154,7 +155,27 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+// ملف Mizan-Admin.cmd بيشغّل اللوحة مع MIZAN_ADMIN_OPEN=1 فبتنفتح بالمتصفح لحالها
+const adminUrl = `http://127.0.0.1:${port}`;
+function openBrowser() {
+  if (process.env['MIZAN_ADMIN_OPEN'] !== '1') return;
+  const [cmd, args] = process.platform === 'win32' ? ['cmd', ['/c', 'start', '', adminUrl]] : [process.platform === 'darwin' ? 'open' : 'xdg-open', [adminUrl]];
+  spawn(cmd, args, { detached: true, stdio: 'ignore' }).on('error', () => {}).unref();
+}
+
+server.on('error', (e: NodeJS.ErrnoException) => {
+  // اللوحة شغّالة من قبل: منفتح الموجودة بدل ما نطلع خطأ
+  if (e.code === 'EADDRINUSE') {
+    console.log(`اللوحة شغّالة من قبل: ${adminUrl}`);
+    openBrowser();
+    setTimeout(() => process.exit(0), 500);
+    return;
+  }
+  throw e;
+});
+
 server.listen(port, '127.0.0.1', () => {
-  console.log(`لوحة إدارة التراخيص: http://127.0.0.1:${port}`);
-  if (keyFile.startsWith('dev-keys')) console.warn('تنبيه: يُستخدم مفتاح التطوير. شغّل npm run license:keygen قبل البيع.');
+  console.log(`لوحة إدارة التراخيص: ${adminUrl}`);
+  if (keyFile.startsWith('dev-keys')) console.warn('تنبيه: يُستخدم مفتاح التطوير، والتراخيص الصادرة لن تعمل عند الزبائن. انسخ مجلد keys الأصلي (لا تولّد مفتاحاً جديداً).');
+  openBrowser();
 });
