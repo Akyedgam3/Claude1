@@ -68,6 +68,7 @@ export type Activity =
   | 'building'
   | 'butcher'
   | 'bakery'
+  | 'sweets'
   | 'wholesale'
   | 'clinic'
   | 'tailor';

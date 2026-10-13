@@ -38,6 +38,8 @@ export interface ActivityProfile {
   attributes?: string[]; // خصائص إضافية للمادة
   attributeSets?: { match: RegExp; attributes: string[] }[]; // خصائص حسب التصنيف (لابتوب، موبايل...)
   accountNames: Record<string, string>; // تسميات خاصة في دليل الحسابات
+  /** ملاحظات جاهزة بكبسة على سطر البيع (طعمات البوظة مثلاً). */
+  quickNotes?: string[];
 }
 
 export const ACTIVITIES: Record<Activity, ActivityProfile> = {
@@ -201,6 +203,20 @@ export const ACTIVITIES: Record<Activity, ActivityProfile> = {
     categories: ['خبز', 'معجنات', 'حلويات عربية', 'كاتو', 'مواد أولية'],
     accountNames: { '1104': 'مخزون المواد الأولية والمنتجات' },
   },
+  sweets: {
+    id: 'sweets',
+    name: 'حلويات وبوظة (أيس كريم)',
+    description: 'بيع بالوزن والقطعة والعلبة، كاسات بوظة بأحجام وطعمات، تصنيع بوصفات وصلاحية قصيرة',
+    icon: 'ice-cream',
+    color: '#d6457a',
+    features: ['pos', 'scale', 'units', 'recipes', 'production', 'batches'],
+    itemLabel: 'صنف',
+    itemsLabel: 'الأصناف والمواد الأولية',
+    units: ['كيلو', 'قطعة', 'علبة', 'صينية', 'كاسة', 'كونو', 'بولة'],
+    categories: ['حلويات عربية', 'حلويات غربية', 'كاتو وتورتات', 'بوظة', 'شوكولا وسكاكر', 'مشروبات', 'مواد أولية'],
+    quickNotes: ['فانيلا', 'شوكولا', 'فريز', 'فستق حلبي', 'مانجا', 'ليمون', 'قشطة', 'كراميل', 'زيادة فستق', 'بدون مكسرات', 'علبة هدية'],
+    accountNames: { '1104': 'مخزون الحلويات والمواد الأولية' },
+  },
   wholesale: {
     id: 'wholesale',
     name: 'توزيع وتجارة جملة',
@@ -309,6 +325,7 @@ export function effectiveProfile(info: Pick<CompanyInfo, 'activity' | 'customize
     units: c.units?.length ? c.units : base.units,
     attributes: c.attributes ?? base.attributes ?? [],
     itemLabel: c.itemLabel?.trim() || base.itemLabel,
+    quickNotes: base.quickNotes ?? [],
     itemsLabel: c.itemsLabel?.trim() || base.itemsLabel,
   };
 }

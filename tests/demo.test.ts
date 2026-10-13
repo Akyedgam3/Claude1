@@ -37,6 +37,21 @@ describe('demo data', () => {
     expect(Object.keys(l.state.tailorOrders).length).toBe(2);
   });
 
+  it('fills a sweets and ice cream shop with units by box and cup', () => {
+    const l = company('sweets');
+    l.loadDemoData();
+    const ice = l.state.items['sw-icecream']!;
+    expect(ice.units?.map((u) => u.name)).toContain('كاسة وسط');
+    // كاستين وسط = 0.3 كيلو نقصت من 20
+    expect(l.state.stock['sw-icecream']!.totalQty).toBeCloseTo(19.7, 5);
+    // علبة كيلو بقلاوة نقصت من الدفعة اللي إلها صلاحية
+    expect(l.state.stock['sw-baklava']!.totalQty).toBeCloseTo(11, 5);
+    const cash = l.state.invoices.find((i) => i.partyId === null)!;
+    expect(cash.lines.find((x) => x.itemId === 'sw-icecream')!.note).toBe('فستق حلبي، قشطة');
+    const tb = trialBalance(l.state);
+    expect(tb.totalDebit).toBe(tb.totalCredit);
+  });
+
   it('fills a phone shop with IMEIs, an installment plan and a trade-in', () => {
     const l = company('mobile');
     l.loadDemoData();

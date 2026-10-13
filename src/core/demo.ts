@@ -335,6 +335,66 @@ function general(l: Ledger): void {
   l.postInvoice({ kind: 'sale', date: day(), partyId: 'c-2', lines: [{ itemId: 'g-rice', qty: 10, price: P(1650) }, { itemId: 'g-oil', qty: 6, price: P(2050) }], paid: P(20000) });
 }
 
+function sweets(l: Ledger): void {
+  l.saveParty({ id: 'c-1', kind: 'customer', name: 'أم سامر', phone: '0933 222 444' });
+  l.saveParty({ id: 'c-2', kind: 'customer', name: 'صالة أفراح الياسمين', phone: '0944 777 888' });
+  l.saveParty({ id: 's-1', kind: 'supplier', name: 'مؤسسة الشام للمواد الغذائية', phone: '0944 333 111' });
+  // حلويات بالكيلو، ومعها علب جاهزة بسعرها
+  const box = (half: number, kilo: number) => [
+    { name: 'علبة نص كيلو', factor: 0.5, price: P(half) },
+    { name: 'علبة كيلو', factor: 1, price: P(kilo) },
+  ];
+  item(l, { id: 'sw-baklava', code: 'SW1', name: 'بقلاوة بالفستق', kind: 'stock', unit: 'كيلو', price: P(1800), category: 'حلويات عربية', units: box(950, 1850), trackExpiry: true, minStock: 3 });
+  item(l, { id: 'sw-mabrouma', code: 'SW2', name: 'مبرومة', kind: 'stock', unit: 'كيلو', price: P(1700), category: 'حلويات عربية', units: box(900, 1750), trackExpiry: true, minStock: 3 });
+  item(l, { id: 'sw-maamoul', code: 'SW3', name: 'معمول بالتمر', kind: 'stock', unit: 'كيلو', price: P(600), category: 'حلويات عربية', units: box(320, 620), minStock: 3 });
+  item(l, { id: 'sw-knafeh', code: 'SW4', name: 'كنافة نابلسية', kind: 'stock', unit: 'كيلو', price: P(900), category: 'حلويات عربية', units: [{ name: 'صحن', factor: 0.25, price: P(240) }], minStock: 2 });
+  item(l, { id: 'sw-cake', code: 'SW5', name: 'قطعة كاتو شوكولا', kind: 'stock', unit: 'قطعة', price: P(120), category: 'كاتو وتورتات', minStock: 10 });
+  item(l, { id: 'sw-torte', code: 'SW6', name: 'تورتة عيد ميلاد', kind: 'stock', unit: 'قطعة', price: P(1500), category: 'كاتو وتورتات', minStock: 1 });
+  // البوظة بالكيلو، والكاسات والكونو وحدات بسعرها
+  item(l, {
+    id: 'sw-icecream', code: 'IC1', name: 'بوظة عربية', kind: 'stock', unit: 'كيلو', price: P(700), category: 'بوظة', minStock: 4,
+    units: [
+      { name: 'كاسة صغيرة', factor: 0.1, price: P(80) },
+      { name: 'كاسة وسط', factor: 0.15, price: P(120) },
+      { name: 'كاسة كبيرة', factor: 0.25, price: P(180) },
+      { name: 'كونو', factor: 0.1, price: P(90) },
+    ],
+  });
+  item(l, { id: 'sw-juice', code: 'D1', name: 'عصير برتقال طازج', kind: 'stock', unit: 'كاسة', price: P(100), category: 'مشروبات', minStock: 10 });
+  const raw: [string, string, number, number][] = [
+    ['sw-ghee', 'سمنة عربية', 450, 20],
+    ['sw-pistachio', 'فستق حلبي', 1100, 10],
+    ['sw-sugar', 'سكر', 120, 50],
+    ['sw-flour', 'طحين', 70, 50],
+  ];
+  for (const [id, name] of raw) item(l, { id, code: id.slice(3).toUpperCase(), name, kind: 'stock', unit: 'كيلو', price: 0, category: 'مواد أولية', minStock: 5 });
+  l.adjustStock({
+    kind: 'opening',
+    date: day(-3),
+    lines: [
+      ...raw.map(([id, , cost, qty]) => ({ itemId: id, qty, unitCost: P(cost) })),
+      { itemId: 'sw-baklava', qty: 12, unitCost: P(1100), batch: 'B-' + day(-1).slice(5), expiry: day(10) },
+      { itemId: 'sw-mabrouma', qty: 10, unitCost: P(1050), batch: 'M-' + day(-1).slice(5), expiry: day(10) },
+      { itemId: 'sw-maamoul', qty: 15, unitCost: P(350) },
+      { itemId: 'sw-knafeh', qty: 6, unitCost: P(500) },
+      { itemId: 'sw-cake', qty: 40, unitCost: P(60) },
+      { itemId: 'sw-torte', qty: 3, unitCost: P(800) },
+      { itemId: 'sw-icecream', qty: 20, unitCost: P(300) },
+      { itemId: 'sw-juice', qty: 50, unitCost: P(40) },
+    ],
+    memo: 'بضاعة أول المدة (تجريبي)',
+  });
+  l.postInvoice({
+    kind: 'sale', date: day(), partyId: null, paid: P(1850 + 240 + 2 * 120),
+    lines: [
+      { itemId: 'sw-baklava', qty: 1, unit: 'علبة كيلو', price: P(1850), note: 'علبة هدية' },
+      { itemId: 'sw-knafeh', qty: 1, unit: 'صحن', price: P(240) },
+      { itemId: 'sw-icecream', qty: 2, unit: 'كاسة وسط', price: P(120), note: 'فستق حلبي، قشطة' },
+    ],
+  });
+  l.postInvoice({ kind: 'sale', date: day(), partyId: 'c-2', paid: P(5000), lines: [{ itemId: 'sw-mabrouma', qty: 4, price: P(1700) }, { itemId: 'sw-torte', qty: 1, price: P(1500) }] });
+}
+
 /** يعبّي شركة فاضية ببيانات تجريبية مناسبة لنشاطها. */
 export function loadDemo(l: Ledger): void {
   const s = l.state;
@@ -345,5 +405,6 @@ export function loadDemo(l: Ledger): void {
   if (activity === 'restaurant') restaurant(l);
   else if (activity === 'tailor') tailor(l);
   else if (activity === 'mobile') mobile(l);
+  else if (activity === 'sweets') sweets(l);
   else general(l);
 }

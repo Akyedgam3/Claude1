@@ -1,4 +1,5 @@
 import {
+  IceCreamCone,
   Download,
   Sparkles,
   Cpu,
@@ -64,6 +65,7 @@ const ICONS: Record<string, LucideIcon> = {
   'brick-wall': BrickWall,
   beef: Beef,
   croissant: Croissant,
+  'ice-cream': IceCreamCone,
   truck: Truck,
   stethoscope: Stethoscope,
   scissors: Scissors,
