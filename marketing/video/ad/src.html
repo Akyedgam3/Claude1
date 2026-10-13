@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<title>Mizan Ad</title>
+<style>
+@font-face { font-family: Cairo; font-weight: 400; src: url(assets/fonts/cairo-arabic-400-normal.woff2), url(assets/fonts/cairo-latin-400-normal.woff2); }
+@font-face { font-family: Cairo; font-weight: 600; src: url(assets/fonts/cairo-arabic-600-normal.woff2), url(assets/fonts/cairo-latin-600-normal.woff2); }
+@font-face { font-family: Cairo; font-weight: 700; src: url(assets/fonts/cairo-arabic-700-normal.woff2), url(assets/fonts/cairo-latin-700-normal.woff2); }
+@font-face { font-family: Cairo; font-weight: 800; src: url(assets/fonts/cairo-arabic-800-normal.woff2), url(assets/fonts/cairo-latin-800-normal.woff2); }
+@font-face { font-family: Cairo; font-weight: 900; src: url(assets/fonts/cairo-arabic-900-normal.woff2), url(assets/fonts/cairo-latin-900-normal.woff2); }
+@font-face { font-family: CairoL; font-weight: 900; src: url(assets/fonts/cairo-latin-900-normal.woff2); }
+@font-face { font-family: CairoL; font-weight: 700; src: url(assets/fonts/cairo-latin-700-normal.woff2); }
+
+:root {
+  --g: #0f6e5c; --g2: #14957c; --gd: #0a2320; --gdd: #061512;
+  --c: #d9792a; --c2: #f0a35c; --w: #f4f5f7; --muted: #9fb7b1;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+body { font-family: Cairo, sans-serif; color: var(--w); }
+#stage { position: absolute; inset: 0; overflow: hidden; background: var(--gdd); }
+#world { position: absolute; inset: 0; transform-origin: 50% 50%; }
+.abs { position: absolute; }
+.center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+.scene { position: absolute; inset: 0; opacity: 0; }
+
+/* الخلفية */
+#bg { position: absolute; inset: -10%; background: radial-gradient(ellipse at 50% 40%, #0f3a33 0%, #071a17 55%, #030b0a 100%); }
+.blob { position: absolute; border-radius: 50%; filter: blur(120px); opacity: .55; }
+#blob1 { width: 900px; height: 900px; background: var(--g); left: -200px; top: -250px; }
+#blob2 { width: 800px; height: 800px; background: var(--c); right: -250px; bottom: -300px; opacity: .25; }
+#grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px); background-size: 80px 80px; mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%); }
+#particles { position: absolute; inset: 0; }
+#vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.65) 100%); z-index: 50; }
+#flash { position: absolute; inset: 0; background: #fff; opacity: 0; z-index: 60; mix-blend-mode: screen; }
+#dark { position: absolute; inset: 0; background: #000; opacity: 0; z-index: 55; }
+#grade { position: absolute; inset: 0; z-index: 49; pointer-events: none; background: rgba(40, 20, 10, .0); mix-blend-mode: multiply; }
+#letterbox-top, #letterbox-bot { position: absolute; left: 0; right: 0; height: 0; background: #000; z-index: 58; }
+#letterbox-top { top: 0; } #letterbox-bot { bottom: 0; }
+
+/* نصوص */
+.kicker { font-weight: 700; font-size: 34px; color: var(--c2); letter-spacing: 0; }
+.h1 { font-weight: 900; font-size: 120px; line-height: 1.15; text-shadow: 0 10px 40px rgba(0,0,0,.5); white-space: nowrap; }
+.h2 { font-weight: 800; font-size: 84px; line-height: 1.2; text-shadow: 0 8px 30px rgba(0,0,0,.5); white-space: nowrap; }
+.h3 { font-weight: 700; font-size: 52px; line-height: 1.3; white-space: nowrap; }
+.w { display: inline-block; will-change: transform, opacity, filter; }
+.accent { color: var(--c2); }
+.green { color: #5fe0bf; }
+.glow { text-shadow: 0 0 30px rgba(240,163,92,.65), 0 0 80px rgba(240,163,92,.35); }
+
+.icon svg { width: 100%; height: 100%; stroke-width: 1.6; }
+.chip { display: inline-flex; align-items: center; gap: 14px; padding: 14px 28px; border-radius: 999px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.14); backdrop-filter: blur(10px); font-weight: 700; font-size: 34px; }
+
+/* المشهد 1 */
+#s1-sky { position: absolute; left: 0; right: 0; top: 0; height: 100%; }
+#s1-sunwrap { position: absolute; left: 50%; top: 105%; width: 0; height: 0; }
+#s1-sun { position: absolute; width: 150px; height: 150px; color: #ffcf7a; transform: translate(-50%, -50%); }
+#s1-moon { position: absolute; width: 130px; height: 130px; color: #cfe3ff; transform: translate(-50%, -50%); opacity: 0; }
+.shop { position: absolute; left: 50%; bottom: 120px; width: 620px; height: 420px; transform: translateX(-50%); }
+.shop .roof { position: absolute; left: -30px; right: -30px; top: 0; height: 90px; border-radius: 18px 18px 6px 6px; background: repeating-linear-gradient(90deg, var(--g) 0 70px, #e8f1ee 70px 140px); box-shadow: 0 20px 40px rgba(0,0,0,.4); }
+.shop .body { position: absolute; left: 0; right: 0; top: 80px; bottom: 0; background: #12302b; border: 3px solid rgba(255,255,255,.12); border-radius: 0 0 14px 14px; overflow: hidden; }
+.shop .shutter { position: absolute; left: 40px; right: 40px; top: 30px; bottom: 0; background: repeating-linear-gradient(0deg, #3d4b49 0 18px, #2c3836 18px 22px); transform-origin: top; }
+.shop .inside { position: absolute; left: 40px; right: 40px; top: 30px; bottom: 0; background: linear-gradient(#ffe3b0, #f0a35c); opacity: .9; }
+.shop .sign { position: absolute; left: 50%; top: 22px; transform: translateX(-50%); font-weight: 900; font-size: 40px; color: #fff; text-shadow: 0 3px 0 rgba(0,0,0,.35); }
+.calendar { position: absolute; width: 300px; height: 330px; border-radius: 26px; background: #fff; color: #12302b; box-shadow: 0 30px 80px rgba(0,0,0,.5); overflow: hidden; perspective: 900px; }
+.calendar .top { height: 80px; background: var(--c); color: #fff; font-weight: 800; font-size: 40px; display: grid; place-items: center; }
+.calendar .num { position: absolute; left: 0; right: 0; top: 80px; bottom: 0; display: grid; place-items: center; font-family: CairoL, Cairo; font-weight: 900; font-size: 170px; }
+.paper { position: absolute; width: 360px; height: 460px; background: #f3efe4; border-radius: 6px; box-shadow: 0 18px 40px rgba(0,0,0,.45); padding: 40px 34px; }
+.paper i { display: block; height: 10px; border-radius: 5px; background: #c9c1ae; margin-bottom: 22px; }
+.paper i:nth-child(3n) { width: 60%; } .paper i:nth-child(4n) { width: 80%; }
+.qmark { font-family: CairoL; font-weight: 900; font-size: 520px; color: var(--c2); text-shadow: 0 0 90px rgba(240,163,92,.6); line-height: 1; }
+
+/* المشهد 2 */
+.note { position: absolute; width: 270px; padding: 26px 22px; background: #ffe680; color: #3b2f00; font-weight: 800; font-size: 32px; border-radius: 4px; box-shadow: 0 16px 34px rgba(0,0,0,.45); text-align: center; }
+.note small { display: block; font-size: 26px; font-weight: 600; opacity: .75; }
+.shelf { position: absolute; width: 640px; height: 330px; border-bottom: 14px solid #6b4a2c; }
+.shelf .box { position: absolute; bottom: 0; width: 130px; height: 120px; background: #b98a57; border: 3px solid #8a6238; border-radius: 6px; }
+.zero { position: absolute; font-family: CairoL; font-weight: 900; font-size: 230px; color: #ff4d4d; text-shadow: 0 0 60px rgba(255,77,77,.6); }
+.cur { position: absolute; left: 0; top: 0; font-weight: 900; font-size: 110px; color: rgba(255,255,255,.9); }
+.cur.d { color: #8ff0c8; font-family: CairoL; }
+.flypaper { position: absolute; left: 0; top: 0; width: 180px; height: 230px; background: #f3efe4; border-radius: 4px; box-shadow: 0 10px 20px rgba(0,0,0,.4); }
+
+/* الشعار */
+#logo-wrap { position: absolute; left: 50%; top: 44%; width: 0; height: 0; perspective: 1400px; }
+#logo { position: absolute; width: 360px; height: 360px; left: -180px; top: -180px; border-radius: 80px; box-shadow: 0 40px 120px rgba(15,110,92,.6), 0 0 0 1px rgba(255,255,255,.1); overflow: hidden; }
+#logo img { width: 100%; height: 100%; display: block; }
+#logo .shine { position: absolute; top: -50%; bottom: -50%; width: 140px; background: linear-gradient(90deg, transparent, rgba(255,255,255,.75), transparent); transform: rotate(20deg); left: -200px; }
+.ring { position: absolute; left: 50%; top: 44%; width: 400px; height: 400px; margin: -200px 0 0 -200px; border-radius: 50%; border: 3px solid var(--c2); opacity: 0; }
+#rays { position: absolute; left: 50%; top: 44%; width: 2400px; height: 2400px; margin: -1200px 0 0 -1200px; background: repeating-conic-gradient(from 0deg, rgba(240,163,92,.14) 0 6deg, transparent 6deg 18deg); mask-image: radial-gradient(circle, #000 0%, transparent 60%); opacity: 0; }
+#wordmark { position: absolute; left: 0; right: 0; top: 62%; text-align: center; }
+#wordmark .name { font-weight: 900; font-size: 150px; line-height: 1; letter-spacing: 0; }
+#wordmark .sub { font-weight: 700; font-size: 44px; color: var(--muted); margin-top: 60px; }
+
+/* الأنشطة */
+#tiles { position: absolute; left: 50%; top: 52%; width: 1560px; transform: translate(-50%, -50%); display: grid; grid-template-columns: repeat(4, 1fr); gap: 34px; perspective: 1600px; }
+.tile { height: 290px; border-radius: 34px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; background: linear-gradient(160deg, rgba(255,255,255,.12), rgba(255,255,255,.03)); border: 1px solid rgba(255,255,255,.14); box-shadow: 0 30px 60px rgba(0,0,0,.35); opacity: 0; }
+.tile .ic { width: 120px; height: 120px; border-radius: 30px; display: grid; place-items: center; color: #fff; }
+.tile .ic .icon { width: 70px; height: 70px; }
+.tile b { font-weight: 800; font-size: 40px; }
+#s4-title { position: absolute; left: 0; right: 0; top: 70px; text-align: center; }
+
+/* الأجهزة */
+.laptop { position: absolute; width: 1260px; }
+.laptop .screen { position: relative; background: #0c0f0f; border-radius: 26px 26px 6px 6px; padding: 22px 22px 26px; box-shadow: 0 50px 120px rgba(0,0,0,.6), inset 0 0 0 2px rgba(255,255,255,.08); }
+.laptop .screen .cam { position: absolute; left: 50%; top: 8px; width: 8px; height: 8px; border-radius: 50%; background: #333; }
+.laptop .view { position: relative; width: 1216px; height: 765px; overflow: hidden; border-radius: 6px; background: #f4f5f7; }
+.laptop .view img { position: absolute; left: 0; top: 0; width: 1216px; height: 765px; object-fit: cover; object-position: top; }
+.laptop .base { height: 34px; margin: 0 -70px; background: linear-gradient(#cfd5d4, #8c9594); border-radius: 0 0 30px 30px; box-shadow: 0 30px 60px rgba(0,0,0,.5); }
+.laptop .base::after { content: ''; display: block; width: 220px; height: 12px; margin: 0 auto; background: #7c8584; border-radius: 0 0 12px 12px; }
+.glare { position: absolute; inset: 0; background: linear-gradient(115deg, transparent 40%, rgba(255,255,255,.18) 48%, transparent 56%); pointer-events: none; }
+
+.feature { position: absolute; }
+.feat-title { position: absolute; right: 120px; top: 130px; width: 640px; }
+.feat-title .num { font-family: CairoL; font-weight: 900; font-size: 30px; color: var(--c2); }
+.feat-title .t { font-weight: 900; font-size: 86px; line-height: 1.15; }
+.feat-title .d { font-weight: 600; font-size: 34px; color: var(--muted); margin-top: 12px; }
+.card-shot { position: absolute; border-radius: 22px; overflow: hidden; box-shadow: 0 40px 100px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.1); background: #fff; }
+.card-shot img { display: block; width: 100%; }
+.printer { position: absolute; width: 420px; height: 150px; border-radius: 28px; background: linear-gradient(#2d3b39, #1b2523); box-shadow: 0 30px 60px rgba(0,0,0,.5); }
+.printer::before { content: ''; position: absolute; left: 50px; right: 50px; bottom: 26px; height: 14px; border-radius: 7px; background: #050707; }
+.receipt-mask { position: absolute; width: 330px; overflow: hidden; }
+.receipt-mask img { display: block; width: 330px; box-shadow: 0 20px 40px rgba(0,0,0,.4); }
+.badge { position: absolute; padding: 14px 30px; border-radius: 999px; font-weight: 900; font-size: 40px; background: var(--c); color: #fff; box-shadow: 0 20px 40px rgba(217,121,42,.45); }
+.hl { position: absolute; border: 5px solid var(--c2); border-radius: 18px; box-shadow: 0 0 0 4000px rgba(0,0,0,.45), 0 0 40px rgba(240,163,92,.7); opacity: 0; }
+.bars { position: absolute; display: flex; align-items: flex-end; gap: 26px; height: 360px; }
+.bars i { display: block; width: 70px; border-radius: 14px 14px 4px 4px; background: linear-gradient(var(--g2), var(--g)); transform-origin: bottom; }
+.bars i.c { background: linear-gradient(var(--c2), var(--c)); }
+.coin { position: absolute; width: 300px; height: 300px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; font-size: 110px; box-shadow: inset 0 0 0 12px rgba(255,255,255,.25), 0 30px 70px rgba(0,0,0,.5); }
+.coin.syp { background: radial-gradient(circle at 35% 30%, #2bc79f, #0f6e5c 70%); }
+.coin.usd { background: radial-gradient(circle at 35% 30%, #ffd27f, #c97a26 70%); font-family: CairoL; }
+
+/* الأمان */
+.big-icon { position: absolute; color: #fff; }
+.strike { position: absolute; height: 18px; border-radius: 9px; background: #ff5b5b; transform-origin: right center; box-shadow: 0 0 30px rgba(255,91,91,.7); }
+.hex { position: absolute; inset: 0; background-image: radial-gradient(circle, rgba(95,224,191,.25) 2px, transparent 3px); background-size: 34px 34px; opacity: 0; }
+
+/* العرض */
+#free { font-weight: 900; font-size: 260px; line-height: 1; background: linear-gradient(180deg, #ffe7b8, #f0a35c 55%, #c86414); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 20px 60px rgba(240,163,92,.55)); white-space: nowrap; }
+.confetti { position: absolute; width: 16px; height: 28px; border-radius: 3px; }
+#price { font-family: CairoL; font-weight: 900; font-size: 250px; line-height: 1; direction: ltr; }
+#price small { font-size: 120px; vertical-align: top; color: var(--c2); }
+
+/* التواصل */
+.wa { position: absolute; width: 170px; height: 170px; border-radius: 46px; background: #25d366; display: grid; place-items: center; box-shadow: 0 30px 70px rgba(37,211,102,.45); }
+.wa svg { width: 100px; height: 100px; }
+.phone { direction: ltr; font-family: CairoL; font-weight: 900; font-size: 128px; line-height: 1.1; letter-spacing: 2px; white-space: nowrap; }
+.phone span { display: inline-block; margin: 0 22px; }
+.phone .cc { color: var(--muted); font-size: 70px; vertical-align: middle; }
+
+/* الخاتمة */
+.endcard { position: absolute; left: 0; right: 0; bottom: 70px; display: flex; justify-content: center; gap: 30px; }
+.endcard .chip { font-size: 36px; }
+.endcard .chip.ltr { direction: ltr; font-family: CairoL; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="world">
+    <div id="bg"><div class="blob" id="blob1"></div><div class="blob" id="blob2"></div></div>
+    <div id="grid"></div>
+    <canvas id="particles" width="1920" height="1080"></canvas>
+
+    <!-- 1: يوم عمل طويل -->
+    <div class="scene" id="s1">
+      <div id="s1-sunwrap"><div id="s1-sun" class="icon">{{icon:sun}}</div><div id="s1-moon" class="icon">{{icon:moon}}</div></div>
+      <div class="shop" id="shop"><div class="roof"></div><div class="body"><div class="inside"></div><div class="shutter" id="shutter"></div></div></div>
+      <div class="abs" id="s1-t1" style="left:0;right:0;top:120px;text-align:center"><div class="h2"><span class="w">كل</span> <span class="w">يوم</span> <span class="w accent">بتفتح</span> <span class="w accent">محلك</span></div></div>
+      <div class="abs" id="s1-t2" style="left:0;right:0;top:250px;text-align:center"><div class="h3" style="color:var(--muted)"><span class="w">من</span> <span class="w">الصبح</span> <span class="w">لآخر</span> <span class="w">الليل</span></div></div>
+    </div>
+    <div class="scene" id="s1b">
+      <div class="calendar" id="cal" style="left:240px;top:330px"><div class="top">الشهر</div><div class="num" id="calnum">1</div></div>
+      <div id="papers"><div class="paper" style="left:1180px;top:300px;transform:rotate(-8deg)"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="paper" style="left:1260px;top:320px;transform:rotate(5deg)"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="paper" style="left:1220px;top:340px;transform:rotate(-1deg)"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+      <div class="abs" id="s1b-t1" style="left:0;right:0;top:110px;text-align:center"><div class="h2"><span class="w">بس</span> <span class="w accent">آخر</span> <span class="w accent">الشهر...</span></div></div>
+      <div class="center" id="qm"><div class="qmark">?</div></div>
+      <div class="abs" id="s1b-t2" style="left:0;right:0;bottom:90px;text-align:center"><div class="h3"><span class="w">قديش</span> <span class="w">ربحت</span> <span class="w accent">فعلاً؟</span></div></div>
+    </div>
+
+    <!-- 2: الفوضى -->
+    <div class="scene" id="s2">
+      <div id="notes">
+        <div class="note" style="left:180px;top:200px;transform:rotate(-7deg)">أبو خالد<small>250,000 ؟</small></div>
+        <div class="note" style="left:560px;top:120px;transform:rotate(5deg)">محمد<small>دين قديم...</small></div>
+        <div class="note" style="left:300px;top:560px;transform:rotate(3deg)">سامر<small>كم صار؟</small></div>
+      </div>
+      <div class="shelf" id="shelf" style="left:1100px;top:280px"><div class="box" style="right:40px"></div></div>
+      <div class="zero" id="zero" style="left:1310px;top:480px">0</div>
+      <div id="vortex"></div>
+      <div class="abs" id="s2-t" style="left:0;right:0;bottom:90px;text-align:center;z-index:5"><div class="h2" id="s2-line"></div></div>
+    </div>
+
+    <!-- 3: الكشف -->
+    <div class="scene" id="s3">
+      <div class="abs" id="s3-t1" style="left:0;right:0;top:400px;text-align:center"><div class="h1"><span class="w">من</span> <span class="w">اليوم...</span></div></div>
+      <div class="abs" id="s3-t2" style="left:0;right:0;top:400px;text-align:center"><div class="h1 accent glow"><span class="w">في</span> <span class="w">حل</span></div></div>
+      <div id="rays"></div>
+      <div class="ring" id="ring1"></div><div class="ring" id="ring2"></div><div class="ring" id="ring3"></div>
+      <div id="logo-wrap"><div id="logo"><img src="assets/logo.png" /><div class="shine" id="shine"></div></div></div>
+      <div id="wordmark"><div class="name" id="wm-name">ميزان</div><div class="sub" id="wm-sub">برنامج المحاسبة اللي انعمل لسوريا</div></div>
+    </div>
+
+    <!-- 4: الأنشطة -->
+    <div class="scene" id="s4">
+      <div id="s4-title"><div class="h3">لكل <span class="accent">المصالح</span> والتجارات</div></div>
+      <div id="tiles">
+        <div class="tile"><div class="ic" style="background:#0f6e5c"><div class="icon">{{icon:store}}</div></div><b>محلات</b></div>
+        <div class="tile"><div class="ic" style="background:#2f8f3a"><div class="icon">{{icon:shopping-cart}}</div></div><b>سوبرماركت</b></div>
+        <div class="tile"><div class="ic" style="background:#0e8a8a"><div class="icon">{{icon:pill}}</div></div><b>صيدليات</b></div>
+        <div class="tile"><div class="ic" style="background:#b5531c"><div class="icon">{{icon:utensils}}</div></div><b>مطاعم</b></div>
+        <div class="tile"><div class="ic" style="background:#1f5fa8"><div class="icon">{{icon:car}}</div></div><b>قطع وصيانة سيارات</b></div>
+        <div class="tile"><div class="ic" style="background:#8a3fa0"><div class="icon">{{icon:shirt}}</div></div><b>ألبسة</b></div>
+        <div class="tile"><div class="ic" style="background:#c07a12"><div class="icon">{{icon:croissant}}</div></div><b>أفران</b></div>
+        <div class="tile"><div class="ic" style="background:#9c3d6b"><div class="icon">{{icon:scissors}}</div></div><b>خياطة</b></div>
+      </div>
+    </div>
+
+    <!-- 5: بيعرف شغلك -->
+    <div class="scene" id="s5">
+      <div class="laptop" id="lap" style="left:330px;top:150px">
+        <div class="screen"><div class="cam"></div><div class="view">
+          <img id="l1" src="assets/dash_super.png" /><img id="l2" src="assets/dash_auto.png" /><img id="l3" src="assets/dash_tailor.png" /><img id="l4" src="assets/restaurant.png" />
+          <div class="glare" id="glare"></div>
+        </div></div>
+        <div class="base"></div>
+      </div>
+      <div class="abs" id="s5-t" style="left:0;right:0;top:40px;text-align:center"><div class="h2"><span class="w accent">ميزان</span> <span class="w">بيعرف</span> <span class="w">شغلك</span></div></div>
+    </div>
+
+    <!-- 6: الميزات -->
+    <div class="scene" id="f1">
+      <div class="card-shot" id="f1-shot" style="left:120px;top:150px;width:1000px"><img src="assets/pos.png" /></div>
+      <div class="printer" id="printer" style="left:1270px;top:110px"></div>
+      <div class="receipt-mask" id="rmask" style="left:1315px;top:236px;height:0"><img src="assets/receipt.png" id="rimg" /></div>
+      <div class="feat-title" style="right:auto;left:1200px;top:auto;bottom:70px;width:640px;text-align:center" id="f1-title"><div class="t" style="font-size:64px">فاتورة بتنطبع <span class="accent">بثانية</span></div></div>
+      <div class="badge" id="f1-badge" style="left:1640px;top:160px;font-family:CairoL">1s</div>
+    </div>
+    <div class="scene" id="f2">
+      <div class="card-shot" id="f2-shot" style="left:90px;top:120px;width:1180px"><img src="assets/stock.png" /></div>
+      <div class="feat-title" id="f2-title"><div class="num">02</div><div class="t">مخزون <span class="green">مضبوط</span></div><div class="d">بينبهك قبل ما تخلص البضاعة</div></div>
+    </div>
+    <div class="scene" id="f3">
+      <div class="card-shot" id="f3-shot" style="left:90px;top:120px;width:1180px"><img src="assets/parties.png" /></div>
+      <div class="hl" id="f3-hl" style="left:110px;top:260px;width:620px;height:230px"></div>
+      <div class="feat-title" id="f3-title"><div class="num">03</div><div class="t">ديون كل زبون <span class="accent">قدامك</span></div><div class="d">كشف حساب بكبسة زر</div></div>
+    </div>
+    <div class="scene" id="f4">
+      <div class="card-shot" id="f4-shot" style="left:90px;top:120px;width:1180px"><img src="assets/profit.png" /></div>
+      <div class="bars" id="bars" style="left:1340px;top:560px"><i style="height:120px"></i><i style="height:190px"></i><i class="c" style="height:150px"></i><i style="height:260px"></i><i class="c" style="height:330px"></i></div>
+      <div class="feat-title" id="f4-title" style="top:150px"><div class="num">04</div><div class="t">تقارير الربح</div><div class="d">جاهزة بكبسة زر · PDF · Excel</div></div>
+    </div>
+    <div class="scene" id="f5">
+      <div class="coin syp" id="coin1" style="left:520px;top:330px">ل.س</div>
+      <div class="coin usd" id="coin2" style="left:1100px;top:330px">$</div>
+      <div class="abs" id="f5-t" style="left:0;right:0;top:120px;text-align:center"><div class="h2"><span class="w">بالليرة</span> <span class="w">السورية</span> <span class="w green">الجديدة</span> <span class="w">وبالدولار</span></div></div>
+    </div>
+
+    <!-- 7: بدون إنترنت ومشفّر -->
+    <div class="scene" id="s7">
+      <div class="hex" id="hex"></div>
+      <div class="big-icon icon" id="wifi" style="left:380px;top:330px;width:300px;height:300px">{{icon:wifi-off}}</div>
+      <div class="big-icon icon" id="shield" style="left:1240px;top:310px;width:330px;height:330px;color:#5fe0bf">{{icon:shield-check}}</div>
+      <div class="abs" id="s7-a" style="left:250px;top:700px;width:560px;text-align:center"><div class="h3">بدون إنترنت</div></div>
+      <div class="abs" id="s7-b" style="left:1110px;top:700px;width:600px;text-align:center"><div class="h3">مشفّر <span class="green">على جهازك</span></div></div>
+    </div>
+
+    <!-- 8: العرض -->
+    <div class="scene" id="s8">
+      <div id="confetti"></div>
+      <div class="abs" id="s8-k" style="left:0;right:0;top:170px;text-align:center"><div class="h2" style="color:var(--muted)">وهلّق...</div></div>
+      <div class="abs" id="s8-a" style="left:0;right:0;top:300px;text-align:center"><div class="h3">أول شهر عليك</div></div>
+      <div class="center" id="free-wrap" style="top:560px"><div id="free">مجاناً!</div></div>
+      <div class="abs" id="s8-b" style="left:0;right:0;top:250px;text-align:center"><div class="h3" style="color:var(--muted)">وبعدها الاشتراك بيبدأ من</div></div>
+      <div class="center" id="price-wrap" style="top:540px"><div id="price"><small>$</small><span id="pnum">0.00</span></div></div>
+      <div class="abs" id="s8-c" style="left:0;right:0;top:720px;text-align:center"><div class="h3">بالشهر بس</div></div>
+    </div>
+
+    <!-- 9: التواصل -->
+    <div class="scene" id="s9">
+      <div class="wa" id="wa" style="left:875px;top:110px">{{icon:message-circle}}</div>
+      <div class="abs" id="s9-t" style="left:0;right:0;top:310px;text-align:center"><div class="h3">للاشتراك: اتصل أو راسلنا <span style="color:#25d366">واتساب</span></div></div>
+      <div class="abs" style="left:0;right:0;top:430px;text-align:center"><div class="phone" id="ph1"><span class="cc">+963</span><span>968</span><span>037</span><span>609</span></div></div>
+      <div class="abs" id="s9-or" style="left:0;right:0;top:595px;text-align:center"><div class="h3" style="color:var(--muted)">أو</div></div>
+      <div class="abs" style="left:0;right:0;top:690px;text-align:center"><div class="phone" id="ph2"><span class="cc">+963</span><span>980</span><span>072</span><span>891</span></div></div>
+    </div>
+
+    <!-- 10: الخاتمة -->
+    <div class="scene" id="s10">
+      <div class="abs" id="s10-tag" style="left:0;right:0;top:770px;text-align:center"><div class="h2"><span class="w">حساباتك</span> <span class="w">صارت</span> <span class="w accent glow">بميزان</span></div></div>
+      <div class="endcard" id="endcard">
+        <div class="chip"><span class="icon" style="width:34px;height:34px;color:var(--c2)">{{icon:gift}}</span>أول شهر مجاني</div>
+        <div class="chip ltr"><span class="icon" style="width:34px;height:34px;color:#25d366">{{icon:phone}}</span>+963 968 037 609</div>
+        <div class="chip ltr"><span class="icon" style="width:34px;height:34px;color:#25d366">{{icon:phone}}</span>+963 980 072 891</div>
+      </div>
+    </div>
+  </div>
+  <div id="grade"></div>
+  <div id="vignette"></div>
+  <div id="dark"></div>
+  <div id="flash"></div>
+  <div id="letterbox-top"></div><div id="letterbox-bot"></div>
+</div>
+
+<script src="assets/gsap.min.js"></script>
+<script>
+// ───────── توقيتات الصوت (ثوانٍ) ─────────
+const T = {
+  a1: 0.73, a2: 5.11, a3: 6.27, a4: 7.92, // المشكلة
+  b1: 10.14, b2: 11.69, b3: 13.74, collapse: 16.6, // الفوضى
+  c1: 17.34, c2: 19.45, logo: 20.40, // الكشف
+  list: [23.04, 23.67, 24.56, 25.39, 26.11, 27.63, 28.29, 28.83],
+  knows: 30.14,
+  f1: 33.89, f2: 35.52, f3: 36.74, f4: 39.13, f5: 41.73,
+  secure: 44.20, pause2: 48.80,
+  now: 49.68, free: 50.54, price: 52.46,
+  contact: 57.52, p1: [60.56, 62.34, 63.80], or: 65.37, p2: [65.95, 67.80, 69.23],
+  end: 70.99, tag: 71.96, total: 75.0,
+};
+
+const tl = gsap.timeline({ paused: true, defaults: { ease: 'power3.out' } });
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => [...document.querySelectorAll(s)];
+const cam = { x: 0, y: 0, s: 1, r: 0, shake: 0 };
+const fx = { energy: 0.35, warm: 0 };
+
+function show(id, at, out) {
+  tl.fromTo(id, { opacity: 0 }, { opacity: 1, duration: 0.25, ease: 'none' }, at);
+  if (out !== undefined) tl.to(id, { opacity: 0, duration: 0.3, ease: 'none' }, out);
+}
+// كلمات تظهر واحدة واحدة مع ضبابية وارتفاع
+function words(sel, at, step = 0.12) {
+  tl.fromTo($$(sel + ' .w'), { opacity: 0, y: 60, filter: 'blur(14px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.55, stagger: step }, at);
+}
+function wordsOut(sel, at) {
+  tl.to($$(sel + ' .w'), { opacity: 0, y: -40, filter: 'blur(10px)', duration: 0.35, stagger: 0.04, ease: 'power2.in' }, at);
+}
+function flash(at, power = 0.8) {
+  tl.fromTo('#flash', { opacity: power }, { opacity: 0, duration: 0.5, ease: 'power2.out', immediateRender: false }, at);
+}
+function shake(at, dur = 0.5, amt = 1) {
+  tl.fromTo(cam, { shake: amt }, { shake: 0, duration: dur, ease: 'power2.out', immediateRender: false }, at);
+}
+function punch(at, s = 1.06) {
+  tl.fromTo(cam, { s }, { s: 1, duration: 0.8, ease: 'expo.out', immediateRender: false }, at);
+}
+
+// الحالة الأولى
+tl.set('.scene', { opacity: 0 }, 0);
+tl.set(fx, { energy: 0.25, warm: 0 }, 0);
+tl.fromTo('#dark', { opacity: 1 }, { opacity: 0, duration: 1.2, ease: 'none' }, 0);
+
+// ───────── المشهد 1: يوم عمل ─────────
+show('#s1', 0, T.a2 - 0.25);
+tl.fromTo('#shop', { y: 300, opacity: 0 }, { y: 0, opacity: 1, duration: 1.2 }, 0.2);
+tl.fromTo('#shutter', { scaleY: 1 }, { scaleY: 0.05, duration: 1.2, ease: 'power2.inOut' }, 1.0);
+tl.fromTo('#s1-sunwrap', { rotation: 70 }, { rotation: -70, duration: 4.4, ease: 'none' }, 0.5);
+tl.set('#s1-sun', { x: 0, y: -720 }, 0); tl.set('#s1-moon', { x: 0, y: -720 }, 0);
+tl.to('#s1-sun', { opacity: 0, duration: 0.6 }, 3.2);
+tl.to('#s1-moon', { opacity: 1, duration: 0.6 }, 3.2);
+tl.to('#bg', { filter: 'brightness(0.55) saturate(0.6)', duration: 2 }, 2.6);
+words('#s1-t1', T.a1, 0.18);
+words('#s1-t2', 2.5, 0.2);
+tl.to('#shutter', { scaleY: 1, duration: 0.6, ease: 'power2.in' }, 4.3);
+
+show('#s1b', T.a2 - 0.2, T.b1 - 0.3);
+words('#s1b-t1', T.a2, 0.2);
+tl.fromTo('#cal', { rotationY: -70, x: -200, opacity: 0 }, { rotationY: 0, x: 0, opacity: 1, duration: 0.7 }, T.a2);
+const calObj = { n: 1 };
+tl.fromTo(calObj, { n: 1 }, { n: 30, duration: 1.2, ease: 'power2.in', onUpdate: () => ($('#calnum').textContent = Math.round(calObj.n)) }, T.a2 + 0.25);
+tl.fromTo($$('#papers .paper'), { y: -900, rotation: (i) => [-40, 30, -15][i] }, { y: 0, rotation: (i) => [-8, 5, -1][i], duration: 0.7, stagger: 0.18, ease: 'bounce.out' }, T.a3);
+shake(T.a3 + 0.5, 0.4, 0.6);
+tl.fromTo('#qm', { scale: 0, rotation: -30, opacity: 0 }, { scale: 1, rotation: 0, opacity: 1, duration: 0.9, ease: 'back.out(2)' }, T.a4);
+tl.to(['#cal', '#papers'], { opacity: 0.25, filter: 'blur(6px)', duration: 0.6 }, T.a4);
+words('#s1b-t2', T.a4 + 0.2, 0.2);
+tl.to('#qm', { rotation: 8, duration: 0.15, yoyo: true, repeat: 5, ease: 'sine.inOut' }, T.a4 + 1);
+
+// ───────── المشهد 2: الفوضى ─────────
+show('#s2', T.b1 - 0.2, T.collapse + 0.1);
+const s2lines = [
+  [T.b1, 'ديون <span class="accent">ما بتتذكرها</span>'],
+  [T.b2, 'بضاعة <span style="color:#ff6b6b">خلصت</span> وما انتبهت'],
+  [T.b3, 'حسابات <span class="accent">ضايعة</span> بين الأوراق'],
+];
+s2lines.forEach(([at, html], i) => {
+  tl.call(() => ($('#s2-line').innerHTML = html), null, at - 0.01);
+  tl.fromTo('#s2-line', { opacity: 0, y: 50, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.4 }, at);
+});
+tl.call(() => ($('#s2-line').innerHTML = ''), null, T.b1 - 0.3);
+tl.fromTo($$('#notes .note'), { scale: 0, rotation: () => gsap.utils.random(-40, 40, 1) }, { scale: 1, rotation: (i) => [-7, 5, 3][i], duration: 0.5, stagger: 0.28, ease: 'back.out(2.5)' }, T.b1);
+tl.to('#notes', { x: -260, opacity: 0.3, filter: 'blur(4px)', duration: 0.6 }, T.b2);
+tl.fromTo('#shelf', { x: 400, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6 }, T.b2);
+tl.fromTo('#zero', { scale: 4, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.45, ease: 'power4.in' }, T.b2 + 0.6);
+shake(T.b2 + 1.05, 0.5, 1);
+tl.to(['#notes', '#shelf', '#zero'], { opacity: 0, duration: 0.3 }, T.b3 - 0.1);
+// دوامة الأوراق والعملات
+const vortex = $('#vortex');
+const vItems = [];
+for (let i = 0; i < 26; i++) {
+  const el = document.createElement('div');
+  if (i % 3 === 0) { el.className = 'cur'; el.textContent = 'ل.س'; }
+  else if (i % 3 === 1) { el.className = 'cur d'; el.textContent = '$'; }
+  else { el.className = 'flypaper'; }
+  vortex.appendChild(el);
+  vItems.push({ el, a: (i / 26) * Math.PI * 2, r: 160 + (i * 53) % 330, sp: 0.8 + ((i * 37) % 10) / 10, z: (i * 29) % 10 });
+}
+const vortexState = { k: 0, pull: 0 };
+tl.fromTo(vortexState, { k: 0 }, { k: 1, duration: 0.6 }, T.b3);
+tl.fromTo(vortexState, { pull: 0 }, { pull: 1, duration: 0.7, ease: 'power3.in' }, T.collapse - 0.15);
+tl.to(fx, { energy: 1.4, duration: 2.5, ease: 'power2.in' }, T.b3);
+shake(T.b3 + 1.5, 1.5, 0.8);
+
+// انهيار ثم نقطة نحاسية
+tl.to('#dark', { opacity: 1, duration: 0.25, ease: 'power2.in' }, T.collapse + 0.05);
+tl.set(fx, { energy: 0.15 }, T.collapse + 0.3);
+tl.set('#bg', { filter: 'brightness(1) saturate(1)' }, T.collapse + 0.3);
+
+// ───────── المشهد 3: من اليوم... في حل ← الشعار ─────────
+show('#s3', T.c1 - 0.3);
+tl.to('#dark', { opacity: 0, duration: 0.9, ease: 'power2.out' }, T.c1 - 0.2);
+tl.set('#letterbox-top, #letterbox-bot', { height: 0 }, 0);
+tl.to('#letterbox-top, #letterbox-bot', { height: 110, duration: 0.8, ease: 'power3.inOut' }, T.c1 - 0.2);
+tl.fromTo('#s3-t1 .w', { opacity: 0, letterSpacing: '40px', filter: 'blur(20px)' }, { opacity: 1, letterSpacing: '0px', filter: 'blur(0px)', duration: 1, stagger: 0.35 }, T.c1);
+wordsOut('#s3-t1', T.c2 - 0.3);
+tl.fromTo('#s3-t2 .w', { opacity: 0, scale: 2.4, filter: 'blur(20px)' }, { opacity: 1, scale: 1, filter: 'blur(0px)', duration: 0.5, stagger: 0.12, ease: 'expo.out' }, T.c2);
+punch(T.c2, 1.04);
+tl.to('#s3-t2', { opacity: 0, scale: 0.6, duration: 0.25, ease: 'power2.in' }, T.logo - 0.25);
+// انفجار الشعار
+flash(T.logo, 1);
+shake(T.logo, 0.9, 1.6);
+punch(T.logo, 1.12);
+tl.to('#letterbox-top, #letterbox-bot', { height: 0, duration: 0.8, ease: 'power3.inOut' }, T.logo);
+tl.to(fx, { energy: 1, warm: 1, duration: 0.3 }, T.logo);
+tl.to(fx, { energy: 0.55, duration: 2.5 }, T.logo + 0.4);
+tl.fromTo('#rays', { opacity: 0, scale: 0.4, rotation: 0 }, { opacity: 1, scale: 1, rotation: 25, duration: 3.5, ease: 'power2.out' }, T.logo);
+['#ring1', '#ring2', '#ring3'].forEach((r, i) => tl.fromTo(r, { scale: 0.6, opacity: 0.9 }, { scale: 4 + i, opacity: 0, duration: 1.4, ease: 'power2.out', immediateRender: false }, T.logo + i * 0.12));
+tl.fromTo('#logo', { scale: 0, rotationY: 180, rotationX: 25 }, { scale: 1, rotationY: 0, rotationX: 0, duration: 1.3, ease: 'elastic.out(1, 0.6)' }, T.logo);
+tl.fromTo('#shine', { left: -220 }, { left: 520, duration: 0.9, ease: 'power2.inOut' }, T.logo + 0.7);
+tl.fromTo('#wm-name', { opacity: 0, y: 80, letterSpacing: '60px' }, { opacity: 1, y: 0, letterSpacing: '0px', duration: 0.9, ease: 'expo.out' }, T.logo + 0.15);
+tl.fromTo('#wm-sub', { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6 }, T.logo + 0.75);
+tl.to('#logo', { y: -12, duration: 1.2, yoyo: true, repeat: 1, ease: 'sine.inOut' }, T.logo + 1.3);
+tl.to(['#logo-wrap', '#wordmark', '#rays'], { opacity: 0, scale: 0.8, duration: 0.35, ease: 'power2.in' }, T.list[0] - 0.4);
+tl.set('#s3', { opacity: 0 }, T.list[0]);
+
+// ───────── المشهد 4: الأنشطة ─────────
+show('#s4', T.list[0] - 0.3, T.knows - 0.3);
+tl.fromTo('#s4-title', { opacity: 0, y: -40 }, { opacity: 1, y: 0, duration: 0.5 }, T.list[0] - 0.3);
+$$('.tile').forEach((t, i) => {
+  tl.fromTo(t, { opacity: 0, scale: 0.3, rotationX: -70, y: 120 }, { opacity: 1, scale: 1, rotationX: 0, y: 0, duration: 0.55, ease: 'back.out(1.8)' }, T.list[i]);
+  tl.fromTo(t.querySelector('.ic'), { boxShadow: '0 0 0px rgba(255,255,255,0)' }, { boxShadow: '0 0 60px rgba(255,255,255,.55)', duration: 0.15, yoyo: true, repeat: 1 }, T.list[i] + 0.15);
+});
+tl.fromTo('#tiles', { rotationY: 0, scale: 1 }, { rotationY: 0, scale: 1.04, duration: 6.5, ease: 'none' }, T.list[0]);
+tl.to('.tile', { boxShadow: '0 0 0 3px rgba(240,163,92,.7), 0 30px 60px rgba(0,0,0,.35)', duration: 0.3, stagger: 0.05 }, T.list[7] + 0.4);
+tl.to('#tiles', { scale: 0.2, opacity: 0, rotationY: -25, duration: 0.5, ease: 'power3.in' }, T.knows - 0.45);
+
+// ───────── المشهد 5: بيعرف شغلك ─────────
+show('#s5', T.knows - 0.15, T.f1 - 0.25);
+tl.fromTo('#lap', { y: 700, rotationX: 50, scale: 0.7, opacity: 0, transformPerspective: 1800 }, { y: 0, rotationX: 0, scale: 0.92, opacity: 1, duration: 0.9, ease: 'expo.out' }, T.knows - 0.15);
+words('#s5-t', T.knows, 0.15);
+['#l2', '#l3', '#l4'].forEach((id, i) => tl.fromTo(id, { opacity: 0, x: -120 }, { opacity: 1, x: 0, duration: 0.35 }, T.knows + 0.9 + i * 0.75));
+tl.fromTo('#glare', { x: -900 }, { x: 900, duration: 1.4, ease: 'power2.inOut' }, T.knows + 0.4);
+tl.to('#lap', { scale: 1.6, y: 120, opacity: 0, duration: 0.45, ease: 'power3.in' }, T.f1 - 0.45);
+
+// ───────── المشهد 6: الميزات ─────────
+// 1) الفاتورة والطباعة
+show('#f1', T.f1 - 0.2, T.f2 - 0.2);
+tl.fromTo('#f1-shot', { x: -500, rotationY: 30, opacity: 0, transformPerspective: 1800 }, { x: 0, rotationY: 8, opacity: 1, duration: 0.7 }, T.f1 - 0.2);
+tl.fromTo('#printer', { y: -300, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: 'back.out(1.6)' }, T.f1);
+tl.fromTo('#rmask', { height: 0 }, { height: 700, duration: 1.1, ease: 'power1.inOut' }, T.f1 + 0.3);
+tl.fromTo('#f1-title', { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.4 }, T.f1 + 0.1);
+tl.fromTo('#f1-badge', { scale: 0 }, { scale: 1, duration: 0.45, ease: 'back.out(3)' }, T.f1 + 0.5);
+// 2) المخزون
+show('#f2', T.f2 - 0.2, T.f3 - 0.2);
+tl.fromTo('#f2-shot', { x: 600, opacity: 0, rotationY: -25, transformPerspective: 1800 }, { x: 0, opacity: 1, rotationY: -6, duration: 0.6 }, T.f2 - 0.2);
+tl.fromTo('#f2-title', { opacity: 0, x: 120 }, { opacity: 1, x: 0, duration: 0.5 }, T.f2);
+tl.fromTo('#f2-shot img', { y: 0 }, { y: -90, duration: 1.4, ease: 'none' }, T.f2);
+// 3) الديون
+show('#f3', T.f3 - 0.2, T.f4 - 0.2);
+tl.fromTo('#f3-shot', { scale: 1.3, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6 }, T.f3 - 0.2);
+tl.fromTo('#f3-title', { opacity: 0, x: 120 }, { opacity: 1, x: 0, duration: 0.5 }, T.f3);
+tl.fromTo('#f3-hl', { opacity: 0, scale: 1.4 }, { opacity: 1, scale: 1, duration: 0.5 }, T.f3 + 0.6);
+// 4) التقارير
+show('#f4', T.f4 - 0.2, T.f5 - 0.2);
+tl.fromTo('#f4-shot', { y: 500, opacity: 0, rotationX: 30, transformPerspective: 1800 }, { y: 0, opacity: 1, rotationX: 0, duration: 0.6 }, T.f4 - 0.2);
+tl.fromTo('#f4-title', { opacity: 0, x: 120 }, { opacity: 1, x: 0, duration: 0.5 }, T.f4);
+tl.fromTo('#bars i', { scaleY: 0 }, { scaleY: 1, duration: 0.6, stagger: 0.12, ease: 'back.out(1.5)' }, T.f4 + 0.3);
+// 5) العملات
+show('#f5', T.f5 - 0.2, T.secure - 0.25);
+words('#f5-t', T.f5, 0.18);
+tl.fromTo('#coin1', { rotationY: 540, scale: 0, transformPerspective: 1200 }, { rotationY: 0, scale: 1, duration: 1.0, ease: 'power3.out' }, T.f5);
+tl.fromTo('#coin2', { rotationY: -540, scale: 0, transformPerspective: 1200 }, { rotationY: 0, scale: 1, duration: 1.0, ease: 'power3.out' }, T.f5 + 0.5);
+tl.to('#coin1', { x: 160, duration: 0.6, ease: 'power2.inOut' }, T.f5 + 1.4);
+tl.to('#coin2', { x: -160, duration: 0.6, ease: 'power2.inOut' }, T.f5 + 1.4);
+flash(T.f5 + 1.95, 0.5);
+punch(T.f5 + 1.95, 1.05);
+
+// ───────── المشهد 7: بدون إنترنت ومشفّر ─────────
+show('#s7', T.secure - 0.2, T.pause2 + 0.1);
+tl.fromTo('#wifi', { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: 'back.out(2)' }, T.secure);
+tl.fromTo('#s7-a', { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.4 }, T.secure + 0.3);
+tl.fromTo('#shield', { scale: 0, rotation: -40, opacity: 0 }, { scale: 1, rotation: 0, opacity: 1, duration: 0.8, ease: 'elastic.out(1, .5)' }, T.secure + 1.9);
+tl.fromTo('#hex', { opacity: 0 }, { opacity: 1, duration: 0.8 }, T.secure + 1.9);
+tl.fromTo('#s7-b', { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.4 }, T.secure + 2.2);
+tl.to('#shield', { filter: 'drop-shadow(0 0 40px rgba(95,224,191,.9))', duration: 0.5, yoyo: true, repeat: 3 }, T.secure + 2.7);
+tl.to('#dark', { opacity: 0.85, duration: 0.4 }, T.pause2);
+
+// ───────── المشهد 8: العرض ─────────
+show('#s8', T.now - 0.1, T.contact - 0.3);
+tl.to('#dark', { opacity: 0, duration: 0.3 }, T.now - 0.1);
+tl.fromTo('#s8-k', { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.4 }, T.now);
+tl.to('#s8-k', { opacity: 0, duration: 0.2 }, T.free - 0.1);
+tl.fromTo('#s8-a', { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.35 }, T.free);
+tl.fromTo('#free-wrap', { scale: 4, opacity: 0, rotation: -8 }, { scale: 1, opacity: 1, rotation: 0, duration: 0.55, ease: 'expo.out' }, T.free + 0.45);
+flash(T.free + 0.45, 0.9);
+shake(T.free + 0.45, 0.8, 1.6);
+tl.to(fx, { energy: 1.3, warm: 1, duration: 0.3 }, T.free + 0.45);
+tl.to(fx, { energy: 0.6, duration: 1.5 }, T.free + 0.8);
+tl.fromTo('#rays', { opacity: 0 }, { opacity: 0, duration: 0 }, 0);
+// قصاصات احتفال
+const conf = $('#confetti');
+const confItems = [];
+const colors = ['#f0a35c', '#5fe0bf', '#ffffff', '#ffd27f', '#14957c'];
+for (let i = 0; i < 70; i++) {
+  const el = document.createElement('div');
+  el.className = 'confetti';
+  el.style.background = colors[i % colors.length];
+  conf.appendChild(el);
+  confItems.push({ el, ang: -Math.PI / 2 + ((i * 47) % 100 - 50) / 40, v: 900 + (i * 73) % 700, rot: (i * 97) % 720 });
+}
+const confState = { t: -1 };
+tl.fromTo(confState, { t: 0 }, { t: 3.2, duration: 3.2, ease: 'none' }, T.free + 0.45);
+tl.set(confState, { t: -1 }, T.free + 3.7);
+tl.to(['#s8-a', '#free-wrap'], { opacity: 0, y: -60, duration: 0.3, ease: 'power2.in' }, T.price - 0.3);
+tl.fromTo('#s8-b', { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.4 }, T.price);
+tl.fromTo('#price-wrap', { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.6, ease: 'back.out(1.7)' }, T.price + 0.6);
+const priceObj = { v: 0 };
+tl.fromTo(priceObj, { v: 0 }, { v: 3.99, duration: 1.4, ease: 'power3.out', onUpdate: () => ($('#pnum').textContent = priceObj.v.toFixed(2)) }, T.price + 0.6);
+tl.fromTo('#s8-c', { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.4 }, T.price + 3.0);
+punch(T.price + 2.0, 1.04);
+
+// ───────── المشهد 9: التواصل ─────────
+show('#s9', T.contact - 0.2, T.end - 0.4);
+tl.fromTo('#wa', { scale: 0, rotation: -90 }, { scale: 1, rotation: 0, duration: 0.8, ease: 'elastic.out(1, .55)' }, T.contact);
+tl.fromTo('#s9-t', { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5 }, T.contact + 0.2);
+tl.set('#ph1 span, #ph2 span', { opacity: 0 }, 0);
+tl.fromTo('#ph1 .cc', { opacity: 0, x: -40 }, { opacity: 1, x: 0, duration: 0.4 }, T.p1[0] - 0.3);
+T.p1.forEach((at, i) => tl.fromTo($$('#ph1 span')[i + 1], { opacity: 0, y: 70, scale: 1.4 }, { opacity: 1, y: 0, scale: 1, duration: 0.45, ease: 'back.out(2)' }, at));
+tl.fromTo('#s9-or', { opacity: 0 }, { opacity: 1, duration: 0.3 }, T.or);
+tl.fromTo('#ph2 .cc', { opacity: 0, x: -40 }, { opacity: 1, x: 0, duration: 0.4 }, T.p2[0] - 0.3);
+T.p2.forEach((at, i) => tl.fromTo($$('#ph2 span')[i + 1], { opacity: 0, y: 70, scale: 1.4 }, { opacity: 1, y: 0, scale: 1, duration: 0.45, ease: 'back.out(2)' }, at));
+tl.to('#wa', { scale: 1.12, duration: 0.4, yoyo: true, repeat: 7, ease: 'sine.inOut' }, T.contact + 1);
+
+// ───────── المشهد 10: الخاتمة ─────────
+show('#s3', T.end - 0.4);
+tl.set('#s3-t1, #s3-t2', { opacity: 0 }, T.end - 0.4);
+tl.set(['#logo-wrap', '#wordmark'], { opacity: 1, scale: 1 }, T.end - 0.4);
+tl.set('#wordmark', { top: '52%' }, T.end - 0.4);
+tl.set('#logo-wrap', { top: '32%' }, T.end - 0.4);
+tl.set('#wm-sub', { opacity: 0 }, T.end - 0.4);
+tl.set('#ring1, #ring2, #ring3', { top: '32%' }, T.end - 0.4);
+tl.set('#rays', { top: '32%' }, T.end - 0.4);
+flash(T.end, 1);
+shake(T.end, 0.8, 1.4);
+punch(T.end, 1.1);
+tl.fromTo('#rays', { opacity: 0, scale: 0.5 }, { opacity: 0.9, scale: 1.1, rotation: 60, duration: 4, ease: 'power2.out' }, T.end);
+['#ring1', '#ring2', '#ring3'].forEach((r, i) => tl.fromTo(r, { scale: 0.6, opacity: 0.9 }, { scale: 4 + i, opacity: 0, duration: 1.4, ease: 'power2.out', immediateRender: false }, T.end + i * 0.12));
+tl.fromTo('#logo', { scale: 0, rotationY: -180 }, { scale: 0.9, rotationY: 0, duration: 1.1, ease: 'elastic.out(1, 0.6)' }, T.end);
+tl.fromTo('#wm-name', { opacity: 0, scale: 1.6, letterSpacing: '50px' }, { opacity: 1, scale: 1, letterSpacing: '0px', duration: 0.8, ease: 'expo.out' }, T.end + 0.1);
+tl.fromTo('#shine', { left: -220 }, { left: 520, duration: 0.9, ease: 'power2.inOut' }, T.end + 0.8);
+show('#s10', T.tag - 0.2);
+words('#s10-tag', T.tag, 0.25);
+tl.fromTo($$('#endcard .chip'), { opacity: 0, y: 60 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.15 }, T.tag + 0.9);
+tl.to(fx, { energy: 0.8, warm: 1, duration: 1 }, T.end);
+tl.to('#dark', { opacity: 0.0, duration: 0.1 }, T.total - 0.6);
+tl.set({}, {}, T.total);
+
+// ───────── الجسيمات والكاميرا (حتمية حسب الزمن) ─────────
+const cv = $('#particles');
+const ctx = cv.getContext('2d');
+const P = [];
+let seed = 7;
+const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+for (let i = 0; i < 160; i++) P.push({ x: rnd() * 1920, y: rnd() * 1080, vx: (rnd() - 0.5) * 30, vy: -10 - rnd() * 40, r: 0.8 + rnd() * 2.6, c: rnd() < 0.3 ? 'c' : 'g', ph: rnd() * 6.28 });
+
+function render(t) {
+  tl.seek(t, false);
+  // جسيمات
+  ctx.clearRect(0, 0, 1920, 1080);
+  const e = fx.energy;
+  for (const p of P) {
+    const x = (((p.x + p.vx * t * (0.6 + e)) % 1920) + 1920) % 1920;
+    const y = (((p.y + p.vy * t * (0.6 + e)) % 1080) + 1080) % 1080;
+    const a = (0.25 + 0.35 * Math.sin(t * 2 + p.ph) ** 2) * Math.min(1, e + 0.2);
+    ctx.beginPath();
+    ctx.fillStyle = p.c === 'c' || fx.warm > 0.5 && p.c === 'c' ? `rgba(240,163,92,${a})` : `rgba(95,224,191,${a})`;
+    ctx.arc(x, y, p.r * (1 + e * 0.6), 0, 6.283);
+    ctx.fill();
+  }
+  // دوامة
+  if (vortexState.k > 0 && t < T.collapse + 0.6) {
+    for (const v of vItems) {
+      const ang = v.a + t * v.sp * 2.2 * (1 + vortexState.pull * 3);
+      const r = v.r * (1 - vortexState.pull) * vortexState.k + 20;
+      v.el.style.opacity = String(vortexState.k * (1 - vortexState.pull * 0.8));
+      v.el.style.transform = `translate(${900 + Math.cos(ang) * r * 1.4}px, ${420 + Math.sin(ang) * r * 0.75}px) rotate(${ang * 90}deg) scale(${0.6 + v.z / 15})`;
+    }
+  } else for (const v of vItems) v.el.style.opacity = '0';
+  // قصاصات
+  for (const c of confItems) {
+    if (confState.t < 0) { c.el.style.opacity = '0'; continue; }
+    const tt = confState.t;
+    const x = 960 + Math.cos(c.ang) * c.v * tt * 0.9;
+    const y = 560 + Math.sin(c.ang) * c.v * tt + 700 * tt * tt;
+    c.el.style.opacity = String(Math.max(0, 1 - tt / 3.2));
+    c.el.style.transform = `translate(${x}px, ${y}px) rotate(${c.rot + tt * 540}deg)`;
+  }
+  // الخلفية تتحرك ببطء
+  $('#blob1').style.transform = `translate(${Math.sin(t * 0.21) * 160}px, ${Math.cos(t * 0.17) * 120}px)`;
+  $('#blob2').style.transform = `translate(${Math.cos(t * 0.19) * 180}px, ${Math.sin(t * 0.23) * 110}px)`;
+  $('#blob2').style.opacity = String(0.2 + fx.warm * 0.25);
+  // الكاميرا: اهتزاز + انجراف خفيف دائم
+  const sx = cam.shake * (Math.sin(t * 91) * 14 + Math.sin(t * 57) * 9);
+  const sy = cam.shake * (Math.cos(t * 83) * 12 + Math.sin(t * 67) * 8);
+  const dx = Math.sin(t * 0.3) * 8, dy = Math.cos(t * 0.27) * 6;
+  $('#world').style.transform = `translate(${sx + dx}px, ${sy + dy}px) scale(${cam.s}) rotate(${cam.shake * Math.sin(t * 40) * 0.6}deg)`;
+}
+window.render = render;
+window.DURATION = T.total;
+document.fonts.ready.then(() => { render(0); window.READY = true; });
+</script>
+</body>
+</html>

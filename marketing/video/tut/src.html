@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<title>Mizan Tutorial — Stock</title>
+<style>
+@font-face { font-family: Cairo; font-weight: 400; src: url(assets/fonts/cairo-arabic-400-normal.woff2), url(assets/fonts/cairo-latin-400-normal.woff2); }
+@font-face { font-family: Cairo; font-weight: 600; src: url(assets/fonts/cairo-arabic-600-normal.woff2), url(assets/fonts/cairo-latin-600-normal.woff2); }
+@font-face { font-family: Cairo; font-weight: 700; src: url(assets/fonts/cairo-arabic-700-normal.woff2), url(assets/fonts/cairo-latin-700-normal.woff2); }
+@font-face { font-family: Cairo; font-weight: 800; src: url(assets/fonts/cairo-arabic-800-normal.woff2), url(assets/fonts/cairo-latin-800-normal.woff2); }
+@font-face { font-family: Cairo; font-weight: 900; src: url(assets/fonts/cairo-arabic-900-normal.woff2), url(assets/fonts/cairo-latin-900-normal.woff2); }
+@font-face { font-family: CairoL; font-weight: 900; src: url(assets/fonts/cairo-latin-900-normal.woff2); }
+:root { --g: #0f6e5c; --g2: #14957c; --c: #d9792a; --c2: #f0a35c; --w: #f4f5f7; --muted: #9fb7b1; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+body { font-family: Cairo, sans-serif; color: var(--w); }
+#stage { position: absolute; inset: 0; overflow: hidden; background: radial-gradient(ellipse at 50% 30%, #0f3a33 0%, #071a17 60%, #030b0a 100%); }
+.blob { position: absolute; border-radius: 50%; filter: blur(130px); }
+#b1 { width: 900px; height: 900px; background: #0f6e5c; opacity: .45; left: -250px; top: -300px; }
+#b2 { width: 800px; height: 800px; background: #d9792a; opacity: .18; right: -300px; bottom: -350px; }
+#grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px); background-size: 80px 80px; mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%); }
+.icon svg { width: 100%; height: 100%; }
+.w { display: inline-block; }
+.accent { color: var(--c2); }
+.green { color: #5fe0bf; }
+
+/* نافذة البرنامج */
+#win { position: absolute; left: 240px; top: 92px; width: 1440px; height: 936px; border-radius: 14px; overflow: hidden; box-shadow: 0 50px 120px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.08); background: #f4f5f7; transform-origin: 50% 50%; opacity: 0; }
+#chrome { position: absolute; left: 0; right: 0; top: 0; height: 36px; background: #12302b; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; direction: ltr; z-index: 3; }
+#chrome .btns { display: flex; gap: 18px; color: #c7d6d2; font-size: 14px; }
+#chrome .title { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #e3eeeb; font-weight: 600; direction: rtl; }
+#chrome .title img { width: 20px; height: 20px; border-radius: 5px; }
+#viewport { position: absolute; left: 0; top: 36px; width: 1440px; height: 900px; overflow: hidden; }
+#content { position: absolute; left: 0; top: 0; width: 1600px; height: 1000px; transform-origin: 0 0; }
+#content img.st { position: absolute; left: 0; top: 0; width: 1600px; height: 1000px; opacity: 0; }
+#ring { position: absolute; border: 4px solid var(--c2); border-radius: 12px; box-shadow: 0 0 0 9999px rgba(8,20,18,.42), 0 0 30px rgba(240,163,92,.8); opacity: 0; pointer-events: none; }
+#cursor { position: absolute; left: 0; top: 0; width: 34px; height: 44px; transform-origin: 0 0; z-index: 5; filter: drop-shadow(0 4px 6px rgba(0,0,0,.4)); }
+.ripple { position: absolute; width: 70px; height: 70px; margin: -35px 0 0 -35px; border-radius: 50%; border: 4px solid var(--c); opacity: 0; z-index: 4; }
+#laser { position: absolute; height: 4px; background: #ff3b3b; box-shadow: 0 0 18px #ff3b3b, 0 0 4px #fff; opacity: 0; z-index: 4; }
+
+/* فقاعة اسم الزر */
+.callout { position: absolute; left: 0; top: 0; padding: 12px 26px; border-radius: 16px; background: linear-gradient(135deg, #f0a35c, #d9792a); color: #fff; font-weight: 800; font-size: 34px; white-space: nowrap; box-shadow: 0 18px 40px rgba(0,0,0,.4); opacity: 0; display: flex; align-items: center; gap: 12px; z-index: 20; }
+.callout .icon { width: 34px; height: 34px; }
+.callout::after { content: ''; position: absolute; left: 50%; bottom: -12px; margin-left: -12px; border: 12px solid transparent; border-bottom: 0; border-top-color: #d9792a; }
+.callout.below::after { bottom: auto; top: -12px; border-top: 0; border-bottom: 12px solid #f0a35c; }
+.callout.green { background: linear-gradient(135deg, #2bc79f, #0f6e5c); }
+.callout.green::after { border-top-color: #0f6e5c; }
+.callout.green.below::after { border-bottom-color: #2bc79f; }
+
+/* شريط الخطوة */
+#stepbar { position: absolute; right: 240px; top: 26px; display: flex; gap: 12px; align-items: center; opacity: 0; z-index: 25; }
+.stepchip { display: flex; align-items: center; gap: 10px; padding: 6px 18px 6px 8px; border-radius: 999px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.14); font-weight: 700; font-size: 22px; color: var(--muted); }
+.stepchip b { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,.12); color: #fff; font-family: CairoL; }
+.stepchip.on { color: #fff; border-color: var(--c2); background: rgba(240,163,92,.18); }
+.stepchip.on b { background: var(--c); }
+.stepchip.done b { background: var(--g2); }
+#brand { position: absolute; left: 240px; top: 24px; display: flex; align-items: center; gap: 12px; font-weight: 800; font-size: 26px; opacity: 0; z-index: 25; }
+#brand img { width: 44px; height: 44px; border-radius: 12px; }
+
+/* الترجمة */
+#subs { position: absolute; left: 0; right: 0; bottom: 34px; display: flex; justify-content: center; z-index: 30; pointer-events: none; }
+#subs span { max-width: 1500px; padding: 10px 28px; border-radius: 14px; background: rgba(5,14,12,.82); border: 1px solid rgba(255,255,255,.1); font-weight: 700; font-size: 36px; line-height: 1.5; text-align: center; opacity: 0; }
+
+/* بطاقات كاملة */
+.card { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; opacity: 0; z-index: 40; }
+.card.dim { background: rgba(3,11,10,.86); backdrop-filter: blur(6px); }
+.logo-big { width: 190px; height: 190px; border-radius: 46px; box-shadow: 0 30px 90px rgba(15,110,92,.6); }
+.kicker { font-weight: 800; font-size: 40px; color: var(--c2); margin-top: 26px; }
+.title { font-weight: 900; font-size: 92px; line-height: 1.25; text-shadow: 0 10px 40px rgba(0,0,0,.5); }
+.sub { font-weight: 700; font-size: 40px; color: var(--muted); margin-top: 10px; }
+.chips { display: flex; gap: 40px; margin-top: 50px; }
+.bigchip { display: flex; align-items: center; gap: 22px; padding: 22px 38px 22px 26px; border-radius: 26px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.15); font-weight: 800; font-size: 44px; opacity: 0; }
+.bigchip b { width: 74px; height: 74px; border-radius: 22px; display: grid; place-items: center; background: var(--c); font-family: CairoL; font-size: 44px; }
+.bigchip.g b { background: var(--g2); }
+.chapnum { font-family: CairoL; font-weight: 900; font-size: 260px; line-height: 1; background: linear-gradient(180deg, #ffe0b8, #d9792a); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 20px 50px rgba(217,121,42,.5)); }
+.method { width: 640px; padding: 40px 44px; border-radius: 34px; background: rgba(255,255,255,.06); border: 2px solid rgba(255,255,255,.12); display: flex; flex-direction: column; align-items: center; gap: 16px; opacity: 0; }
+.method .mi { width: 130px; height: 130px; border-radius: 36px; display: grid; place-items: center; color: #fff; }
+.method .mi .icon { width: 72px; height: 72px; }
+.method h3 { font-size: 52px; font-weight: 900; }
+.method p { font-size: 32px; color: var(--muted); font-weight: 700; }
+.method .tag { margin-top: 6px; padding: 6px 22px; border-radius: 999px; font-weight: 800; font-size: 28px; }
+.badge-big { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); padding: 34px 60px; border-radius: 40px; background: linear-gradient(135deg, #f0a35c, #d9792a); font-weight: 900; font-size: 72px; display: flex; align-items: center; gap: 24px; box-shadow: 0 40px 100px rgba(0,0,0,.55); opacity: 0; z-index: 35; }
+.badge-big .icon { width: 80px; height: 80px; }
+.effect { position: absolute; left: 0; top: 0; padding: 14px 30px; border-radius: 18px; font-weight: 900; font-size: 40px; display: flex; align-items: center; gap: 14px; box-shadow: 0 24px 60px rgba(0,0,0,.45); opacity: 0; z-index: 35; white-space: nowrap; }
+.effect .icon { width: 42px; height: 42px; }
+.effect.g { background: linear-gradient(135deg, #2bc79f, #0f6e5c); }
+.effect.c { background: linear-gradient(135deg, #f0a35c, #d9792a); }
+.effect.b { background: linear-gradient(135deg, #5b8def, #2f56b0); }
+.wa { width: 130px; height: 130px; border-radius: 36px; background: #25d366; display: grid; place-items: center; box-shadow: 0 30px 70px rgba(37,211,102,.45); }
+.wa .icon { width: 76px; height: 76px; }
+.phone { direction: ltr; font-family: CairoL; font-weight: 900; font-size: 92px; letter-spacing: 1px; margin-top: 8px; }
+.phone .cc { color: var(--muted); font-size: 54px; margin-right: 18px; }
+.next { display: flex; align-items: center; gap: 40px; margin-top: 40px; padding: 26px 40px; border-radius: 30px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); }
+.next img { width: 420px; border-radius: 14px; box-shadow: 0 20px 50px rgba(0,0,0,.5); }
+.next .play { width: 90px; height: 90px; border-radius: 50%; background: var(--c); display: grid; place-items: center; }
+.next .play .icon { width: 48px; height: 48px; }
+.sheet { position: absolute; width: 360px; padding: 20px; border-radius: 22px; background: #fff; box-shadow: 0 40px 90px rgba(0,0,0,.55); opacity: 0; z-index: 36; color: #1d2433; }
+.sheet .hd { display: flex; align-items: center; gap: 12px; font-weight: 900; font-size: 30px; color: #1f7244; margin-bottom: 12px; }
+.sheet .hd .icon { width: 44px; height: 44px; }
+.sheet i { display: block; height: 22px; margin: 8px 0; border-radius: 6px; background: linear-gradient(90deg, #d7efe1 0 30%, #eef2f0 30% 100%); }
+.flyrow { position: absolute; width: 300px; height: 22px; border-radius: 6px; background: #d7efe1; box-shadow: 0 6px 16px rgba(0,0,0,.3); opacity: 0; z-index: 37; }
+#flash { position: absolute; inset: 0; background: #fff; opacity: 0; z-index: 60; pointer-events: none; }
+#vig { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,.55) 100%); z-index: 50; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="blob" id="b1"></div><div class="blob" id="b2"></div><div id="grid"></div>
+
+  <div id="brand"><img src="assets/logo.png" />شروحات ميزان</div>
+  <div id="stepbar">
+    <div class="stepchip" id="sc1"><b>1</b>تعريف المادة</div>
+    <div class="stepchip" id="sc2"><b>2</b>إدخال الكمية</div>
+  </div>
+
+  <div id="win">
+    <div id="chrome">
+      <div class="btns"><span>✕</span><span>☐</span><span>—</span></div>
+      <div class="title"><img src="assets/logo.png" />ميزان — محل الخير للمواد الغذائية</div>
+    </div>
+    <div id="viewport">
+      <div id="content">
+        {{images}}
+        <div id="ring"></div>
+        <div id="laser"></div>
+        <div class="ripple" id="rip"></div>
+        <svg id="cursor" viewBox="0 0 34 44"><path d="M3 2 L3 34 L11 26 L17 40 L23 37 L17 24 L29 24 Z" fill="#fff" stroke="#111" stroke-width="2.4" stroke-linejoin="round"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout" id="call"><span class="icon" id="callIcon"></span><span id="callText"></span></div>
+
+  <!-- البطاقات -->
+  <div class="card" id="intro">
+    <img class="logo-big" src="assets/logo.png" id="introLogo" />
+    <div class="kicker" id="introK">شروحات ميزان</div>
+    <div class="title" id="introT">كيف تضيف بضاعتك <span class="accent">للمخزون</span></div>
+    <div class="chips"><div class="bigchip" id="chip1"><b>1</b>تعريف المادة</div><div class="bigchip g" id="chip2"><b>2</b>إدخال الكمية</div></div>
+  </div>
+  <div class="card dim" id="chap1"><div class="chapnum">1</div><div class="title">تعريف المادة</div><div class="sub">الاسم، الباركود، الأسعار والوحدات</div></div>
+  <div class="card dim" id="chap2">
+    <div class="chapnum" id="c2num">2</div><div class="title" id="c2t">إدخال الكمية للمخزون</div>
+    <div class="chips" id="methods">
+      <div class="method" id="m1"><div class="mi" style="background:#14957c"><span class="icon">{{icon:warehouse}}</span></div><h3>الأرصدة الافتتاحية</h3><p>للبضاعة الموجودة عندك من قبل</p><span class="tag" style="background:rgba(20,149,124,.25);color:#5fe0bf">أول مرة فقط</span></div>
+      <div class="method" id="m2"><div class="mi" style="background:#d9792a"><span class="icon">{{icon:receipt}}</span></div><h3>فاتورة شراء</h3><p>لما توصلك بضاعة من المورد</p><span class="tag" style="background:rgba(240,163,92,.2);color:#f0a35c">كل يوم</span></div>
+    </div>
+  </div>
+  <div class="badge-big" id="once"><span class="icon">{{icon:calendar-check}}</span>مرة وحدة بس</div>
+  <div class="effect g" id="e1"><span class="icon">{{icon:package}}</span>+48 بالمخزون</div>
+  <div class="effect b" id="e2"><span class="icon">{{icon:calculator}}</span>التكلفة الوسطية</div>
+  <div class="effect c" id="e3"><span class="icon">{{icon:truck}}</span>الباقي دين للمورد</div>
+  <div class="effect c" id="bell"><span class="icon">{{icon:bell}}</span>تنبيه: الكمية أقل من 10</div>
+  <div class="card dim" id="tip"><div class="logo-big" style="width:170px;height:170px;border-radius:44px;background:#f0a35c;display:grid;place-items:center"><span class="icon" style="width:96px;height:96px;color:#fff">{{icon:lightbulb}}</span></div><div class="kicker">نصيحة صغيرة</div><div class="title" style="font-size:76px">عندك مواد كتير؟</div><div class="sub">لا تدخلها وحدة وحدة</div></div>
+  <div class="sheet" id="sheet" style="left:300px;top:330px"><div class="hd"><span class="icon">{{icon:file-spreadsheet}}</span>المواد.xlsx</div><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <div id="flyrows"></div>
+  <div class="card dim" id="outro1"><div class="icon" style="width:190px;height:190px;color:#5fe0bf" id="okIcon">{{icon:circle-check-big}}</div><div class="title" id="okT">وهيك خلصنا!</div><div class="sub" id="okS">صار مخزونك جاهز ومضبوط</div>
+    <div class="next" id="nextCard"><div style="text-align:right"><div class="kicker" style="margin:0">الفيديو الجاي</div><div style="font-weight:900;font-size:48px">كيف تبيع وتطبع الفاتورة بثانية</div></div><img src="shots/25_purchase_saved.png" /><div class="play"><span class="icon">{{icon:play}}</span></div></div>
+  </div>
+  <div class="card dim" id="outro2">
+    <div class="wa"><span class="icon">{{icon:message-circle}}</span></div>
+    <div class="sub" style="color:#fff;margin-top:24px">عندك سؤال؟ راسلنا واتساب</div>
+    <div class="phone" id="ph1"><span class="cc">+963</span>968 037 609</div>
+    <div class="phone" id="ph2"><span class="cc">+963</span>980 072 891</div>
+  </div>
+  <div class="card" id="outro3" style="background:radial-gradient(ellipse at 50% 40%, #0f3a33 0%, #071a17 60%, #030b0a 100%)"><img class="logo-big" src="assets/logo.png" id="endLogo" /><div class="title" style="font-size:130px;margin-top:20px" id="endName">ميزان</div><div class="sub" id="endTag" style="font-size:52px;color:#fff">حساباتك صارت <span class="accent">بميزان</span></div></div>
+
+  <div id="subs"><span id="subText"></span></div>
+  <div id="vig"></div>
+  <div id="flash"></div>
+</div>
+<script src="assets/gsap.min.js"></script>
+<script>
+const STATES = {{states}};
+const S = Object.fromEntries(STATES.map((s) => [s.name, s]));
+const box = (st, k) => S[st].targets[k];
+const ctr = (b) => ({ x: b.x + b.w / 2, y: b.y + b.h / 2 });
+const $ = (q) => document.querySelector(q);
+
+// ───── الترجمة (من توقيت الصوت) ─────
+const SUBS = [
+  [0.6, 2.09, 'أهلاً فيك بشروحات ميزان'],
+  [2.61, 6.73, 'بهالفيديو رح نتعلم مع بعض كيف تضيف بضاعتك للمخزون، خطوة بخطوة'],
+  [7.29, 12.26, 'الموضوع بسيط، وبيصير على مرحلتين: أول شي منعرّف المادة، وبعدين مندخّل الكمية'],
+  [14.05, 15.56, 'الخطوة الأولى: تعريف المادة'],
+  [16.35, 18.63, 'من القائمة اليمين، اضغط على «المواد»'],
+  [19.51, 21.87, 'بعدين اضغط الزر الأخضر «مادة جديدة»'],
+  [22.82, 26.42, 'اكتب اسم المادة، مثلاً: زيت دوار الشمس، تنكة تمنية لتر'],
+  [27.41, 32.38, 'الرمز بيتعبّى لحالو، وإذا عندك باركود امسحه بالقارئ بخانة «الباركود»، أو اكتبه بإيدك'],
+  [33.42, 37.12, 'واختار «التصنيف»، مثلاً: مواد غذائية، مشان تلاقي المادة بسرعة بعدين'],
+  [38.95, 41.38, 'هلق روح عالتبويب التاني: «الأسعار والوحدات»'],
+  [42.36, 44.39, 'اختار «الوحدة الأساسية»، مثلاً: قطعة'],
+  [45.27, 48.24, 'واكتب «سعر المبيع»، وإذا بتبيع جملة اكتب «سعر الجملة» كمان'],
+  [49.19, 54.3, 'وإذا بتبيع بالكرتونة، ضيف وحدة إضافية: كرتونة، فيها ستة قطع، وإلها سعرها الخاص'],
+  [55.27, 58.54, 'وآخر شي «الحد الأدنى للتنبيه»: اكتب مثلاً عشرة'],
+  [59.07, 62.63, 'يعني لما تنزل الكمية تحت العشرة، البرنامج بينبهك إنو لازم تطلب بضاعة'],
+  [63.44, 65.99, 'واضغط «حفظ». هيك صارت المادة معرّفة'],
+  [67.56, 71.08, 'الخطوة التانية: إدخال الكمية للمخزون. وهون عندك طريقتين'],
+  [71.65, 76.46, 'الطريقة الأولى: إذا عم تبلش بالبرنامج لأول مرة، وعندك بضاعة موجودة من قبل'],
+  [77.05, 80.21, 'روح على «عمليات المخزون»، بعدين «الأرصدة الافتتاحية»'],
+  [80.87, 84.72, 'اختار المادة، واكتب الكمية الموجودة عندك، وتكلفة القطعة عليك'],
+  [85.2, 87.09, 'واضغط «حفظ الأرصدة الافتتاحية»'],
+  [87.75, 90.16, 'هالخطوة بتعملها مرة وحدة بس، أول ما تبلش'],
+  [91.3, 94.93, 'الطريقة التانية، وهي اللي رح تستعملها كل يوم: «فاتورة شراء»'],
+  [95.57, 98.48, 'لما توصلك بضاعة من المورد، اضغط «فاتورة شراء»'],
+  [99.09, 102.48, 'اختار المورد، وامسح باركود المواد أو دوّر عليها بالاسم'],
+  [103.18, 106.14, 'اكتب الكمية وسعر الشراء، وكم دفعت للمورد'],
+  [106.69, 107.94, 'واضغط «حفظ الفاتورة»'],
+  [108.77, 115.59, 'البرنامج لحالو بيزيد الكمية، وبيحسب التكلفة الوسطية، والباقي بيسجّله دين للمورد'],
+  [116.92, 120.69, 'مشان تتأكد، ارجع على «المواد»، ورح تشوف الرصيد الجديد جنب كل مادة'],
+  [121.38, 126.0, 'وإذا نزلت أي مادة تحت الحد الأدنى، رح تشوفها بالرئيسية تحت «نواقص المخزون»'],
+  [126.82, 130.46, 'ونصيحة صغيرة: إذا عندك مواد كتير، ما في داعي تدخلها وحدة وحدة'],
+  [131.0, 134.13, 'اضغط «استيراد من إكسل»، وبتنزل كل موادك دفعة وحدة'],
+  [135.53, 138.01, 'وهيك خلصنا! صار مخزونك جاهز ومضبوط'],
+  [138.68, 141.96, 'بالفيديو الجاي رح نتعلم كيف تبيع، وتطبع الفاتورة بثانية'],
+  [142.52, 145.68, 'وإذا عندك أي سؤال، راسلنا واتساب على الرقمين الموجودين بالشاشة'],
+  [146.47, 148.89, 'ميزان... حساباتك صارت بميزان'],
+];
+
+// ───── حالات الشاشة: [وقت، الحالة، نوع الانتقال، المدة، مربع الكتابة] ─────
+const SHOT = [
+  [16.0, 'dash', 'fade', 0.01],
+  [18.25, 'items', 'fade', 0.25],
+  [21.45, 'form0', 'fade', 0.25],
+  [23.9, 'form_name', 'type', 2.2, box('form_name', 'name')],
+  [30.0, 'form_barcode', 'type', 1.0, box('form_barcode', 'barcode')],
+  [34.1, 'form_cat', 'type', 1.2, box('form_cat', 'cat')],
+  [40.75, 'prices0', 'fade', 0.2],
+  [43.6, 'prices_unit', 'type', 0.5, box('prices_unit', 'unit')],
+  [45.7, 'prices_price', 'type', 0.7, box('prices_price', 'price')],
+  [47.6, 'prices_whole', 'type', 0.7, box('prices_whole', 'whole')],
+  [51.2, 'prices_carton', 'type', 2.6, box('prices_carton', 'cartonRow')],
+  [57.7, 'prices_min', 'type', 0.5, box('prices_min', 'min')],
+  [64.15, 'items_saved', 'fade', 0.3],
+  [78.55, 'stockops', 'fade', 0.25],
+  [80.3, 'opening0', 'fade', 0.25],
+  [81.35, 'opening_item', 'fade', 0.25],
+  [82.3, 'opening_qty', 'type', 0.6, box('opening_qty', 'qty')],
+  [83.9, 'opening_cost', 'type', 0.8, box('opening_cost', 'cost')],
+  [86.75, 'opening_saved', 'fade', 0.25],
+  [98.3, 'purchase0', 'fade', 0.25],
+  [99.95, 'purchase_supplier', 'type', 0.6, box('purchase_supplier', 'supplier')],
+  [101.4, 'purchase_items', 'fade', 0.3],
+  [103.7, 'purchase_qty', 'type', 1.8, { x: box('purchase_qty', 'row2').x, y: box('purchase_qty', 'row1').y, w: box('purchase_qty', 'row1').w, h: box('purchase_qty', 'row2').y + box('purchase_qty', 'row2').h - box('purchase_qty', 'row1').y }],
+  [105.6, 'purchase_paid', 'type', 0.6, box('purchase_paid', 'paid')],
+  [107.75, 'purchase_saved', 'fade', 0.3],
+  [118.6, 'items_after', 'fade', 0.25],
+  [121.6, 'dash_low', 'fade', 0.4],
+  [131.0, 'items_after', 'fade', 0.01],
+];
+
+// ───── الكاميرا: [وقت البدء، مركز x، مركز y، تكبير، مدة الحركة] ─────
+const C0 = [800, 500, 1];
+const CAM = [
+  [16.0, ...C0, 0.01],
+  [16.6, 1300, 360, 1.35, 1.0],
+  [18.4, ...C0, 0.8],
+  [19.6, 900, 200, 1.45, 1.0],
+  [21.4, ...C0, 0.6],
+  [22.6, 850, 300, 1.75, 0.9],
+  [28.6, 850, 430, 1.75, 0.8],
+  [37.2, 800, 380, 1.3, 1.0],
+  [39.0, 1000, 120, 1.7, 0.9],
+  [41.4, 800, 300, 1.55, 0.8],
+  [48.9, 800, 600, 1.55, 0.9],
+  [55.0, 800, 420, 1.55, 0.8],
+  [63.2, 800, 520, 1.4, 0.7],
+  [64.2, ...C0, 0.7],
+  [77.0, 1300, 420, 1.3, 0.8],
+  [78.7, 900, 180, 1.4, 0.8],
+  [80.5, 760, 640, 1.55, 0.9],
+  [86.3, ...C0, 0.8],
+  [95.6, 1300, 300, 1.35, 0.8],
+  [98.4, 900, 200, 1.4, 0.8],
+  [101.3, 750, 300, 1.45, 0.8],
+  [105.0, 400, 560, 1.6, 0.8],
+  [107.9, 600, 500, 1.15, 0.8],
+  [116.9, ...C0, 0.6],
+  [118.7, 700, 540, 1.35, 0.8],
+  [121.4, ...C0, 0.6],
+  [123.4, 1100, 700, 1.4, 0.9],
+  [126.6, ...C0, 0.4],
+  [131.0, 500, 160, 1.6, 0.8],
+];
+
+// ───── المؤشر: [وقت البدء، x، y، مدة] + النقرات ─────
+const P = (st, k, dx = 0, dy = 0) => { const c = ctr(box(st, k)); return [c.x + dx, c.y + dy]; };
+const CUR = [
+  [16.0, 800, 600, 0.01],
+  [16.6, ...P('dash', 'navItems', 30), 1.2],
+  [19.6, ...P('items', 'btnNew'), 1.3],
+  [22.9, ...P('form0', 'name', -100), 0.8],
+  [27.4, ...P('form0', 'code'), 0.6],
+  [29.0, ...P('form0', 'barcode', -80), 0.8],
+  [33.5, ...P('form0', 'cat', -80), 0.7],
+  [39.2, ...P('form_cat', 'tabPrices'), 1.2],
+  [42.4, ...P('prices0', 'unit', -60), 0.8],
+  [45.3, ...P('prices0', 'price', -60), 0.6],
+  [47.2, ...P('prices_whole', 'whole', -60), 0.6],
+  [49.4, ...P('prices0', 'addUnit'), 0.9],
+  [55.4, ...P('prices_min', 'min'), 0.8],
+  [63.3, ...P('prices_min', 'save'), 0.6],
+  [77.1, ...P('items_saved', 'navStock', 30), 1.0],
+  [78.7, ...P('stockops', 'tabOpening'), 1.0],
+  [80.6, ...P('opening0', 'picker', -80), 0.6],
+  [82.0, ...P('opening_item', 'qty'), 0.5],
+  [83.5, ...P('opening_item', 'cost'), 0.5],
+  [85.3, ...P('opening_cost', 'save'), 1.0],
+  [95.7, ...P('opening_saved', 'navPurchase', 30), 1.6],
+  [98.6, ...P('purchase0', 'supplier', -60), 0.9],
+  [100.3, ...P('purchase0', 'scan', -300), 0.7],
+  [103.3, ...P('purchase_qty', 'qty1'), 0.6],
+  [105.0, ...P('purchase_qty', 'paid'), 0.6],
+  [106.8, ...P('purchase_paid', 'save'), 0.7],
+  [108.6, 900, 750, 1.0],
+  [117.0, ...P('items_after', 'navItems', 30), 1.1],
+  [119.0, 900, 640, 0.8],
+  [131.0, ...P('items_after', 'excel'), 0.9],
+];
+const CLICKS = [18.0, 21.2, 23.0, 29.9, 33.95, 40.6, 42.9, 45.5, 47.4, 50.6, 55.9, 63.95, 78.3, 80.0, 81.2, 82.2, 83.7, 86.6, 98.0, 99.6, 106.0, 107.6, 118.4, 132.3];
+
+// ───── التركيز: [من، إلى، الحالة، الهدف، النص، أيقونة، أسفل؟، لون] ─────
+const FOCUS = [
+  [17.3, 18.6, 'dash', 'navItems', 'المواد', 'package'],
+  [20.4, 21.9, 'items', 'btnNew', 'مادة جديدة', 'plus', true],
+  [27.4, 28.6, 'form0', 'code', 'الرمز تلقائي', 'sparkles', false, 'green'],
+  [29.4, 32.4, 'form0', 'barcode', 'الباركود', 'scan-barcode'],
+  [33.6, 37.1, 'form0', 'cat', 'التصنيف', 'tag'],
+  [39.6, 41.4, 'form_cat', 'tabPrices', 'الأسعار والوحدات', 'dollar-sign', true],
+  [42.4, 44.4, 'prices0', 'unit', 'الوحدة الأساسية', 'ruler'],
+  [45.3, 46.9, 'prices0', 'price', 'سعر المبيع', 'dollar-sign'],
+  [47.2, 48.6, 'prices_whole', 'whole', 'سعر الجملة', 'dollar-sign'],
+  [50.7, 54.4, 'prices_carton', 'cartonRow', 'كرتونة = 6 قطع', 'boxes'],
+  [55.4, 62.6, 'prices_min', 'min', 'الحد الأدنى للتنبيه', 'bell'],
+  [63.4, 64.1, 'prices_min', 'save', 'حفظ', 'save', true],
+  [64.9, 66.4, 'items_saved', 'newRow', 'صارت المادة معرّفة', 'circle-check-big', false, 'green'],
+  [77.3, 78.6, 'items_saved', 'navStock', 'عمليات المخزون', 'warehouse'],
+  [79.0, 80.3, 'stockops', 'tabOpening', 'الأرصدة الافتتاحية', 'warehouse', true],
+  [80.9, 81.6, 'opening0', 'picker', 'اختار المادة', 'package'],
+  [81.9, 83.3, 'opening_item', 'qty', 'الكمية', 'boxes'],
+  [83.6, 84.8, 'opening_item', 'cost', 'تكلفة القطعة', 'dollar-sign'],
+  [85.4, 86.7, 'opening_cost', 'save', 'حفظ الأرصدة الافتتاحية', 'save', true],
+  [96.6, 98.4, 'opening_saved', 'navPurchase', 'فاتورة شراء', 'receipt'],
+  [99.1, 100.2, 'purchase0', 'supplier', 'المورد', 'truck'],
+  [100.6, 102.4, 'purchase0', 'scan', 'امسح الباركود', 'scan-barcode', true],
+  [103.2, 105.0, 'purchase_qty', 'row1', 'الكمية وسعر الشراء', 'calculator', true],
+  [105.0, 106.6, 'purchase_qty', 'paid', 'كم دفعت', 'hand-coins'],
+  [106.7, 107.7, 'purchase_paid', 'save', 'حفظ الفاتورة', 'save'],
+  [117.6, 118.6, 'items_after', 'navItems', 'المواد', 'package'],
+  [118.95, 120.9, 'items_after', 'oilRow', 'الرصيد الجديد: 72 قطعة', 'package', false, 'green'],
+  [123.4, 126.4, 'dash_low', 'low', 'نواقص المخزون', 'bell', false],
+  [131.3, 132.4, 'items_after', 'excel', 'استيراد من إكسل', 'file-spreadsheet', true, 'green'],
+];
+const ICONS = {{iconmap}};
+
+// ───── مخطط الحركات العامة (GSAP) ─────
+const tl = gsap.timeline({ paused: true, defaults: { ease: 'power3.out' } });
+const fx = { flash: 0 };
+const fade = (sel, a, b, d = 0.4) => {
+  tl.fromTo(sel, { opacity: 0 }, { opacity: 1, duration: d, immediateRender: false }, a);
+  if (b !== undefined) tl.to(sel, { opacity: 0, duration: d, ease: 'power2.in' }, b);
+};
+const flash = (at, p = 0.5) => tl.fromTo('#flash', { opacity: p }, { opacity: 0, duration: 0.45, immediateRender: false }, at);
+tl.set('.card, .badge-big, .effect, .sheet, #win, #stepbar, #brand', { opacity: 0 }, 0);
+
+// مقدمة
+fade('#intro', 0, 13.9, 0.5);
+tl.fromTo('#introLogo', { scale: 0, rotationY: 180 }, { scale: 1, rotationY: 0, duration: 1.2, ease: 'elastic.out(1,.6)' }, 0.5);
+tl.fromTo('#introK', { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6 }, 0.9);
+tl.fromTo('#introT', { opacity: 0, y: 60, filter: 'blur(14px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.9 }, 2.7);
+tl.fromTo('#chip1', { opacity: 0, scale: 0.4, y: 60 }, { opacity: 1, scale: 1, y: 0, duration: 0.6, ease: 'back.out(2)' }, 9.49);
+tl.fromTo('#chip2', { opacity: 0, scale: 0.4, y: 60 }, { opacity: 1, scale: 1, y: 0, duration: 0.6, ease: 'back.out(2)' }, 11.08);
+flash(14.0, 0.35);
+// فصل 1
+fade('#chap1', 14.0, 16.05, 0.35);
+tl.fromTo('#chap1 .chapnum', { scale: 3, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: 'expo.out' }, 14.05);
+tl.fromTo('#chap1 .title', { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5 }, 14.9);
+tl.fromTo('#chap1 .sub', { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5 }, 15.2);
+// النافذة
+const winIn = (at) => tl.fromTo('#win', { opacity: 0, scale: 0.88, y: 60 }, { opacity: 1, scale: 1, y: 0, duration: 0.7, ease: 'expo.out', immediateRender: false }, at);
+const winOut = (at) => tl.to('#win', { opacity: 0, scale: 0.94, duration: 0.4, ease: 'power2.in' }, at);
+winIn(16.0); winOut(66.4);
+fade('#brand', 16.0, 134.0, 0.5);
+fade('#stepbar', 16.0, 134.0, 0.5);
+tl.set('#sc1', { className: 'stepchip on' }, 16.0);
+tl.set('#sc1', { className: 'stepchip done' }, 66.0);
+tl.set('#sc2', { className: 'stepchip on' }, 67.5);
+// تنبيه الحد الأدنى
+tl.set('#bell', { left: 700, top: 150 }, 0);
+tl.fromTo('#bell', { opacity: 0, x: 0, y: -40, scale: 0.6 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: 'back.out(2)', immediateRender: false }, 59.2);
+tl.to('#bell', { opacity: 0, duration: 0.3 }, 62.7);
+tl.to('#bell', { rotation: 6, duration: 0.12, yoyo: true, repeat: 7, ease: 'sine.inOut' }, 59.8);
+// فصل 2 + الطريقتين
+flash(67.4, 0.3);
+fade('#chap2', 67.3, 76.9, 0.35);
+tl.fromTo('#c2num', { scale: 3, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: 'expo.out' }, 67.56);
+tl.fromTo('#c2t', { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5 }, 68.6);
+tl.to(['#c2num', '#c2t'], { scale: 0.55, y: -40, duration: 0.6, ease: 'power3.inOut' }, 70.0);
+tl.fromTo('#m1', { opacity: 0, y: 80 }, { opacity: 1, y: 0, duration: 0.6, ease: 'back.out(1.6)', immediateRender: false }, 70.1);
+tl.fromTo('#m2', { opacity: 0, y: 80 }, { opacity: 1, y: 0, duration: 0.6, ease: 'back.out(1.6)', immediateRender: false }, 70.4);
+tl.to('#m1', { scale: 1.08, borderColor: '#5fe0bf', boxShadow: '0 0 60px rgba(95,224,191,.35)', duration: 0.5 }, 71.65);
+tl.to('#m2', { opacity: 0.35, scale: 0.95, duration: 0.5 }, 71.65);
+winIn(77.0); winOut(90.2);
+// مرة وحدة بس
+tl.fromTo('#once', { opacity: 0, scale: 0.4, rotation: -8 }, { opacity: 1, scale: 1, rotation: -3, duration: 0.6, ease: 'back.out(2.2)', immediateRender: false }, 87.8);
+tl.to('#once', { opacity: 0, scale: 0.8, duration: 0.3 }, 90.0);
+// الطريقة الثانية
+fade('#chap2', 90.4, 95.4, 0.35);
+tl.set(['#c2num', '#c2t'], { scale: 0.55, y: -40 }, 90.4);
+tl.set('#m1', { opacity: 0.35, scale: 0.95, borderColor: 'rgba(255,255,255,.12)', boxShadow: 'none' }, 90.4);
+tl.set('#m2', { opacity: 1, scale: 1 }, 90.4);
+tl.to('#m2', { scale: 1.1, borderColor: '#f0a35c', boxShadow: '0 0 60px rgba(240,163,92,.4)', duration: 0.5 }, 91.3);
+winIn(95.5); winOut(126.65);
+// نتائج فاتورة الشراء
+tl.set('#e1', { left: 1250, top: 300 }, 0); tl.set('#e2', { left: 1250, top: 420 }, 0); tl.set('#e3', { left: 1250, top: 540 }, 0);
+tl.fromTo('#e1', { opacity: 0, x: -80, scale: 0.6 }, { opacity: 1, x: 0, scale: 1, duration: 0.5, ease: 'back.out(2)', immediateRender: false }, 108.9);
+tl.fromTo('#e2', { opacity: 0, x: -80, scale: 0.6 }, { opacity: 1, x: 0, scale: 1, duration: 0.5, ease: 'back.out(2)', immediateRender: false }, 111.0);
+tl.fromTo('#e3', { opacity: 0, x: -80, scale: 0.6 }, { opacity: 1, x: 0, scale: 1, duration: 0.5, ease: 'back.out(2)', immediateRender: false }, 112.8);
+tl.to(['#e1', '#e2', '#e3'], { opacity: 0, x: 60, duration: 0.3, stagger: 0.06 }, 116.2);
+// نصيحة + إكسل
+fade('#tip', 126.7, 130.8, 0.4);
+tl.fromTo('#tip .logo-big', { scale: 0, rotation: -40 }, { scale: 1, rotation: 0, duration: 0.8, ease: 'elastic.out(1,.6)' }, 126.85);
+winIn(130.9); winOut(134.1);
+tl.fromTo('#sheet', { opacity: 0, scale: 0.5, rotation: -10 }, { opacity: 1, scale: 1, rotation: -4, duration: 0.6, ease: 'back.out(2)', immediateRender: false }, 132.7);
+tl.to('#sheet', { opacity: 0, duration: 0.3 }, 134.0);
+const fly = $('#flyrows');
+for (let i = 0; i < 8; i++) {
+  const r = document.createElement('div');
+  r.className = 'flyrow';
+  fly.appendChild(r);
+  tl.fromTo(r, { left: 330, top: 420 + (i % 6) * 30, opacity: 0 }, { left: 1100, top: 360 + i * 46, opacity: 1, duration: 0.6, ease: 'power2.inOut', immediateRender: false }, 133.0 + i * 0.1);
+  tl.to(r, { opacity: 0, duration: 0.2 }, 133.6 + i * 0.1);
+}
+// الخاتمة
+flash(135.45, 0.4);
+fade('#outro1', 135.4, 142.35, 0.4);
+tl.fromTo('#okIcon', { scale: 0, rotation: -90 }, { scale: 1, rotation: 0, duration: 0.8, ease: 'elastic.out(1,.55)' }, 135.55);
+tl.fromTo('#okT', { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.5 }, 135.7);
+tl.fromTo('#okS', { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5 }, 136.62);
+tl.fromTo('#nextCard', { opacity: 0, y: 80 }, { opacity: 1, y: 0, duration: 0.6 }, 138.7);
+fade('#outro2', 142.4, 146.3, 0.4);
+tl.fromTo('#outro2 .wa', { scale: 0, rotation: -90 }, { scale: 1, rotation: 0, duration: 0.8, ease: 'elastic.out(1,.55)' }, 142.5);
+tl.fromTo('#ph1', { opacity: 0, x: -80 }, { opacity: 1, x: 0, duration: 0.5 }, 143.4);
+tl.fromTo('#ph2', { opacity: 0, x: 80 }, { opacity: 1, x: 0, duration: 0.5 }, 144.0);
+flash(146.4, 0.6);
+fade('#outro3', 146.35, undefined, 0.3);
+tl.fromTo('#endLogo', { scale: 0, rotationY: -180 }, { scale: 1, rotationY: 0, duration: 1.1, ease: 'elastic.out(1,.6)' }, 146.45);
+tl.fromTo('#endName', { opacity: 0, letterSpacing: '40px' }, { opacity: 1, letterSpacing: '0px', duration: 0.8, ease: 'expo.out' }, 146.6);
+tl.fromTo('#endTag', { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6 }, 147.3);
+tl.set({}, {}, 150.1);
+
+// ───── أدوات الحساب الإجرائي ─────
+const ease = (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
+function track(keys, t, n) {
+  let cur = keys[0].slice(1, 1 + n), prev = cur;
+  for (const k of keys) {
+    if (t < k[0]) break;
+    const d = k[1 + n];
+    const target = k.slice(1, 1 + n);
+    const p = d > 0 ? Math.min(1, (t - k[0]) / d) : 1;
+    const e = ease(p);
+    prev = cur;
+    cur = target.map((v, i) => prev[i] + (v - prev[i]) * e);
+    if (p < 1) return cur;
+  }
+  return cur;
+}
+const imgs = Object.fromEntries(STATES.map((s) => [s.name, document.getElementById('img_' + s.name)]));
+const VX = 1440, VY = 900, FIT = 0.9;
+
+function render(t) {
+  tl.seek(t, false);
+  // الصور
+  for (const im of Object.values(imgs)) { im.style.opacity = '0'; im.style.clipPath = 'none'; im.style.zIndex = '0'; }
+  let idx = -1;
+  for (let i = 0; i < SHOT.length; i++) if (SHOT[i][0] <= t) idx = i;
+  if (idx >= 0) {
+    const [at, name, mode, dur, b] = SHOT[idx];
+    const prev = idx > 0 ? SHOT[idx - 1][1] : null;
+    const p = Math.min(1, (t - at) / dur);
+    const cur = imgs[name];
+    if (p < 1 && prev && prev !== name) {
+      imgs[prev].style.opacity = '1';
+      cur.style.zIndex = '1';
+      if (mode === 'type') {
+        cur.style.opacity = '1';
+        const left = b.x + b.w * (1 - p);
+        cur.style.clipPath = `inset(${b.y - 4}px ${1600 - b.x - b.w - 4}px ${1000 - b.y - b.h - 4}px ${left - 4}px)`;
+      } else cur.style.opacity = String(ease(p));
+    } else cur.style.opacity = '1';
+  }
+  // الكاميرا
+  const [cx, cy, z] = track(CAM, t, 3);
+  const sc = FIT * z;
+  let tx = VX / 2 - cx * sc, ty = VY / 2 - cy * sc;
+  tx = Math.min(0, Math.max(VX - 1600 * sc, tx));
+  ty = Math.min(0, Math.max(VY - 1000 * sc, ty));
+  $('#content').style.transform = `translate(${tx}px, ${ty}px) scale(${sc})`;
+  // المؤشر
+  const [px, py] = track(CUR, t, 2);
+  let press = 1;
+  let lastClick = -99;
+  for (const c of CLICKS) if (c <= t) lastClick = c;
+  const dc = t - lastClick;
+  if (dc < 0.18) press = 0.82;
+  const cs = (1 / z) * 1.25 * press;
+  $('#cursor').style.transform = `translate(${px}px, ${py}px) scale(${cs})`;
+  const rip = $('#rip');
+  if (dc < 0.6) {
+    rip.style.opacity = String(1 - dc / 0.6);
+    rip.style.left = px + 'px'; rip.style.top = py + 'px';
+    rip.style.transform = `scale(${(0.3 + dc * 2.2) / z})`;
+  } else rip.style.opacity = '0';
+  // التركيز والفقاعة
+  const ring = $('#ring'), call = $('#call');
+  ring.style.opacity = '0'; call.style.opacity = '0';
+  for (const f of FOCUS) {
+    const [a, b2, st, k, text, ic, below, color] = f;
+    if (t < a - 0.25 || t > b2 + 0.3) continue;
+    const bx = box(st, k);
+    const fin = Math.min(1, (t - (a - 0.25)) / 0.25), fout = Math.min(1, (b2 + 0.3 - t) / 0.3);
+    const o = Math.max(0, Math.min(fin, fout));
+    const pad = 8;
+    ring.style.left = bx.x - pad + 'px'; ring.style.top = bx.y - pad + 'px';
+    ring.style.width = bx.w + pad * 2 + 'px'; ring.style.height = bx.h + pad * 2 + 'px';
+    ring.style.borderWidth = 4 / z + 'px';
+    ring.style.opacity = String(o * 0.95);
+    // موقع الفقاعة على الشاشة
+    const sx = 240 + tx + (bx.x + bx.w / 2) * sc;
+    const syTop = 92 + 36 + ty + (bx.y - pad) * sc;
+    const syBot = 92 + 36 + ty + (bx.y + bx.h + pad) * sc;
+    $('#callText').textContent = text;
+    $('#callIcon').innerHTML = ICONS[ic] || '';
+    call.className = 'callout' + (below ? ' below' : '') + (color === 'green' ? ' green' : '');
+    const w = call.offsetWidth, h = call.offsetHeight;
+    let x = sx - w / 2;
+    x = Math.max(250, Math.min(1670 - w, x));
+    const y = below ? syBot + 16 : syTop - h - 16;
+    const bob = Math.sin(t * 5) * 3;
+    call.style.transform = `translate(${x}px, ${y + bob - (1 - o) * 20}px)`;
+    call.style.opacity = String(o);
+  }
+  // ليزر الماسح (الباركود بالنموذج وبفاتورة الشراء)
+  const laser = $('#laser');
+  laser.style.opacity = '0';
+  for (const [a, st, k] of [[29.95, 'form0', 'barcode'], [100.75, 'purchase0', 'scan']]) {
+    if (t >= a && t < a + 0.9) {
+      const bx = box(st, k);
+      const p = (t - a) / 0.9;
+      laser.style.left = bx.x - 10 + 'px'; laser.style.width = bx.w + 20 + 'px';
+      laser.style.top = bx.y + bx.h * (0.15 + 0.7 * Math.abs(Math.sin(p * Math.PI * 2))) + 'px';
+      laser.style.height = 4 / z + 'px';
+      laser.style.opacity = String(Math.sin(p * Math.PI));
+    }
+  }
+  // الترجمة
+  const sub = SUBS.find(([a, b]) => t >= a - 0.1 && t <= b + 0.35);
+  const sp = $('#subText');
+  if (sub) {
+    if (sp.textContent !== sub[2]) sp.textContent = sub[2];
+    sp.style.opacity = String(Math.min(1, (t - (sub[0] - 0.1)) / 0.15, (sub[1] + 0.35 - t) / 0.2));
+  } else sp.style.opacity = '0';
+  // الخلفية
+  $('#b1').style.transform = `translate(${Math.sin(t * 0.2) * 140}px, ${Math.cos(t * 0.16) * 100}px)`;
+  $('#b2').style.transform = `translate(${Math.cos(t * 0.18) * 160}px, ${Math.sin(t * 0.22) * 90}px)`;
+}
+window.render = render;
+window.DURATION = 150.0;
+document.fonts.ready.then(() => Promise.all([...document.images].map((i) => (i.complete ? 0 : new Promise((r) => (i.onload = r)))))).then(() => { render(0); window.READY = true; });
+</script>
+</body>
+</html>

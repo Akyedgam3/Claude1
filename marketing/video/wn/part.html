@@ -1,0 +1,352 @@
+<style>
+#walbl { background: rgba(5,14,12,.9); padding: 26px 36px; border-radius: 26px; border: 1px solid rgba(255,255,255,.14); box-shadow: 0 24px 60px rgba(0,0,0,.5); }
+.bul { display: flex; gap: 26px; margin-top: 34px; }
+.bul div { display: flex; align-items: center; gap: 14px; padding: 14px 26px; border-radius: 20px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.15); font-weight: 800; font-size: 34px; opacity: 0; }
+.bul .icon { width: 36px; height: 36px; color: #5fe0bf; }
+#paper .sheetbox { position: absolute; left: 980px; top: 268px; width: 600px; height: 812px; overflow: hidden; }
+#paper .sheetbox img { position: absolute; left: 0; top: 0; width: 600px; box-shadow: 0 20px 40px rgba(0,0,0,.4); border-radius: 4px; }
+#paper .pr { position: absolute; left: 950px; top: 150px; width: 660px; height: 150px; border-radius: 30px; background: linear-gradient(180deg, #3b4a47, #1b2523); box-shadow: 0 30px 70px rgba(0,0,0,.6), inset 0 2px 0 rgba(255,255,255,.15); }
+#paper .pr::before { content: ''; position: absolute; left: 50px; right: 50px; bottom: 26px; height: 12px; border-radius: 6px; background: #050807; }
+#paper .pr .led { position: absolute; left: 30px; top: 30px; width: 14px; height: 14px; border-radius: 50%; background: #3cff9e; box-shadow: 0 0 14px #3cff9e; }
+#paper .pr .icon { position: absolute; right: 30px; top: 24px; width: 46px; height: 46px; color: #9fb7b1; }
+#paper .txt { position: absolute; right: 1000px; left: 160px; top: 330px; text-align: right; }
+.icon.bigic { width: 44px; height: 44px; }
+#subs { z-index: 45; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="blob" id="b1"></div><div class="blob" id="b2"></div><div id="grid"></div>
+
+  <div id="brand"><img src="assets/logo.png" />ما الجديد بميزان</div>
+  <div id="stepbar">
+    <div class="stepchip" id="sc1"><b>1</b>المطاعم</div>
+    <div class="stepchip" id="sc2"><b>2</b>ورش الخياطة</div>
+    <div class="stepchip" id="sc3"><b>3</b>موبايلات وكمبيوتر</div>
+    <div class="stepchip" id="sc4"><b>4</b>تحسينات</div>
+  </div>
+
+  <div id="win">
+    <div id="chrome">
+      <div class="btns"><span>✕</span><span>☐</span><span>—</span></div>
+      <div class="title"><img src="assets/logo.png" />ميزان — برنامج المحاسبة</div>
+    </div>
+    <div id="viewport">
+      <div id="content">
+        {{images}}
+        <div id="ring"></div>
+        <div id="laser"></div>
+        <div class="ripple" id="rip"></div>
+        <svg id="cursor" viewBox="0 0 34 44"><path d="M3 2 L3 34 L11 26 L17 40 L23 37 L17 24 L29 24 Z" fill="#fff" stroke="#111" stroke-width="2.4" stroke-linejoin="round"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout" id="call"><span class="icon" id="callIcon"></span><span id="callText"></span></div>
+
+  <div class="card" id="intro">
+    <img class="logo-big" src="assets/logo.png" id="introLogo" />
+    <div class="kicker" id="introK">شروحات ميزان</div>
+    <div class="title" id="introT">شو الجديد <span class="accent">بميزان؟</span></div>
+    <div class="chips">
+      <div class="bigchip" id="chip1"><b><span class="icon bigic">{{icon:utensils}}</span></b>المطاعم</div>
+      <div class="bigchip g" id="chip2"><b><span class="icon bigic">{{icon:scissors}}</span></b>ورش الخياطة</div>
+      <div class="bigchip" id="chip3"><b><span class="icon bigic">{{icon:laptop}}</span></b>موبايلات وكمبيوتر</div>
+    </div>
+  </div>
+  <div class="card dim" id="chap1"><div class="chapnum">1</div><div class="title">المطاعم</div><div class="sub">طاولات، مطبخ، سفري وتوصيل</div></div>
+  <div class="card dim" id="chap2"><div class="chapnum">2</div><div class="title">ورش الخياطة</div><div class="sub">شغل جملة على قماش الزبون</div></div>
+  <div class="card dim" id="chap3"><div class="chapnum">3</div><div class="title">موبايلات وكمبيوتر</div><div class="sub">IMEI، تقسيط، استبدال، وتجميعات</div></div>
+  <div class="card dim" id="chap4"><div class="chapnum">4</div><div class="title">وكمان...</div><div class="sub">بيانات تجريبية، طباعة أوضح، ورئيسية أذكى</div></div>
+
+  <div class="effect g" id="eKitchen"><span class="icon">{{icon:chef-hat}}</span>بتنعكس فوراً على الطاولات</div>
+  <div class="effect c" id="eShort"><span class="icon">{{icon:calculator}}</span>البرنامج بيحسب لحالو</div>
+  <div class="effect b" id="eDiff"><span class="icon">{{icon:arrow-left-right}}</span>بيدفع الفرق بس</div>
+  <div class="badge-big" id="yours"><span class="icon">{{icon:zap}}</span>شغّال من أول دقيقة</div>
+
+  <div class="card dim" id="paper">
+    <div class="txt"><div class="kicker" style="margin:0">ورقة الطلبية</div><div class="title" style="font-size:76px">بدل<br /><span class="green">الدفتر</span></div><div class="sub">الأتواب، المدّ، المراحل، والحساب</div></div>
+    <div class="sheetbox"><img src="shots/sheet.png" id="sheetImg" /></div>
+    <div class="pr"><span class="led"></span><span class="icon">{{icon:printer}}</span></div>
+  </div>
+
+  <div class="card dim" id="printer">
+    <div class="txt"><div class="kicker" style="margin:0">طباعة حرارية</div><div class="title" style="font-size:76px">واضحة<br /><span class="green">ومرتبة</span></div><div class="sub">مهما كانت الأسماء طويلة</div></div>
+    <div class="strip"><img src="shots/receipt.png" id="rcpt" /></div>
+    <div class="pr"><span class="led"></span><span class="icon">{{icon:printer}}</span></div>
+  </div>
+
+  <div id="wa"><div class="scr">
+    <div class="hd"><div class="av"><span class="icon">{{icon:user}}</span></div><div>أبو علي<small>متصل الآن</small></div></div>
+    <div class="bub" id="bub">
+      مرحباً أبو علي، نذكّرك بالقسط رقم 2 من خطة التقسيط رقم 1، المستحق بتاريخ <b>08/10/2026</b>.<br /><br />
+      قيمة القسط: <b>6,526.66 ل.س</b><br />الباقي من الخطة: 32,633.34 ل.س<br /><br />مع الشكر — <b>النجمة للموبايلات والكمبيوتر</b>
+      <div class="tm">10:42<span class="icon">{{icon:check-check}}</span></div>
+    </div>
+    <div class="bar">اكتب رسالة</div>
+  </div></div>
+  <div id="walbl"><div class="t">تذكير <span class="green">بالواتساب</span></div><div class="s">بكبسة زر وحدة</div></div>
+
+  <div class="card dim" id="outro1"><img class="logo-big" src="assets/logo.png" id="okIcon" style="width:190px;height:190px" /><div class="title" id="okT">برنامج واحد، <span class="accent">لكل شغلة شاشتها</span></div>
+    <div class="bul"><div id="b_1"><span class="icon">{{icon:utensils}}</span>المطاعم</div><div id="b_2"><span class="icon">{{icon:scissors}}</span>ورش الخياطة</div><div id="b_3"><span class="icon">{{icon:laptop}}</span>موبايلات وكمبيوتر</div></div>
+  </div>
+  <div class="card dim" id="outro2">
+    <div class="wa"><span class="icon">{{icon:message-circle}}</span></div>
+    <div class="sub" style="color:#fff;margin-top:24px">بدك تجرب أو عندك سؤال؟ راسلنا واتساب</div>
+    <div class="phone" id="ph1"><span class="cc">+963</span>968 037 609</div>
+    <div class="phone" id="ph2"><span class="cc">+963</span>980 072 891</div>
+  </div>
+  <div class="card" id="outro3" style="background:radial-gradient(ellipse at 50% 40%, #0f3a33 0%, #071a17 60%, #030b0a 100%)"><img class="logo-big" src="assets/logo.png" id="endLogo" /><div class="title" style="font-size:130px;margin-top:20px" id="endName">ميزان</div><div class="sub" id="endTag" style="font-size:52px;color:#fff">حساباتك صارت <span class="accent">بميزان</span></div></div>
+
+  <div id="subs"><span id="subText"></span></div>
+  <div id="vig"></div>
+  <div id="flash"></div>
+</div>
+<script src="assets/gsap.min.js"></script>
+<script>
+const STATES = {{states}};
+const S = Object.fromEntries(STATES.map((s) => [s.name, s]));
+const box = (st, k) => (typeof k === 'object' ? k : S[st].targets[k]);
+const ctr = (b) => ({ x: b.x + b.w / 2, y: b.y + b.h / 2 });
+const $ = (q) => document.querySelector(q);
+const U = (...bs) => { const x = Math.min(...bs.map((b) => b.x)), y = Math.min(...bs.map((b) => b.y)); return { x, y, w: Math.max(...bs.map((b) => b.x + b.w)) - x, h: Math.max(...bs.map((b) => b.y + b.h)) - y }; };
+
+const SUBS = {{subs}};
+const SPECS = { x: 443, y: 511, w: 729, h: 231 };
+
+// ───── حالات الشاشة: [وقت، الحالة، نوع، مدة] ─────
+const SHOT = [
+  // المطاعم
+  [12.1, 'r_tables', 'fade', 0.01],
+  [23.5, 'r_order', 'fade', 0.4],
+  [33.7, 'r_delivery', 'fade', 0.4],
+  [35.95, 'r_order', 'fade', 0.4],
+  [39.3, 'r_move', 'fade', 0.3],
+  [40.85, 'r_order', 'fade', 0.3],
+  [45.5, 'r_kitchen', 'fade', 0.4],
+  [52.75, 'r_tables2', 'fade', 0.35],
+  // الخياطة
+  [56.0, 't_rolls', 'fade', 0.01],
+  [59.35, 't_receive', 'fade', 0.3],
+  [60.5, 't_order', 'fade', 0.4],
+  [65.25, 't_plan', 'fade', 0.4],
+  [70.35, 't_cut', 'fade', 0.35],
+  [74.45, 't_stage', 'fade', 0.35],
+  [77.5, 't_expenses', 'fade', 0.4],
+  [79.6, 't_expense', 'fade', 0.3],
+  [82.3, 't_account', 'fade', 0.4],
+  // الموبايلات والكمبيوتر
+  [95.6, 'm_dash', 'fade', 0.01],
+  [98.0, 'm_device', 'fade', 0.4],
+  [100.3, 'm_laptop', 'fade', 0.4],
+  [102.5, 'm_pos0', 'fade', 0.35],
+  [103.9, 'm_pos', 'fade', 0.35],
+  [106.2, 'm_device', 'fade', 0.4],
+  [112.5, 'm_inst_list', 'fade', 0.4],
+  [113.3, 'm_inst_new', 'fade', 0.3],
+  [116.8, 'm_inst', 'fade', 0.4],
+  [123.0, 'm_trade', 'fade', 0.4],
+  [127.55, 'm_trade2', 'fade', 0.35],
+  [129.2, 'm_build', 'fade', 0.4],
+  [135.15, 'm_build2', 'fade', 0.35],
+  [138.75, 'm_laptop', 'fade', 0.4],
+  [142.45, 'm_item', 'fade', 0.35],
+  // بيانات تجريبية
+  [146.6, 'new_demo', 'fade', 0.01],
+  [150.5, 'r_dash', 'fade', 0.4],
+  [152.6, 't_dash', 'fade', 0.4],
+  [154.5, 'm_dash', 'fade', 0.4],
+  // الرئيسية
+  [164.0, 'm_dash', 'fade', 0.01],
+  [166.7, 'r_dash', 'fade', 0.4],
+];
+
+// ───── التركيز: [من، إلى، الحالة، الهدف، النص، أيقونة، أسفل؟، لون] ─────
+const FOCUS = [
+  [12.6, 14.4, 'r_tables', 'areas', 'الصالة، التراس، العائلي', 'armchair', true],
+  [14.6, 15.6, 'r_tables', 'ter1', 'طاولات التراس', 'armchair'],
+  [15.7, 16.8, 'r_tables', 'fam1', 'طاولات العائلي', 'armchair'],
+  [17.2, 19.6, 'r_tables', 't2', 'المبلغ وقديش صرلها مفتوحة', 'timer', true],
+  [19.8, 21.4, 'r_tables', 'ter1', 'بالمطبخ', 'chef-hat'],
+  [21.5, 23.2, 'r_tables', 't2', 'جاهز للتقديم', 'circle-check-big', true, 'green'],
+  [23.9, 26.6, 'r_order', 'info', 'الضيوف والكابتن', 'users', true],
+  [26.8, 30.4, 'r_order', 'notes', 'حار، بدون بصل، زيادة صوص', 'flame'],
+  [30.5, 31.4, 'r_order', 'cart', 'ملاحظات المطبخ', 'list-checks'],
+  [31.8, 33.4, 'r_order', 'service', 'نسبة خدمة وخصم', 'percent'],
+  [34.0, 35.8, 'r_delivery', 'fee', 'أجور التوصيل', 'bike', true],
+  [36.3, 38.4, 'r_order', 'bill', 'طباعة الحساب', 'printer', true],
+  [38.5, 39.2, 'r_order', 'move', 'نقل', 'arrow-left-right', true],
+  [39.5, 40.7, 'r_move', 'modal', 'نقل لطاولة تانية', 'arrow-left-right', true],
+  [41.0, 44.0, 'r_order', 'merge', 'دمج طاولتين', 'combine', true],
+  [44.3, 45.4, 'r_order', 'kitchen', 'شاشة المطبخ', 'chef-hat', true],
+  [45.9, 49.8, 'r_kitchen', 'cards', 'الطلبات بالترتيب مع الوقت', 'timer', true],
+  [50.0, 51.3, 'r_kitchen', 'ter', 'المتأخر بيحمرّ', 'bell-ring', true],
+  [51.45, 52.6, 'r_kitchen', 'done', 'جاهز', 'check-check', true, 'green'],
+  [52.95, 53.95, 'r_tables2', 't2', 'جاهز للتقديم', 'circle-check-big', true, 'green'],
+
+  [56.4, 57.3, 't_rolls', 'sidebar', 'ورشة الخياطة', 'scissors'],
+  [57.4, 58.5, 't_rolls', 'table', 'كل توب برقمه وطوله', 'layers', true],
+  [58.6, 59.3, 't_rolls', 'receive', 'استلام أتواب', 'plus', true],
+  [59.6, 60.45, 't_receive', 'unit', 'يارد أو متر', 'ruler', true],
+  [60.9, 61.9, 't_order', 'model', 'الموديل', 'shirt', true],
+  [62.0, 63.3, 't_order', 'sizes', 'النمر والكميات', 'list-checks'],
+  [63.4, 64.2, 't_order', 'marker', 'طول الرسمة', 'ruler', true],
+  [64.3, 65.1, 't_order', 'rate', 'سعر خياطة القطعة', 'banknote', true],
+  [66.4, 67.25, 't_plan', 'lays', 'كم مدة', 'layers'],
+  [67.3, 68.3, 't_plan', 'fabric', 'كم يارد قماش', 'ruler'],
+  [68.4, 69.9, 't_plan', 'strip', 'إذا القماش ناقص', 'bell-ring'],
+  [70.9, 73.1, 't_cut', 'r141', 'اختار التوب', 'layers'],
+  [73.3, 74.35, 't_cut', 'pieces', 'القطع المقصوصة لحالها', 'scissors', false, 'green'],
+  [74.8, 75.9, 't_stage', 'seg', 'خياطة، خلص، تالف', 'list-checks'],
+  [76.0, 77.2, 't_stage', 'pieces', 'كم قطعة', 'calculator', true],
+  [77.9, 79.4, 't_expenses', 'exp', 'استيك، خيط، بطانة', 'receipt'],
+  [79.9, 81.9, 't_expense', 'bill', 'على الزبون أو على الورشة', 'wallet', true],
+  [82.8, 84.9, 't_account', 'money', 'المسلّم والمصاريف والدفعات', 'calculator', true],
+  [85.0, 86.3, 't_account', 'moves', 'الحركات', 'list-checks'],
+  [86.4, 87.9, 't_account', 'grand', 'مين إله على مين', 'wallet', false, 'green'],
+
+  [96.0, 97.6, 'm_dash', 'inst', 'أرقامك المهمة', 'chart-column', true],
+  [98.4, 100.1, 'm_device', 'search', 'IMEI أو رقم تسلسلي', 'search', true],
+  [100.6, 102.2, 'm_laptop', 'card', 'رقم تسلسلي للابتوب', 'laptop', true],
+  [102.9, 103.8, 'm_pos0', 'scan', 'امسح الرقم', 'scan-barcode', true],
+  [104.3, 105.8, 'm_pos', 'line', 'الجهاز نفسه بالسلة', 'smartphone', false, 'green'],
+  [106.6, 108.2, 'm_device', 'card', 'سجل الجهاز', 'smartphone', true],
+  [108.3, 110.5, 'm_device', 'events', 'من مين انشرى ولمين انباع', 'repeat', true],
+  [110.6, 112.2, 'm_device', 'status', 'الكفالة', 'shield-check', true],
+  [112.9, 114.1, 'm_inst_list', 'stats', 'التقسيط', 'calendar-clock', true],
+  [113.5, 116.5, 'm_inst_new', 'strip', 'دفعة أولى، أشهر، زيادة', 'calculator', true],
+  [117.2, 118.8, 'm_inst', 'table', 'جدول الأقساط', 'calendar-check', true],
+  [118.9, 120.3, 'm_inst', 'late', 'المتأخر بالأحمر', 'bell-ring', true],
+  [120.4, 121.1, 'm_inst', 'wa', 'تذكير واتساب', 'message-circle', true],
+  [123.4, 125.0, 'm_trade', 'old', 'الجهاز القديم', 'smartphone', true],
+  [125.7, 127.4, 'm_trade', 'battery', 'حالته وبطاريته', 'battery-charging', true],
+  [127.75, 128.95, 'm_trade2', 'strip', 'الفرق بس', 'arrow-left-right', false, 'green'],
+  [129.6, 131.5, 'm_build', 'table', 'تجميعة كمبيوتر', 'cpu'],
+  [131.6, 133.0, 'm_build', 'cpu', 'المعالج', 'cpu', true],
+  [133.3, 134.9, 'm_build', 'gpu', 'كرت الشاشة', 'monitor', true],
+  [135.35, 136.55, 'm_build2', 'fee', 'أجور التجميع', 'banknote'],
+  [136.6, 138.3, 'm_build2', 'strip', 'بيع أو عرض سعر', 'receipt'],
+  [140.8, 142.3, 'm_laptop', 'chips', 'معالج، رام، تخزين', 'memory-stick', true],
+  [142.7, 144.8, 'm_item', SPECS, 'مواصفات حسب نوع الجهاز', 'laptop'],
+
+  [147.0, 149.6, 'new_demo', 'demo', 'بيانات تجريبية', 'database', false, 'green'],
+  [149.65, 150.3, 'new_demo', 'create', 'إنشاء الشركة', 'circle-check-big', true],
+  [150.8, 152.4, 'r_dash', 'stats', 'مطعم جاهز', 'utensils', true],
+  [152.9, 154.3, 't_dash', 'side', 'ورشة جاهزة', 'scissors'],
+  [154.8, 156.3, 'm_dash', 'inst', 'أجهزة وتقسيط', 'laptop', true],
+  [164.5, 166.5, 'm_dash', 'inst', 'الأقساط المستحقة', 'calendar-clock', true],
+  [167.0, 168.9, 'r_dash', 'stats', 'أرقام حسب شغلك', 'chart-column', true],
+];
+const CLICKS = [38.4, 44.0, 45.3, 52.35, 59.25, 79.5, 121.0, 149.7, 150.25];
+const CURX = [
+  [38.9, 'r_order', 'move'],
+  [52.4, 'r_kitchen', 'done'],
+];
+const LASERS = [[103.0, 'm_pos0', 'scan']];
+const ICONS = {{iconmap}};
+
+// ───── الكاميرا والمؤشر تُشتق من التركيز ─────
+const C0 = [800, 500, 1];
+const WIN_IN = [12.1, 56.0, 95.6, 146.6, 164.0];
+const WIN_OUT = [53.9, 88.1, 145.0, 158.8, 169.3];
+function camFor(b) {
+  const z = Math.max(1, Math.min(1.75, 1150 / (b.w + 260), 720 / (b.h + 240)));
+  return [b.x + b.w / 2, b.y + b.h / 2, z];
+}
+const CAM = [];
+for (const t of WIN_IN) CAM.push([t, ...C0, 0.01]);
+for (const f of FOCUS) CAM.push([f[0] - 0.45, ...camFor(box(f[2], f[3])), 0.7]);
+for (const s of SHOT) {
+  if (s[2] !== 'fade' || s[3] < 0.2) continue;
+  const next = FOCUS.find((f) => f[0] >= s[0] - 0.2);
+  if (!next || next[0] - s[0] > 1.2) CAM.push([s[0], ...C0, 0.6]);
+}
+CAM.sort((a, b) => a[0] - b[0]);
+const CUR = [[12.1, 800, 640, 0.01]];
+for (const f of FOCUS) { const b = box(f[2], f[3]); const c = ctr(b); CUR.push([f[0] - 0.5, c.x + Math.min(40, b.w * 0.2), c.y + 6, 0.5]); }
+for (const [t, st, k] of CURX) { const c = ctr(box(st, k)); CUR.push([t - 0.5, c.x, c.y + 4, 0.45]); }
+CUR.sort((a, b) => a[0] - b[0]);
+
+// ───── GSAP ─────
+const tl = gsap.timeline({ paused: true, defaults: { ease: 'power3.out' } });
+const fade = (sel, a, b, d = 0.4) => {
+  tl.fromTo(sel, { opacity: 0 }, { opacity: 1, duration: d, immediateRender: false }, a);
+  if (b !== undefined) tl.to(sel, { opacity: 0, duration: d, ease: 'power2.in' }, b);
+};
+const flash = (at, p = 0.5) => tl.fromTo('#flash', { opacity: p }, { opacity: 0, duration: 0.45, immediateRender: false }, at);
+const pop = (sel, at, out, from = { y: -40 }) => {
+  tl.fromTo(sel, { opacity: 0, scale: 0.6, ...from }, { opacity: 1, scale: 1, x: 0, y: 0, duration: 0.5, ease: 'back.out(2)', immediateRender: false }, at);
+  tl.to(sel, { opacity: 0, scale: 0.85, duration: 0.3, ease: 'power2.in' }, out);
+};
+tl.set('.card, .badge-big, .effect, #wa, #walbl, #win, #stepbar, #brand', { opacity: 0 }, 0);
+
+// مقدمة
+fade('#intro', 0, 10.75, 0.5);
+tl.fromTo('#introLogo', { scale: 0, rotationY: 180 }, { scale: 1, rotationY: 0, duration: 1.2, ease: 'elastic.out(1,.6)' }, 0.4);
+tl.fromTo('#introK', { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6 }, 0.8);
+tl.fromTo('#introT', { opacity: 0, y: 60, filter: 'blur(14px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.9 }, 2.5);
+[7.45, 8.2, 9.15].forEach((t, i) => tl.fromTo('#chip' + (i + 1), { opacity: 0, scale: 0.4, y: 60 }, { opacity: 1, scale: 1, y: 0, duration: 0.6, ease: 'back.out(2)' }, t));
+const chap = (id, a, b) => {
+  flash(a + 0.05, 0.35);
+  fade(id, a, b, 0.35);
+  tl.fromTo(id + ' .chapnum', { scale: 3, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: 'expo.out' }, a + 0.1);
+  tl.fromTo(id + ' .title', { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5 }, a + 0.4);
+  tl.fromTo(id + ' .sub', { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5 }, a + 0.6);
+};
+chap('#chap1', 10.8, 12.05);
+chap('#chap2', 53.95, 55.95);
+chap('#chap3', 93.45, 95.55);
+chap('#chap4', 145.05, 146.55);
+const winIn = (at) => tl.fromTo('#win', { opacity: 0, scale: 0.88, y: 60 }, { opacity: 1, scale: 1, y: 0, duration: 0.7, ease: 'expo.out', immediateRender: false }, at);
+const winOut = (at) => tl.to('#win', { opacity: 0, scale: 0.94, duration: 0.4, ease: 'power2.in' }, at);
+WIN_IN.forEach((t, i) => { winIn(t); winOut(WIN_OUT[i]); });
+fade('#brand', 12.1, 169.3, 0.5);
+fade('#stepbar', 12.1, 169.3, 0.5);
+[['#sc1', 12.1, 53.95], ['#sc2', 56.0, 93.45], ['#sc3', 95.6, 145.05], ['#sc4', 146.6, 169.3]].forEach(([s, a, b]) => {
+  tl.set(s, { className: 'stepchip on' }, a);
+  tl.set(s, { className: 'stepchip done' }, b);
+});
+// المطبخ ← الطاولات
+tl.set('#eKitchen', { left: 640, top: 240 }, 0);
+pop('#eKitchen', 52.95, 53.95);
+// حساب القماش
+tl.set('#eShort', { left: 700, top: 230 }, 0);
+pop('#eShort', 65.6, 69.6);
+// الاستبدال
+tl.set('#eDiff', { left: 780, top: 250 }, 0);
+pop('#eDiff', 127.9, 129.0, { x: 80 });
+// ورقة الطلبية
+fade('#paper', 88.2, 93.0, 0.35);
+tl.fromTo('#paper .txt', { opacity: 0, x: 60 }, { opacity: 1, x: 0, duration: 0.6, immediateRender: false }, 88.4);
+tl.fromTo('#paper .pr', { y: -30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, immediateRender: false }, 88.25);
+tl.fromTo('#sheetImg', { yPercent: -100 }, { yPercent: 0, duration: 3.0, ease: 'steps(30)', immediateRender: false }, 88.5);
+// واتساب
+tl.fromTo('#wa', { opacity: 0, y: 140, rotation: -6 }, { opacity: 1, y: 0, rotation: -2, duration: 0.7, ease: 'back.out(1.4)', immediateRender: false }, 121.2);
+tl.fromTo('#bub', { opacity: 0, scale: 0.3 }, { opacity: 1, scale: 1, duration: 0.5, ease: 'back.out(2)', immediateRender: false }, 121.6);
+tl.fromTo('#walbl', { opacity: 0, x: -60 }, { opacity: 1, x: 0, duration: 0.5, immediateRender: false }, 121.8);
+tl.to(['#wa', '#walbl'], { opacity: 0, y: 40, duration: 0.35 }, 122.75);
+// شغّال من أول دقيقة
+tl.fromTo('#yours', { opacity: 0, scale: 0.4, rotation: -8 }, { opacity: 1, scale: 1, rotation: -3, duration: 0.6, ease: 'back.out(2.2)', immediateRender: false }, 156.5);
+tl.to('#yours', { opacity: 0, scale: 0.8, duration: 0.3 }, 158.6);
+// الطباعة الحرارية
+fade('#printer', 158.95, 163.8, 0.35);
+tl.fromTo('#printer .txt', { opacity: 0, x: 60 }, { opacity: 1, x: 0, duration: 0.6, immediateRender: false }, 159.2);
+tl.fromTo('#rcpt', { yPercent: -100 }, { yPercent: 0, duration: 2.6, ease: 'steps(26)', immediateRender: false }, 159.3);
+tl.fromTo('#printer .pr', { y: -30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, immediateRender: false }, 159.0);
+// الخاتمة
+flash(169.4, 0.4);
+fade('#outro1', 169.35, 172.4, 0.4);
+tl.fromTo('#okIcon', { scale: 0, rotationY: -180 }, { scale: 1, rotationY: 0, duration: 0.9, ease: 'elastic.out(1,.6)' }, 169.45);
+tl.fromTo('#okT', { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.5 }, 169.7);
+['#b_1', '#b_2', '#b_3'].forEach((b, i) => tl.fromTo(b, { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.5, ease: 'back.out(2)' }, 170.4 + i * 0.4));
+fade('#outro2', 172.45, 176.6, 0.4);
+tl.fromTo('#outro2 .wa', { scale: 0, rotation: -90 }, { scale: 1, rotation: 0, duration: 0.8, ease: 'elastic.out(1,.55)' }, 172.55);
+tl.fromTo('#ph1', { opacity: 0, x: -80 }, { opacity: 1, x: 0, duration: 0.5 }, 173.1);
+tl.fromTo('#ph2', { opacity: 0, x: 80 }, { opacity: 1, x: 0, duration: 0.5 }, 173.6);
+flash(176.7, 0.6);
+fade('#outro3', 176.65, undefined, 0.3);
+tl.fromTo('#endLogo', { scale: 0, rotationY: -180 }, { scale: 1, rotationY: 0, duration: 1.1, ease: 'elastic.out(1,.6)' }, 176.75);
+tl.fromTo('#endName', { opacity: 0, letterSpacing: '40px' }, { opacity: 1, letterSpacing: '0px', duration: 0.8, ease: 'expo.out' }, 176.9);
+tl.fromTo('#endTag', { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6 }, 177.5);
+tl.set({}, {}, 180.5);
+
