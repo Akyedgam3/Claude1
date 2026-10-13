@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<title>Mizan Ad</title>
+<style>
+@font-face { font-family: Cairo; font-weight: 700; src: url(assets/fonts/cairo-arabic-700-normal.woff2), url(assets/fonts/cairo-latin-700-normal.woff2); }
+@font-face { font-family: Cairo; font-weight: 800; src: url(assets/fonts/cairo-arabic-800-normal.woff2), url(assets/fonts/cairo-latin-800-normal.woff2); }
+@font-face { font-family: Cairo; font-weight: 900; src: url(assets/fonts/cairo-arabic-900-normal.woff2), url(assets/fonts/cairo-latin-900-normal.woff2); }
+@font-face { font-family: CairoL; font-weight: 900; src: url(assets/fonts/cairo-latin-900-normal.woff2); }
+:root { --g: #0f6e5c; --g2: #14957c; --g3: #5fe0bf; --c: #e8892f; --c2: #f5b26b; --cream: #fff4e6; --ink: #13302b; --light: #eef5f1; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; }
+body { font-family: Cairo, sans-serif; color: #fff; }
+#stage { position: absolute; inset: 0; overflow: hidden; background: var(--g); }
+.icon svg { width: 100%; height: 100%; display: block; }
+.scene { position: absolute; inset: 0; overflow: hidden; visibility: hidden; }
+.scene.green { background: radial-gradient(ellipse at 50% 35%, #1a8a73 0%, var(--g) 45%, #0a4a3e 100%); }
+.scene.light { background: radial-gradient(ellipse at 50% 35%, #ffffff 0%, var(--light) 55%, #dcebe4 100%); color: var(--ink); }
+.scene.dark { background: radial-gradient(ellipse at 50% 40%, #12302b 0%, #071a17 70%, #030b0a 100%); }
+.ring { position: absolute; border-radius: 50%; border: 3px solid rgba(255,255,255,.14); left: 50%; top: 50%; transform: translate(-50%, -50%); }
+.light .ring { border-color: rgba(15,110,92,.12); }
+.dot { position: absolute; border-radius: 50%; background: rgba(255,255,255,.18); }
+.light .dot { background: rgba(232,137,47,.25); }
+.spark { position: absolute; width: 34px; height: 34px; color: var(--c2); }
+.light .spark { color: var(--c); }
+
+.word { position: absolute; left: 0; right: 0; text-align: center; font-weight: 900; line-height: 1.1; text-shadow: 0 14px 40px rgba(0,0,0,.25); }
+.light .word { color: var(--g); text-shadow: 0 10px 30px rgba(15,110,92,.15); }
+.word .o { color: var(--c2); }
+.light .word .o { color: var(--c); }
+.huge { font-size: 210px; }
+.big { font-size: 150px; }
+.mid { font-size: 110px; }
+.small { font-size: 64px; font-weight: 800; }
+
+.card3d { position: absolute; background: #fff; border-radius: 48px; color: var(--ink); box-shadow: 0 40px 80px rgba(0,0,0,.28), inset 0 -14px 0 rgba(0,0,0,.06); }
+.light .card3d { box-shadow: 0 40px 80px rgba(15,60,50,.22), inset 0 -14px 0 rgba(0,0,0,.05); }
+.tile { position: absolute; width: 230px; height: 230px; border-radius: 60px; display: grid; place-items: center; box-shadow: 0 30px 60px rgba(0,0,0,.3), inset 0 -12px 0 rgba(0,0,0,.12); }
+.tile .icon { width: 120px; height: 120px; }
+.t-w { background: #fff; color: var(--g); }
+.t-o { background: linear-gradient(160deg, var(--c2), var(--c)); color: #fff; }
+.t-g { background: linear-gradient(160deg, #24b393, var(--g)); color: #fff; }
+
+/* 1 */
+#w1 { top: 360px; } #w2 { top: 820px; } #w3 { top: 1280px; }
+#i1 { right: 30px; top: 620px; } #i2 { left: 30px; top: 1090px; } #i3 { right: 30px; top: 1560px; }
+#s1 .tile { width: 200px; height: 200px; } #s1 .tile .icon { width: 104px; height: 104px; }
+/* 2 */
+#typeA { top: 860px; font-size: 104px; }
+.caret { display: inline-block; width: 8px; height: 0.9em; background: var(--c2); vertical-align: -0.1em; margin-right: 6px; }
+/* 3 */
+#logo3 { position: absolute; left: 50%; top: 520px; width: 380px; height: 380px; margin-left: -190px; border-radius: 100px; box-shadow: 0 50px 120px rgba(0,0,0,.45), 0 0 160px rgba(95,224,191,.35); }
+#name3 { top: 960px; font-size: 220px; }
+#sub3 { top: 1260px; font-size: 64px; font-weight: 800; color: #e6f5ef; }
+/* 4 فواتير */
+#w4 { top: 230px; }
+#printer { position: absolute; left: 190px; top: 760px; width: 700px; height: 230px; border-radius: 56px; background: linear-gradient(180deg, #2c4a44, #12302b); box-shadow: 0 40px 80px rgba(0,0,0,.3), inset 0 4px 0 rgba(255,255,255,.12); }
+#printer::after { content: ''; position: absolute; left: 90px; right: 90px; bottom: 40px; height: 22px; border-radius: 11px; background: #06120f; }
+#printer .led { position: absolute; left: 50px; top: 50px; width: 22px; height: 22px; border-radius: 50%; background: #3cff9e; box-shadow: 0 0 20px #3cff9e; }
+#printer .btnp { position: absolute; right: 50px; top: 40px; width: 110px; height: 70px; border-radius: 22px; background: var(--c); box-shadow: inset 0 -8px 0 rgba(0,0,0,.2); display: grid; place-items: center; color: #fff; font-weight: 900; font-size: 30px; }
+#paperwrap { position: absolute; left: 290px; top: 950px; width: 500px; height: 760px; overflow: hidden; }
+#paper { position: absolute; left: 0; top: 0; width: 500px; height: 740px; background: #fff; border-radius: 0 0 22px 22px; box-shadow: 0 30px 60px rgba(15,60,50,.22); padding: 40px 44px; color: var(--ink); }
+#paper h4 { text-align: center; font-size: 40px; font-weight: 900; color: var(--g); }
+#paper .ln { display: flex; justify-content: space-between; font-size: 28px; font-weight: 700; border-bottom: 2px dashed #d7e3de; padding: 14px 0; }
+#paper .tot { display: flex; justify-content: space-between; font-size: 38px; font-weight: 900; padding-top: 20px; color: var(--g); }
+#stamp { position: absolute; left: 110px; top: 1450px; padding: 16px 40px; border: 8px solid var(--c); color: var(--c); border-radius: 26px; font-size: 64px; font-weight: 900; transform: rotate(-14deg); background: rgba(255,255,255,.85); }
+/* 5 مخزون */
+#w5 { top: 230px; }
+.shelf { position: absolute; left: 130px; width: 820px; height: 26px; border-radius: 13px; background: rgba(255,255,255,.25); }
+.box { position: absolute; width: 170px; height: 150px; border-radius: 26px; background: linear-gradient(160deg, #f8d6a8, #e8a35c); box-shadow: 0 20px 40px rgba(0,0,0,.25), inset 0 -10px 0 rgba(0,0,0,.08); color: #6b3d10; display: grid; place-items: center; font-weight: 900; font-size: 46px; font-family: CairoL; }
+.box::before { content: ''; position: absolute; top: 0; left: 50%; width: 46px; height: 46px; margin-left: -23px; background: rgba(255,255,255,.4); border-radius: 0 0 10px 10px; }
+.box.out { background: linear-gradient(160deg, #ffb3a8, #e5484d); color: #fff; }
+#outTag { position: absolute; padding: 10px 26px; border-radius: 20px; background: #e5484d; color: #fff; font-size: 44px; font-weight: 900; box-shadow: 0 16px 30px rgba(0,0,0,.25); }
+/* 6 ديون */
+#w6 { top: 230px; }
+#acct { left: 110px; top: 640px; width: 860px; height: 860px; padding: 56px; }
+#acct .who { display: flex; align-items: center; gap: 30px; }
+#acct .av { width: 140px; height: 140px; border-radius: 50%; background: linear-gradient(160deg, #24b393, var(--g)); color: #fff; display: grid; place-items: center; }
+#acct .av .icon { width: 80px; height: 80px; }
+#acct .nm { font-size: 60px; font-weight: 900; }
+#acct .bal { margin-top: 30px; background: #fff4e6; border-radius: 30px; padding: 26px 36px; display: flex; justify-content: space-between; align-items: center; }
+#acct .bal span { font-size: 40px; font-weight: 800; color: #8a5a20; }
+#acct .bal b { font-size: 70px; font-weight: 900; color: var(--c); font-family: CairoL; direction: ltr; }
+#acct .row { display: flex; justify-content: space-between; font-size: 36px; font-weight: 700; padding: 20px 6px; border-bottom: 2px solid #eef2f0; }
+#acct .row b { font-family: CairoL; direction: ltr; }
+#acct .row .p { color: var(--g2); }
+/* 7 مطعم */
+#w7 { top: 230px; }
+.tbl { position: absolute; width: 230px; height: 200px; border-radius: 36px; background: #fff; color: var(--ink); box-shadow: 0 24px 50px rgba(0,0,0,.28); padding: 22px; }
+.tbl b { font-size: 40px; font-weight: 900; display: block; }
+.tbl span { font-size: 30px; font-weight: 800; color: var(--g2); font-family: CairoL; }
+.tbl.busy { box-shadow: 0 0 0 8px var(--c2), 0 24px 50px rgba(0,0,0,.28); }
+#ticket { left: 210px; top: 1250px; width: 660px; height: 420px; padding: 40px 50px; }
+#ticket h4 { font-size: 46px; font-weight: 900; display: flex; justify-content: space-between; }
+#ticket h4 i { font-style: normal; color: #e5484d; font-family: CairoL; }
+#ticket p { font-size: 38px; font-weight: 700; margin-top: 12px; }
+#ticket .ready { margin-top: 24px; text-align: center; background: var(--g); color: #fff; border-radius: 22px; padding: 14px; font-size: 40px; font-weight: 900; }
+/* 8 ورشة */
+#w8 { top: 230px; }
+#roll { position: absolute; left: 190px; top: 640px; width: 700px; height: 230px; border-radius: 115px; background: repeating-linear-gradient(90deg, #2f6fb8 0 34px, #3a82d0 34px 68px); box-shadow: 0 30px 60px rgba(15,60,50,.3), inset 0 -18px 0 rgba(0,0,0,.18), inset 0 18px 0 rgba(255,255,255,.15); }
+#roll::before { content: ''; position: absolute; left: -10px; top: 0; width: 230px; height: 230px; border-radius: 50%; background: radial-gradient(circle, #c9dcf3 0 26%, #2f6fb8 27% 100%); box-shadow: inset 0 0 0 14px #2766a8; }
+#rollTag { position: absolute; left: 640px; top: 600px; padding: 10px 26px; border-radius: 20px; background: var(--c); color: #fff; font-size: 40px; font-weight: 900; font-family: CairoL; box-shadow: 0 14px 30px rgba(0,0,0,.2); }
+#cloth { position: absolute; left: 140px; top: 1000px; width: 800px; height: 420px; border-radius: 30px; background: repeating-linear-gradient(90deg, #2f6fb8 0 34px, #3a82d0 34px 68px); box-shadow: 0 30px 60px rgba(15,60,50,.3); overflow: hidden; }
+#tape { position: absolute; left: 140px; top: 950px; width: 800px; height: 60px; background: repeating-linear-gradient(90deg, #ffd34d 0 2px, #ffcf3a 2px 40px); border-radius: 10px; box-shadow: 0 10px 20px rgba(0,0,0,.2); transform-origin: right center; }
+#tape::after { content: '6 yd'; position: absolute; left: 20px; top: 6px; font-family: CairoL; font-weight: 900; font-size: 36px; color: #6b4b00; }
+#cut { position: absolute; left: 140px; top: 1205px; width: 800px; height: 0; border-top: 8px dashed #fff; transform-origin: right center; }
+#scis { position: absolute; left: 860px; top: 1150px; width: 110px; height: 110px; color: var(--ink); }
+/* 9 موبايلات */
+#w9 { top: 200px; }
+#phone { position: absolute; left: 300px; top: 560px; width: 480px; height: 940px; border-radius: 80px; background: #10201d; padding: 22px; box-shadow: 0 50px 100px rgba(0,0,0,.45); }
+#phone .scr { width: 100%; height: 100%; border-radius: 60px; background: #f4f8f6; color: var(--ink); padding: 70px 36px; overflow: hidden; }
+#phone .lbl { font-size: 30px; font-weight: 800; color: #6b7385; }
+#phone .imei { font-family: CairoL; font-weight: 900; font-size: 42px; direction: ltr; margin-top: 6px; letter-spacing: 1px; min-height: 60px; }
+#phone .badge { display: inline-block; margin-top: 18px; padding: 8px 22px; border-radius: 16px; background: #e3f2ee; color: var(--g); font-size: 30px; font-weight: 900; }
+#phone .ins { margin-top: 40px; display: grid; gap: 16px; }
+#phone .ins div { display: flex; justify-content: space-between; padding: 16px 22px; border-radius: 20px; background: #fff; box-shadow: 0 6px 14px rgba(0,0,0,.06); font-size: 30px; font-weight: 800; }
+#phone .ins div.late { background: #fdecea; color: #c0392b; }
+#phone .ins b { font-family: CairoL; }
+/* 10 حلويات */
+#w10 { top: 200px; }
+#cone { position: absolute; left: 140px; top: 760px; width: 320px; height: 620px; }
+#cone .c { position: absolute; left: 70px; top: 300px; width: 0; height: 0; border-left: 90px solid transparent; border-right: 90px solid transparent; border-top: 320px solid #e9a55a; filter: drop-shadow(0 20px 30px rgba(0,0,0,.2)); }
+#cone .s { position: absolute; width: 200px; height: 190px; border-radius: 50%; left: 60px; box-shadow: inset 0 -16px 0 rgba(0,0,0,.08); }
+#cone .s1 { top: 160px; background: #f7c9d9; } #cone .s2 { top: 30px; background: #fff3e0; } #cone .s3 { top: -90px; background: #7a4a2a; }
+#scale { left: 540px; top: 900px; width: 420px; height: 420px; padding: 40px; text-align: center; }
+#scale .pan { height: 90px; border-radius: 45px; background: #e9f2ee; margin: 10px 20px 30px; }
+#scale .disp { font-family: CairoL; font-weight: 900; font-size: 70px; color: var(--g); background: #0b201c; color: #5fe0bf; border-radius: 24px; padding: 10px; direction: ltr; }
+#scale .u { margin-top: 18px; font-size: 40px; font-weight: 900; }
+.cup { position: absolute; width: 150px; height: 170px; border-radius: 0 0 40px 40px; background: linear-gradient(180deg, #fff, #f1e7ff); box-shadow: 0 20px 40px rgba(0,0,0,.18); }
+.cup::before { content: ''; position: absolute; left: -10px; right: -10px; top: -70px; height: 100px; border-radius: 70px 70px 20px 20px; background: var(--cupc, #f7c9d9); }
+.cup small { position: absolute; bottom: 16px; left: 0; right: 0; text-align: center; font-weight: 900; font-size: 26px; color: var(--ink); }
+/* 11 ليرة ودولار */
+.coin { position: absolute; width: 380px; height: 380px; border-radius: 50%; display: grid; place-items: center; font-family: CairoL; font-weight: 900; font-size: 150px; box-shadow: 0 40px 80px rgba(0,0,0,.35), inset 0 -20px 0 rgba(0,0,0,.15), inset 0 0 0 22px rgba(255,255,255,.25); }
+#coinL { left: 130px; top: 760px; background: linear-gradient(160deg, #f5d38a, #d9a43a); color: #6b4b00; font-family: Cairo; font-size: 120px; }
+#coinD { left: 570px; top: 760px; background: linear-gradient(160deg, #a8e6c9, #2bb07f); color: #0b4a33; }
+#w11a { top: 300px; } #w11b { top: 1300px; }
+/* 12 بدون نت */
+#wifi { position: absolute; left: 340px; top: 620px; width: 400px; height: 400px; color: #fff; }
+#slash { position: absolute; left: 330px; top: 810px; width: 420px; height: 26px; border-radius: 13px; background: var(--c); transform: rotate(-40deg); transform-origin: center; }
+#w12 { top: 1180px; }
+#ok12 { position: absolute; left: 50%; top: 1460px; transform: translateX(-50%); padding: 16px 40px; border-radius: 30px; background: rgba(95,224,191,.15); border: 3px solid rgba(95,224,191,.5); color: var(--g3); font-size: 48px; font-weight: 900; white-space: nowrap; }
+/* 13 حماية */
+#shield { position: absolute; left: 340px; top: 520px; width: 400px; height: 400px; color: #fff; filter: drop-shadow(0 30px 60px rgba(0,0,0,.35)); }
+#laptop { position: absolute; left: 190px; top: 1080px; width: 700px; height: 420px; }
+#laptop .scr { position: absolute; left: 50px; right: 50px; top: 0; height: 360px; border-radius: 30px 30px 0 0; background: #10201d; border: 18px solid #2a3b37; display: grid; place-items: center; }
+#laptop .scr .icon { width: 160px; height: 160px; color: var(--c2); }
+#laptop .base { position: absolute; left: 0; right: 0; bottom: 0; height: 60px; border-radius: 0 0 40px 40px; background: linear-gradient(180deg, #cfd8d5, #9fb0ab); }
+#w13 { top: 220px; }
+/* 14 تقارير */
+#w14 { top: 200px; }
+#chart { left: 110px; top: 620px; width: 860px; height: 760px; padding: 60px; }
+#chart .bars { position: absolute; left: 80px; right: 80px; bottom: 90px; height: 480px; display: flex; align-items: flex-end; gap: 36px; }
+#chart .bar { flex: 1; border-radius: 22px 22px 8px 8px; background: linear-gradient(180deg, #24b393, var(--g)); transform-origin: bottom; }
+#chart .bar.o { background: linear-gradient(180deg, var(--c2), var(--c)); }
+#chart h5 { font-size: 46px; font-weight: 900; color: var(--ink); }
+#chart .num { font-family: CairoL; font-weight: 900; font-size: 74px; color: var(--g); direction: ltr; text-align: right; }
+#bolt { position: absolute; left: 430px; top: 1400px; width: 220px; height: 220px; color: var(--c); }
+/* 15 مكان واحد */
+#w15 { top: 170px; }
+#app { left: 160px; top: 560px; width: 760px; height: 1080px; background: linear-gradient(170deg, #1a8a73, var(--g)); padding: 60px 50px; color: #fff; }
+#app .hd { display: flex; align-items: center; justify-content: center; gap: 22px; font-size: 76px; font-weight: 900; }
+#app .hd img { width: 100px; height: 100px; border-radius: 28px; }
+#app .grid { margin-top: 50px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+#app .ap { background: #fff; border-radius: 40px; height: 230px; color: var(--g); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; box-shadow: 0 18px 30px rgba(0,0,0,.2), inset 0 -10px 0 rgba(0,0,0,.05); }
+#app .ap .icon { width: 84px; height: 84px; }
+#app .ap span { font-size: 28px; font-weight: 900; color: var(--ink); }
+#app .ap:nth-child(3n+2) { color: var(--c); }
+/* 16 */
+#w16a { top: 640px; } #w16b { top: 980px; }
+/* 17 */
+#logo17 { position: absolute; left: 50%; top: 560px; width: 340px; height: 340px; margin-left: -170px; border-radius: 90px; box-shadow: 0 50px 120px rgba(0,0,0,.45), 0 0 160px rgba(95,224,191,.35); }
+#name17 { top: 960px; font-size: 200px; }
+#tag17 { top: 1240px; font-size: 76px; }
+/* 18 */
+#end { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; padding-top: 250px; text-align: center; }
+#end img { width: 200px; height: 200px; border-radius: 54px; }
+#end .t { font-size: 110px; font-weight: 900; margin-top: 30px; }
+#end .dl { display: inline-flex; align-items: center; gap: 24px; margin-top: 40px; padding: 34px 70px; border-radius: 44px; font-size: 72px; font-weight: 900; background: linear-gradient(135deg, var(--c2), var(--c)); box-shadow: 0 30px 80px rgba(232,137,47,.5); }
+#end .dl .icon { width: 80px; height: 80px; }
+#end .url { margin-top: 30px; font-family: CairoL; font-weight: 900; font-size: 44px; color: #d8efe8; direction: ltr; }
+#end .price { margin-top: 50px; font-size: 52px; font-weight: 800; color: #d8efe8; }
+#end .price b { color: var(--c2); font-family: CairoL; font-size: 76px; }
+#end .wa { margin-top: 60px; display: flex; align-items: center; gap: 16px; font-size: 44px; font-weight: 800; color: #d8efe8; }
+#end .wa .icon { width: 60px; height: 60px; color: #25d366; }
+#end .ph { font-family: CairoL; font-weight: 900; font-size: 76px; direction: ltr; margin-top: 6px; }
+#end .ph span { color: #9fc9bd; font-size: 46px; margin-right: 14px; }
+#end .down { margin-top: 50px; display: flex; align-items: center; gap: 14px; font-size: 52px; font-weight: 900; color: var(--c2); }
+#end .down .icon { width: 60px; height: 60px; }
+
+#flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 50; }
+#grain { position: absolute; inset: 0; pointer-events: none; z-index: 49; background: radial-gradient(ellipse at 50% 50%, transparent 62%, rgba(0,0,0,.32) 100%); }
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <!-- 1: محل؟ مطعم؟ ورشة؟ -->
+  <section class="scene green" id="s1">
+    <div class="ring" style="width:900px;height:900px"></div><div class="ring" style="width:1400px;height:1400px"></div>
+    <div class="word huge" id="w1">محل؟</div>
+    <div class="word huge" id="w2">مطعم؟</div>
+    <div class="word huge" id="w3">ورشة؟</div>
+    <div class="tile t-w" id="i1"><span class="icon">{{icon:store}}</span></div>
+    <div class="tile t-o" id="i2"><span class="icon">{{icon:utensils}}</span></div>
+    <div class="tile t-w" id="i3"><span class="icon">{{icon:scissors}}</span></div>
+  </section>
+
+  <!-- 2: شو ما كان شغلك -->
+  <section class="scene green" id="s2">
+    <div class="ring" style="width:700px;height:700px"></div>
+    <div class="word" id="typeA"><span class="tx" data-text="شو ما كان شغلك..."></span><span class="caret"></span></div>
+  </section>
+
+  <!-- 3: ميزان -->
+  <section class="scene green" id="s3">
+    <div class="ring r3" style="width:500px;height:500px"></div><div class="ring r3" style="width:800px;height:800px"></div><div class="ring r3" style="width:1100px;height:1100px"></div>
+    <img id="logo3" src="assets/logo.png" />
+    <div class="word" id="name3">ميزان</div>
+    <div class="word" id="sub3"><span class="tx" data-text="برنامج المحاسبة وإدارة المحلات"></span></div>
+  </section>
+
+  <!-- 4: فواتير -->
+  <section class="scene light" id="s4">
+    <div class="ring" style="width:1300px;height:1300px"></div>
+    <div class="word big" id="w4">فواتير<span class="o">؟</span></div>
+    <div id="paperwrap"><div id="paper">
+      <h4>حلويات الشام</h4>
+      <div class="ln"><span>بقلاوة · علبة كيلو</span><b>1,850</b></div>
+      <div class="ln"><span>بوظة · كاسة وسط ×2</span><b>240</b></div>
+      <div class="ln"><span>كنافة · صحن</span><b>240</b></div>
+      <div class="tot"><span>الإجمالي</span><b>2,330</b></div>
+    </div></div>
+    <div id="printer"><span class="led"></span><span class="btnp" id="btnp">طباعة</span></div>
+    <div id="stamp">تم ✓</div>
+  </section>
+
+  <!-- 5: مخزون -->
+  <section class="scene green" id="s5">
+    <div class="word big" id="w5">مخزون<span class="o">؟</span></div>
+    <div class="shelf" style="top:930px"></div><div class="shelf" style="top:1190px"></div><div class="shelf" style="top:1450px"></div>
+    <div class="box" style="left:160px;top:780px">48</div><div class="box" style="left:450px;top:780px">25</div><div class="box" style="left:740px;top:780px">60</div>
+    <div class="box" style="left:160px;top:1040px">12</div><div class="box out" style="left:450px;top:1040px" id="outBox">0</div><div class="box" style="left:740px;top:1040px">33</div>
+    <div class="box" style="left:300px;top:1300px">90</div><div class="box" style="left:600px;top:1300px">17</div>
+    <div id="outTag" style="left:400px;top:980px">خلص!</div>
+  </section>
+
+  <!-- 6: ديون -->
+  <section class="scene light" id="s6">
+    <div class="word big" id="w6">ديون<span class="o">؟</span></div>
+    <div class="card3d" id="acct">
+      <div class="who"><div class="av"><span class="icon">{{icon:user}}</span></div><div><div class="nm">أبو خالد</div><div style="font-size:34px;color:#6b7385;font-weight:700">كشف حساب</div></div></div>
+      <div class="bal"><span>عليه</span><b class="cnt" data-to="1250">0</b></div>
+      <div class="row r6"><span>فاتورة 112</span><b>+ 2,000</b></div>
+      <div class="row r6"><span>دفعة نقدية</span><b class="p">− 500</b></div>
+      <div class="row r6"><span>فاتورة 118</span><b>+ 750</b></div>
+      <div class="row r6"><span>دفعة نقدية</span><b class="p">− 1,000</b></div>
+    </div>
+  </section>
+
+  <!-- 7: مطعمك -->
+  <section class="scene green" id="s7">
+    <div class="word big" id="w7">مطعمك</div>
+    <div class="tbl t7" style="left:110px;top:560px"><b>طاولة 1</b><span>1,940</span></div>
+    <div class="tbl t7 busy" style="left:425px;top:560px"><b>طاولة 2</b><span>2,706</span></div>
+    <div class="tbl t7" style="left:740px;top:560px"><b>طاولة 3</b><span>فاضية</span></div>
+    <div class="tbl t7" style="left:110px;top:820px"><b>التراس 1</b><span>840</span></div>
+    <div class="tbl t7 busy" style="left:425px;top:820px"><b>التراس 2</b><span>1,320</span></div>
+    <div class="tbl t7" style="left:740px;top:820px"><b>عائلي 1</b><span>2,590</span></div>
+    <div class="card3d" id="ticket"><h4><span>طاولة 2 · المطبخ</span><i>12 د</i></h4><p>2 × شيش طاووق · حار</p><p>1 × فتوش · بدون بصل</p><div class="ready">✓ جاهز</div></div>
+  </section>
+
+  <!-- 8: ورشتك -->
+  <section class="scene light" id="s8">
+    <div class="word big" id="w8">ورشتك</div>
+    <div id="roll"></div><div id="rollTag">#141 · 120 yd</div>
+    <div id="cloth"></div><div id="tape"></div><div id="cut"></div>
+    <span class="icon" id="scis">{{icon:scissors}}</span>
+  </section>
+
+  <!-- 9: موبايلات -->
+  <section class="scene green" id="s9">
+    <div class="word mid" id="w9">محل الموبايلات</div>
+    <div id="phone"><div class="scr">
+      <div class="lbl">IMEI</div>
+      <div class="imei"><span class="tx" data-text="356 789 012 345 678"></span></div>
+      <div class="badge" id="ok9">✓ بالكفالة</div>
+      <div class="ins" id="ins9">
+        <div><span>قسط 1</span><b>✓ 50$</b></div>
+        <div class="late"><span>قسط 2 · متأخر</span><b>50$</b></div>
+        <div><span>قسط 3</span><b>50$</b></div>
+        <div><span>قسط 4</span><b>50$</b></div>
+      </div>
+    </div></div>
+  </section>
+
+  <!-- 10: حلويات -->
+  <section class="scene light" id="s10">
+    <div class="word mid" id="w10">حلويات <span class="o">وبوظة</span></div>
+    <div id="cone"><div class="c"></div><div class="s s1"></div><div class="s s2"></div><div class="s s3"></div></div>
+    <div class="card3d" id="scale"><div class="disp"><span class="cnt" data-to="1.000" data-dec="3">0.000</span></div><div class="pan"></div><div class="u">كيلو</div></div>
+    <div class="cup" id="cup1" style="left:560px;top:1520px;--cupc:#f7c9d9"><small>صغيرة</small></div>
+    <div class="cup" id="cup2" style="left:760px;top:1500px;--cupc:#c8f0dc"><small>وسط</small></div>
+  </section>
+
+  <!-- 11: ليرة ودولار -->
+  <section class="scene green" id="s11">
+    <div class="word big" id="w11a">ليرة</div>
+    <div class="coin" id="coinL">ل.س</div>
+    <div class="coin" id="coinD">$</div>
+    <div class="word big" id="w11b">ودولار</div>
+  </section>
+
+  <!-- 12: بدون إنترنت -->
+  <section class="scene dark" id="s12">
+    <div class="ring" style="width:800px;height:800px;top:820px"></div>
+    <span class="icon" id="wifi">{{icon:wifi}}</span><div id="slash"></div>
+    <div class="word big" id="w12">بدون <span class="o">إنترنت</span></div>
+    <div id="ok12">✓ شغّال 100%</div>
+  </section>
+
+  <!-- 13: بياناتك محمية -->
+  <section class="scene green" id="s13">
+    <div class="word mid" id="w13">بياناتك <span class="o">محمية</span></div>
+    <span class="icon" id="shield">{{icon:shield-check}}</span>
+    <div id="laptop"><div class="scr"><span class="icon">{{icon:lock}}</span></div><div class="base"></div></div>
+  </section>
+
+  <!-- 14: تقارير -->
+  <section class="scene light" id="s14">
+    <div class="word mid" id="w14">أرباحك <span class="o">وتقاريرك</span></div>
+    <div class="card3d" id="chart">
+      <h5>ربح هالشهر</h5><div class="num"><span class="cnt" data-to="38450">0</span></div>
+      <div class="bars"><div class="bar" style="height:40%"></div><div class="bar" style="height:55%"></div><div class="bar" style="height:48%"></div><div class="bar" style="height:70%"></div><div class="bar o" style="height:92%"></div></div>
+    </div>
+    <span class="icon" id="bolt">{{icon:zap}}</span>
+  </section>
+
+  <!-- 15: بمكان واحد -->
+  <section class="scene light" id="s15">
+    <div class="word big" id="w15">بمكان <span class="o">واحد</span></div>
+    <div class="card3d" id="app">
+      <div class="hd"><img src="assets/logo.png" />ميزان</div>
+      <div class="grid">
+        <div class="ap"><span class="icon">{{icon:receipt}}</span><span>فواتير</span></div>
+        <div class="ap"><span class="icon">{{icon:package}}</span><span>مخزون</span></div>
+        <div class="ap"><span class="icon">{{icon:users}}</span><span>ديون</span></div>
+        <div class="ap"><span class="icon">{{icon:utensils}}</span><span>مطاعم</span></div>
+        <div class="ap"><span class="icon">{{icon:scissors}}</span><span>خياطة</span></div>
+        <div class="ap"><span class="icon">{{icon:smartphone}}</span><span>موبايلات</span></div>
+        <div class="ap"><span class="icon">{{icon:ice-cream-cone}}</span><span>حلويات</span></div>
+        <div class="ap"><span class="icon">{{icon:shopping-cart}}</span><span>ماركت</span></div>
+        <div class="ap"><span class="icon">{{icon:chart-column}}</span><span>تقارير</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 16: شغلك عليك والحساب علينا -->
+  <section class="scene green" id="s16">
+    <div class="ring" style="width:900px;height:900px"></div>
+    <div class="word big" id="w16a">شغلك عليك...</div>
+    <div class="word big" id="w16b"><span class="o">والحساب علينا</span></div>
+  </section>
+
+  <!-- 17: ميزان -->
+  <section class="scene green" id="s17">
+    <div class="ring r17" style="width:600px;height:600px"></div><div class="ring r17" style="width:1000px;height:1000px"></div>
+    <img id="logo17" src="assets/logo.png" />
+    <div class="word" id="name17">ميزان</div>
+    <div class="word" id="tag17">حساباتك صارت <span class="o">بميزان</span></div>
+  </section>
+
+  <!-- 18: الخاتمة -->
+  <section class="scene dark" id="s18">
+    <div id="end">
+      <img src="assets/logo.png" id="endLogo" />
+      <div class="t" id="endT">حمّله هلق</div>
+      <div class="dl" id="endDl"><span class="icon">{{icon:download}}</span>تحميل ميزان</div>
+      <div class="url" id="endUrl">akyedgam3.github.io/mizan-updates</div>
+      <div class="price" id="endPrice">يبلّش من <b>$4.99</b> بالشهر</div>
+      <div id="endWa">
+        <div class="wa"><span class="icon">{{icon:message-circle}}</span>للاشتراك واتساب</div>
+        <div class="ph"><span>+963</span>968 037 609</div>
+        <div class="ph"><span>+963</span>980 072 891</div>
+      </div>
+      <div class="down" id="endDown">الرابط تحت الفيديو<span class="icon">{{icon:arrow-down}}</span></div>
+    </div>
+  </section>
+
+  <div id="grain"></div>
+  <div id="flash"></div>
+</div>
+<script src="assets/gsap.min.js"></script>
+<script>
+const $ = (q) => document.querySelector(q);
+const $$ = (q) => [...document.querySelectorAll(q)];
+// [المشهد، بداية، نهاية، نوع الدخول]
+const SCENES = [
+  ['#s1', 0, 3.3, 'cut'], ['#s2', 3.3, 4.95, 'zoom'], ['#s3', 4.95, 9.6, 'circle'], ['#s4', 9.6, 13.85, 'circle'],
+  ['#s5', 13.85, 17.75, 'slide'], ['#s6', 17.75, 21.15, 'circle'], ['#s7', 21.15, 24.85, 'slide'], ['#s8', 24.85, 28.6, 'circle'],
+  ['#s9', 28.6, 33.2, 'slide'], ['#s10', 33.2, 37.0, 'circle'], ['#s11', 37.0, 39.05, 'zoom'], ['#s12', 39.05, 40.95, 'circle'],
+  ['#s13', 40.95, 44.15, 'slide'], ['#s14', 44.15, 47.35, 'circle'], ['#s15', 47.35, 50.3, 'zoom'], ['#s16', 50.3, 53.25, 'circle'],
+  ['#s17', 53.25, 57.15, 'zoom'], ['#s18', 57.15, 62.0, 'circle'],
+];
+// كتابة حرف حرف: [العنصر، بداية، مدة]
+const TYPES = [['#typeA .tx', 3.4, 0.95], ['#sub3 .tx', 6.3, 2.5], ['#phone .tx', 30.35, 1.0]];
+// عدّادات: [العنصر، بداية، مدة]
+const COUNTS = [['#acct .cnt', 19.1, 1.3], ['#scale .cnt', 34.9, 0.5], ['#chart .cnt', 44.4, 1.6]];
+
+const tl = gsap.timeline({ paused: true, defaults: { ease: 'power3.out' } });
+const pop = (sel, at, from = {}, d = 0.5, ease = 'back.out(2)') => tl.fromTo(sel, { opacity: 0, scale: 0.4, ...from }, { opacity: 1, scale: 1, x: 0, y: 0, rotation: 0, duration: d, ease, immediateRender: false }, at);
+const slam = (sel, at) => tl.fromTo(sel, { opacity: 0, scale: 2.4, filter: 'blur(14px)' }, { opacity: 1, scale: 1, filter: 'blur(0px)', duration: 0.35, ease: 'power4.out', immediateRender: false }, at);
+const flash = (at, p = 0.5) => tl.fromTo('#flash', { opacity: p }, { opacity: 0, duration: 0.35, immediateRender: false }, at);
+
+tl.set('.scene', { visibility: 'hidden' }, 0);
+$$('.word, .tile, .card3d, .box, .tbl, .coin, .cup, #printer, #paperwrap, #stamp, #outTag, #roll, #rollTag, #cloth, #tape, #cut, #scis, #phone, #cone, #wifi, #slash, #ok12, #shield, #laptop, #bolt, #logo3, #logo17, #ok9, #ins9 > div, .r6, #end > *').forEach((e) => tl.set(e, { opacity: 0 }, 0));
+
+// المشاهد ودخولها
+SCENES.forEach(([s, a, b, kind]) => {
+  tl.set(s, { visibility: 'visible', zIndex: 2 }, a);
+  if (kind === 'circle') tl.fromTo(s, { clipPath: 'circle(0% at 50% 55%)' }, { clipPath: 'circle(80% at 50% 55%)', duration: 0.5, ease: 'power3.inOut', immediateRender: false }, a - 0.2);
+  else if (kind === 'slide') tl.fromTo(s, { xPercent: -100 }, { xPercent: 0, duration: 0.45, ease: 'power3.inOut', immediateRender: false }, a - 0.2);
+  else if (kind === 'zoom') tl.fromTo(s, { scale: 1.4, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, immediateRender: false }, a - 0.1);
+  tl.set(s, { zIndex: 1 }, a + 0.6);
+  tl.set(s, { visibility: 'hidden' }, b + 0.4);
+});
+
+// 1
+slam('#w1', 0.22); pop('#i1', 0.3, { rotation: -25, x: 150 });
+slam('#w2', 1.18); pop('#i2', 1.26, { rotation: 25, x: -150 });
+slam('#w3', 2.2); pop('#i3', 2.28, { rotation: -25, x: 150 });
+tl.to(['#w1', '#w2', '#w3', '#i1', '#i2', '#i3'], { scale: 0.85, opacity: 0, duration: 0.3, stagger: 0.04 }, 3.0);
+// 2
+tl.set('#typeA', { opacity: 1 }, 3.3);
+// 3
+pop('#logo3', 5.0, { rotationY: 180 }, 0.9, 'elastic.out(1,.6)');
+tl.fromTo('.r3', { scale: 0.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 1.2, stagger: 0.12, immediateRender: false }, 5.0);
+tl.fromTo('#name3', { opacity: 0, letterSpacing: '60px' }, { opacity: 1, letterSpacing: '0px', duration: 0.7, ease: 'expo.out', immediateRender: false }, 5.1);
+tl.set('#sub3', { opacity: 1 }, 6.25);
+flash(5.0, 0.45);
+// 4 فواتير
+slam('#w4', 9.78);
+pop('#printer', 10.1, { y: -200 }, 0.5);
+tl.fromTo('#btnp', { scale: 1 }, { keyframes: [{ scale: 0.82, duration: 0.08 }, { scale: 1, duration: 0.2 }], immediateRender: false }, 11.1);
+tl.set('#paperwrap', { opacity: 1 }, 11.2);
+tl.fromTo('#paper', { yPercent: -100 }, { yPercent: 0, duration: 1.9, ease: 'steps(19)', immediateRender: false }, 11.25);
+pop('#stamp', 13.05, { scale: 3, rotation: 20 }, 0.35, 'power4.out');
+// 5 مخزون
+slam('#w5', 14.0);
+$$('#s5 .box').forEach((b, i) => pop(b, 14.15 + i * 0.09, { y: -300 }, 0.45));
+tl.fromTo('#outBox', { x: 0 }, { keyframes: [{ x: -16 }, { x: 16 }, { x: -10 }, { x: 0 }], duration: 0.4, immediateRender: false }, 16.45);
+pop('#outTag', 16.45, { y: 40, scale: 1.8 }, 0.4);
+// 6 ديون
+slam('#w6', 17.87);
+pop('#acct', 18.15, { y: 200, rotationX: 30 }, 0.6);
+$$('.r6').forEach((r, i) => tl.fromTo(r, { opacity: 0, x: 120 }, { opacity: 1, x: 0, duration: 0.35, immediateRender: false }, 19.15 + i * 0.3));
+// 7 مطعم
+slam('#w7', 21.28);
+$$('.t7').forEach((t, i) => pop(t, 22.4 + i * 0.08, { y: 120 }, 0.45));
+pop('#ticket', 23.3, { y: 300 }, 0.55);
+// 8 ورشة
+slam('#w8', 24.95);
+pop('#roll', 26.0, { x: -600, rotation: -40 }, 0.6);
+pop('#rollTag', 26.25, { y: -40 }, 0.35);
+tl.set('#cloth', { opacity: 1 }, 26.7);
+tl.fromTo('#cloth', { scaleY: 0, transformOrigin: 'top' }, { scaleY: 1, duration: 0.3, immediateRender: false }, 26.7);
+tl.set('#tape', { opacity: 1 }, 26.82);
+tl.fromTo('#tape', { scaleX: 0 }, { scaleX: 1, duration: 0.45, ease: 'power2.out', immediateRender: false }, 26.82);
+tl.set(['#cut', '#scis'], { opacity: 1 }, 27.42);
+tl.fromTo('#cut', { scaleX: 0 }, { scaleX: 1, duration: 0.7, ease: 'none', immediateRender: false }, 27.42);
+tl.fromTo('#scis', { x: 0 }, { x: -740, duration: 0.7, ease: 'none', immediateRender: false }, 27.42);
+// 9 موبايلات
+slam('#w9', 28.72);
+pop('#phone', 29.0, { y: 400, rotation: -10 }, 0.6);
+pop('#ok9', 31.4, { scale: 1.6 }, 0.3);
+$$('#ins9 > div').forEach((r, i) => tl.fromTo(r, { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.3, immediateRender: false }, 31.9 + i * 0.12));
+// 10 حلويات
+slam('#w10', 33.32);
+pop('#cone', 33.6, { y: 300, rotation: 15 }, 0.6);
+pop('#scale', 34.85, { x: 200 }, 0.45);
+pop('#cup1', 35.7, { y: 200 }, 0.35); pop('#cup2', 35.85, { y: 200 }, 0.35);
+// 11
+slam('#w11a', 37.1);
+pop('#coinL', 37.15, { rotationY: 360, y: -300 }, 0.6);
+pop('#coinD', 37.92, { rotationY: -360, y: -300 }, 0.6);
+slam('#w11b', 37.9);
+// 12
+pop('#wifi', 39.1, { scale: 0.2 }, 0.5);
+tl.set('#slash', { opacity: 1 }, 39.6);
+tl.fromTo('#slash', { scaleX: 0 }, { scaleX: 1, duration: 0.3, ease: 'power4.out', immediateRender: false }, 39.6);
+slam('#w12', 39.2);
+pop('#ok12', 40.0, { y: 60 }, 0.4);
+// 13
+slam('#w13', 41.08);
+pop('#shield', 41.3, { scale: 0.1, rotation: -30 }, 0.6, 'elastic.out(1,.6)');
+pop('#laptop', 42.5, { y: 300 }, 0.5);
+// 14
+slam('#w14', 44.28);
+pop('#chart', 44.4, { y: 300 }, 0.55);
+tl.fromTo('#chart .bar', { scaleY: 0 }, { scaleY: 1, duration: 0.6, stagger: 0.1, ease: 'back.out(1.6)', immediateRender: false }, 44.7);
+pop('#bolt', 46.08, { scale: 3, rotation: -30 }, 0.35, 'power4.out');
+flash(46.1, 0.35);
+// 15
+slam('#w15', 48.55);
+pop('#app', 47.5, { y: 600 }, 0.6);
+tl.fromTo('#app .ap', { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.35, stagger: 0.07, ease: 'back.out(2.4)', immediateRender: false }, 47.9);
+// 16
+slam('#w16a', 50.42);
+slam('#w16b', 51.68);
+// 17
+flash(53.3, 0.6);
+pop('#logo17', 53.32, { rotationY: -180 }, 0.9, 'elastic.out(1,.6)');
+tl.fromTo('.r17', { scale: 0.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 1.2, stagger: 0.15, immediateRender: false }, 53.3);
+tl.fromTo('#name17', { opacity: 0, letterSpacing: '60px' }, { opacity: 1, letterSpacing: '0px', duration: 0.7, ease: 'expo.out', immediateRender: false }, 53.4);
+tl.fromTo('#tag17', { opacity: 0, y: 50 }, { opacity: 1, y: 0, duration: 0.5, immediateRender: false }, 54.75);
+// 18
+pop('#endLogo', 57.2, { rotationY: 180 }, 0.7, 'elastic.out(1,.6)');
+slam('#endT', 57.3);
+pop('#endDl', 57.7, { y: 80 }, 0.45);
+pop('#endUrl', 57.95, { y: 30 }, 0.35);
+pop('#endPrice', 58.2, { y: 40 }, 0.4);
+pop('#endWa', 58.5, { y: 60 }, 0.45);
+pop('#endDown', 58.6, { y: -30 }, 0.4);
+tl.set({}, {}, 62.0);
+
+function render(t) {
+  tl.seek(t, false);
+  for (const [sel, a, d] of TYPES) {
+    const el = $(sel), full = el.dataset.text;
+    const n = Math.max(0, Math.min(full.length, Math.floor(((t - a) / d) * full.length)));
+    el.textContent = full.slice(0, n);
+  }
+  for (const [sel, a, d] of COUNTS) {
+    const el = $(sel), to = Number(el.dataset.to), dec = Number(el.dataset.dec ?? 0);
+    const p = Math.max(0, Math.min(1, (t - a) / d)), v = to * (1 - Math.pow(1 - p, 3));
+    el.textContent = dec ? v.toFixed(dec) : Math.round(v).toLocaleString('en-US');
+  }
+  const caret = $('#typeA .caret');
+  caret.style.opacity = Math.floor(t * 3) % 2 ? '1' : '0.2';
+  // حركة خفيفة دايمة للبطاقات
+  const bob = (sel, amp, sp, ph = 0) => $$(sel).forEach((e, i) => (e.style.translate = `0 ${Math.sin(t * sp + i + ph) * amp}px`));
+  bob('.tile', 14, 3); bob('.card3d', 8, 2); bob('#phone', 10, 2.2); bob('#cone', 12, 2.6); bob('.coin', 14, 3, 1); bob('#shield', 10, 2.4); bob('#app .ap', 5, 3);
+  $$('.ring').forEach((r, i) => (r.style.rotate = `${t * (i % 2 ? 8 : -6)}deg`));
+}
+window.render = render;
+window.DURATION = 62.0;
+document.fonts.ready.then(() => Promise.all([...document.images].map((i) => (i.complete ? 0 : new Promise((r) => (i.onload = r)))))).then(() => { render(0); window.READY = true; });
+</script>
+</body>
+</html>
