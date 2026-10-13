@@ -421,7 +421,7 @@ export function Workshop({ tab: initialTab }: { tab?: string }) {
   const [tab, setTab] = useState<T>((['orders', 'rolls', 'account', 'fabric'].includes(initialTab ?? '') ? initialTab : 'orders') as T);
   return (
     <div className="page">
-      <PageHeader title="ورشة الإنتاج" />
+      <PageHeader title="ورشة الخياطة" />
       <Tabs
         tabs={[
           { key: 'orders', label: 'الطلبيات' },

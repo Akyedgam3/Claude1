@@ -47,6 +47,9 @@ interface NavItem {
 
 const NAV: (NavItem | string)[] = [
   { key: 'dashboard', label: 'الرئيسية', icon: 'home' },
+  'الخياطة',
+  { key: 'workshop', label: 'ورشة الخياطة (الجملة)', icon: 'factory', feature: 'workshop', perm: 'tailoring.manage' },
+  { key: 'tailor', label: 'طلبات التفصيل', icon: 'scissors', feature: 'tailoring', perm: 'tailoring.manage' },
   'العمليات',
   { key: 'pos', label: 'نقطة البيع', icon: 'pos', feature: 'pos', perm: 'pos.use' },
   { key: 'restaurant', label: 'الطاولات والطلبات', icon: 'utensils', feature: 'tables', perm: 'restaurant.use' },
@@ -55,8 +58,6 @@ const NAV: (NavItem | string)[] = [
   { key: 'quotes', label: 'عروض الأسعار', icon: 'file', perm: 'sales.create' },
   { key: 'repairs', label: 'أوامر الصيانة', icon: 'wrench', feature: 'repairs', perm: 'repairs.manage' },
   { key: 'appointments', label: 'المواعيد', icon: 'calendar', feature: 'appointments', perm: 'appointments.manage' },
-  { key: 'tailor', label: 'طلبات التفصيل', icon: 'scissors', feature: 'tailoring', perm: 'tailoring.manage' },
-  { key: 'workshop', label: 'ورشة الإنتاج', icon: 'factory', feature: 'workshop', perm: 'tailoring.manage' },
   { key: 'purchase', label: 'فاتورة شراء', icon: 'purchase', perm: 'purchases.create' },
   { key: 'vouchers', label: 'سندات القبض والدفع', icon: 'wallet', perm: 'vouchers.create' },
   { key: 'invoices', label: 'سجل الفواتير', icon: 'receipt' },

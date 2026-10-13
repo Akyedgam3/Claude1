@@ -14,7 +14,7 @@ test('workshop: rolls in yards, lays per roll, stages, expenses, delivery and th
     const m = page.locator('.modal');
 
     // استلام أتواب باليارد: سطر يدوي + Enter + لصق قائمة
-    await nav(page, 'ورشة الإنتاج');
+    await nav(page, 'ورشة الخياطة');
     await page.getByRole('button', { name: 'أتواب القماش' }).click();
     await page.getByRole('button', { name: /استلام أتواب/ }).click();
     await pick(page, m.locator('.field', { hasText: 'صاحب القماش' }).locator('.picker input'), 'النور');
@@ -88,7 +88,7 @@ test('workshop: rolls in yards, lays per roll, stages, expenses, delivery and th
     await shot(page, '40-workshop-order-sheet');
 
     // حساب صاحب الشغل: 120 × 40 + 90 = 4,890 ثم دفعة 5,000 → صار علينا 110
-    await nav(page, 'ورشة الإنتاج');
+    await nav(page, 'ورشة الخياطة');
     await page.getByRole('button', { name: 'حساب صاحب الشغل' }).click();
     await expect(page.locator('.account-view .grand')).toContainText('4,890.00');
     await page.getByRole('button', { name: /قبض دفعة/ }).click();
