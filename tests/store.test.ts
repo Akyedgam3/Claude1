@@ -201,3 +201,66 @@ describe('CompanyStore (encrypted)', () => {
     CompanyStore.open(dir, login).close();
   });
 });
+
+describe('CompanyStore.reset', () => {
+  function seeded() {
+    const { store, recoveryCode } = create();
+    store.ledger.loadDemoData();
+    sale(store, 2500);
+    return { store, recoveryCode };
+  }
+
+  it('clears transactions but keeps items, customers, users and passwords', () => {
+    const { store, recoveryCode } = seeded();
+    const items = Object.keys(store.ledger.state.items).length;
+    const parties = Object.keys(store.ledger.state.parties).length;
+    expect(store.ledger.state.invoices.length).toBeGreaterThan(0);
+    const backup = store.reset('transactions');
+    const s = store.ledger.state;
+    expect(s.invoices).toEqual([]);
+    expect(s.entries).toEqual([]);
+    expect(Object.keys(s.items).length).toBe(items);
+    expect(Object.keys(s.parties).length).toBe(parties);
+    expect(Object.values(s.stock).every((l) => l.totalQty === 0)).toBe(true);
+    expect(accountBalance(s, '1101').balance).toBe(0);
+    // النسخة الاحتياطية فيها السجل القديم كامل
+    expect(fs.existsSync(path.join(backup, 'journal.mzl'))).toBe(true);
+    // الشركة شغّالة بعد التصفير، والترقيم بيبلش من جديد
+    sale(store, 700);
+    store.close();
+    const reopened = CompanyStore.open(dir, login);
+    expect(reopened.ledger.state.entries.length).toBe(1);
+    expect(accountBalance(reopened.ledger.state, '1101').balance).toBe(700);
+    expect(Object.keys(reopened.ledger.state.items).length).toBe(items);
+    reopened.close();
+    // رمز الاسترداد القديم بعده شغّال
+    CompanyStore.open(dir, { recoveryCode }).close();
+  });
+
+  it('full reset keeps only settings and users', () => {
+    const { store } = seeded();
+    store.reset('all');
+    const s = store.ledger.state;
+    expect(Object.keys(s.items)).toEqual([]);
+    expect(Object.keys(s.parties)).toEqual([]);
+    expect(s.info?.name).toBe('محل');
+    expect(Object.values(s.users).some((u) => u.role === 'owner')).toBe(true);
+    store.close();
+    const reopened = CompanyStore.open(dir, login);
+    expect(Object.keys(reopened.ledger.state.items)).toEqual([]);
+    reopened.close();
+  });
+
+  it('the old journal comes back from the backup', () => {
+    const { store } = seeded();
+    const invoices = store.ledger.state.invoices.length;
+    const backup = store.reset('all');
+    store.close();
+    const restored = fs.mkdtempSync(path.join(os.tmpdir(), 'mizan-restore-'));
+    for (const f of fs.readdirSync(backup)) fs.copyFileSync(path.join(backup, f), path.join(restored, f));
+    const r = CompanyStore.open(restored, login);
+    expect(r.ledger.state.invoices.length).toBe(invoices);
+    r.close();
+    fs.rmSync(restored, { recursive: true, force: true });
+  });
+});

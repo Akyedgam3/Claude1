@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_CURRENCIES, Ledger, chartFor, defaultTaxes, orderTotals, trialBalance, workOrderProgress, type Activity } from '../src/core';
+import { ACTIVITIES, DEFAULT_CURRENCIES, Ledger, resetEvents, chartFor, defaultTaxes, orderTotals, trialBalance, workOrderProgress, type Activity } from '../src/core';
 
 function company(activity: Activity) {
   const l = new Ledger(() => {});
@@ -80,4 +80,20 @@ describe('demo data', () => {
     l.loadDemoData();
     expect(l.state.invoices.length).toBe(2);
   });
+});
+
+describe('reset events', () => {
+  for (const activity of Object.keys(ACTIVITIES) as Activity[]) {
+    it(`rebuilds a clean ${activity} company from its demo`, () => {
+      const l = company(activity);
+      l.loadDemoData();
+      for (const mode of ['transactions', 'all'] as const) {
+        const fresh = new Ledger(() => {});
+        for (const e of resetEvents(l.state, mode)) fresh.emit(e);
+        expect(fresh.state.invoices).toEqual([]);
+        expect(fresh.state.entries).toEqual([]);
+        expect(Object.keys(fresh.state.items).length).toBe(mode === 'all' ? 0 : Object.keys(l.state.items).length);
+      }
+    });
+  }
 });

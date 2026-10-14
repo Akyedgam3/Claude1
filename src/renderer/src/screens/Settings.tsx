@@ -6,7 +6,7 @@ import { api, dateText, today, useCompany, type LanStatus } from '../api';
 import { PAPER_NAMES } from '../components/print';
 import { Field, Modal, PageHeader, Tabs } from '../components/ui';
 
-type Tab = 'company' | 'customize' | 'print' | 'taxes' | 'lan' | 'backup' | 'period' | 'account' | 'license';
+type Tab = 'company' | 'customize' | 'print' | 'taxes' | 'lan' | 'backup' | 'period' | 'account' | 'license' | 'reset';
 
 export function Settings({ tab: initial }: { tab?: string }) {
   const { can, session, user } = useCompany();
@@ -28,6 +28,7 @@ export function Settings({ tab: initial }: { tab?: string }) {
           { key: 'period', label: 'إقفال الفترات', hidden: !can('period.close') },
           { key: 'account', label: 'حسابي' },
           { key: 'license', label: 'الترخيص', hidden: !local || user.role !== 'owner' },
+          { key: 'reset', label: 'تصفير الشركة', hidden: !local || user.role !== 'owner' },
         ]}
       />
       {tab === 'company' && <CompanyTab />}
@@ -39,6 +40,7 @@ export function Settings({ tab: initial }: { tab?: string }) {
       {tab === 'period' && <PeriodTab />}
       {tab === 'account' && <AccountTab />}
       {tab === 'license' && <LicenseTab />}
+      {tab === 'reset' && <ResetTab />}
     </div>
   );
 }
@@ -695,6 +697,86 @@ function LicenseTab() {
           </button>
         )}
       </div>
+    </section>
+  );
+}
+
+const RESET_WORD = 'تصفير';
+
+/** تصفير الشركة: بعد التجربة بيرجع الزبون يبلش نضيف، مع نسخة احتياطية تلقائية. */
+function ResetTab() {
+  const { notify, state, session } = useCompany();
+  const [mode, setMode] = useState<'transactions' | 'all'>('transactions');
+  const [password, setPassword] = useState('');
+  const [word, setWord] = useState('');
+  const [busy, setBusy] = useState(false);
+  const counts = { invoices: state.invoices.length, items: Object.keys(state.items).length, parties: Object.keys(state.parties).length };
+  return (
+    <section className="card">
+      <h3>تصفير الشركة</h3>
+      <p className="muted">بعد ما تخلص تجربة البرنامج، فيك تمحي الفواتير والحركات التجريبية وتبلش شغلك الحقيقي من الصفر بنفس الشركة ونفس كلمات السر.</p>
+      <div className="segmented" style={{ margin: '12px 0' }}>
+        <button type="button" className={mode === 'transactions' ? 'active' : ''} onClick={() => setMode('transactions')}>
+          تصفير الحركات
+        </button>
+        <button type="button" className={mode === 'all' ? 'active' : ''} onClick={() => setMode('all')}>
+          تصفير كامل
+        </button>
+      </div>
+      {mode === 'transactions' ? (
+        <ul className="muted">
+          <li>
+            <b>بينمحى:</b> كل الفواتير ({counts.invoices})، السندات، القيود، الديون، حركات المخزون، الطلبات، الأقساط وأوامر الصيانة. كميات المخزون وأرصدة الزباين بترجع صفر.
+          </li>
+          <li>
+            <b>بيضل:</b> المواد ({counts.items}) بأسعارها ووحداتها، الزباين والموردين ({counts.parties})، الطاولات، سعر الدولار، المستخدمين والإعدادات.
+          </li>
+        </ul>
+      ) : (
+        <ul className="muted">
+          <li>
+            <b>بينمحى:</b> كل شي — الحركات، والمواد ({counts.items})، والزباين والموردين ({counts.parties}).
+          </li>
+          <li>
+            <b>بيضل:</b> اسم الشركة والإعدادات ودليل الحسابات والمستخدمين وكلمات السر بس.
+          </li>
+        </ul>
+      )}
+      <div className="banner bad">قبل التصفير البرنامج بياخد نسخة احتياطية تلقائياً. إذا غلطت، بترجع لها من: شاشة البداية ← استعادة نسخة احتياطية.</div>
+      <form
+        className="form-grid"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (word.trim() !== RESET_WORD) return notify(`اكتب كلمة «${RESET_WORD}» للتأكيد`, 'error');
+          setBusy(true);
+          try {
+            const dir = await api.wipe(mode, password);
+            notify(`تم التصفير. النسخة القديمة محفوظة: ${dir}`);
+            setPassword('');
+            setWord('');
+          } catch (err) {
+            notify((err as Error).message, 'error');
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {session.viaRecovery ? (
+          <p className="bad wide">فتحت الشركة برمز الاسترداد. عيّن كلمة سر من «حسابي» أولاً.</p>
+        ) : (
+          <Field label="كلمة السر (للتأكيد)">
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
+          </Field>
+        )}
+        <Field label={`اكتب «${RESET_WORD}» للتأكيد`}>
+          <input value={word} onChange={(e) => setWord(e.target.value)} />
+        </Field>
+        <div className="form-actions wide">
+          <button className="danger" disabled={busy || !password || session.viaRecovery}>
+            {mode === 'all' ? 'تصفير كامل للشركة' : 'تصفير الحركات'}
+          </button>
+        </div>
+      </form>
     </section>
   );
 }

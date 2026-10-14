@@ -60,6 +60,7 @@ export const api = {
   state: () => inv<{ state: CompanyState; seq: number }>('company:state'),
   call: <T,>(method: string, ...args: unknown[]) => inv<{ value: T; seq: number }>('company:call', method, args),
   backup: (external: boolean) => inv<string | null>('company:backup', external),
+  wipe: (mode: 'transactions' | 'all', password: string) => inv<string>('company:wipe', { mode, password }),
   reveal: () => inv<void>('company:reveal'),
   lanStatus: () => inv<LanStatus>('lan:status'),
   lanHost: (enable: boolean, newCode?: boolean) => inv<boolean>('lan:host', enable, newCode),

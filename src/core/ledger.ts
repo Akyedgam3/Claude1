@@ -237,6 +237,47 @@ export function validateEvent(state: CompanyState, event: CompanyEvent): void {
   }
 }
 
+// ───────────── تصفير الشركة ─────────────
+
+export type ResetMode = 'transactions' | 'all';
+
+/**
+ * أحداث شركة جديدة مبنية من الحالة الحالية: نفس الإعدادات والحسابات والمستخدمين، بدون أي حركة.
+ * 'transactions' بيخلّي المواد والزباين والموردين والطاولات وسجل الأجهزة/السيارات وأسعار الصرف (أرصدتهم بترجع صفر).
+ * 'all' بيرجّع الشركة متل أول يوم (الإعدادات والمستخدمين بس).
+ */
+export function resetEvents(state: CompanyState, mode: ResetMode): CompanyEvent[] {
+  const info = state.info ?? fail('يجب إنشاء الشركة أولاً');
+  const { lockedUntil: _locked, ...rest } = info;
+  const events: CompanyEvent[] = [{ type: 'company.created', info: rest, currencies: Object.values(state.currencies) }];
+  const accounts = Object.values(state.accounts).sort((a, b) => a.id.length - b.id.length || a.id.localeCompare(b.id));
+  for (const account of accounts) events.push({ type: 'account.saved', account });
+  for (const tax of Object.values(state.taxes)) events.push({ type: 'tax.saved', tax });
+  for (const warehouse of Object.values(state.warehouses)) events.push({ type: 'warehouse.saved', warehouse });
+  // المالك أولاً: لازم يضل مالك فعّال بكل لحظة
+  const users = Object.values(state.users).sort((a, b) => Number(b.role === 'owner' && b.active) - Number(a.role === 'owner' && a.active));
+  for (const user of users) events.push({ type: 'user.saved', user });
+  if (mode === 'all') return events;
+  for (const rate of state.rates) events.push({ type: 'rate.set', rate });
+  for (const party of Object.values(state.parties)) events.push({ type: 'party.saved', party });
+  // المكوّنات قبل الأصناف اللي بتستعملها
+  const pending = Object.values(state.items);
+  const done = new Set<string>();
+  while (pending.length) {
+    const ready = pending.filter((i) => (i.recipe ?? []).every((r) => done.has(r.itemId) || !state.items[r.itemId]));
+    const batch = ready.length ? ready : pending.slice();
+    for (const item of batch) {
+      const recipe = item.recipe?.filter((r) => state.items[r.itemId]);
+      events.push({ type: 'item.saved', item: recipe ? { ...item, recipe } : item });
+      done.add(item.id);
+      pending.splice(pending.indexOf(item), 1);
+    }
+  }
+  for (const table of Object.values(state.tables)) events.push({ type: 'table.saved', table });
+  for (const vehicle of Object.values(state.vehicles)) if (state.parties[vehicle.partyId]) events.push({ type: 'vehicle.saved', vehicle });
+  return events;
+}
+
 // ───────────── تطبيق الأحداث على الحالة (يُستخدم أيضاً عند إعادة التحميل من الملف) ─────────────
 
 export function applyEvent(state: CompanyState, event: CompanyEvent): CompanyState {

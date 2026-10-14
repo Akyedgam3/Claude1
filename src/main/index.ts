@@ -335,6 +335,21 @@ function registerIpc(): void {
     return store.backup(path.join(res.filePaths[0], `Mizan-${safeFolderName(store.meta.name)}`), Infinity);
   });
 
+  /** تصفير الشركة (للمالك فقط، بكلمة السر): نسخة احتياطية تلقائية، ثم سجل جديد بدون حركات. */
+  handle('company:wipe', async (o: { mode: string; password: string }) => {
+    const store = localStore();
+    const user = activeBackend().user;
+    if (user.role !== 'owner') throw new Error('تصفير الشركة للمالك فقط');
+    if (o?.mode !== 'transactions' && o?.mode !== 'all') throw new Error('نوع تصفير غير معروف');
+    if (!store.verify(user.username, String(o.password ?? ''))) throw new Error('كلمة السر غير صحيحة');
+    const wasHosting = !!host;
+    stopHosting(); // الأجهزة المتصلة بتعيد الاتصال وبتاخد الحالة الجديدة
+    const backupDir = store.reset(o.mode);
+    send('company:reset');
+    if (wasHosting) await startHosting().catch((e: Error) => send('lan:error', e.message));
+    return backupDir;
+  });
+
   handle('company:reveal', () => {
     requirePermission('backup.manage');
     return shell.openPath(localStore().dir);

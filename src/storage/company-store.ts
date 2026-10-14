@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { Ledger, applyEvent, emptyState } from '../core/ledger';
+import { Ledger, applyEvent, emptyState, resetEvents, type ResetMode } from '../core/ledger';
 import type { Currency } from '../core/money';
 import type { Account, CompanyEvent, CompanyInfo, CompanyState, Tax, User, Warehouse } from '../core/types';
 import { hmac, newRecoveryCode, normalizeRecoveryCode, open, randomKey, safeEqual, seal, sha256, unwrapKey, wrapKey, type Sealed, type WrappedKey } from './crypto';
@@ -463,6 +463,50 @@ export class CompanyStore {
       }
     }
     return dest;
+  }
+
+  // ───────────── التصفير ─────────────
+
+  /**
+   * تصفير الشركة: نسخة احتياطية كاملة أولاً، ثم سجل جديد مبني من البيانات المحفوظة
+   * (نفس المفتاح وكلمات السر). يعيد مسار النسخة الاحتياطية حتى يقدر المستخدم يرجع لها.
+   */
+  reset(mode: ResetMode): string {
+    if (this.fd < 0) throw new Error('الشركة مغلقة');
+    const events = resetEvents(this.ledger.state, mode);
+    // نتحقق من الأحداث على شركة فاضية قبل ما نلمس أي ملف
+    const check = new Ledger(() => undefined);
+    for (const event of events) check.emit(event);
+    const backupDir = this.backup();
+
+    let prev = GENESIS;
+    const at = new Date().toISOString();
+    const lines: string[] = [];
+    events.forEach((event, i) => {
+      const seq = i + 1;
+      const base = { seq, at, by: this.ledger.actor, prev, ...seal(this.key, JSON.stringify(event), `${seq}|${prev}`) };
+      const record: JournalRecord = { ...base, hash: recordHash(base) };
+      lines.push(JSON.stringify(record));
+      prev = record.hash;
+    });
+    const file = path.join(this.dir, JOURNAL);
+    fs.closeSync(this.fd);
+    this.fd = -1;
+    try {
+      writeAtomic(file, lines.join('\n') + '\n');
+      fs.rmSync(path.join(this.dir, SNAPSHOT), { force: true });
+      writeAtomic(path.join(this.dir, HEAD), JSON.stringify({ seq: events.length, hash: prev, mac: hmac(this.key, `${events.length}|${prev}`) }));
+    } finally {
+      this.fd = fs.openSync(file, 'a');
+    }
+    this.seq = events.length;
+    this.lastHash = prev;
+    // نفس كائن الحالة (الواجهة والشبكة ماسكينه)، بس بمحتوى جديد
+    const state = this.ledger.state as unknown as Record<string, unknown>;
+    for (const k of Object.keys(state)) delete state[k];
+    Object.assign(state, check.state);
+    this.snapshot();
+    return backupDir;
   }
 
   get lastSeq(): number {

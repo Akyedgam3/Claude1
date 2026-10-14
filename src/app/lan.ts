@@ -188,6 +188,8 @@ export class LanHost {
       const pick = () => {
         const first = this.ring[0]?.seq;
         if (first !== undefined && since < first - 1) return { resync: true };
+        // الجهاز الرئيسي صفّر الشركة: السجل رجع لورا، فلازم الجهاز ياخد الحالة من جديد
+        if (since > this.company.snapshot().seq) return { resync: true };
         const events = this.ring.filter((e) => e.seq > since);
         return events.length ? { events } : null;
       };
