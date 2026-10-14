@@ -34,4 +34,11 @@ git -c user.name="$(git -C "$OLDPWD" log -1 --format=%an)" -c user.email="$(git 
 git push -q origin "+upload-tmp:refs/heads/upload/$VERSION"
 git checkout -q main 2>/dev/null || git checkout -q -B main FETCH_HEAD
 git branch -D -q upload-tmp
+# رقم النسخة بالموقع ("النسخة X متوفرة الآن"): الموقع بينتشر لحالو مع الدفع (workflow: Deploy site)
+git pull -q origin main
+echo "$VERSION" > tools/version.txt
+python3 tools/build_site.py >/dev/null
+git add tools/version.txt ./*.html
+git -c user.name="$(git -C "$OLDPWD" log -1 --format=%an)" -c user.email="$(git -C "$OLDPWD" log -1 --format=%ae)" commit -q -m "الموقع: النسخة $VERSION" || true
+git push -q origin main
 echo "انرفع. بعد دقيقة: https://github.com/Akyedgam3/mizan-updates/releases/tag/v$VERSION"
