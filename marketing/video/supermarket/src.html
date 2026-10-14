@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<title>Mizan Supermarket Ad</title>
+<style>
+@font-face { font-family: Cairo; font-weight: 700; src: url(assets/fonts/cairo-arabic-700-normal.woff2), url(assets/fonts/cairo-latin-700-normal.woff2); }
+@font-face { font-family: Cairo; font-weight: 800; src: url(assets/fonts/cairo-arabic-800-normal.woff2), url(assets/fonts/cairo-latin-800-normal.woff2); }
+@font-face { font-family: Cairo; font-weight: 900; src: url(assets/fonts/cairo-arabic-900-normal.woff2), url(assets/fonts/cairo-latin-900-normal.woff2); }
+:root { --n: #3dffc5; --n2: #14b48f; --o: #ff8a2a; --o2: #ffb36b; --r: #ff3d5a; --bg: #05100e; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; }
+body { font-family: Cairo, sans-serif; color: #fff; }
+#stage { position: absolute; inset: 0; overflow: hidden; background: var(--bg); }
+#bg { position: absolute; inset: -200px; background: radial-gradient(ellipse at 50% 30%, #0c3a31 0%, #061a16 45%, #020706 100%); }
+#glow { position: absolute; left: 50%; top: 42%; width: 1400px; height: 1400px; margin: -700px 0 0 -700px; border-radius: 50%; background: radial-gradient(circle, rgba(61,255,197,.22) 0%, rgba(61,255,197,0) 60%); }
+#grid { position: absolute; left: -540px; right: -540px; bottom: -200px; height: 900px; background-image: linear-gradient(rgba(61,255,197,.22) 2px, transparent 2px), linear-gradient(90deg, rgba(61,255,197,.22) 2px, transparent 2px); background-size: 90px 90px; transform: perspective(700px) rotateX(62deg); transform-origin: 50% 100%; mask-image: linear-gradient(to top, #000 10%, transparent 85%); }
+.streak { position: absolute; height: 3px; width: 360px; border-radius: 3px; background: linear-gradient(90deg, transparent, var(--n), transparent); opacity: .5; }
+#shake { position: absolute; inset: 0; }
+.icon svg { width: 100%; height: 100%; display: block; }
+.scene { position: absolute; inset: 0; visibility: hidden; }
+
+.t { position: absolute; left: 30px; right: 30px; text-align: center; font-weight: 900; line-height: 1.12; text-shadow: 0 0 40px rgba(61,255,197,.25), 0 16px 40px rgba(0,0,0,.6); }
+.n { color: var(--n); }
+.o { color: var(--o2); }
+.r { color: var(--r); }
+.kick { font-size: 54px; font-weight: 800; color: var(--n); letter-spacing: 2px; }
+.h1 { font-size: 132px; }
+.h2 { font-size: 100px; }
+.h3 { font-size: 76px; }
+.mono { font-family: 'Courier New', monospace; direction: ltr; unicode-bidi: plaintext; }
+
+/* نافذة الكاميرا على لقطات البرنامج */
+.cam { position: absolute; left: 40px; top: 470px; width: 1000px; height: 1020px; border-radius: 44px; overflow: hidden; background: #0d1513; box-shadow: 0 0 0 3px rgba(61,255,197,.55), 0 0 70px rgba(61,255,197,.35), 0 60px 120px rgba(0,0,0,.7); }
+.world { position: absolute; left: 0; top: 0; width: 1600px; height: 1000px; transform-origin: 0 0; }
+.world img { position: absolute; left: 0; top: 0; width: 1600px; height: 1000px; display: block; }
+.hl { position: absolute; border-radius: 14px; border: 4px solid var(--n); box-shadow: 0 0 22px var(--n), inset 0 0 18px rgba(61,255,197,.35); opacity: 0; }
+.hl.or { border-color: var(--o); box-shadow: 0 0 22px var(--o), inset 0 0 18px rgba(255,138,42,.35); }
+.hl.red { border-color: var(--r); box-shadow: 0 0 26px var(--r), inset 0 0 18px rgba(255,61,90,.35); }
+.typed { position: absolute; background: rgb(17,26,24); display: flex; align-items: center; padding-left: 6px; font-family: 'Courier New', monospace; font-weight: 700; font-size: 26px; color: #e9fff8; direction: ltr; white-space: nowrap; }
+.caret { display: inline-block; width: 3px; height: 28px; background: var(--n); vertical-align: -5px; margin-left: 2px; }
+
+/* شرائح الميزات تحت النافذة */
+.chips { position: absolute; left: 40px; right: 40px; top: 1540px; display: flex; flex-direction: column; gap: 22px; align-items: center; }
+.chip { display: inline-flex; align-items: center; gap: 20px; padding: 16px 38px 16px 30px; border-radius: 999px; font-size: 52px; font-weight: 900; background: rgba(8,30,26,.92); border: 3px solid rgba(61,255,197,.6); box-shadow: 0 0 30px rgba(61,255,197,.25), 0 20px 40px rgba(0,0,0,.5); opacity: 0; }
+.chip .icon { width: 58px; height: 58px; color: var(--n); }
+.chip.or { border-color: rgba(255,138,42,.8); box-shadow: 0 0 30px rgba(255,138,42,.3), 0 20px 40px rgba(0,0,0,.5); }
+.chip.or .icon { color: var(--o2); }
+.chip.red { border-color: rgba(255,61,90,.85); box-shadow: 0 0 30px rgba(255,61,90,.35), 0 20px 40px rgba(0,0,0,.5); }
+.chip.red .icon { color: var(--r); }
+.row3 { flex-direction: row; justify-content: center; flex-wrap: wrap; gap: 18px; }
+.row3 .chip { font-size: 46px; padding: 14px 30px 14px 24px; }
+.row3 .chip .icon { width: 50px; height: 50px; }
+
+.tile { position: absolute; display: grid; place-items: center; border-radius: 64px; background: linear-gradient(160deg, #1fe0ac, #0b8a6d); box-shadow: 0 0 60px rgba(61,255,197,.45), 0 40px 80px rgba(0,0,0,.55), inset 0 -12px 0 rgba(0,0,0,.18); color: #03211b; }
+.tile.or { background: linear-gradient(160deg, #ffb36b, #ff7a1a); box-shadow: 0 0 60px rgba(255,138,42,.45), 0 40px 80px rgba(0,0,0,.55), inset 0 -12px 0 rgba(0,0,0,.18); color: #2b1100; }
+.tile.dk { background: linear-gradient(160deg, #24403a, #0d1f1b); color: var(--n); box-shadow: 0 0 0 3px rgba(61,255,197,.4), 0 40px 80px rgba(0,0,0,.55); }
+.tile .icon { width: 56%; height: 56%; }
+
+/* 1 */
+#a1 { top: 380px; } #a2 { top: 560px; font-size: 168px; }
+#p1 { left: 50%; top: 1060px; width: 300px; height: 300px; margin-left: -150px; }
+#b1 { top: 400px; }
+.phone { position: absolute; width: 330px; height: 640px; border-radius: 56px; background: linear-gradient(170deg, #2b3a37, #0e1715); border: 10px solid #34504a; box-shadow: 0 0 0 3px rgba(61,255,197,.35), 0 50px 100px rgba(0,0,0,.7); }
+.phone::before { content: ''; position: absolute; left: 50%; top: 18px; width: 90px; height: 22px; margin-left: -45px; border-radius: 12px; background: #050a09; }
+.phone .scr { position: absolute; inset: 52px 18px 26px; border-radius: 30px; background: linear-gradient(160deg, #0f5f50, #062b24); display: grid; place-items: center; font-size: 190px; font-weight: 900; color: var(--n); }
+#ph1 { left: 375px; top: 860px; }
+#bub { position: absolute; left: 120px; right: 120px; top: 1080px; padding: 40px 30px 50px; border-radius: 60px; background: #fff; color: #06221c; text-align: center; font-size: 132px; font-weight: 900; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
+#bub::after { content: ''; position: absolute; right: 180px; bottom: -50px; border: 30px solid transparent; border-top: 40px solid #fff; border-right-width: 10px; }
+.q { position: absolute; font-size: 200px; font-weight: 900; color: var(--o); text-shadow: 0 0 40px rgba(255,138,42,.6); }
+#q1 { left: 70px; top: 760px; } #q2 { right: 60px; top: 690px; font-size: 260px; } #q3 { left: 140px; top: 1500px; font-size: 150px; }
+
+/* 2 + 12: الشعار */
+.logo { position: absolute; left: 50%; width: 400px; height: 400px; margin-left: -200px; border-radius: 104px; box-shadow: 0 0 0 4px rgba(61,255,197,.5), 0 0 160px rgba(61,255,197,.55), 0 60px 120px rgba(0,0,0,.6); }
+.ring { position: absolute; left: 50%; top: 50%; border-radius: 50%; border: 4px solid rgba(61,255,197,.35); transform: translate(-50%, -50%); }
+#lg2 { top: 560px; } #nm2 { top: 1020px; font-size: 230px; }
+#lg12 { top: 430px; } #nm12 { top: 880px; font-size: 220px; } #tg12 { top: 1200px; font-size: 92px; }
+
+/* 4 + 8 كلمات كبيرة */
+#w4a { top: 520px; font-size: 120px; } #w4b { top: 700px; font-size: 200px; }
+#cal4 { left: 50%; top: 1130px; width: 330px; height: 330px; margin-left: -165px; }
+#c4a { left: 110px; top: 1250px; width: 150px; height: 150px; border-radius: 40px; } #c4b { right: 100px; top: 1150px; width: 170px; height: 170px; border-radius: 46px; }
+#w8a { top: 500px; font-size: 170px; } #w8b { top: 720px; font-size: 170px; }
+#cpu8 { left: 50%; top: 1130px; width: 360px; height: 360px; margin-left: -180px; }
+
+/* 6 استبدال */
+#w6 { top: 300px; }
+#old6 { left: 90px; top: 860px; filter: grayscale(.8) brightness(.8); }
+#old6 .scr { background: linear-gradient(160deg, #3a3a3a, #1b1b1b); color: #9a9a9a; font-size: 120px; }
+#crack { position: absolute; inset: 0; }
+#new6 { right: 90px; top: 860px; }
+#sw6 { left: 50%; top: 1080px; width: 200px; height: 200px; margin-left: -100px; border-radius: 50%; }
+#lb6a { position: absolute; left: 90px; width: 330px; top: 1530px; text-align: center; font-size: 60px; font-weight: 900; color: #a8b8b4; }
+#lb6b { position: absolute; right: 90px; width: 330px; top: 1530px; text-align: center; font-size: 60px; font-weight: 900; color: var(--n); }
+
+/* 10 مراحل الصيانة */
+.steps { position: absolute; left: 60px; right: 60px; top: 1560px; height: 260px; }
+.steps .line { position: absolute; left: 120px; right: 120px; top: 78px; height: 10px; border-radius: 5px; background: rgba(255,255,255,.12); }
+.steps .fill { position: absolute; right: 120px; top: 78px; height: 10px; border-radius: 5px; background: var(--n); box-shadow: 0 0 20px var(--n); width: 0; }
+.st { position: absolute; top: 0; width: 240px; text-align: center; }
+.st .tile { position: relative; margin: 0 auto; width: 166px; height: 166px; border-radius: 50%; }
+.st b { display: block; margin-top: 14px; font-size: 50px; font-weight: 900; }
+#st1 { right: 0; } #st2 { right: 50%; margin-right: -120px; } #st3 { left: 0; }
+
+/* 11 ليرة ودولار */
+#w11a { top: 380px; font-size: 140px; }
+.coin { position: absolute; width: 330px; height: 330px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; font-size: 120px; color: #2b1600; background: radial-gradient(circle at 35% 30%, #ffe2a8, #ffb347 50%, #c4740f 100%); box-shadow: 0 0 0 10px #e09a32, 0 0 70px rgba(255,170,60,.55), 0 40px 80px rgba(0,0,0,.6); }
+#coinL { right: 120px; top: 700px; }
+#coinD { left: 120px; top: 760px; background: radial-gradient(circle at 35% 30%, #c9ffe9, #3dffc5 50%, #0b8a6d 100%); box-shadow: 0 0 0 10px #1fbf93, 0 0 70px rgba(61,255,197,.55), 0 40px 80px rgba(0,0,0,.6); color: #032119; font-size: 170px; }
+#w11b { top: 1110px; font-size: 104px; }
+#wifi11 { left: 50%; top: 1340px; width: 260px; height: 260px; margin-left: -130px; }
+#slash11 { position: absolute; left: 50%; top: 1460px; width: 340px; height: 22px; margin-left: -170px; border-radius: 11px; background: var(--r); box-shadow: 0 0 30px var(--r); transform: rotate(-38deg); }
+#w11c { top: 1640px; font-size: 96px; }
+
+/* 13 تحميل وسعر */
+#w13 { top: 300px; font-size: 108px; }
+#dl13 { position: absolute; left: 140px; right: 140px; top: 560px; height: 190px; border-radius: 95px; display: flex; align-items: center; justify-content: center; gap: 30px; font-size: 84px; font-weight: 900; color: #03211b; background: linear-gradient(160deg, #3dffc5, #12b08b); box-shadow: 0 0 80px rgba(61,255,197,.6), 0 30px 60px rgba(0,0,0,.5); }
+#dl13 .icon { width: 90px; height: 90px; }
+#url13 { top: 790px; font-size: 40px; font-weight: 800; color: #bdeee0; }
+#cur13 { position: absolute; left: 640px; top: 700px; width: 110px; height: 110px; }
+#cur13 svg { width: 100%; height: 100%; filter: drop-shadow(0 8px 14px rgba(0,0,0,.6)); }
+#yr13 { top: 960px; font-size: 96px; }
+#pr13 { top: 1110px; font-size: 270px; direction: ltr; line-height: 1; color: var(--o2); text-shadow: 0 0 80px rgba(255,138,42,.6), 0 20px 50px rgba(0,0,0,.6); }
+#pr13 .u { font-size: 180px; margin-left: 10px; }
+#bas13 { position: absolute; left: 600px; top: 1480px; padding: 6px 46px 16px; border: 10px solid var(--r); border-radius: 30px; color: var(--r); font-size: 140px; font-weight: 900; transform: rotate(-12deg); box-shadow: 0 0 40px rgba(255,61,90,.5); }
+
+/* 14 النهاية */
+#lg14 { top: 150px; width: 240px; height: 240px; margin-left: -120px; border-radius: 64px; }
+#nm14 { top: 400px; font-size: 140px; }
+#wa14 { position: absolute; left: 60px; right: 60px; top: 690px; padding: 40px 30px 46px; border-radius: 56px; background: rgba(8,30,26,.92); border: 3px solid rgba(61,255,197,.55); box-shadow: 0 0 60px rgba(61,255,197,.25); text-align: center; }
+#wa14 .hd { display: flex; align-items: center; justify-content: center; gap: 22px; font-size: 76px; font-weight: 900; }
+#wa14 .hd .icon { width: 92px; height: 92px; color: #25d366; }
+.num { margin-top: 22px; font-size: 84px; font-weight: 900; color: #fff; direction: ltr; font-family: Cairo, sans-serif; }
+.num .tx { color: #fff; }
+#site14 { top: 1250px; font-size: 44px; font-weight: 800; color: var(--n); }
+#pr14 { top: 1340px; font-size: 64px; font-weight: 900; color: var(--o2); }
+#lk14 { top: 1560px; font-size: 92px; }
+#ar14 { position: absolute; left: 50%; top: 1700px; width: 160px; height: 160px; margin-left: -80px; color: var(--n); filter: drop-shadow(0 0 20px var(--n)); }
+
+#flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+#vign { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(0,0,0,.55) 100%); pointer-events: none; }
+
+/* سوبرماركت */
+#a1 { top: 400px; } #a2 { top: 580px; font-size: 150px; }
+#cart1 { left: 50%; top: 1060px; width: 320px; height: 320px; margin-left: -160px; }
+#b1 { top: 380px; font-size: 96px; }
+.person { position: absolute; top: 760px; width: 170px; height: 170px; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(160deg, #24403a, #0d1f1b); color: var(--n); box-shadow: 0 0 0 3px rgba(61,255,197,.35), 0 30px 60px rgba(0,0,0,.6); }
+.person .icon { width: 55%; height: 55%; }
+#c1 { top: 1150px; font-size: 96px; }
+#hg1 { left: 50%; top: 1380px; width: 260px; height: 260px; margin-left: -130px; border-radius: 50%; }
+#laser { position: absolute; left: 0; height: 6px; width: 100%; background: #ff2d4a; box-shadow: 0 0 20px #ff2d4a, 0 0 40px #ff2d4a; opacity: 0; }
+/* الميزان */
+#w4a { top: 330px; font-size: 120px; } #w4b { top: 500px; font-size: 190px; }
+#scale4 { position: absolute; left: 190px; top: 1080px; width: 700px; height: 380px; }
+#scale4 .plate { position: absolute; left: 60px; right: 60px; top: 0; height: 40px; border-radius: 20px; background: linear-gradient(180deg, #dfe9e6, #93a7a2); box-shadow: 0 20px 40px rgba(0,0,0,.5); }
+#scale4 .body { position: absolute; left: 0; right: 0; top: 60px; height: 300px; border-radius: 50px; background: linear-gradient(170deg, #2b3a37, #0e1715); box-shadow: 0 0 0 3px rgba(61,255,197,.35), 0 50px 100px rgba(0,0,0,.6); }
+#scale4 .lcd { position: absolute; left: 90px; right: 90px; top: 130px; height: 150px; border-radius: 24px; background: #021510; box-shadow: inset 0 0 30px rgba(61,255,197,.25); display: flex; align-items: center; justify-content: center; gap: 18px; font-family: 'Courier New', monospace; font-weight: 700; font-size: 110px; color: var(--n); text-shadow: 0 0 20px var(--n); direction: ltr; }
+#scale4 .lcd small { font-size: 54px; }
+#cheese4 { position: absolute; left: 380px; top: 930px; width: 320px; height: 160px; }
+#cheese4 div { position: absolute; inset: 0; background: linear-gradient(160deg, #ffe08a, #f5b331); clip-path: polygon(0 100%, 100% 100%, 100% 20%, 0 70%); border-radius: 10px; }
+#cheese4 i { position: absolute; width: 34px; height: 34px; border-radius: 50%; background: #d99a1e; }
+#tom4 { position: absolute; left: 330px; top: 960px; width: 130px; height: 130px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ff8a7a, #e0301e 60%, #a3170b); box-shadow: 0 20px 30px rgba(0,0,0,.4); }
+/* ديون */
+#w7a { top: 520px; font-size: 130px; } #w7b { top: 720px; font-size: 170px; }
+#book7 { left: 50%; top: 1130px; width: 340px; height: 340px; margin-left: -170px; }
+/* آخر النهار */
+#w10a { top: 520px; font-size: 150px; }
+#moon10 { left: 50%; top: 1000px; width: 360px; height: 360px; margin-left: -180px; border-radius: 50%; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bg"></div><div id="glow"></div><div id="grid"></div>
+  <div class="streak" style="top:300px"></div><div class="streak" style="top:820px"></div><div class="streak" style="top:1380px"></div><div class="streak" style="top:1760px"></div>
+  <div id="shake">
+
+  <section class="scene" id="s1">
+    <div class="t h2" id="a1">عندك</div>
+    <div class="t n" id="a2">سوبرماركت؟</div>
+    <div class="tile" id="cart1"><div class="icon">{{icon:shopping-cart}}</div></div>
+    <div class="t" id="b1">الزباين <span class="o">عالدور…</span></div>
+    <div class="person" id="pp1" style="left:70px"><div class="icon">{{icon:user}}</div></div>
+    <div class="person" id="pp2" style="left:260px"><div class="icon">{{icon:user}}</div></div>
+    <div class="person" id="pp3" style="left:450px"><div class="icon">{{icon:user}}</div></div>
+    <div class="person" id="pp4" style="left:640px"><div class="icon">{{icon:user}}</div></div>
+    <div class="person" id="pp5" style="left:830px"><div class="icon">{{icon:user}}</div></div>
+    <div class="t" id="c1">والحساب <span class="r">عم يتأخر؟</span></div>
+    <div class="tile or" id="hg1"><div class="icon">{{icon:hourglass}}</div></div>
+  </section>
+
+  <section class="scene" id="s2">
+    <div class="ring r2" style="width:560px;height:560px;top:760px"></div><div class="ring r2" style="width:820px;height:820px;top:760px"></div><div class="ring r2" style="width:1100px;height:1100px;top:760px"></div>
+    <img class="logo" id="lg2" src="assets/logo.png" />
+    <div class="t n" id="nm2">ميزان</div>
+  </section>
+
+  <section class="scene" id="s3">
+    <div class="t kick" style="top:180px">نقطة البيع</div>
+    <div class="t h2" style="top:260px" id="h3a">بتمرّق <span class="n">الباركود</span></div>
+    <div class="t h2" style="top:260px" id="h3b">وبينحسب <span class="o">لحالو</span></div>
+    <div class="cam"><div class="world" id="W3a"><img src="assets/shots/pos_empty.png" /><div class="typed" id="ty3"><span class="tx" data-text="6210001000017"></span><span class="caret"></span></div><div id="laser"></div></div>
+      <div class="world" id="W3b"><img src="assets/shots/pos_scan.png" /><div class="hl" id="hl3a"></div><div class="hl or" id="hl3b"></div></div></div>
+    <div class="chips"><div class="chip" id="c3"><span class="icon">{{icon:scan-barcode}}</span>بيب… وانحسب ✓</div></div>
+  </section>
+
+  <section class="scene" id="s4">
+    <div class="t" id="w4a">جبنة وخضرة</div>
+    <div class="t n" id="w4b">بالوزن؟</div>
+    <div id="scale4"><div class="plate"></div><div class="body"><div class="lcd"><span class="cnt" data-to="0.75" data-dec="3">0.000</span><small>kg</small></div></div></div>
+    <div id="cheese4"><div></div><i style="left:90px;top:100px"></i><i style="left:200px;top:70px;width:24px;height:24px"></i><i style="left:250px;top:115px;width:28px;height:28px"></i></div>
+  </section>
+
+  <section class="scene" id="s5">
+    <div class="t kick" style="top:180px">باركود الميزان</div>
+    <div class="t h3" style="top:280px" id="h5">الوزن <span class="o">والسعر</span> <span class="n">مباشرة</span></div>
+    <div class="cam"><div class="world" id="W5a"><img src="assets/shots/pos_scale0.png" /><div class="hl" id="hl5a"></div></div>
+      <div class="world" id="W5b"><img src="assets/shots/pos_scale.png" /><div class="hl or" id="hl5b"></div></div></div>
+    <div class="chips row3">
+      <div class="chip" id="c5a"><span class="icon">{{icon:package}}</span>0.750 كغ</div>
+      <div class="chip or" id="c5b"><span class="icon">{{icon:banknote}}</span>6,750 ل.س</div>
+      <div class="chip" id="c5c"><span class="icon">{{icon:zap}}</span>مباشرة</div>
+    </div>
+  </section>
+
+  <section class="scene" id="s6">
+    <div class="t kick" style="top:180px">الوحدات والأسعار</div>
+    <div class="t h2" style="top:260px" id="h6a">قطعة، علبة، <span class="n">كرتونة</span></div>
+    <div class="t h2" style="top:260px" id="h6b">مفرق <span class="o">أو</span> <span class="n">جملة</span></div>
+    <div class="cam"><div class="world" id="W6a"><img src="assets/shots/pos_carton.png" /><div class="hl" id="hl6a"></div></div>
+      <div class="world" id="W6b"><img src="assets/shots/item_units.png" /><div class="hl" id="hl6b"></div><div class="hl" id="hl6c"></div><div class="hl or" id="hl6d"></div></div></div>
+    <div class="chips row3" id="ch6">
+      <div class="chip" id="c6a"><span class="icon">{{icon:package}}</span>قطعة</div>
+      <div class="chip" id="c6b"><span class="icon">{{icon:package}}</span>علبة</div>
+      <div class="chip or" id="c6c"><span class="icon">{{icon:package-check}}</span>كرتونة</div>
+    </div>
+    <div class="chips row3" id="ch6b">
+      <div class="chip" id="c6d"><span class="icon">{{icon:user}}</span>مفرق</div>
+      <div class="chip or" id="c6e"><span class="icon">{{icon:store}}</span>جملة</div>
+    </div>
+  </section>
+
+  <section class="scene" id="s7">
+    <div class="t" id="w7a">زبون بدو</div>
+    <div class="t o" id="w7b">يستدين؟</div>
+    <div class="tile or" id="book7"><div class="icon">{{icon:book-open}}</div></div>
+  </section>
+
+  <section class="scene" id="s8">
+    <div class="t kick" style="top:180px">دفتر الديون</div>
+    <div class="t h2" style="top:260px" id="h8a">صار <span class="n">جوا البرنامج</span></div>
+    <div class="t h2" style="top:260px" id="h8b">مين عليه… <span class="r">وقديش</span></div>
+    <div class="cam"><div class="world" id="W8a"><img src="assets/shots/parties.png" /><div class="hl red" id="hl8a"></div></div>
+      <div class="world" id="W8b"><img src="assets/shots/party.png" /><div class="hl red" id="hl8b"></div></div></div>
+    <div class="chips row3">
+      <div class="chip" id="c8a"><span class="icon">{{icon:user}}</span>مين عليه</div>
+      <div class="chip red" id="c8b"><span class="icon">{{icon:hand-coins}}</span>وقديش</div>
+    </div>
+  </section>
+
+  <section class="scene" id="s9">
+    <div class="t kick" style="top:180px">تنبيهات</div>
+    <div class="t h2" style="top:260px" id="h9a">شو <span class="o">قرّب يخلص</span></div>
+    <div class="t h2" style="top:260px" id="h9b">شو قرّبت <span class="r">صلاحيته</span></div>
+    <div class="cam"><div class="world" id="W9"><img src="assets/shots/dash_alerts.png" /><div class="hl or" id="hl9a"></div><div class="hl red" id="hl9b"></div></div></div>
+    <div class="chips row3">
+      <div class="chip or" id="c9a"><span class="icon">{{icon:package}}</span>النواقص</div>
+      <div class="chip red" id="c9b"><span class="icon">{{icon:triangle-alert}}</span>الصلاحية</div>
+    </div>
+  </section>
+
+  <section class="scene" id="s10">
+    <div class="t" id="w10a">وآخر <span class="n">النهار؟</span></div>
+    <div class="tile dk" id="moon10"><div class="icon">{{icon:moon}}</div></div>
+  </section>
+
+  <section class="scene" id="s11">
+    <div class="t kick" style="top:180px">تقرير اليوم</div>
+    <div class="t h2" style="top:260px" id="h11a">بكبسة <span class="n">وحدة</span></div>
+    <div class="t h3" style="top:280px" id="h11b">قديش بعت… <span class="n">وقديش ربحت</span></div>
+    <div class="cam"><div class="world" id="W11a"><img src="assets/shots/daily.png" /><div class="hl" id="hl11a"></div></div>
+      <div class="world" id="W11b"><img src="assets/shots/income.png" /><div class="hl" id="hl11b"></div><div class="hl" id="hl11c"></div></div></div>
+    <div class="chips row3">
+      <div class="chip" id="c11a"><span class="icon">{{icon:chart-column}}</span>المبيعات</div>
+      <div class="chip" id="c11b"><span class="icon">{{icon:trending-up}}</span>الربح</div>
+    </div>
+  </section>
+
+  <section class="scene" id="s12">
+    <div class="t" id="w11a">وكل هاد…</div>
+    <div class="coin" id="coinL">ل.س</div>
+    <div class="coin" id="coinD">$</div>
+    <div class="t" id="w11b">بالليرة <span class="o">و</span><span class="n">الدولار</span></div>
+    <div class="tile dk" id="wifi11"><div class="icon">{{icon:wifi}}</div></div>
+    <div id="slash11"></div>
+    <div class="t" id="w11c">وبدون <span class="r">إنترنت</span></div>
+  </section>
+
+  <section class="scene" id="s13">
+    <div class="ring r12" style="width:600px;height:600px;top:630px"></div><div class="ring r12" style="width:880px;height:880px;top:630px"></div><div class="ring r12" style="width:1180px;height:1180px;top:630px"></div>
+    <img class="logo" id="lg12" src="assets/logo.png" />
+    <div class="t n" id="nm12">ميزان</div>
+    <div class="t" id="tg12"><span class="tx" data-text="حساباتك صارت بميزان"></span></div>
+  </section>
+
+  <section class="scene" id="s14">
+    <div class="t" id="w13">نزّلو <span class="n">هلق</span></div>
+    <div id="dl13"><span class="icon">{{icon:download}}</span>تحميل ميزان</div>
+    <div class="t mono" id="url13">akyedgam3.github.io/mizan-updates</div>
+    <div id="cur13"><svg viewBox="0 0 24 24"><path d="M4 2 L4 20 L9 15 L12.5 22 L15.5 20.6 L12 14 L19 14 Z" fill="#fff" stroke="#000" stroke-width="1.2" stroke-linejoin="round"/></svg></div>
+    <div class="t" id="yr13">السنة كاملة</div>
+    <div class="t" id="pr13"><span class="cnt" data-to="29.99" data-dec="2">0</span><span class="u">$</span></div>
+    <div id="bas13">بس!</div>
+  </section>
+
+  <section class="scene" id="s15">
+    <img class="logo" id="lg14" src="assets/logo.png" />
+    <div class="t n" id="nm14">ميزان</div>
+    <div id="wa14">
+      <div class="hd"><span class="icon">{{icon:message-circle}}</span>للتواصل واتساب</div>
+      <div class="num" id="n1"><span class="tx" data-text="+963 968 037 609"></span></div>
+      <div class="num" id="n2"><span class="tx" data-text="+963 980 072 891"></span></div>
+    </div>
+    <div class="t mono" id="site14">akyedgam3.github.io/mizan-updates</div>
+    <div class="t" id="pr14">السنة كاملة بـ 29.99$ بس</div>
+    <div class="t" id="lk14">الرابط <span class="n">تحت الفيديو</span></div>
+    <div class="icon" id="ar14">{{icon:arrow-down}}</div>
+  </section>
+
+  </div>
+  <div id="vign"></div>
+  <div id="flash"></div>
+</div>
+<script src="assets/gsap.min.js"></script>
+<script>
+const STATES = {{STATES}};
+const $ = (q) => document.querySelector(q);
+const $$ = (q) => [...document.querySelectorAll(q)];
+const DUR = 71.6;
+const SCENES = [
+  ['#s1', 0, 4.75], ['#s2', 4.75, 6.1], ['#s3', 6.1, 9.4], ['#s4', 9.4, 11.4], ['#s5', 11.4, 16.0], ['#s6', 16.0, 22.1],
+  ['#s7', 22.1, 24.1], ['#s8', 24.1, 29.3], ['#s9', 29.3, 35.1], ['#s10', 35.1, 36.8], ['#s11', 36.8, 42.0], ['#s12', 42.0, 46.9],
+  ['#s13', 46.9, 51.0], ['#s14', 51.0, 55.8], ['#s15', 55.8, DUR],
+];
+const HITS = [0.29, 0.75, 1.78, 3.32, 5.11, 6.37, 7.67, 9.79, 10.3, 11.69, 12.96, 13.95, 14.82, 16.4, 17.72, 18.66, 19.83, 20.98, 22.61, 23.0, 24.45, 25.46, 26.96, 28.22, 29.71, 30.64, 33.42, 35.53, 37.2, 38.29, 39.82, 40.88, 42.4, 43.49, 45.47, 47.38, 51.45, 53.09, 54.16, 54.9, 56.23, 68.36];
+const TYPES = [['#ty3 .tx', 6.4, 0.7], ['#tg12 .tx', 48.57, 1.2], ['#n1 .tx', 57.94, 3.9], ['#n2 .tx', 63.23, 3.9]];
+const COUNTS = [['#pr13 .cnt', 54.16, 0.55], ['#scale4 .cnt', 10.25, 0.6]];
+
+const tl = gsap.timeline({ paused: true, defaults: { ease: 'power3.out' } });
+const IM = (o) => ({ ...o, immediateRender: false });
+const pop = (sel, at, from = {}, d = 0.45, ease = 'back.out(2.2)') => tl.fromTo(sel, { opacity: 0, scale: 0.3, ...from }, IM({ opacity: 1, scale: 1, x: 0, y: 0, rotation: 0, rotationY: 0, duration: d, ease }), at);
+const slam = (sel, at, d = 0.3) => tl.fromTo(sel, { opacity: 0, scale: 2.8, filter: 'blur(18px)' }, IM({ opacity: 1, scale: 1, filter: 'blur(0px)', duration: d, ease: 'power4.out' }), at);
+const out = (sel, at, d = 0.22) => tl.to(sel, { opacity: 0, scale: 0.7, duration: d, ease: 'power2.in' }, at);
+const flash = (at, p = 0.55, d = 0.3) => tl.fromTo('#flash', { opacity: p }, IM({ opacity: 0, duration: d }), at);
+const chip = (sel, at) => tl.fromTo(sel, { opacity: 0, x: 220, scale: 0.6 }, IM({ opacity: 1, x: 0, scale: 1, duration: 0.4, ease: 'back.out(2.4)' }), at);
+const CW = 1000;
+function camTo(world, box, at, d = 0.6, pad = 40, maxS = 2.6, ch = 1020, ease = 'power3.inOut') {
+  const s = Math.min(CW / (box.w + pad * 2), ch / (box.h + pad * 2), maxS);
+  const x = CW / 2 - (box.x + box.w / 2) * s, y = ch / 2 - (box.y + box.h / 2) * s;
+  if (d === 0) tl.set(world, { x, y, scale: s }, at);
+  else tl.to(world, { x, y, scale: s, duration: d, ease }, at);
+}
+const B = (shot, k) => STATES[shot].targets[k];
+const part = (b, side, w) => ({ x: side === 'r' ? b.x + b.w - w : b.x, y: b.y, w, h: b.h });
+const U = (...bs) => { const x = Math.min(...bs.map((b) => b.x)), y = Math.min(...bs.map((b) => b.y)); return { x, y, w: Math.max(...bs.map((b) => b.x + b.w)) - x, h: Math.max(...bs.map((b) => b.y + b.h)) - y }; };
+function hl(sel, box, at, pad = 8) {
+  tl.set(sel, { left: box.x - pad, top: box.y - pad, width: box.w + pad * 2, height: box.h + pad * 2 }, 0);
+  tl.fromTo(sel, { opacity: 0, scale: 1.25 }, IM({ opacity: 1, scale: 1, duration: 0.3, ease: 'back.out(2)' }), at);
+}
+const cut = (a, b, at) => { tl.set(a, { opacity: 0 }, at); tl.set(b, { opacity: 1 }, at); flash(at, 0.5, 0.25); };
+const camIn = (sel, at) => tl.fromTo(sel, { opacity: 0, y: 300, rotationX: 25, scale: 0.85 }, IM({ opacity: 1, y: 0, rotationX: 0, scale: 1, duration: 0.5, ease: 'back.out(1.4)' }), at);
+const swapTitle = (a, b, at) => { out(a, at - 0.05, 0.1); slam(b, at); };
+
+tl.set('.scene', { visibility: 'hidden' }, 0);
+$$('.scene .t, .tile, .chip, .person, .logo, .ring, .coin, #slash11, #dl13, #cur13, #bas13, #wa14, #ar14, .cam, #scale4, #cheese4').forEach((e) => tl.set(e, { opacity: 0 }, 0));
+SCENES.forEach(([s, a, b]) => {
+  tl.set(s, { visibility: 'visible', zIndex: 2 }, a);
+  tl.fromTo(s, { scale: 1.18, opacity: 0, filter: 'blur(10px)' }, IM({ scale: 1, opacity: 1, filter: 'blur(0px)', duration: 0.28, ease: 'power3.out' }), a);
+  tl.set(s, { zIndex: 1 }, a + 0.5);
+  tl.to(s, { opacity: 0, scale: 0.92, duration: 0.18, ease: 'power2.in' }, b - 0.16);
+  tl.set(s, { visibility: 'hidden' }, b + 0.05);
+});
+
+// 1
+slam('#a1', 0.29); slam('#a2', 0.75, 0.35); pop('#cart1', 0.9, { x: -600, rotation: -30 }, 0.55);
+out(['#a1', '#a2', '#cart1'], 1.6);
+slam('#b1', 1.78);
+['#pp1', '#pp2', '#pp3', '#pp4', '#pp5'].forEach((p, i) => pop(p, 1.95 + i * 0.12, { x: -500, y: 0 }, 0.4));
+slam('#c1', 3.32); pop('#hg1', 3.5, { rotation: -180 }, 0.5);
+tl.to('#hg1', { rotation: 180, duration: 0.8, ease: 'power2.inOut' }, 3.9);
+// 2
+flash(4.85, 0.8, 0.4);
+pop('#lg2', 4.85, { rotationY: 180, scale: 3 }, 0.6, 'power4.out');
+tl.fromTo('.r2', { scale: 0.2, opacity: 0 }, IM({ scale: 1, opacity: 1, duration: 0.8, stagger: 0.08 }), 4.85);
+tl.fromTo('#nm2', { opacity: 0, letterSpacing: '80px', scale: 1.4 }, IM({ opacity: 1, letterSpacing: '0px', scale: 1, duration: 0.45, ease: 'expo.out' }), 5.11);
+// 3 الباركود
+slam('#h3a', 6.37); camIn('#s3 .cam', 6.1);
+tl.set(['#W3b', '#h3b'], { opacity: 0 }, 0);
+{ const s = B('pos_empty', 'scan'); camTo('#W3a', s, 6.1, 0, 30, 2.1); tl.set('#ty3', { left: s.x + 10, top: s.y + 6, width: s.w - 20, height: s.h - 12 }, 0); tl.set('#laser', { top: s.y + s.h / 2 - 3, left: s.x - 20, width: s.w + 40 }, 0); }
+tl.fromTo('#laser', { opacity: 0, scaleY: 1 }, IM({ keyframes: [{ opacity: 1, duration: 0.05 }, { opacity: 0.4, duration: 0.15 }, { opacity: 1, duration: 0.1 }, { opacity: 0, duration: 0.2 }] }), 7.15);
+cut('#W3a', '#W3b', 7.67); swapTitle('#h3a', '#h3b', 7.67);
+camTo('#W3b', U(B('pos_scan', 'cart'), B('pos_scan', 'totals')), 7.67, 0, 20);
+hl('#hl3a', B('pos_scan', 'cart'), 7.8, 4); hl('#hl3b', B('pos_scan', 'totals'), 8.3, 4);
+chip('#c3', 7.9);
+// 4 الوزن
+slam('#w4a', 9.79); slam('#w4b', 10.15, 0.35);
+pop('#scale4', 9.9, { y: 400 }, 0.5);
+tl.fromTo('#cheese4', { opacity: 0, y: -700, rotation: -20 }, IM({ opacity: 1, y: 0, rotation: 0, duration: 0.4, ease: 'bounce.out' }), 10.0);
+// 5 باركود الميزان
+slam('#h5', 11.69); camIn('#s5 .cam', 11.4);
+tl.set('#W5b', { opacity: 0 }, 0);
+camTo('#W5a', B('pos_scale0', 'scan'), 11.4, 0, 30, 2.1); hl('#hl5a', B('pos_scale0', 'scan'), 11.8, 4);
+cut('#W5a', '#W5b', 12.96);
+camTo('#W5b', B('pos_scale', 'cheese'), 12.96, 0, 30, 2.4);
+hl('#hl5b', B('pos_scale', 'cheese'), 13.05, 4);
+chip('#c5a', 12.96); chip('#c5b', 13.95); chip('#c5c', 14.82);
+camTo('#W5b', U(B('pos_scale', 'cheese'), B('pos_scale', 'totals')), 14.82, 0.7, 20, 2.0);
+// 6 وحدات وأسعار
+slam('#h6a', 16.4); camIn('#s6 .cam', 16.0);
+tl.set(['#W6b', '#h6b', '#ch6b .chip'], { opacity: 0 }, 0);
+camTo('#W6a', B('pos_carton', 'cart'), 16.0, 0, 20, 2.2);
+chip('#c6a', 16.4); chip('#c6b', 17.72); chip('#c6c', 18.66);
+camTo('#W6a', B('pos_carton', 'carton'), 18.55, 0.4, 30, 2.4); hl('#hl6a', B('pos_carton', 'carton'), 18.66, 4);
+cut('#W6a', '#W6b', 19.83); swapTitle('#h6a', '#h6b', 19.83); out('#ch6 .chip', 19.75, 0.12);
+camTo('#W6b', B('item_units', 'retail'), 19.83, 0, 40, 2.2);
+camTo('#W6b', B('item_units', 'whole'), 20.85, 0.4, 40, 2.2);
+camTo('#W6b', B('item_units', 'units'), 21.25, 0.45, 30, 2.0);
+hl('#hl6b', B('item_units', 'retail'), 19.9, 4); chip('#c6d', 19.9);
+hl('#hl6d', B('item_units', 'whole'), 20.98, 4); chip('#c6e', 20.98);
+hl('#hl6c', B('item_units', 'units'), 21.3, 4);
+// 7
+slam('#w7a', 22.61); slam('#w7b', 23.0, 0.35); pop('#book7', 23.15, { rotationY: 180, y: 300 }, 0.55);
+// 8 دفتر الديون
+slam('#h8a', 24.45); camIn('#s8 .cam', 24.1);
+tl.set(['#W8b', '#h8b'], { opacity: 0 }, 0);
+camTo('#W8a', part(B('parties', 'table'), 'r', 520), 24.1, 0, 20, 2.2);
+camTo('#W8a', part(B('parties', 'table'), 'l', 440), 25.3, 0.5, 20, 2.2);
+{ const t = B('parties', 'table'); hl('#hl8a', { x: t.x, y: t.y + 40, w: 260, h: t.h - 40 }, 25.46, 4); }
+cut('#W8a', '#W8b', 26.96); swapTitle('#h8a', '#h8b', 26.96);
+camTo('#W8b', B('party', 'card'), 26.96, 0, 20, 2.2);
+chip('#c8a', 26.96);
+{ const c = B('party', 'card'); hl('#hl8b', { x: c.x, y: c.y + 70, w: c.w, h: 150 }, 28.22, 4); }
+chip('#c8b', 28.22);
+// 9 تنبيهات
+slam('#h9a', 29.71); camIn('#s9 .cam', 29.3);
+tl.set('#h9b', { opacity: 0 }, 0);
+camTo('#W9', U(B('dash_alerts', 'low'), B('dash_alerts', 'exp')), 29.3, 0, 20);
+camTo('#W9', B('dash_alerts', 'low'), 30.55, 0.5, 30, 2.0); hl('#hl9a', B('dash_alerts', 'low'), 30.64, 4); chip('#c9a', 30.64);
+camTo('#W9', B('dash_alerts', 'exp'), 33.3, 0.5, 30, 2.0); hl('#hl9b', B('dash_alerts', 'exp'), 33.42, 4); chip('#c9b', 33.42);
+swapTitle('#h9a', '#h9b', 33.42);
+tl.to('#hl9b', { keyframes: [{ opacity: 0.3 }, { opacity: 1 }, { opacity: 0.3 }, { opacity: 1 }], duration: 0.8 }, 33.8);
+// 10
+slam('#w10a', 35.53); pop('#moon10', 35.7, { rotation: -120, scale: 0.2 }, 0.6);
+// 11 تقرير اليوم
+slam('#h11a', 37.2); camIn('#s11 .cam', 36.8);
+tl.set(['#W11b', '#h11b'], { opacity: 0 }, 0);
+camTo('#W11a', { x: 700, y: 220, w: 640, h: 430 }, 36.8, 0, 20);
+tl.fromTo('#s11 .cam', { scale: 1 }, IM({ keyframes: [{ scale: 0.95, duration: 0.08 }, { scale: 1.02, duration: 0.15 }, { scale: 1, duration: 0.15 }] }), 38.29);
+flash(38.29, 0.35, 0.2);
+camTo('#W11a', { x: 1000, y: 385, w: 335, h: 100 }, 39.7, 0.5, 30, 2.4); hl('#hl11a', { x: 1040, y: 385, w: 295, h: 34 }, 39.82, 4); chip('#c11a', 39.82);
+swapTitle('#h11a', '#h11b', 39.82);
+cut('#W11a', '#W11b', 40.88);
+camTo('#W11b', { x: 28, y: 221, w: 430, h: 90 }, 40.88, 0, 30, 2.0);
+hl('#hl11c', { x: 28, y: 221, w: 430, h: 90 }, 41.0, 2); chip('#c11b', 40.88);
+// 12
+slam('#w11a', 42.4);
+pop('#coinL', 43.49, { rotationY: 540, y: -500 }, 0.6); pop('#coinD', 43.65, { rotationY: -540, y: -500 }, 0.6);
+slam('#w11b', 43.55);
+pop('#wifi11', 45.3, { scale: 0.2 }, 0.4);
+tl.set('#slash11', { opacity: 1 }, 45.6);
+tl.fromTo('#slash11', { scaleX: 0 }, IM({ scaleX: 1, duration: 0.25, ease: 'power4.out' }), 45.6);
+slam('#w11c', 45.47);
+// 13
+flash(47.38, 0.8, 0.45);
+pop('#lg12', 47.38, { rotationY: -180, scale: 3 }, 0.6, 'power4.out');
+tl.fromTo('.r12', { scale: 0.2, opacity: 0 }, IM({ scale: 1, opacity: 1, duration: 0.9, stagger: 0.1 }), 47.38);
+tl.fromTo('#nm12', { opacity: 0, letterSpacing: '80px', scale: 1.4 }, IM({ opacity: 1, letterSpacing: '0px', scale: 1, duration: 0.5, ease: 'expo.out' }), 47.5);
+tl.set('#tg12', { opacity: 1 }, 48.5);
+// 14
+slam('#w13', 51.45);
+pop('#dl13', 51.6, { y: 200 }, 0.45); pop('#url13', 51.8, { y: 40 }, 0.35);
+tl.fromTo('#cur13', { opacity: 0, x: 300, y: 300 }, IM({ opacity: 1, x: 0, y: 0, duration: 0.5, ease: 'power2.out' }), 51.8);
+tl.fromTo('#dl13', { scale: 1 }, IM({ keyframes: [{ scale: 0.9, duration: 0.07 }, { scale: 1.04, duration: 0.15 }, { scale: 1, duration: 0.15 }] }), 52.4);
+slam('#yr13', 53.09);
+tl.fromTo('#pr13', { opacity: 0, scale: 3.5, filter: 'blur(20px)' }, IM({ opacity: 1, scale: 1, filter: 'blur(0px)', duration: 0.35, ease: 'power4.out' }), 54.16);
+pop('#bas13', 54.9, { scale: 3, rotation: 20 }, 0.3, 'power4.out');
+// 15
+flash(56.0, 0.6);
+pop('#lg14', 56.0, { rotationY: 180 }, 0.6, 'back.out(1.6)'); slam('#nm14', 56.1);
+pop('#wa14', 56.23, { y: 200 }, 0.5);
+pop('#site14', 67.4, { y: 40 }, 0.35); pop('#pr14', 67.6, { y: 40 }, 0.35);
+slam('#lk14', 68.36); pop('#ar14', 68.7, { y: -100 }, 0.4);
+tl.set({}, {}, DUR);
+
+function render(t) {
+  tl.seek(t, false);
+  for (const [sel, a, d] of TYPES) {
+    const el = $(sel), full = el.dataset.text;
+    el.textContent = full.slice(0, Math.max(0, Math.min(full.length, Math.floor(((t - a) / d) * full.length))));
+  }
+  for (const [sel, a, d] of COUNTS) {
+    const el = $(sel), p = Math.max(0, Math.min(1, (t - a) / d));
+    const v = Number(el.dataset.to) * (1 - Math.pow(1 - p, 3)); el.textContent = el.dataset.dec ? v.toFixed(Number(el.dataset.dec)) : Math.round(v);
+  }
+  $$('.caret').forEach((c) => (c.style.opacity = Math.floor(t * 4) % 2 ? '1' : '0.15'));
+  let k = 0;
+  for (const h of HITS) { const dt = t - h; if (dt >= 0 && dt < 0.28) k = Math.max(k, 1 - dt / 0.28); }
+  const sx = Math.sin(t * 97) * 18 * k, sy = Math.cos(t * 83) * 18 * k;
+  $('#shake').style.transform = `translate(${sx}px, ${sy}px) scale(${1 + 0.035 * k})`;
+  $('#stage').style.filter = k > 0.4 ? `saturate(${1 + k * 0.6}) contrast(${1 + k * 0.15})` : 'none';
+  const beat = 60 / 128, ph = (t % beat) / beat, pulse = Math.exp(-ph * 5);
+  $('#glow').style.opacity = 0.55 + 0.45 * pulse + 0.4 * k;
+  $('#glow').style.transform = `scale(${1 + 0.08 * pulse})`;
+  $('#grid').style.backgroundPosition = `0 ${(t * 160) % 90}px`;
+  $$('.streak').forEach((s, i) => (s.style.left = `${((t * (420 + i * 130) + i * 400) % 1600) - 400}px`));
+  $$('.ring').forEach((r, i) => (r.style.rotate = `${t * (i % 2 ? 14 : -10)}deg`));
+  const bob = (sel, amp, sp, ph0 = 0) => $$(sel).forEach((e, i) => (e.style.translate = `0 ${Math.sin(t * sp + i + ph0) * amp}px`));
+  bob('.person', 10, 3); bob('.coin', 16, 3); bob('#cart1, #book7, #moon10, #hg1', 14, 2.6); bob('#ar14', 26, 6);
+}
+window.render = render;
+window.DURATION = DUR;
+document.fonts.ready.then(() => Promise.all([...document.images].map((i) => (i.complete ? 0 : new Promise((r) => (i.onload = r)))))).then(() => { render(0); window.READY = true; });
+</script>
+</body>
+</html>

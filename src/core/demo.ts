@@ -396,6 +396,80 @@ function sweets(l: Ledger): void {
 }
 
 /** يعبّي شركة فاضية ببيانات تجريبية مناسبة لنشاطها. */
+function supermarket(l: Ledger): void {
+  l.saveParty({ id: 'c-1', kind: 'customer', name: 'أبو خالد', phone: '0933 111 222' });
+  l.saveParty({ id: 'c-2', kind: 'customer', name: 'أم محمد', phone: '0955 333 444' });
+  l.saveParty({ id: 'c-3', kind: 'customer', name: 'مطعم الضيعة', phone: '0944 555 666', priceTier: 'wholesale' });
+  l.saveParty({ id: 's-1', kind: 'supplier', name: 'شركة النجمة للتوزيع', phone: '0944 222 333' });
+  l.saveParty({ id: 's-2', kind: 'supplier', name: 'ألبان الشام', phone: '0933 444 777' });
+  // [id، الاسم، التصنيف، المفرق، الجملة، الباركود، الكرتونة/الشدّة، عدد القطع فيها، الحد الأدنى، صلاحية]
+  const goods: [string, string, string, number, number, string, string, number, number, boolean][] = [
+    ['g-rice', 'رز مصري 1 كغ', 'مواد غذائية', 1800, 1650, '6210001000017', 'كرتونة', 10, 10, false],
+    ['g-sugar', 'سكر 1 كغ', 'مواد غذائية', 1200, 1100, '6210001000024', 'كرتونة', 10, 10, false],
+    ['g-tea', 'شاي أسود 400غ', 'مواد غذائية', 3800, 3500, '6210001000031', 'كرتونة', 24, 10, false],
+    ['g-oil', 'زيت دوار الشمس 1 لتر', 'مواد غذائية', 2200, 2050, '6210001000048', 'كرتونة', 12, 12, false],
+    ['g-pasta', 'معكرونة 500غ', 'مواد غذائية', 650, 590, '6210001000055', 'كرتونة', 20, 20, false],
+    ['g-tuna', 'تونة 160غ', 'معلبات', 1400, 1300, '6210001000062', 'شدّة', 4, 12, false],
+    ['g-milk', 'حليب طويل الأجل 1 لتر', 'ألبان وأجبان', 1500, 1350, '6210002000016', 'كرتونة', 12, 12, true],
+    ['g-yogurt', 'لبن رايب 1 كغ', 'ألبان وأجبان', 1300, 1200, '6210002000023', 'كرتونة', 6, 6, true],
+    ['g-water', 'مياه معدنية 1.5 لتر', 'مشروبات', 400, 350, '6210003000015', 'شدّة', 6, 24, false],
+    ['g-cola', 'مشروب غازي 330مل', 'مشروبات', 450, 400, '6210003000022', 'شدّة', 24, 24, false],
+    ['g-biscuit', 'بسكويت بالشوكولا', 'سكاكر', 300, 270, '6210004000014', 'علبة', 12, 12, false],
+    ['g-soap', 'مسحوق غسيل 3 كغ', 'منظفات', 6500, 6000, '6210005000013', 'كرتونة', 4, 4, false],
+  ];
+  for (const [id, name, category, price, whole, barcode, box, n, minStock, expiry] of goods) {
+    item(l, {
+      id, code: id.slice(2).toUpperCase(), name, kind: 'stock', unit: 'قطعة', price: P(price), wholesalePrice: P(whole), barcode, category, minStock,
+      units: [{ name: box, factor: n, price: P(whole * n), barcode: barcode.slice(0, 11) + '9' + barcode[12] }],
+      ...(expiry ? { trackExpiry: true } : {}),
+    });
+  }
+  // بالوزن: رمز المادة هو اللي بيطبعه الميزان بالباركود (21 + رمز من 5 أرقام + الوزن)
+  const weighed: [string, string, string, string, number][] = [
+    ['w-cheese', '101', 'جبنة بلدية', 'ألبان وأجبان', 9000],
+    ['w-labneh', '102', 'لبنة', 'ألبان وأجبان', 6000],
+    ['w-tomato', '201', 'بندورة', 'خضار وفواكه', 900],
+    ['w-cucumber', '202', 'خيار', 'خضار وفواكه', 800],
+    ['w-banana', '203', 'موز', 'خضار وفواكه', 1600],
+    ['w-potato', '204', 'بطاطا', 'خضار وفواكه', 700],
+  ];
+  for (const [id, code, name, category, price] of weighed) {
+    item(l, { id, code, name, kind: 'stock', unit: 'كيلو', price: P(price), category, weighed: true, minStock: 5, ...(category === 'ألبان وأجبان' ? { trackExpiry: true } : {}) });
+  }
+  item(l, { id: 'g-bread', code: 'BREAD', name: 'خبز', kind: 'stock', unit: 'ربطة', price: P(500), category: 'مواد غذائية', minStock: 10 });
+  // بضاعة أول المدة: الشاي والزيت قرّبوا يخلصوا، والألبان قرّبت صلاحيتها
+  const qty: Record<string, number> = { 'g-rice': 60, 'g-sugar': 80, 'g-tea': 6, 'g-oil': 8, 'g-pasta': 100, 'g-tuna': 48, 'g-water': 120, 'g-cola': 96, 'g-biscuit': 60, 'g-soap': 15, 'g-bread': 40 };
+  l.adjustStock({
+    kind: 'opening',
+    date: day(-5),
+    lines: [
+      ...goods.filter(([id]) => qty[id]).map(([id, , , price]) => ({ itemId: id, qty: qty[id]!, unitCost: P(price * 0.78) })),
+      { itemId: 'g-bread', qty: 40, unitCost: P(400) },
+      { itemId: 'g-milk', qty: 24, unitCost: P(1150), batch: 'MK-' + day(-20).slice(5), expiry: day(4) },
+      { itemId: 'g-milk', qty: 36, unitCost: P(1150), batch: 'MK-' + day(-2).slice(5), expiry: day(80) },
+      { itemId: 'g-yogurt', qty: 12, unitCost: P(1000), batch: 'YG-' + day(-6).slice(5), expiry: day(2) },
+      { itemId: 'w-cheese', qty: 18, unitCost: P(7000), batch: 'CH-' + day(-8).slice(5), expiry: day(6) },
+      { itemId: 'w-labneh', qty: 10, unitCost: P(4500), batch: 'LB-' + day(-3).slice(5), expiry: day(9) },
+      { itemId: 'w-tomato', qty: 40, unitCost: P(650) },
+      { itemId: 'w-cucumber', qty: 30, unitCost: P(550) },
+      { itemId: 'w-banana', qty: 3, unitCost: P(1200) },
+      { itemId: 'w-potato', qty: 50, unitCost: P(500) },
+    ],
+    memo: 'بضاعة أول المدة (تجريبي)',
+  });
+  // مبيعات اليوم: كاش، ودين على الزباين، وجملة للمطعم
+  const sale = (partyId: string | null, paidShare: number, lines: { itemId: string; qty: number; price: number; unit?: string }[]) => {
+    const total = lines.reduce((a, x) => a + x.qty * x.price, 0);
+    l.postInvoice({ kind: 'sale', date: day(), partyId, paid: P(total * paidShare), lines: lines.map((x) => ({ ...x, price: P(x.price) })) as never });
+  };
+  sale(null, 1, [{ itemId: 'g-rice', qty: 2, price: 1800 }, { itemId: 'g-milk', qty: 2, price: 1500 }, { itemId: 'w-tomato', qty: 1.5, price: 900 }, { itemId: 'g-bread', qty: 2, price: 500 }]);
+  sale(null, 1, [{ itemId: 'w-cheese', qty: 0.75, price: 9000 }, { itemId: 'g-tea', qty: 1, price: 3800 }, { itemId: 'g-cola', qty: 6, price: 450 }]);
+  sale('c-1', 0, [{ itemId: 'g-oil', qty: 2, price: 2200 }, { itemId: 'g-sugar', qty: 3, price: 1200 }, { itemId: 'w-labneh', qty: 0.5, price: 6000 }]);
+  sale('c-2', 0.4, [{ itemId: 'g-soap', qty: 1, price: 6500 }, { itemId: 'g-pasta', qty: 4, price: 650 }, { itemId: 'w-banana', qty: 1, price: 1600 }]);
+  sale('c-3', 0.5, [{ itemId: 'g-water', qty: 1, unit: 'شدّة', price: 350 * 6 }, { itemId: 'g-rice', qty: 1, unit: 'كرتونة', price: 1650 * 10 }, { itemId: 'w-potato', qty: 10, price: 700 }]);
+  sale(null, 1, [{ itemId: 'g-biscuit', qty: 3, price: 300 }, { itemId: 'g-water', qty: 2, price: 400 }, { itemId: 'w-cucumber', qty: 1, price: 800 }]);
+}
+
 export function loadDemo(l: Ledger): void {
   const s = l.state;
   if (s.invoices.length > 0 || Object.keys(s.items).length > 0 || Object.keys(s.parties).length > 0) throw new Error('البيانات التجريبية بتنضاف لشركة فاضية بس');
@@ -406,5 +480,6 @@ export function loadDemo(l: Ledger): void {
   else if (activity === 'tailor') tailor(l);
   else if (activity === 'mobile') mobile(l);
   else if (activity === 'sweets') sweets(l);
+  else if (activity === 'supermarket') supermarket(l);
   else general(l);
 }

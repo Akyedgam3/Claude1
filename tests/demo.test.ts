@@ -52,6 +52,20 @@ describe('demo data', () => {
     expect(tb.totalDebit).toBe(tb.totalCredit);
   });
 
+  it('fills a supermarket with barcodes, cartons, weighed goods, expiry and debts', () => {
+    const l = company('supermarket');
+    l.loadDemoData();
+    const rice = l.state.items['g-rice']!;
+    expect(rice.units?.[0]).toMatchObject({ name: 'كرتونة', factor: 10 });
+    // كرتونة رز للمطعم نقصت 10 قطع
+    expect(l.state.stock['g-rice']!.totalQty).toBe(60 - 2 - 10);
+    expect(l.state.items['w-cheese']!.weighed).toBe(true);
+    expect(l.state.stock['w-cheese']!.totalQty).toBeCloseTo(17.25, 5);
+    expect(l.state.invoices.filter((i) => i.kind === 'sale').length).toBe(6);
+    const tb = trialBalance(l.state);
+    expect(tb.totalDebit).toBe(tb.totalCredit);
+  });
+
   it('fills a phone shop with IMEIs, an installment plan and a trade-in', () => {
     const l = company('mobile');
     l.loadDemoData();
