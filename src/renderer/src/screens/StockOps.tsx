@@ -133,6 +133,47 @@ function ItemRows({ rows, setRows, withCost, withBatch }: { rows: StockRow[]; se
   );
 }
 
+/** تعبئة الجدول بكل المواد (أو تصنيف) دفعة وحدة: بتكتب الكميات بس، والسطور الفاضية بتنتجاهل عند الحفظ. */
+function BulkAdd({ rows, setRows }: { rows: StockRow[]; setRows: (r: StockRow[]) => void }) {
+  const { state } = useCompany();
+  const [category, setCategory] = useState('');
+  const categories = useMemo(() => [...new Set(Object.values(state.items).map((i) => i.category).filter(Boolean) as string[])].sort(), [state.items]);
+  const add = () => {
+    const have = new Set(rows.map((r) => r.itemId));
+    const items = Object.values(state.items)
+      .filter((i) => i.kind === 'stock' && !i.archived && !i.trackSerial && !have.has(i.id) && (!category || i.category === category))
+      .sort((a, b) => a.code.localeCompare(b.code, 'ar', { numeric: true }));
+    setRows([
+      ...rows,
+      ...items.map((i) => {
+        const lc = state.stock[i.id]?.lastCost ?? 0;
+        return { key: uid(), itemId: i.id, qty: '', cost: lc ? String(major(state, lc)) : '', batch: '', expiry: '', serials: '' };
+      }),
+    ]);
+  };
+  return (
+    <div className="toolbar">
+      <select value={category} onChange={(e) => setCategory(e.target.value)}>
+        <option value="">كل المواد</option>
+        {categories.map((c) => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+      </select>
+      <button type="button" onClick={add}>
+        + أضف {category ? `مواد «${category}»` : 'كل المواد'} للجدول
+      </button>
+      {rows.length > 0 && (
+        <button type="button" onClick={() => setRows(rows.filter((r) => Number(r.qty) > 0))}>
+          شيل السطور الفاضية
+        </button>
+      )}
+      <span className="muted">اكتب الكمية والتكلفة بس، والمواد اللي ما إلها كمية ما بتنحفظ. (المواد بأرقام تسلسلية بتنضاف لحالها.)</span>
+    </div>
+  );
+}
+
 const serialList = (s: string) => s.split(/[\s,،]+/).map((x) => x.trim()).filter(Boolean);
 
 function Opening() {
@@ -160,7 +201,7 @@ function Opening() {
             return { accountId: c.accountId, ...(v >= 0 ? { debit: v } : { credit: -v }), currency: cur };
           }),
         parties: parties.filter((p) => p.partyId && p.amount.trim()).map((p) => ({ partyId: p.partyId!, amount: parseAmount(state, p.amount, p.currency), currency: p.currency })),
-        stock: rows.map((r) => ({
+        stock: rows.filter((r) => Number(r.qty) > 0).map((r) => ({
           itemId: r.itemId,
           qty: Number(r.qty),
           unitCost: parseAmount(state, r.cost || '0', base),
@@ -223,6 +264,7 @@ function Opening() {
       </table>
       <button onClick={() => setParties([...parties, { key: uid(), partyId: null, amount: '', currency: base }])}>+ دين</button>
       <h4>بضاعة أول المدة</h4>
+      <BulkAdd rows={rows} setRows={setRows} />
       <ItemRows rows={rows} setRows={setRows} withCost withBatch="in" />
       <div className="form-actions">
         <button className="primary" onClick={save}>

@@ -111,10 +111,11 @@ export function Picker({
   const [active, setActive] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
   const selected = options.find((o) => o.id === value);
-  const list = useMemo(
-    () => options.filter((o) => (filter ? filter(o, query) : matches(query, o.label, o.hint))).slice(0, 50),
-    [options, query, filter],
-  );
+  const PICKER_MAX = 50;
+  const { list, total } = useMemo(() => {
+    const all = options.filter((o) => (filter ? filter(o, query) : matches(query, o.label, o.hint)));
+    return { list: all.slice(0, PICKER_MAX), total: all.length };
+  }, [options, query, filter]);
 
   useEffect(() => {
     const close = (e: MouseEvent) => ref.current && !ref.current.contains(e.target as Node) && setOpen(false);
@@ -164,6 +165,11 @@ export function Picker({
               {o.hint && <small>{o.hint}</small>}
             </li>
           ))}
+          {total > list.length && (
+            <li className="muted picker-more">
+              عم يظهر {list.length} من {total} — اكتب الاسم أو الرمز أو الباركود لتلاقي الباقي
+            </li>
+          )}
         </ul>
       )}
     </div>

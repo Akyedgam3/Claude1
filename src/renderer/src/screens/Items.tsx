@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { attributesFor, generateVariants, type Item, type ItemKind, type ItemUnit, type RecipeLine } from '../../../core';
-import { api, major, money, parseAmount, qtyText, toInput, uid, useCompany } from '../api';
+import { api, major, money, parseAmount, qtyText, toInput, today, uid, useCompany } from '../api';
 import { Barcode, ExportButtons, usePrinter } from '../components/print';
 import { CurrencySelect, Empty, Field, itemMatches, itemOptions, Modal, PageHeader, Picker, SearchBox, Tabs } from '../components/ui';
 import { Icon } from '../components/icons';
@@ -28,18 +28,36 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
     try {
       const rows = await api.importExcel();
       if (!rows) return;
-      const existingCodes = new Set(Object.values(state.items).map((i) => i.code));
+      const byCode = new Map(Object.values(state.items).map((i) => [i.code, i]));
+      const existingCodes = new Set(byCode.keys());
       const base = state.info!.baseCurrency;
       const parsed: Item[] = [];
+      // الكمية والتكلفة (اختياريين): بينسجّلوا بضاعة أول المدة
+      const stock: { itemId: string; qty: number; unitCost: number }[] = [];
+      let skippedStock = 0;
+      const num = (v: unknown) => Number(String(v ?? '').replace(/[,،\s]/g, '').replace('٫', '.')) || 0;
       for (const r of rows) {
         const name = String(r['الاسم'] ?? '').trim();
         if (!name) continue;
+        const qty = num(r['الكمية']);
+        const cost = String(r['التكلفة'] ?? '').trim() ? parseAmount(state, String(r['التكلفة']).replace(/[,،\s]/g, ''), base) : 0;
         const code = String(r['الرمز'] ?? '').trim() || nextCode([...existingCodes]);
+        const old = byCode.get(code);
+        if (old) {
+          // مادة مستوردة من قبل: منضيف كميتها بس إذا رصيدها لسا صفر (حتى ما تتضاعف لو انعاد الاستيراد)
+          if (qty > 0) {
+            if (old.kind === 'stock' && !old.trackSerial && !(state.stock[old.id]?.totalQty ?? 0)) stock.push({ itemId: old.id, qty, unitCost: cost });
+            else skippedStock++;
+          }
+          continue;
+        }
         if (existingCodes.has(code)) continue;
         existingCodes.add(code); // يمنع تكرار الرمز داخل نفس الملف
         const currency = String(r['العملة'] ?? base).trim().toUpperCase() === 'USD' ? 'USD' : base;
+        const id = uid();
+        if (qty > 0) stock.push({ itemId: id, qty, unitCost: cost });
         parsed.push({
-          id: uid(),
+          id,
           code,
           name,
           kind: 'stock',
@@ -52,9 +70,21 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
           ...(r['رقم القطعة'] ? { partNumber: String(r['رقم القطعة']) } : {}),
         });
       }
-      if (!parsed.length) return notify('لا توجد مواد جديدة في الملف (الأعمدة: الاسم، الرمز، الوحدة، سعر المبيع، العملة، الباركود، التصنيف)', 'error');
-      const res = await call<number>('saveItems', parsed);
-      if (res) notify(`تم استيراد ${res.value} مادة`);
+      if (!parsed.length && !stock.length) {
+        if (skippedStock) return notify(`ما انضاف شي: ${skippedStock} مادة إلها رصيد من قبل، فما انضافت كميتها مرة تانية`, 'error');
+        return notify('لا توجد مواد جديدة ولا كميات بالملف (الأعمدة: الاسم، الرمز، الوحدة، سعر المبيع، العملة، الباركود، التصنيف، الكمية، التكلفة)', 'error');
+      }
+      if (parsed.length && !(await call<number>('saveItems', parsed))) return;
+      if (stock.length && !(await call('postOpeningBalances', { date: today(), stock }))) return;
+      notify(
+        [
+          parsed.length ? `تم استيراد ${parsed.length} مادة` : '',
+          stock.length ? `وتسجيل كميات ${stock.length} مادة كبضاعة أول المدة` : '',
+          skippedStock ? `(${skippedStock} مادة إلها رصيد من قبل، ما انضافت كميتها)` : '',
+        ]
+          .filter(Boolean)
+          .join(' '),
+      );
     } catch (e) {
       notify((e as Error).message, 'error');
     }
