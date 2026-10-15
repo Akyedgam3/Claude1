@@ -1,0 +1,12 @@
+import { createRequire } from 'node:module';
+const require = createRequire('/home/user/Claude1/package.json');
+const { chromium } = require('@playwright/test');
+const [dir, out] = process.argv.slice(2);
+const b = await chromium.launch();
+const p = await b.newPage();
+p.on('requestfailed', (r) => console.log('FAIL', r.url()));
+await p.goto('file://' + dir + '/index.html');
+await p.evaluate(() => document.fonts.ready);
+await p.waitForTimeout(500);
+await p.pdf({ path: out, format: 'A4', printBackground: true, preferCSSPageSize: true });
+await b.close();
