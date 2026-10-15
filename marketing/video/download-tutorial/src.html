@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<title>Mizan Download Tutorial</title>
+<style>
+@font-face { font-family: Cairo; font-weight: 400; src: url(assets/fonts/cairo-arabic-400-normal.woff2), url(assets/fonts/cairo-latin-400-normal.woff2); }
+@font-face { font-family: Cairo; font-weight: 600; src: url(assets/fonts/cairo-arabic-600-normal.woff2), url(assets/fonts/cairo-latin-600-normal.woff2); }
+@font-face { font-family: Cairo; font-weight: 700; src: url(assets/fonts/cairo-arabic-700-normal.woff2), url(assets/fonts/cairo-latin-700-normal.woff2); }
+@font-face { font-family: Cairo; font-weight: 800; src: url(assets/fonts/cairo-arabic-800-normal.woff2), url(assets/fonts/cairo-latin-800-normal.woff2); }
+@font-face { font-family: Cairo; font-weight: 900; src: url(assets/fonts/cairo-arabic-900-normal.woff2), url(assets/fonts/cairo-latin-900-normal.woff2); }
+:root { --n: #3dffc5; --g: #0f6e5c; --g2: #14957c; --o: #ff8a2a; --o2: #ffb36b; --r: #ff3d5a; --bg: #061714; --ink: #13302b; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+body { font-family: Cairo, sans-serif; color: #fff; }
+#stage { position: absolute; inset: 0; overflow: hidden; background: radial-gradient(ellipse at 50% 35%, #0f3a31 0%, #071c18 55%, #030b0a 100%); }
+#grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(61,255,197,.05) 2px, transparent 2px), linear-gradient(90deg, rgba(61,255,197,.05) 2px, transparent 2px); background-size: 80px 80px; }
+#glow { position: absolute; left: 50%; top: 45%; width: 1600px; height: 1600px; margin: -800px 0 0 -800px; border-radius: 50%; background: radial-gradient(circle, rgba(61,255,197,.12), transparent 60%); }
+.scene { position: absolute; inset: 0; visibility: hidden; }
+.icon svg { width: 100%; height: 100%; display: block; }
+.t { position: absolute; left: 0; right: 0; text-align: center; font-weight: 900; }
+.n { color: var(--n); } .o { color: var(--o2); } .r { color: var(--r); }
+.mono { font-family: 'Courier New', monospace; direction: ltr; unicode-bidi: plaintext; }
+
+/* شريط الخطوات أسفل الشاشة */
+#steps { position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%); display: flex; gap: 14px; direction: rtl; z-index: 50; }
+#steps div { padding: 8px 22px; border-radius: 999px; font-size: 24px; font-weight: 800; color: rgba(255,255,255,.45); background: rgba(255,255,255,.06); border: 2px solid rgba(255,255,255,.08); }
+#steps div.on { color: #03211b; background: var(--n); border-color: var(--n); box-shadow: 0 0 24px rgba(61,255,197,.5); }
+#steps div.done { color: var(--n); border-color: rgba(61,255,197,.5); }
+/* تعليق علوي */
+.cap { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); padding: 10px 34px; border-radius: 999px; background: rgba(4,20,17,.88); border: 2px solid rgba(61,255,197,.5); font-size: 34px; font-weight: 900; white-space: nowrap; z-index: 40; box-shadow: 0 12px 40px rgba(0,0,0,.5); }
+
+/* 1 المقدمة */
+#lg1 { position: absolute; left: 50%; top: 170px; width: 260px; height: 260px; margin-left: -130px; border-radius: 70px; box-shadow: 0 0 0 4px rgba(61,255,197,.4), 0 0 120px rgba(61,255,197,.45); }
+#t1a { top: 470px; font-size: 96px; }
+#t1b { top: 600px; font-size: 64px; color: #cdeee5; }
+.flow { position: absolute; left: 0; right: 0; top: 760px; display: flex; justify-content: center; gap: 40px; align-items: center; }
+.fl { display: flex; align-items: center; gap: 16px; padding: 18px 34px; border-radius: 28px; background: rgba(255,255,255,.07); border: 2px solid rgba(61,255,197,.35); font-size: 44px; font-weight: 900; }
+.fl .icon { width: 54px; height: 54px; color: var(--n); }
+.arr { font-size: 50px; color: var(--n); font-weight: 900; }
+
+/* نافذة المتصفح */
+.win { position: absolute; border-radius: 16px; overflow: hidden; background: #fff; box-shadow: 0 50px 120px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.15); }
+#browser { left: 210px; top: 80px; width: 1500px; height: 930px; }
+.bbar { height: 70px; background: #dfe3e8; display: flex; align-items: center; gap: 14px; padding: 0 18px; direction: ltr; }
+.dots { display: flex; gap: 8px; } .dots i { width: 14px; height: 14px; border-radius: 50%; background: #c4c9cf; display: block; }
+.url { flex: 1; height: 42px; border-radius: 21px; background: #fff; display: flex; align-items: center; padding: 0 20px; font-size: 22px; color: #333; font-family: 'Courier New', monospace; }
+.url .lock { color: #2a8; margin-right: 10px; font-family: Cairo; }
+.dlicon { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; color: #444; }
+.dlicon .icon { width: 26px; height: 26px; }
+#bcontent { position: absolute; left: 0; top: 70px; width: 1500px; height: 860px; background: #071a17; overflow: hidden; }
+#bcontent img { width: 1500px; display: block; }
+#blank { position: absolute; inset: 0; background: #fff; }
+#dlpop { position: absolute; left: 30px; top: 70px; width: 460px; padding: 22px; border-radius: 14px; background: #fff; color: #222; box-shadow: 0 20px 60px rgba(0,0,0,.35); direction: rtl; }
+#dlpop h4 { font-size: 22px; margin-bottom: 12px; }
+.frow { display: flex; align-items: center; gap: 14px; padding: 10px; border-radius: 10px; background: #f1f5f4; }
+.frow .ficon { width: 46px; height: 46px; border-radius: 10px; display: grid; place-items: center; background: var(--g); }
+.frow .ficon img { width: 34px; height: 34px; border-radius: 8px; }
+.frow b { font-size: 20px; direction: ltr; display: block; }
+.frow small { font-size: 16px; color: #666; }
+.bar { height: 8px; border-radius: 4px; background: #dde; margin-top: 6px; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: #1a73e8; }
+#linkbadge { position: absolute; left: 50%; top: 540px; margin-left: -260px; width: 520px; padding: 18px; border-radius: 24px; background: var(--o); color: #2b1100; text-align: center; font-size: 40px; font-weight: 900; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+
+/* سمارت سكرين */
+#smart { position: absolute; left: 460px; top: 150px; width: 1000px; height: 760px; background: #0063b1; color: #fff; box-shadow: 0 50px 120px rgba(0,0,0,.6); padding: 60px 70px; }
+#smart h2 { font-size: 56px; font-weight: 700; margin-bottom: 34px; }
+#smart p { font-size: 30px; line-height: 1.7; font-weight: 400; max-width: 820px; }
+#more { display: inline-block; margin-top: 26px; font-size: 30px; text-decoration: underline; font-weight: 600; }
+#smartInfo { margin-top: 34px; font-size: 28px; line-height: 1.9; }
+#smartInfo b { font-weight: 700; }
+.sbtns { position: absolute; left: 70px; bottom: 50px; display: flex; gap: 20px; direction: ltr; }
+.sbtn { padding: 14px 40px; font-size: 28px; font-weight: 600; border: 3px solid #fff; color: #fff; background: transparent; }
+.sbtn.fill { background: #fff; color: #0063b1; }
+#normal { position: absolute; right: 120px; top: 120px; padding: 18px 30px; border-radius: 22px; background: #fff; color: var(--ink); font-size: 36px; font-weight: 900; box-shadow: 0 20px 50px rgba(0,0,0,.4); display: flex; gap: 14px; align-items: center; }
+#normal .icon { width: 44px; height: 44px; color: var(--g2); }
+
+/* نافذة التنصيب */
+#inst { position: absolute; left: 410px; top: 110px; width: 1100px; height: 860px; background: #f0f0f0; color: #111; box-shadow: 0 50px 120px rgba(0,0,0,.6); border: 1px solid #999; }
+.ititle { height: 52px; background: #fff; display: flex; align-items: center; gap: 12px; padding: 0 18px; font-size: 22px; border-bottom: 1px solid #ccc; }
+.ititle img { width: 28px; height: 28px; border-radius: 6px; }
+.ipage { position: absolute; left: 0; right: 0; top: 52px; bottom: 110px; opacity: 0; }
+.ipage.side { background: #fff; }
+.ipage.side .sb { position: absolute; right: 0; top: 0; width: 360px; height: 100%; object-fit: cover; }
+.ipage.side .tx { position: absolute; right: 400px; left: 40px; top: 40px; }
+.ipage.side h3 { font-size: 40px; font-weight: 800; margin-bottom: 24px; }
+.ipage.side p { font-size: 25px; line-height: 1.7; white-space: pre-line; }
+.ihead { height: 130px; background: #fff; border-bottom: 1px solid #ccc; position: relative; padding: 24px 40px; }
+.ihead img { position: absolute; left: 30px; top: 18px; height: 94px; }
+.ihead h4 { font-size: 30px; font-weight: 800; } .ihead small { font-size: 22px; color: #444; }
+.lic { margin: 26px 40px; height: 360px; background: #fff; border: 1px solid #aaa; padding: 20px 26px; font-size: 22px; line-height: 1.65; overflow: hidden; white-space: pre-line; }
+.ibar { margin: 60px 40px 0; height: 34px; border: 1px solid #999; background: #fff; }
+.ibar i { display: block; height: 100%; width: 0; background: #06b025; }
+.ilog { margin: 24px 40px; font-size: 22px; color: #333; direction: ltr; text-align: left; font-family: 'Courier New', monospace; }
+.ibtns { position: absolute; left: 0; right: 0; bottom: 0; height: 110px; border-top: 1px solid #ccc; display: flex; align-items: center; gap: 16px; padding: 0 34px; direction: ltr; }
+.ibtn { min-width: 150px; padding: 10px 20px; font-size: 24px; text-align: center; background: #e1e1e1; border: 1px solid #adadad; }
+.ibtn.def { border: 2px solid #0078d7; }
+.ibtn.hide { visibility: hidden; }
+.check { display: flex; align-items: center; gap: 12px; font-size: 26px; margin-top: 30px; }
+.check i { width: 28px; height: 28px; border: 2px solid #0078d7; background: #0078d7; color: #fff; display: grid; place-items: center; font-style: normal; font-size: 20px; }
+
+/* نافذة البرنامج */
+#app { position: absolute; left: 285px; top: 90px; width: 1350px; height: 944px; }
+.atitle { height: 44px; background: #e9eeec; color: #333; display: flex; align-items: center; gap: 10px; padding: 0 16px; font-size: 20px; }
+.atitle img { width: 26px; height: 26px; border-radius: 6px; }
+.aview { position: absolute; left: 0; top: 44px; width: 1350px; height: 900px; overflow: hidden; background: #f4f6f5; }
+.aview img { position: absolute; transform-origin: 0 0; }
+.hl { position: absolute; border: 5px solid var(--o); border-radius: 14px; box-shadow: 0 0 30px rgba(255,138,42,.7); opacity: 0; }
+.callout { position: absolute; padding: 24px 40px; border-radius: 28px; background: #fff; color: var(--ink); box-shadow: 0 30px 80px rgba(0,0,0,.55); text-align: center; z-index: 30; }
+.callout small { display: block; font-size: 28px; font-weight: 700; color: #557; }
+.callout b { display: block; font-size: 64px; font-weight: 900; color: var(--g); letter-spacing: 3px; }
+#toastCopy { position: absolute; left: 330px; bottom: 120px; padding: 14px 28px; border-radius: 14px; background: #1d2b28; color: #fff; font-size: 26px; font-weight: 700; z-index: 30; }
+
+/* الموبايل والمحادثة */
+.phone { position: absolute; width: 520px; height: 960px; border-radius: 64px; background: #0e1514; border: 12px solid #26332f; box-shadow: 0 0 0 3px rgba(61,255,197,.3), 0 50px 120px rgba(0,0,0,.65); overflow: hidden; }
+.chead { height: 120px; background: #0f6e5c; display: flex; align-items: center; gap: 16px; padding: 34px 26px 0; }
+.chead img { width: 62px; height: 62px; border-radius: 16px; }
+.chead b { font-size: 28px; display: block; } .chead small { font-size: 20px; opacity: .8; }
+.cbody { position: absolute; left: 0; right: 0; top: 120px; bottom: 90px; background: #e9e1d6; padding: 22px 18px; display: flex; flex-direction: column; gap: 14px; }
+.msg { max-width: 82%; padding: 14px 18px 22px; border-radius: 18px; font-size: 25px; line-height: 1.5; color: #111; position: relative; box-shadow: 0 2px 2px rgba(0,0,0,.1); }
+.msg.out { align-self: flex-start; background: #d9fdd3; border-top-left-radius: 4px; }
+.msg.in { align-self: flex-end; background: #fff; border-top-right-radius: 4px; }
+.msg .mono { font-size: 24px; font-weight: 700; color: #0b5c4b; }
+.msg time { position: absolute; left: 12px; bottom: 4px; font-size: 15px; color: #777; }
+.cin { position: absolute; left: 0; right: 0; bottom: 0; height: 90px; background: #f0f2f5; display: flex; align-items: center; padding: 0 18px; gap: 12px; }
+.cin div { flex: 1; height: 56px; border-radius: 28px; background: #fff; }
+.cin i { width: 56px; height: 56px; border-radius: 50%; background: #0f6e5c; display: grid; place-items: center; color: #fff; font-style: normal; font-size: 26px; }
+#ph7 { left: 1250px; top: 70px; }
+.side-text { position: absolute; right: 120px; top: 260px; width: 1000px; text-align: right; }
+.side-text h2 { font-size: 68px; font-weight: 900; margin-bottom: 30px; }
+.side-list { display: flex; flex-direction: column; gap: 22px; }
+.side-list div { display: flex; align-items: center; gap: 18px; font-size: 44px; font-weight: 800; padding: 16px 28px; border-radius: 22px; background: rgba(255,255,255,.07); border: 2px solid rgba(61,255,197,.3); }
+.side-list .icon { width: 50px; height: 50px; color: var(--n); }
+
+/* الأسعار */
+#t8 { top: 70px; font-size: 76px; }
+.prices { position: absolute; left: 90px; right: 90px; top: 250px; display: flex; gap: 26px; justify-content: center; }
+.pc { flex: 1; max-width: 330px; padding: 40px 20px 34px; border-radius: 34px; background: rgba(255,255,255,.07); border: 3px solid rgba(61,255,197,.3); text-align: center; position: relative; }
+.pc h4 { font-size: 40px; font-weight: 900; margin-bottom: 16px; }
+.pc .v { font-size: 86px; font-weight: 900; color: var(--n); direction: ltr; line-height: 1.1; }
+.pc .v small { font-size: 44px; }
+.pc .s { font-size: 26px; color: #b9d0ca; margin-top: 10px; }
+.pc.best { background: linear-gradient(170deg, rgba(255,138,42,.25), rgba(255,138,42,.06)); border-color: var(--o); }
+.pc.best .v { color: var(--o2); }
+.pc .rib { position: absolute; top: -24px; left: 50%; transform: translateX(-50%); padding: 4px 22px; border-radius: 999px; background: var(--o); color: #2b1100; font-size: 24px; font-weight: 900; white-space: nowrap; }
+#devices { position: absolute; left: 0; right: 0; top: 760px; display: flex; justify-content: center; align-items: center; gap: 34px; font-size: 52px; font-weight: 900; }
+#devices .icon { width: 110px; height: 110px; color: var(--n); }
+
+/* الدفع */
+#t9 { top: 90px; font-size: 80px; }
+.pays { position: absolute; left: 0; right: 0; top: 300px; display: flex; justify-content: center; gap: 70px; }
+.pay { width: 620px; padding: 50px 40px; border-radius: 40px; background: #fff; color: var(--ink); text-align: center; box-shadow: 0 40px 90px rgba(0,0,0,.5); }
+.pay .ic { width: 150px; height: 150px; margin: 0 auto 24px; border-radius: 40px; display: grid; place-items: center; background: linear-gradient(160deg, #1fe0ac, #0b8a6d); color: #fff; }
+.pay .ic .icon { width: 90px; height: 90px; }
+.pay.cash .ic { background: linear-gradient(160deg, #ffb36b, #ff7a1a); }
+.pay h3 { font-size: 64px; font-weight: 900; }
+.pay p { font-size: 32px; color: #456; margin-top: 12px; font-weight: 700; }
+.pay .note { margin-top: 20px; display: inline-flex; gap: 10px; align-items: center; padding: 10px 22px; border-radius: 999px; background: #e7f6f1; color: var(--g); font-size: 28px; font-weight: 800; }
+.pay .note .icon { width: 32px; height: 32px; }
+
+/* تم */
+#done10 { position: absolute; left: 50%; top: 300px; width: 220px; height: 220px; margin-left: -110px; border-radius: 50%; background: var(--n); color: #03211b; display: grid; place-items: center; box-shadow: 0 0 80px rgba(61,255,197,.6); z-index: 30; }
+#done10 .icon { width: 130px; height: 130px; }
+
+/* ملاحظة الإنترنت */
+#t12 { top: 110px; font-size: 76px; }
+.net { position: absolute; left: 0; right: 0; top: 300px; display: flex; justify-content: center; gap: 60px; }
+.nb { width: 460px; padding: 40px; border-radius: 40px; background: rgba(255,255,255,.07); border: 3px solid rgba(61,255,197,.3); text-align: center; }
+.nb .icon { width: 130px; height: 130px; margin: 0 auto 20px; color: var(--n); }
+.nb h3 { font-size: 46px; font-weight: 900; line-height: 1.3; }
+.week { display: flex; gap: 10px; justify-content: center; margin-bottom: 26px; }
+.week i { width: 50px; height: 70px; border-radius: 12px; background: rgba(255,255,255,.12); font-style: normal; display: grid; place-items: center; font-size: 22px; font-weight: 800; color: #9bb; }
+.week i.on { background: var(--n); color: #03211b; }
+
+/* النهاية */
+#lg13 { position: absolute; left: 50%; top: 70px; width: 170px; height: 170px; margin-left: -85px; border-radius: 46px; box-shadow: 0 0 80px rgba(61,255,197,.4); }
+#t13 { top: 250px; font-size: 64px; }
+.wa { position: absolute; left: 50%; top: 380px; width: 980px; margin-left: -490px; padding: 34px; border-radius: 40px; background: rgba(4,20,17,.85); border: 3px solid rgba(61,255,197,.5); text-align: center; }
+.wa .num { font-size: 84px; font-weight: 900; direction: ltr; letter-spacing: 2px; }
+#url13 { top: 740px; font-size: 44px; font-weight: 800; color: var(--n); }
+#lk13 { top: 820px; font-size: 64px; }
+#ar13 { position: absolute; left: 50%; top: 930px; width: 90px; height: 90px; margin-left: -45px; color: var(--n); }
+
+/* المؤشر */
+#cursor { position: absolute; left: 0; top: 0; width: 46px; height: 46px; z-index: 100; pointer-events: none; }
+#cursor svg { width: 100%; height: 100%; filter: drop-shadow(0 6px 10px rgba(0,0,0,.5)); }
+#ripple { position: absolute; width: 90px; height: 90px; margin: -45px 0 0 -45px; border-radius: 50%; border: 5px solid var(--o); z-index: 99; opacity: 0; }
+#flash { position: absolute; inset: 0; background: #fff; opacity: 0; z-index: 200; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="grid"></div><div id="glow"></div>
+
+  <section class="scene" id="s1">
+    <img id="lg1" src="assets/logo.png" />
+    <div class="t" id="t1a">ميزان <span class="n">خطوة بخطوة</span></div>
+    <div class="t" id="t1b">من التحميل… للتفعيل</div>
+    <div class="flow">
+      <div class="fl" id="f1"><span class="icon">{{icon:download}}</span>تحميل</div><div class="arr" id="a1">←</div>
+      <div class="fl" id="f2"><span class="icon">{{icon:package-check}}</span>تنصيب</div><div class="arr" id="a2">←</div>
+      <div class="fl" id="f3"><span class="icon">{{icon:shield-check}}</span>تفعيل</div>
+    </div>
+  </section>
+
+  <section class="scene" id="s2">
+    <div class="win" id="browser">
+      <div class="bbar"><div class="dots"><i></i><i></i><i></i></div><div class="url"><span class="lock">🔒</span><span class="tx" data-text="akyedgam3.github.io/mizan-updates"></span></div><div class="dlicon" id="dlicon"><span class="icon">{{icon:download}}</span></div></div>
+      <div id="bcontent"><img src="assets/shots/site.png" /><div id="blank"></div>
+        <div id="dlpop"><h4>التنزيلات</h4><div class="frow" id="frow"><div class="ficon"><img src="assets/logo.png" /></div><div style="flex:1"><b>Mizan-Setup.exe</b><small id="dlsz">99.4 MB</small><div class="bar"><i id="dlbar"></i></div></div></div></div>
+      </div>
+    </div>
+    <div id="linkbadge">الرابط تحت الفيديو ↓</div>
+    <div class="cap" id="c2">١. التحميل من الموقع</div>
+  </section>
+
+  <section class="scene" id="s3">
+    <div id="smart">
+      <h2>قام Windows بحماية الكمبيوتر</h2>
+      <p>منع Microsoft Defender SmartScreen تطبيقاً غير معروف من البدء. قد يؤدي تشغيل هذا التطبيق إلى تعريض الكمبيوتر للخطر.</p>
+      <div id="more">مزيد من المعلومات</div>
+      <div id="smartInfo"><div>التطبيق: <b class="mono">Mizan-Setup.exe</b></div><div>الناشر: <b>ناشر غير معروف</b></div></div>
+      <div class="sbtns"><div class="sbtn" id="runAny">تشغيل على أي حال</div><div class="sbtn fill">عدم التشغيل</div></div>
+    </div>
+    <div id="normal"><span class="icon">{{icon:shield-check}}</span>طبيعي… لأنو البرنامج جديد</div>
+    <div class="cap" id="c3">رسالة ويندوز الزرقا</div>
+  </section>
+
+  <section class="scene" id="s4">
+    <div id="inst">
+      <div class="ititle"><img src="assets/logo.png" />إعداد ميزان</div>
+      <div class="ipage side" id="ip1"><img class="sb" src="assets/sidebar.png" /><div class="tx"><h3>أهلاً بك في ميزان</h3><p>برنامج المحاسبة وإدارة المحلات اللي بيشتغل بدون إنترنت.
+
+•  أكتر من 14 مجال عمل
+•  بيع وفواتير ومخزون وحسابات بمكان واحد
+•  ليرة ودولار، وطباعة حرارية و A4
+•  بياناتك مشفّرة وبتضل على جهازك
+
+اكبس «التالي» لنكمّل.</p></div></div>
+      <div class="ipage" id="ip2"><div class="ihead"><img src="assets/header.png" /><h4>اتفاقية الترخيص</h4><small>اقرأ الشروط قبل تنصيب ميزان</small></div><div class="lic">{{LICENSE}}</div></div>
+      <div class="ipage" id="ip3"><div class="ihead"><img src="assets/header.png" /><h4>عم ننصّب ميزان...</h4><small>فكرة: وقت إنشاء شركتك اختار «بيانات تجريبية» لتشوف البرنامج شغّال</small></div><div class="ibar"><i id="ibar"></i></div><div class="ilog" id="ilog">Extract: Mizan.exe...</div></div>
+      <div class="ipage side" id="ip4"><img class="sb" src="assets/sidebar.png" /><div class="tx"><h3>ميزان جاهز!</h3><p>خلص التنصيب بنجاح.
+
+الخطوة الجاية:
+1.  أول ما يفتح البرنامج بيطلعلك «بصمة الجهاز».
+2.  ابعتها للبائع أو للوكيل تبعك.
+3.  الصق مفتاح التفعيل اللي بيوصلك.</p><div class="check"><i>✓</i>شغّل ميزان الآن</div></div></div>
+      <div class="ibtns"><div class="ibtn" id="bCancel">إلغاء</div><div style="flex:1"></div><div class="ibtn" id="bBack">&lt; السابق</div><div class="ibtn def" id="bNext">التالي &gt;</div></div>
+    </div>
+    <div class="cap" id="c4">٢. التنصيب</div>
+  </section>
+
+  <section class="scene" id="s5">
+    <div class="win" id="app">
+      <div class="atitle"><img src="assets/logo.png" />ميزان</div>
+      <div class="aview"><img id="lockimg" src="assets/shots/lock.png" /><img id="keyimg" src="assets/shots/lock_key.png" /><img id="welimg" src="assets/shots/welcome.png" />
+        <div class="hl" id="hlCode"></div><div class="hl" id="hlCopy"></div><div class="hl" id="hlArea"></div><div class="hl" id="hlAct"></div><div class="hl" id="hlNew"></div></div>
+    </div>
+    <div class="callout" id="fp" style="left:560px;top:110px"><small>بصمة الجهاز</small><b class="mono">{{MACHINE}}</b></div>
+    <div class="callout" id="mine" style="left:620px;top:830px;padding:16px 34px"><b style="font-size:40px;letter-spacing:0">خاص بجهازك إنت</b></div>
+    <div id="toastCopy">تم نسخ البصمة ✓</div>
+    <div id="done10"><span class="icon">{{icon:check}}</span></div>
+    <div class="cap" id="c5">٣. التفعيل</div>
+  </section>
+
+  <section class="scene" id="s6">
+    <div class="phone" id="ph6" style="left:1260px;top:60px">
+      <div class="chead"><img src="assets/logo.png" /><div><b>ميزان — المبيعات</b><small>واتساب</small></div></div>
+      <div class="cbody">
+        <div class="msg out" id="m1"><span class="mono">647A-3138-0FF9-AD5D</span><time>10:21</time></div>
+        <div class="msg out" id="m2">الاسم: أبو أحمد<time>10:21</time></div>
+        <div class="msg out" id="m3">المحل: سوبرماركت الخير<time>10:21</time></div>
+        <div class="msg out" id="m4">الاشتراك: سنوي<time>10:22</time></div>
+      </div>
+      <div class="cin"><div></div><i>➤</i></div>
+    </div>
+    <div class="side-text" style="right:auto;left:150px;width:960px"><h2>ابعتلنا عالواتساب</h2>
+      <div class="side-list"><div id="l1"><span class="icon">{{icon:shield-check}}</span>بصمة الجهاز</div><div id="l2"><span class="icon">{{icon:user}}</span>اسمك</div><div id="l3"><span class="icon">{{icon:store}}</span>اسم محلك</div><div id="l4"><span class="icon">{{icon:calendar-clock}}</span>نوع الاشتراك</div></div>
+    </div>
+  </section>
+
+  <section class="scene" id="s7">
+    <div class="t" id="t8">الاشتراكات</div>
+    <div class="prices">
+      <div class="pc" id="p1"><h4>شهر</h4><div class="v">4.99<small>$</small></div><div class="s">جرّب براحتك</div></div>
+      <div class="pc" id="p2"><h4>3 أشهر</h4><div class="v">11.99<small>$</small></div><div class="s">≈ 4$ بالشهر</div></div>
+      <div class="pc" id="p3"><h4>6 أشهر</h4><div class="v">19.99<small>$</small></div><div class="s">≈ 3.3$ بالشهر</div></div>
+      <div class="pc best" id="p4"><div class="rib">الأكتر طلباً</div><h4>سنة كاملة</h4><div class="v">29.99<small>$</small></div><div class="s">≈ 2.5$ بالشهر</div></div>
+      <div class="pc" id="p5"><h4>شراء دائم</h4><div class="v">59.99<small>$</small></div><div class="s">مرة وحدة وبس</div></div>
+    </div>
+    <div id="devices"><span class="icon">{{icon:laptop}}</span>كل اشتراك <span class="n">على جهازين</span><span class="icon">{{icon:laptop}}</span></div>
+  </section>
+
+  <section class="scene" id="s8">
+    <div class="t" id="t9">الدفع</div>
+    <div class="pays">
+      <div class="pay" id="pay1"><div class="ic"><span class="icon">{{icon:smartphone}}</span></div><h3>شام كاش</h3><p>تحويل على حسابنا</p><div class="note" id="note1"><span class="icon">{{icon:message-circle}}</span>رقم الحساب منبعتلك ياه عالواتساب</div></div>
+      <div class="pay cash" id="pay2"><div class="ic"><span class="icon">{{icon:banknote}}</span></div><h3>نقدي</h3><p>باليد</p></div>
+    </div>
+  </section>
+
+  <section class="scene" id="s9">
+    <div class="phone" id="ph9" style="left:200px;top:60px">
+      <div class="chead"><img src="assets/logo.png" /><div><b>ميزان — المبيعات</b><small>واتساب</small></div></div>
+      <div class="cbody">
+        <div class="msg out">تم التحويل ✓<time>10:30</time></div>
+        <div class="msg in" id="k1">وصلت الدفعة، شكراً 🌷<time>10:31</time></div>
+        <div class="msg in" id="k2">مفتاح التفعيل:<br /><span class="mono" style="font-size:19px;word-break:break-all">MZN2-eyJ2IjoyLCJpZCI6IjE0MmUwZDJhLTk3MzYtNDJlYy1h…</span><time>10:31</time></div>
+      </div>
+      <div class="cin"><div></div><i>➤</i></div>
+    </div>
+    <div class="side-text" style="right:110px;width:900px"><h2 id="t9b">بعد ما توصلنا الدفعة…</h2><div class="side-list"><div id="kk"><span class="icon">{{icon:shield-check}}</span>منبعتلك مفتاح التفعيل</div><div id="kc"><span class="icon">{{icon:layers}}</span>انسخه… والصقه بالبرنامج</div></div></div>
+  </section>
+
+  <section class="scene" id="s10">
+    <div class="t" id="t12">ملاحظة صغيرة</div>
+    <div class="net">
+      <div class="nb" id="nb1"><span class="icon">{{icon:wifi-off}}</span><h3>بيشتغل<br />بدون إنترنت</h3></div>
+      <div class="nb" id="nb2"><div class="week"><i>س</i><i>ح</i><i>ن</i><i class="on">ث</i><i>ر</i><i>خ</i><i>ج</i></div><h3>بس خلّيه يتصل<br /><span class="n">ولو مرة بالأسبوع</span></h3></div>
+      <div class="nb" id="nb3"><span class="icon">{{icon:shield-check}}</span><h3>ليتأكد من<br />الاشتراك</h3></div>
+    </div>
+  </section>
+
+  <section class="scene" id="s11">
+    <img id="lg13" src="assets/logo.png" />
+    <div class="t" id="t13">للتواصل <span class="n">واتساب</span></div>
+    <div class="wa"><div class="num" id="n1"><span class="tx" data-text="+963 968 037 609"></span></div><div class="num" id="n2"><span class="tx" data-text="+963 980 072 891"></span></div></div>
+    <div class="t mono" id="url13">akyedgam3.github.io/mizan-updates</div>
+    <div class="t" id="lk13">الرابط <span class="n">تحت الفيديو</span></div>
+    <div class="icon" id="ar13">{{icon:arrow-down}}</div>
+  </section>
+
+  <div id="steps"><div id="st1">تحميل</div><div id="st2">تنصيب</div><div id="st3">تفعيل</div><div id="st4">اشتراك</div></div>
+  <div id="ripple"></div>
+  <div id="cursor"><svg viewBox="0 0 24 24"><path d="M4 2 L4 20 L9 15 L12.5 22 L15.5 20.6 L12 14 L19 14 Z" fill="#fff" stroke="#000" stroke-width="1.3" stroke-linejoin="round"/></svg></div>
+  <div id="flash"></div>
+</div>
+<script src="assets/gsap.min.js"></script>
+<script>
+const STATES = {{STATES}};
+const $ = (q) => document.querySelector(q);
+const $$ = (q) => [...document.querySelectorAll(q)];
+const DUR = 121.5;
+const SCENES = [['#s1', 0, 6.1], ['#s2', 6.1, 16.65], ['#s3', 16.65, 24.95], ['#s4', 24.95, 35.4], ['#s5', 35.4, 43.55], ['#s6', 43.55, 49.1], ['#s7', 49.1, 70.55], ['#s8', 70.55, 78.05], ['#s9', 78.05, 84.2], ['#s5', 84.2, 93.15], ['#s10', 93.15, 101.15], ['#s11', 101.15, DUR]];
+const TYPES = [['#s2 .url .tx', 6.45, 0.9], ['#n1 .tx', 103.48, 6.6], ['#n2 .tx', 110.8, 6.2]];
+
+// مواقع العناصر (بدون أي تحريك) لحساب مسار الماوس
+const C = (sel) => { const r = $(sel).getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
+// لقطات البرنامج: مقطع من اللقطة مكبّر داخل نافذة البرنامج
+const AV = { x: 285, y: 134 };
+const CROP = { lock: { x: 380, y: 230, s: 1350 / 840 }, welcome: { x: 300, y: 0, s: 1.35 } };
+for (const [id, c] of [['#lockimg', CROP.lock], ['#keyimg', CROP.lock], ['#welimg', CROP.welcome]]) Object.assign($(id).style, { left: `${-c.x * c.s}px`, top: `${-c.y * c.s}px`, transform: `scale(${c.s})` });
+const inApp = (shot, b, crop) => ({ left: (b.x - crop.x) * crop.s, top: (b.y - crop.y) * crop.s, width: b.w * crop.s, height: b.h * crop.s });
+const appC = (b, crop) => [AV.x + (b.x + b.w / 2 - crop.x) * crop.s, AV.y + (b.y + b.h / 2 - crop.y) * crop.s];
+const L = STATES.lock, W = STATES.welcome;
+for (const [id, b, crop] of [['#hlCode', L.code, CROP.lock], ['#hlCopy', L.copy, CROP.lock], ['#hlArea', L.area, CROP.lock], ['#hlAct', L.activate, CROP.lock], ['#hlNew', W.tabs, CROP.welcome]]) {
+  const r = inApp('', b, crop);
+  Object.assign($(id).style, { left: `${r.left - 10}px`, top: `${r.top - 10}px`, width: `${r.width + 20}px`, height: `${r.height + 20}px` });
+}
+let tl;
+function build() {
+const P = {
+  dl: C('#bcontent') && [210 + (STATES.site.dl.x + STATES.site.dl.w / 2) * (1500 / 1600), 150 + (STATES.site.dl.y + STATES.site.dl.h / 2) * (1500 / 1600)],
+  frow: C('#frow'), more: C('#more'), run: C('#runAny'), next: C('#bNext'),
+  code: appC(L.code, CROP.lock), copy: appC(L.copy, CROP.lock), area: appC(L.area, CROP.lock), act: appC(L.activate, CROP.lock), neu: appC(W.tabs, CROP.welcome),
+};
+
+tl = gsap.timeline({ paused: true, defaults: { ease: 'power3.out' } });
+const IM = (o) => ({ ...o, immediateRender: false });
+const pop = (sel, at, from = {}, d = 0.45, ease = 'back.out(1.8)') => tl.fromTo(sel, { opacity: 0, scale: 0.6, ...from }, IM({ opacity: 1, scale: 1, x: 0, y: 0, rotation: 0, duration: d, ease }), at);
+const show = (sel, at, d = 0.4) => tl.fromTo(sel, { opacity: 0, y: 30 }, IM({ opacity: 1, y: 0, duration: d }), at);
+const hide = (sel, at, d = 0.25) => tl.to(sel, { opacity: 0, duration: d }, at);
+const flash = (at, p = 0.35) => tl.fromTo('#flash', { opacity: p }, IM({ opacity: 0, duration: 0.3 }), at);
+// الماوس: [وقت الوصول، النقطة، مدة الحركة، كبسة؟]
+const CLICKS = [];
+let cursorPos = [1700, 1000];
+function move(at, pt, d = 0.7, click = false) {
+  tl.to('#cursor', { x: pt[0] - 8, y: pt[1] - 6, duration: d, ease: 'power2.inOut' }, at - d);
+  cursorPos = pt;
+  if (click) {
+    CLICKS.push(at);
+    tl.fromTo('#ripple', { left: pt[0], top: pt[1], opacity: 1, scale: 0.3 }, IM({ opacity: 0, scale: 1.4, duration: 0.45 }), at);
+    tl.fromTo('#cursor', { scale: 1 }, IM({ keyframes: [{ scale: 0.8, duration: 0.07 }, { scale: 1, duration: 0.12 }] }), at);
+  }
+}
+const cursorOn = (at, pt) => { tl.set('#cursor', { opacity: 1, x: pt[0], y: pt[1] }, at); };
+const cursorOff = (at) => tl.set('#cursor', { opacity: 0 }, at);
+
+tl.set('.scene', { visibility: 'hidden' }, 0);
+$$('.scene .t, .fl, .arr, #lg1, #linkbadge, #dlpop, #normal, #smartInfo, .ipage, .callout, #toastCopy, #done10, .msg, .side-list div, .side-text h2, .pc, #devices, .pay, .note, .nb, .wa, #lg13, #ar13, .cap, .hl, #keyimg, #welimg, #runAny').forEach((e) => tl.set(e, { opacity: 0 }, 0));
+tl.set('#cursor', { opacity: 0 }, 0);
+SCENES.forEach(([s, a, b]) => {
+  tl.set(s, { visibility: 'visible' }, a);
+  tl.fromTo(s, { opacity: 0 }, IM({ opacity: 1, duration: 0.35 }), a);
+  tl.to(s, { opacity: 0, duration: 0.25 }, b - 0.25);
+  tl.set(s, { visibility: 'hidden' }, b);
+});
+// شريط الخطوات
+tl.set('#steps', { opacity: 0 }, 0); tl.to('#steps', { opacity: 1, duration: 0.3 }, 6.1); tl.to('#steps', { opacity: 0, duration: 0.3 }, 100.8);
+
+// 1
+pop('#lg1', 0.62, { rotationY: 180 }, 0.7);
+show('#t1a', 1.0); show('#t1b', 1.9);
+pop('#f1', 2.9); pop('#a1', 3.3); pop('#f2', 3.5); pop('#a2', 3.9); pop('#f3', 4.1);
+// 2 المتصفح والتحميل
+show('#c2', 6.3);
+tl.fromTo('#browser', { y: 200, opacity: 0 }, IM({ y: 0, opacity: 1, duration: 0.5 }), 6.1);
+tl.to('#blank', { opacity: 0, duration: 0.4 }, 7.5);
+pop('#linkbadge', 8.4, { y: 60 });
+hide('#linkbadge', 9.9);
+cursorOn(9.9, [1650, 980]);
+move(10.95, P.dl, 0.9, true);
+tl.fromTo('#dlicon', { scale: 1 }, IM({ keyframes: [{ scale: 1.4, duration: 0.15 }, { scale: 1, duration: 0.2 }] }), 11.6);
+pop('#dlpop', 12.68, { y: -30 }, 0.35);
+tl.fromTo('#dlbar', { width: '0%' }, IM({ width: '100%', duration: 1.7, ease: 'power1.inOut' }), 12.8);
+move(15.7, P.frow, 0.9, true);
+cursorOff(16.5);
+// 3 سمارت سكرين
+show('#c3', 16.9);
+tl.fromTo('#smart', { scale: 0.85, opacity: 0 }, IM({ scale: 1, opacity: 1, duration: 0.35 }), 16.93);
+pop('#normal', 19.65, { x: 60 });
+cursorOn(20.6, [1500, 900]);
+move(21.75, P.more, 0.8, true);
+hide('#more', 22.0, 0.15); show('#smartInfo', 22.05, 0.3); tl.to('#runAny', { opacity: 1, duration: 0.2 }, 22.05);
+move(23.95, P.run, 0.9, true);
+tl.to('#smart', { scale: 0.9, opacity: 0, duration: 0.3 }, 24.4);
+cursorOff(24.8);
+// 4 التنصيب
+show('#c4', 25.1);
+tl.fromTo('#inst', { y: 100, opacity: 0 }, IM({ y: 0, opacity: 1, duration: 0.45 }), 25.0);
+tl.set('#ip1', { opacity: 1 }, 25.0);
+cursorOn(25.6, [1600, 900]);
+move(26.95, P.next, 0.9, true);
+tl.set('#ip1', { opacity: 0 }, 27.4); tl.set('#ip2', { opacity: 1 }, 27.4); tl.set('#bNext', { innerText: 'موافق' }, 27.4);
+move(29.6, P.next, 0.5, true);
+tl.set('#ip2', { opacity: 0 }, 30.0); tl.set('#ip3', { opacity: 1 }, 30.0); tl.set('#bNext', { opacity: 0.45 }, 30.0); tl.set('#bBack', { opacity: 0.45 }, 30.0);
+tl.fromTo('#ibar', { width: '0%' }, IM({ width: '100%', duration: 2.6, ease: 'power1.inOut' }), 30.3);
+tl.set('#ip3', { opacity: 0 }, 33.1); tl.set('#ip4', { opacity: 1 }, 33.1); tl.set('#bNext', { innerText: 'إنهاء', opacity: 1 }, 33.1); tl.set('#bBack', { opacity: 0 }, 33.1); tl.set('#bCancel', { opacity: 0 }, 33.1);
+move(34.35, P.next, 0.7, true);
+tl.to('#inst', { scale: 0.9, opacity: 0, duration: 0.3 }, 34.9);
+cursorOff(35.2);
+// 5 شاشة التفعيل
+show('#c5', 35.6);
+tl.fromTo('#app', { scale: 0.9, opacity: 0 }, IM({ scale: 1, opacity: 1, duration: 0.5 }), 35.45);
+tl.fromTo('#hlCode', { opacity: 0, scale: 1.2 }, IM({ opacity: 1, scale: 1, duration: 0.35 }), 37.6);
+pop('#fp', 38.3, { y: -40 });
+pop('#mine', 40.1, { y: 40 });
+hide(['#fp', '#mine'], 41.9);
+cursorOn(41.3, [1500, 950]);
+tl.fromTo('#hlCopy', { opacity: 0 }, IM({ opacity: 1, duration: 0.3 }), 42.12);
+move(42.75, P.copy, 0.8, true);
+pop('#toastCopy', 42.85, { y: 40 }, 0.3);
+cursorOff(43.4);
+// 6 المحادثة
+tl.fromTo('#ph6', { x: 500, opacity: 0 }, IM({ x: 0, opacity: 1, duration: 0.5 }), 43.6);
+show('#s6 .side-text h2', 43.73);
+pop('#m1', 44.3, { y: 30 }); show('#l1', 44.3);
+pop('#m2', 45.3, { y: 30 }); show('#l2', 45.3);
+pop('#m3', 46.0, { y: 30 }); show('#l3', 46.0);
+pop('#m4', 46.9, { y: 30 }); show('#l4', 46.9);
+// 7 الأسعار
+show('#t8', 49.46);
+pop('#p1', 50.93, { y: 80 }); pop('#p2', 53.76, { y: 80 }); pop('#p3', 56.7, { y: 80 }); pop('#p4', 59.75, { y: 80 }, 0.55); pop('#p5', 62.91, { y: 80 });
+tl.fromTo('#p4', { scale: 1 }, IM({ keyframes: [{ scale: 1.07, duration: 0.25 }, { scale: 1, duration: 0.3 }] }), 61.0);
+pop('#devices', 67.15, { y: 60 });
+// 8 الدفع
+show('#t9', 70.81);
+pop('#pay1', 72.87, { x: 200 }); pop('#note1', 74.81, { y: 20 }); pop('#pay2', 76.75, { x: -200 });
+// 9 المفتاح
+tl.fromTo('#ph9', { x: -500, opacity: 0 }, IM({ x: 0, opacity: 1, duration: 0.5 }), 78.1);
+show('#t9b', 78.25);
+tl.set('#ph9 .msg.out', { opacity: 1 }, 78.1);
+pop('#k1', 79.0, { y: 30 }); pop('#k2', 80.38, { y: 30 }); show('#kk', 80.38);
+show('#kc', 82.96);
+tl.fromTo('#k2', { backgroundColor: '#ffffff' }, IM({ keyframes: [{ backgroundColor: '#ffe9c7', duration: 0.2 }, { backgroundColor: '#ffffff', duration: 0.6 }] }), 83.2);
+// 10 اللصق والتفعيل (نفس نافذة البرنامج)
+tl.set(['#fp', '#mine', '#toastCopy', '#hlCode', '#hlCopy'], { opacity: 0 }, 84.2);
+tl.set('#c5', { opacity: 1 }, 84.2);
+tl.set('#keyimg', { opacity: 0 }, 84.2);
+tl.fromTo('#hlArea', { opacity: 0 }, IM({ opacity: 1, duration: 0.3 }), 84.31);
+cursorOn(84.3, [1500, 950]);
+move(84.9, P.area, 0.5, true);
+tl.set('#keyimg', { opacity: 1 }, 85.0);
+tl.set('#hlArea', { opacity: 0 }, 85.5); tl.fromTo('#hlAct', { opacity: 0 }, IM({ opacity: 1, duration: 0.3 }), 85.6);
+move(86.2, P.act, 0.6, true);
+flash(86.4, 0.4);
+tl.set(['#keyimg', '#hlAct'], { opacity: 0 }, 86.6); tl.set('#welimg', { opacity: 1 }, 86.6);
+pop('#done10', 87.38, { scale: 0.2 }, 0.5, 'back.out(2.5)');
+hide('#done10', 89.4);
+cursorOff(87.0);
+cursorOn(89.5, [1600, 900]);
+tl.fromTo('#hlNew', { opacity: 0 }, IM({ opacity: 1, duration: 0.3 }), 89.96);
+move(90.9, P.neu, 0.8, false);
+cursorOff(92.8);
+// 11 الإنترنت
+show('#t12', 93.37);
+pop('#nb1', 96.14, { y: 60 }); pop('#nb2', 97.72, { y: 60 }); pop('#nb3', 99.92, { y: 60 });
+// 12 النهاية
+pop('#lg13', 101.2, { rotationY: 180 }, 0.6);
+show('#t13', 101.37);
+pop('.wa', 102.12, { y: 60 });
+show('#url13', 116.2);
+show('#lk13', 117.81); pop('#ar13', 118.64, { y: -40 });
+tl.set({}, {}, DUR);
+window.CLICKS = CLICKS;
+}
+
+
+function render(t) {
+  tl.seek(t, false);
+  for (const [sel, a, d] of TYPES) {
+    const el = $(sel), full = el.dataset.text;
+    el.textContent = full.slice(0, Math.max(0, Math.min(full.length, Math.floor(((t - a) / d) * full.length))));
+  }
+  $('#ilog').textContent = t < 30.3 ? '' : ['Extract: Mizan.exe...', 'Extract: resources\\app.asar...', 'Extract: locales\\ar.pak...', 'Create shortcut: ميزان', 'Completed'][Math.min(4, Math.floor((t - 30.3) / 0.6))];
+  $('#dlsz').textContent = t < 12.8 ? '0 MB' : t < 14.5 ? `${Math.round(((t - 12.8) / 1.7) * 99)} من 99.4 MB` : 'اكتمل · 99.4 MB';
+  const sn = t < 24.95 ? 1 : t < 35.4 ? 2 : t < 49.1 ? 3 : t < 84.2 ? 4 : t < 93 ? 3 : 5;
+  for (let i = 1; i <= 4; i++) $(`#st${i}`).className = i < sn ? 'done' : i === sn ? 'on' : '';
+  $('#glow').style.opacity = 0.7 + 0.3 * Math.sin(t * 1.3);
+  $('#ar13').style.translate = `0 ${Math.sin(t * 6) * 14}px`;
+}
+window.render = render;
+window.DURATION = DUR;
+document.fonts.ready.then(() => Promise.all([...document.images].map((i) => (i.complete ? 0 : new Promise((r) => (i.onload = r)))))).then(() => { build(); render(0); window.READY = true; });
+</script>
+</body>
+</html>
