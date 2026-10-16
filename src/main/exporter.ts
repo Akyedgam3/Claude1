@@ -21,7 +21,7 @@ function safeSheetName(name: string, used: Set<string>): string {
 
 export async function buildWorkbook(sheets: ExportSheet[]): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'Mizan';
+  wb.creator = 'Miyar';
   wb.created = new Date();
   const used = new Set<string>();
   for (const s of sheets) {

@@ -320,7 +320,7 @@ function ReceiptTab() {
             <input value={r.thanks ?? ''} onChange={(e) => setR({ ...r, thanks: e.target.value })} placeholder="شكراً لزيارتكم" />
           </Field>
           <Field label="نص إضافي بالآخر">
-            <textarea rows={2} value={r.footer ?? ''} onChange={(e) => setR({ ...r, footer: e.target.value })} placeholder="واي فاي: Mizan2026" />
+            <textarea rows={2} value={r.footer ?? ''} onChange={(e) => setR({ ...r, footer: e.target.value })} placeholder="واي فاي: Cafe2026" />
           </Field>
         </div>
         <h4>شاشة الزبون</h4>

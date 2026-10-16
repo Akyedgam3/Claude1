@@ -65,7 +65,9 @@ function remember(name: string, dir: string): void {
 }
 
 function companiesRoot(): string {
-  return path.join(app.getPath('documents'), 'Mizan');
+  // الشركات القديمة بمجلد Mizan؛ الأجهزة الجديدة بتاخد مجلد باسم البرنامج الجديد
+  const old = path.join(app.getPath('documents'), 'Mizan');
+  return fs.existsSync(old) ? old : path.join(app.getPath('documents'), 'Miyar');
 }
 
 function safeFolderName(name: string): string {
@@ -237,7 +239,7 @@ function openCustomerDisplay(): { secondScreen: boolean } {
   const b = other?.bounds;
   custWin = new BrowserWindow({
     ...(b ? { x: b.x, y: b.y, width: b.width, height: b.height, fullscreen: true } : { width: 1024, height: 640 }),
-    title: 'ميزان — شاشة الزبون',
+    title: 'معيار — شاشة الزبون',
     icon: appIcon,
     autoHideMenuBar: true,
     backgroundColor: '#071c18',
@@ -377,7 +379,7 @@ function registerIpc(): void {
     if (!toExternal) return store.backup();
     const res = await dialog.showOpenDialog(win!, { title: 'اختر مكان النسخة الاحتياطية (فلاشة مثلاً)', properties: ['openDirectory'] });
     if (res.canceled || !res.filePaths[0]) return null;
-    return store.backup(path.join(res.filePaths[0], `Mizan-${safeFolderName(store.meta.name)}`), Infinity);
+    return store.backup(path.join(res.filePaths[0], `Miyar-${safeFolderName(store.meta.name)}`), Infinity);
   });
 
   /** تصفير الشركة (للمالك فقط، بكلمة السر): نسخة احتياطية تلقائية، ثم سجل جديد بدون حركات. */
@@ -472,7 +474,7 @@ function createWindow(): void {
     height: 860,
     minWidth: 1024,
     minHeight: 640,
-    title: 'ميزان',
+    title: 'معيار',
     icon: appIcon,
     autoHideMenuBar: true,
     backgroundColor: '#f5f6f8',
@@ -508,6 +510,9 @@ function createWindow(): void {
   if (isDev && process.env['ELECTRON_RENDERER_URL']) void win.loadURL(process.env['ELECTRON_RENDERER_URL']);
   else void win.loadFile(path.join(here, '../renderer/index.html'));
 }
+
+// الاسم صار «معيار» بس مجلد البيانات (الترخيص والإعدادات) بيضل باسمه القديم حتى ما يضيع شي عند الزباين
+app.setPath('userData', path.join(app.getPath('appData'), 'Mizan'));
 
 // صيغة التاريخ في حقول الإدخال: يوم/شهر/سنة كما هو معتاد في سوريا
 app.commandLine.appendSwitch('lang', 'en-GB');

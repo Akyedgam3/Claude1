@@ -20,15 +20,17 @@ npm run build >/dev/null
 # نسخة البيع ما لازم يكون فيها مفتاح التطوير أبداً
 if grep -q MCowBQYDK2VwAyEAWu46 out/main/index.js; then echo "خطأ: مفتاح التطوير موجود بالنسخة!"; exit 1; fi
 WINEDEBUG=-all CSC_IDENTITY_AUTO_DISCOVERY=false xvfb-run --auto-servernum npx electron-builder --win nsis --x64 --publish never >/dev/null
-ls -la dist/Mizan-Setup.exe
+ls -la dist/Miyar-Setup.exe
 
 # فرع مؤقت فوق main فيه الملف؛ الـ workflow بالمستودع العام بينشره وبيحذف الفرع
 [ -d "$UPDATES/.git" ] || git clone --depth 1 https://github.com/Akyedgam3/mizan-updates "$UPDATES"
 cd "$UPDATES"
 git fetch -q --depth 1 origin main && git checkout -q -B upload-tmp FETCH_HEAD
 mkdir -p release
-cp "$OLDPWD/dist/Mizan-Setup.exe" release/
-if [ -n "$NOTES" ]; then cp "$NOTES" release/NOTES.md; else echo "ميزان $VERSION" > release/NOTES.md; fi
+cp "$OLDPWD/dist/Miyar-Setup.exe" release/
+# نسخة بالاسم القديم كمان: روابط التحميل القديمة (والبرامج القديمة) بتضل شغالة
+cp "$OLDPWD/dist/Miyar-Setup.exe" release/Mizan-Setup.exe
+if [ -n "$NOTES" ]; then cp "$NOTES" release/NOTES.md; else echo "معيار $VERSION" > release/NOTES.md; fi
 git add release
 git -c user.name="$(git -C "$OLDPWD" log -1 --format=%an)" -c user.email="$(git -C "$OLDPWD" log -1 --format=%ae)" commit -q -m "Upload installer $VERSION"
 git push -q origin "+upload-tmp:refs/heads/upload/$VERSION"

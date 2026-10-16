@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>ميزان — إدارة التراخيص</title>
+<title>معيار — إدارة التراخيص</title>
 <style>
   :root { --p: #0f6e5c; --bg: #f4f5f7; --b: #e3e6eb; --muted: #6b7385; --bad: #c0392b; --warn: #b7791f; font-family: 'Segoe UI', Tahoma, sans-serif; font-size: 14px; }
   body { margin: 0; background: var(--bg); color: #1d2433; }
@@ -52,7 +52,7 @@
 </style>
 </head>
 <body>
-<header><h1>ميزان — إدارة التراخيص والاشتراكات</h1><button class="primary" onclick="publish()">نشر قائمة الحالة</button></header>
+<header><h1>معيار — إدارة التراخيص والاشتراكات</h1><button class="primary" onclick="publish()">نشر قائمة الحالة</button></header>
 <main>
   <div id="warnings"></div>
   <div class="tabs">
@@ -308,7 +308,7 @@ function activateForAgent(e, agentId) {
 }
 let lastIssued = null;
 function waText(c) {
-  return `ترخيص ميزان للزبون: ${c.name}\nالاشتراك: سنوي حتى ${fmtDate(c.expiresAt)}\nعدد الأجهزة: ${c.devices}\n\nمفتاح التفعيل (انسخه كامل والصقه بشاشة التفعيل):\n${c.key}`;
+  return `ترخيص معيار للزبون: ${c.name}\nالاشتراك: سنوي حتى ${fmtDate(c.expiresAt)}\nعدد الأجهزة: ${c.devices}\n\nمفتاح التفعيل (انسخه كامل والصقه بشاشة التفعيل):\n${c.key}`;
 }
 function sendWa(agentId, customerId) {
   const a = state.agents.find((x) => x.id === agentId);

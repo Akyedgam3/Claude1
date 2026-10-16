@@ -1,4 +1,6 @@
-# ميزان (Mizan) — دليل المشروع
+# معيار (Miyar) — دليل المشروع
+
+> الاسم التجاري صار **معيار / Miyar** (كان «ميزان» وفي شركة تانية بنفس الاسم). الأسماء الداخلية بقيت متل ما هي حتى ما يتأثر الزباين: `appId` = `sy.mizan.accounting`، مجلد البيانات `%APPDATA%\Mizan` (مثبّت بـ `app.setPath` بأول `src/main/index.ts`)، مجلد الشركات القديم `Documents\Mizan`، بادئات الترخيص `MZN2-` و `MZNF1.`، ومستودع `mizan-updates`. ملف التنصيب `Miyar-Setup.exe` وكل Release فيه نسخة `Mizan-Setup.exe` للروابط القديمة.
 
 برنامج محاسبة وإدارة محلات عربي (RTL) لسطح المكتب، يعمل بدون إنترنت. Electron + React 19 + TypeScript، الهدف ويندوز.
 
@@ -14,7 +16,7 @@
 - `Akyedgam3/Claude1` (خاص): كود البرنامج. فرع التطوير: `claude/syria-accounting-system-pj25xg`. لا تفتح PR إلا إذا طُلب.
 - `Akyedgam3/mizan-updates` (عام): الموقع الرسمي + `feed.txt` + ملفات التنصيب (Releases).
   - الموقع: https://akyedgam3.github.io/mizan-updates/
-  - التحميل: https://github.com/Akyedgam3/mizan-updates/releases/latest/download/Mizan-Setup.exe
+  - التحميل: https://github.com/Akyedgam3/mizan-updates/releases/latest/download/Miyar-Setup.exe (والاسم القديم `Mizan-Setup.exe` كمان شغال)
   - صفحات الموقع تُعدَّل في `tools/pages/` ثم `python3 tools/build_site.py`.
 
 ## الترخيص (مهم جداً)
