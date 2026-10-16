@@ -60,7 +60,7 @@ export function RepairEditor({ id }: { id?: string }) {
 
   const build = (): Omit<RepairOrder, 'number'> | null => {
     if (!vehicle) {
-      notify('اختر السيارة', 'error');
+      notify(asset.kind === 'vehicle' ? 'اختر السيارة' : 'اختر الجهاز', 'error');
       return null;
     }
     try {
@@ -133,7 +133,7 @@ export function RepairEditor({ id }: { id?: string }) {
         <section className="card form-grid four">
           <Field label={asset.one === 'سيارة' ? 'السيارة' : 'الجهاز'} wide>
             <div className="with-button">
-              <Picker options={vehicleOptions} value={vehicleId} onChange={setVehicleId} placeholder="ابحث باللوحة / IMEI أو اسم الزبون..." />
+              <Picker options={vehicleOptions} value={vehicleId} onChange={setVehicleId} placeholder={asset.kind === 'vehicle' ? 'ابحث باللوحة أو اسم الزبون...' : 'ابحث بالجهاز / IMEI أو اسم الزبون...'} />
               <button type="button" className="icon" title="جديد" onClick={() => setNewVehicle(true)}>
                 <Icon name="plus" size={16} />
               </button>
@@ -223,7 +223,7 @@ export function RepairEditor({ id }: { id?: string }) {
                     <Picker
                       options={items}
                       value={null}
-                      placeholder="+ أضف قطعة (بحث بالاسم، الرقم، أو نوع السيارة)"
+                      placeholder={asset.kind === 'vehicle' ? '+ أضف قطعة (بحث بالاسم، الرقم، أو نوع السيارة)' : '+ أضف قطعة (بحث بالاسم، الرقم، أو الموديل)'}
                       filter={(o, q) => itemMatches((o as (typeof items)[number]).item, q)}
                       onChange={(itemId) => {
                         if (!itemId) return;
@@ -311,6 +311,7 @@ function InvoiceRepairDialog({
   onClose: () => void;
   onConfirm: (opts: { paid: number; cashAccountId: string; taxIds: string[] }) => Promise<void>;
 }) {
+  const asset = useAssetKind();
   const { state, notify } = useCompany();
   const [taxIds, setTaxIds] = useState(Object.values(state.taxes).filter((t) => t.active && t.percent > 0).map((t) => t.id));
   // المطلوب مع الضرائب المختارة؛ المقبوض الافتراضي = كامل المطلوب ما لم يعدّله المستخدم
@@ -321,7 +322,7 @@ function InvoiceRepairDialog({
   const [cashChoice, setCash] = useState('');
   const cash = boxes.some((b) => b.id === cashChoice) ? cashChoice : (boxes.find((b) => b.currency === currency) ?? boxes[0])?.id ?? '1101';
   return (
-    <Modal title="تسليم السيارة وإصدار الفاتورة" onClose={onClose}>
+    <Modal title={`تسليم ${asset.kind === 'vehicle' ? 'السيارة' : 'الجهاز'} وإصدار الفاتورة`} onClose={onClose}>
       <form
         className="form-grid"
         onSubmit={async (e) => {

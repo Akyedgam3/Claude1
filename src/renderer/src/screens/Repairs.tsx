@@ -62,7 +62,7 @@ export function Repairs() {
             <tr>
               <th>الرقم</th>
               <th>التاريخ</th>
-              <th>السيارة</th>
+              <th>{asset.kind === 'vehicle' ? 'السيارة' : 'الجهاز'}</th>
               <th>الزبون</th>
               <th>الشكوى</th>
               <th>الفني</th>
