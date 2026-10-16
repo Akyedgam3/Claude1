@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<title>Miyar Ad 30s</title>
+<style>
+@font-face { font-family: Cairo; font-weight: 400; src: url(assets/fonts/cairo-arabic-400-normal.woff2), url(assets/fonts/cairo-latin-400-normal.woff2); }
+@font-face { font-family: Cairo; font-weight: 700; src: url(assets/fonts/cairo-arabic-700-normal.woff2), url(assets/fonts/cairo-latin-700-normal.woff2); }
+@font-face { font-family: Cairo; font-weight: 900; src: url(assets/fonts/cairo-arabic-900-normal.woff2), url(assets/fonts/cairo-latin-900-normal.woff2); }
+:root { --n: #3dffc5; --g: #0f6e5c; --o: #ff8a2a; --o2: #ffb36b; --y: #ffd84d; --r: #ff4d5e; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; }
+body { font-family: Cairo, sans-serif; color: #fff; }
+.icon svg { width: 100%; height: 100%; display: block; }
+.mono { font-family: 'Courier New', monospace; direction: ltr; }
+#stage { position: absolute; inset: 0; overflow: hidden; background: radial-gradient(ellipse at 50% 35%, #12493e 0%, #071c18 55%, #020807 100%); perspective: 2200px; }
+#grid { position: absolute; inset: -120px; background-image: linear-gradient(rgba(61,255,197,.06) 2px, transparent 2px), linear-gradient(90deg, rgba(61,255,197,.06) 2px, transparent 2px); background-size: 90px 90px; }
+#glow { position: absolute; left: 50%; top: 40%; width: 1400px; height: 1400px; margin: -700px 0 0 -700px; border-radius: 50%; background: radial-gradient(circle, rgba(61,255,197,.22), transparent 60%); }
+.dot { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: var(--n); opacity: .25; }
+.sc { position: absolute; inset: 0; opacity: 0; }
+.center { position: absolute; left: 0; right: 0; text-align: center; }
+
+/* 1 — اللوغو */
+#s1 .logo { position: absolute; left: 50%; top: 520px; width: 420px; height: 420px; margin-left: -210px; border-radius: 110px; box-shadow: 0 0 160px rgba(61,255,197,.55); }
+#s1 .ring { position: absolute; left: 50%; top: 730px; width: 520px; height: 520px; margin: -260px 0 0 -260px; border-radius: 50%; border: 6px solid var(--n); opacity: 0; }
+#s1 h1 { top: 1010px; font-size: 230px; font-weight: 900; line-height: 1.1; }
+#s1 h1 span { display: inline-block; }
+#s1 .bar { position: absolute; left: 50%; top: 1290px; height: 10px; width: 520px; margin-left: -260px; border-radius: 5px; background: var(--n); box-shadow: 0 0 30px var(--n); }
+#s1 p { top: 1330px; font-size: 52px; font-weight: 700; color: #cdeee5; }
+
+/* 2 — المشكلة */
+#s2 .card { position: absolute; left: 140px; width: 800px; height: 250px; border-radius: 40px; background: #fff7e6; color: #4a3520; display: flex; align-items: center; gap: 40px; padding: 0 60px; box-shadow: 0 40px 80px rgba(0,0,0,.55); font-size: 76px; font-weight: 900; }
+#s2 .card .icon { width: 130px; height: 130px; color: #b5531c; flex: none; }
+#s2 .c1 { top: 430px; } #s2 .c2 { top: 760px; } #s2 .c3 { top: 1090px; }
+#s2 .x { position: absolute; left: 50%; top: 880px; width: 900px; height: 900px; margin: -450px 0 0 -450px; opacity: 0; }
+#s2 .x::before, #s2 .x::after { content: ''; position: absolute; left: 50%; top: -40px; width: 34px; height: 980px; margin-left: -17px; background: var(--r); border-radius: 17px; box-shadow: 0 0 50px rgba(255,77,94,.8); }
+#s2 .x::before { transform: rotate(42deg); } #s2 .x::after { transform: rotate(-42deg); }
+
+/* 3 — الجملة */
+#s3 .a { top: 700px; font-size: 110px; font-weight: 900; }
+#s3 .b { top: 860px; font-size: 168px; font-weight: 900; color: var(--n); text-shadow: 0 0 60px rgba(61,255,197,.7); line-height: 1.2; }
+#s3 .b span { display: inline-block; }
+
+/* 4 — الميزات */
+.feat .ttl { top: 250px; font-size: 104px; font-weight: 900; line-height: 1.15; }
+.feat .ttl b { color: var(--n); }
+.feat .num { position: absolute; top: 120px; left: 0; right: 0; text-align: center; direction: ltr; font-size: 40px; font-weight: 900; color: var(--o2); letter-spacing: 6px; }
+.feat .dev { position: absolute; left: 50%; top: 560px; width: 980px; margin-left: -490px; border-radius: 34px; overflow: hidden; background: #fff; border: 10px solid #0d221e; box-shadow: 0 60px 120px rgba(0,0,0,.65), 0 0 0 3px rgba(61,255,197,.4); transform-style: preserve-3d; }
+.feat .dev .vp { position: relative; width: 100%; height: 760px; overflow: hidden; }
+.feat .dev img { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.feat .pill { position: absolute; left: 50%; top: 1420px; transform: translateX(-50%); white-space: nowrap; padding: 22px 56px; border-radius: 999px; background: var(--o); color: #1d0e00; font-size: 56px; font-weight: 900; box-shadow: 0 20px 50px rgba(255,138,42,.45); }
+.feat .dev.tall { width: 560px; margin-left: -280px; top: 470px; }
+.feat .dev.tall .vp { height: 1060px; background: #fff; }
+.feat .shine { position: absolute; top: -200px; left: 0; width: 220px; height: 1600px; background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent); transform: rotate(18deg) translateX(-900px); pointer-events: none; }
+
+/* 5 — المجالات */
+#s5 .ttl { top: 230px; font-size: 120px; font-weight: 900; }
+#s5 .ttl b { color: var(--n); }
+#s5 .ic { position: absolute; width: 196px; height: 196px; border-radius: 44px; background: rgba(61,255,197,.1); border: 3px solid rgba(61,255,197,.45); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; opacity: 0; }
+#s5 .ic .icon { width: 84px; height: 84px; color: var(--n); }
+#s5 .ic small { font-size: 26px; font-weight: 700; color: #cdeee5; }
+#s5 .badges { position: absolute; left: 60px; right: 60px; top: 1560px; display: flex; justify-content: center; gap: 24px; }
+#s5 .bd { padding: 18px 34px; border-radius: 999px; background: #fff; color: #0f3a31; font-size: 42px; font-weight: 900; display: flex; align-items: center; gap: 12px; opacity: 0; }
+#s5 .bd .icon { width: 44px; height: 44px; color: var(--g); }
+
+/* 6 — السعر */
+#s6 .a { top: 560px; font-size: 90px; font-weight: 900; color: #cdeee5; }
+#s6 .p { top: 720px; font-size: 300px; font-weight: 900; color: var(--y); text-shadow: 0 0 80px rgba(255,216,77,.5); direction: ltr; line-height: 1.1; }
+#s6 .b { top: 1100px; font-size: 72px; font-weight: 900; }
+#s6 .b b { color: var(--n); }
+#s6 .burst { position: absolute; left: 50%; top: 900px; width: 1100px; height: 1100px; margin: -550px 0 0 -550px; border-radius: 50%; background: radial-gradient(circle, rgba(255,216,77,.35), transparent 60%); opacity: 0; }
+#s6 .coin { position: absolute; width: 110px; height: 110px; color: var(--y); opacity: 0; }
+
+/* 7 — حمّل الآن */
+#s7 .logo { position: absolute; left: 50%; top: 300px; width: 300px; height: 300px; margin-left: -150px; border-radius: 80px; box-shadow: 0 0 120px rgba(61,255,197,.5); }
+#s7 h1 { top: 640px; font-size: 180px; font-weight: 900; line-height: 1.1; }
+#s7 .tag { top: 860px; font-size: 54px; font-weight: 700; color: #cdeee5; }
+#s7 .btn { position: absolute; left: 50%; top: 1000px; transform: translateX(-50%); white-space: nowrap; padding: 30px 80px; border-radius: 999px; background: var(--n); color: #03211b; font-size: 76px; font-weight: 900; display: flex; align-items: center; gap: 20px; box-shadow: 0 0 80px rgba(61,255,197,.6); }
+#s7 .btn .icon { width: 76px; height: 76px; }
+#s7 .url { top: 1190px; font-size: 40px; font-weight: 700; color: var(--n); }
+#s7 .wa { top: 1300px; font-size: 44px; font-weight: 700; color: #cdeee5; }
+#s7 .num { font-size: 82px; font-weight: 900; direction: ltr; letter-spacing: 2px; }
+#s7 .n1 { top: 1380px; } #s7 .n2 { top: 1500px; }
+
+#flash { position: absolute; inset: 0; background: #fff; opacity: 0; z-index: 50; }
+#wipe { position: absolute; left: -400px; top: -300px; width: 2200px; height: 2600px; background: var(--n); transform: rotate(-12deg) translateX(-2600px); z-index: 40; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="grid"></div><div id="glow"></div>{{DOTS}}
+
+  <div class="sc" id="s1">
+    <div class="ring"></div>
+    <img class="logo" src="assets/logo.png" />
+    <h1 class="center" id="brand">معيار</h1>
+    <div class="bar"></div>
+    <p class="center">برنامج المحاسبة وإدارة المحلات</p>
+  </div>
+
+  <div class="sc" id="s2">
+    <div class="card c1"><span class="icon">{{icon:book-open}}</span>دفتر ديون؟</div>
+    <div class="card c2"><span class="icon">{{icon:receipt}}</span>أوراق ضايعة؟</div>
+    <div class="card c3"><span class="icon">{{icon:hourglass}}</span>جرد بالساعات؟</div>
+    <div class="x"></div>
+  </div>
+
+  <div class="sc" id="s3">
+    <div class="center a">خلّي حساباتك</div>
+    <div class="center b"><span>بمعيار</span> <span>دقيق</span></div>
+  </div>
+
+  {{FEATS}}
+
+  <div class="sc" id="s5">
+    <div class="center ttl"><b>+14</b> مجال شغل</div>
+    {{ICONS}}
+    <div class="badges"><div class="bd"><span class="icon">{{icon:wifi-off}}</span>بدون إنترنت</div><div class="bd"><span class="icon">{{icon:coins}}</span>ليرة ودولار</div><div class="bd"><span class="icon">{{icon:lock}}</span>مشفّر</div></div>
+  </div>
+
+  <div class="sc" id="s6">
+    <div class="burst"></div>
+    <div class="center a">اشتراك سنوي بس</div>
+    <div class="center p">$<span id="price">0.00</span></div>
+    <div class="center b">رخصة على <b>جهازين</b></div>
+    {{COINS}}
+  </div>
+
+  <div class="sc" id="s7">
+    <img class="logo" src="assets/logo.png" />
+    <h1 class="center">معيار</h1>
+    <div class="center tag">حساباتك… بمعيار دقيق</div>
+    <div class="btn"><span class="icon">{{icon:download}}</span>حمّل الآن</div>
+    <div class="center url mono">akyedgam3.github.io/mizan-updates</div>
+    <div class="center wa">واتساب</div>
+    <div class="center num n1"><span class="tx" data-text="+963 968 037 609"></span></div>
+    <div class="center num n2"><span class="tx" data-text="+963 980 072 891"></span></div>
+  </div>
+
+  <div id="wipe"></div>
+  <div id="flash"></div>
+</div>
+<script src="assets/gsap.min.js"></script>
+<script>
+const $ = (q) => document.querySelector(q);
+const $$ = (q) => [...document.querySelectorAll(q)];
+const DUR = 30.0;
+const FEATS = {{FEATDATA}};
+const TYPES = [['#s7 .n1 .tx', 27.6, 1.0], ['#s7 .n2 .tx', 28.2, 1.0]];
+let tl;
+function show(sel, a, b, enter = 'fade') {
+  tl.set(sel, { opacity: 1 }, a);
+  tl.set(sel, { opacity: 0 }, b);
+}
+function build() {
+  tl = gsap.timeline({ paused: true, defaults: { ease: 'power3.out' } });
+  const IM = (o) => ({ ...o, immediateRender: false });
+  tl.to('#grid', { x: 90, y: 180, duration: DUR, ease: 'none' }, 0);
+  tl.to('#glow', { scale: 1.25, duration: 2, repeat: 14, yoyo: true, ease: 'sine.inOut' }, 0);
+  $$('.dot').forEach((d, i) => tl.to(d, { y: '-=260', x: (i % 2 ? '+=' : '-=') + 60, opacity: 0.5, duration: 3 + (i % 4), repeat: 9, yoyo: true, ease: 'sine.inOut' }, 0));
+  // ستارة بين المشاهد
+  const wipe = (t) => {
+    tl.fromTo('#wipe', { x: -2600 }, IM({ x: 0, duration: 0.22, ease: 'power2.in' }), t - 0.22);
+    tl.to('#wipe', { x: 2700, duration: 0.25, ease: 'power2.out' }, t);
+  };
+  // 1 اللوغو بيتوازن والاسم بيطلع
+  show('#s1', 0, 2.62);
+  tl.fromTo('#s1 .logo', { y: -900, rotation: -25, scale: 0.6 }, IM({ y: 0, scale: 1, rotation: 0, duration: 0.7, ease: 'bounce.out' }), 0.1);
+  tl.fromTo('#s1 .logo', { rotation: 0 }, IM({ keyframes: [{ rotation: 10, duration: 0.18 }, { rotation: -7, duration: 0.18 }, { rotation: 4, duration: 0.16 }, { rotation: 0, duration: 0.16 }] }), 0.8);
+  tl.fromTo('#s1 .ring', { scale: 0.4, opacity: 1 }, IM({ scale: 2.4, opacity: 0, duration: 0.9, ease: 'power2.out' }), 0.78);
+  tl.fromTo('#flash', { opacity: 0.55 }, IM({ opacity: 0, duration: 0.35 }), 0.78);
+  tl.fromTo('#brand', { clipPath: 'inset(0 0 0 100%)', scale: 1.25, opacity: 1 }, IM({ clipPath: 'inset(0 0 0 0%)', scale: 1, duration: 0.6, ease: 'power3.out' }), 1.2);
+  tl.fromTo('#s1 .bar', { scaleX: 0 }, IM({ scaleX: 1, duration: 0.5 }), 1.75);
+  tl.fromTo('#s1 p', { y: 40, opacity: 0 }, IM({ y: 0, opacity: 1, duration: 0.4 }), 1.9);
+  wipe(2.62);
+  // 2 المشكلة
+  show('#s2', 2.62, 5.6);
+  ['.c1', '.c2', '.c3'].forEach((c, i) => {
+    tl.fromTo(`#s2 ${c}`, { x: i % 2 ? -1300 : 1300, rotation: i % 2 ? -12 : 12 }, IM({ x: 0, rotation: i % 2 ? 2 : -2, duration: 0.45, ease: 'back.out(1.6)' }), 2.8 + i * 0.55);
+    tl.fromTo(`#s2 ${c}`, { y: 0 }, IM({ keyframes: [{ y: -12, duration: 0.05 }, { y: 10, duration: 0.05 }, { y: 0, duration: 0.05 }] }), 3.25 + i * 0.55);
+  });
+  tl.fromTo('#s2 .x', { scale: 2.2, opacity: 0 }, IM({ scale: 1, opacity: 1, duration: 0.3, ease: 'back.out(2)' }), 4.6);
+  tl.to('#s2 .card', { y: 1600, rotation: (i) => [-30, 25, -18][i], duration: 0.5, stagger: 0.07, ease: 'power2.in' }, 5.0);
+  tl.to('#s2 .x', { opacity: 0, scale: 0.6, duration: 0.3 }, 5.15);
+  // 3 الجملة
+  show('#s3', 5.6, 8.0);
+  tl.fromTo('#s3 .a', { y: 80, opacity: 0 }, IM({ y: 0, opacity: 1, duration: 0.45 }), 5.7);
+  tl.fromTo('#s3 .b span', { scale: 3, opacity: 0 }, IM({ scale: 1, opacity: 1, duration: 0.5, stagger: 0.35, ease: 'expo.out' }), 6.3);
+  tl.fromTo('#flash', { opacity: 0.4 }, IM({ opacity: 0, duration: 0.3 }), 6.3);
+  tl.fromTo('#flash', { opacity: 0.4 }, IM({ opacity: 0, duration: 0.3 }), 6.65);
+  tl.to('#s3 .b', { scale: 1.08, duration: 0.9, ease: 'sine.inOut' }, 7.0);
+  wipe(8.0);
+  // 4 الميزات
+  FEATS.forEach((f, i) => {
+    const a = f.t, b = FEATS[i + 1]?.t ?? 21.0, sel = `#f${i}`;
+    show(sel, a, b);
+    tl.fromTo(`${sel} .num`, { opacity: 0, y: -30 }, IM({ opacity: 1, y: 0, duration: 0.3 }), a + 0.05);
+    tl.fromTo(`${sel} .ttl`, { x: i % 2 ? -900 : 900, opacity: 0 }, IM({ x: 0, opacity: 1, duration: 0.45, ease: 'expo.out' }), a + 0.05);
+    tl.fromTo(`${sel} .dev`, { rotationY: i % 2 ? 50 : -50, rotationX: 10, y: 260, opacity: 0, scale: 0.8 }, IM({ rotationY: i % 2 ? -6 : 6, rotationX: 4, y: 0, opacity: 1, scale: 1, duration: 0.6, ease: 'power3.out' }), a + 0.12);
+    tl.to(`${sel} .dev`, { rotationY: 0, rotationX: 0, duration: b - a - 0.7, ease: 'sine.inOut' }, a + 0.72);
+    tl.fromTo(`${sel} .vp img`, { x: f.from[0], y: f.from[1], scale: f.from[2] }, IM({ x: f.to[0], y: f.to[1], scale: f.to[2], duration: b - a - 0.1, ease: 'power1.inOut' }), a + 0.1);
+    tl.fromTo(`${sel} .shine`, { x: -900 }, IM({ x: 1400, duration: 0.8, ease: 'power1.in' }), a + 0.5);
+    tl.fromTo(`${sel} .pill`, { scale: 0, opacity: 0 }, IM({ scale: 1, opacity: 1, duration: 0.4, ease: 'back.out(2.5)' }), a + 0.55);
+    tl.to(`${sel} .dev`, { x: i % 2 ? 1300 : -1300, rotationY: i % 2 ? -40 : 40, duration: 0.25, ease: 'power2.in' }, b - 0.25);
+    tl.to(`${sel} .ttl, ${sel} .pill, ${sel} .num`, { opacity: 0, duration: 0.2 }, b - 0.2);
+  });
+  wipe(21.0);
+  // 5 المجالات
+  show('#s5', 21.0, 24.0);
+  tl.fromTo('#s5 .ttl', { scale: 0.4, opacity: 0 }, IM({ scale: 1, opacity: 1, duration: 0.45, ease: 'back.out(2)' }), 21.05);
+  $$('#s5 .ic').forEach((d, i) => tl.fromTo(d, { scale: 0, opacity: 0, rotation: -40 }, IM({ scale: 1, opacity: 1, rotation: 0, duration: 0.35, ease: 'back.out(2.4)' }), 21.3 + i * 0.07));
+  $$('#s5 .bd').forEach((d, i) => tl.fromTo(d, { y: 80, opacity: 0 }, IM({ y: 0, opacity: 1, duration: 0.35, ease: 'back.out(2)' }), 22.6 + i * 0.25));
+  wipe(24.0);
+  // 6 السعر
+  show('#s6', 24.0, 26.9);
+  tl.fromTo('#s6 .a', { y: -60, opacity: 0 }, IM({ y: 0, opacity: 1, duration: 0.35 }), 24.05);
+  tl.fromTo('#s6 .p', { scale: 0.5, opacity: 0 }, IM({ scale: 1, opacity: 1, duration: 0.4, ease: 'back.out(2)' }), 24.3);
+  tl.fromTo('#s6 .p', { scale: 1 }, IM({ keyframes: [{ scale: 1.15, duration: 0.1 }, { scale: 1, duration: 0.25 }] }), 25.25);
+  tl.fromTo('#s6 .burst', { scale: 0.3, opacity: 1 }, IM({ scale: 1.4, opacity: 0, duration: 0.8 }), 25.25);
+  tl.fromTo('#flash', { opacity: 0.45 }, IM({ opacity: 0, duration: 0.3 }), 25.25);
+  $$('#s6 .coin').forEach((d, i) => tl.fromTo(d, { x: 0, y: 0, opacity: 1, rotation: 0, scale: 0.4 }, IM({ x: Math.cos(i * 0.785) * 560, y: Math.sin(i * 0.785) * 560, rotation: 360, scale: 1, opacity: 0, duration: 0.9, ease: 'power2.out' }), 25.25));
+  tl.fromTo('#s6 .b', { y: 60, opacity: 0 }, IM({ y: 0, opacity: 1, duration: 0.4 }), 25.6);
+  wipe(26.9);
+  // 7 حمّل الآن
+  show('#s7', 26.9, DUR + 1);
+  tl.fromTo('#s7 .logo', { scale: 0, rotation: -180 }, IM({ scale: 1, rotation: 0, duration: 0.6, ease: 'back.out(1.8)' }), 26.95);
+  tl.fromTo('#s7 h1', { y: 80, opacity: 0 }, IM({ y: 0, opacity: 1, duration: 0.4 }), 27.1);
+  tl.fromTo('#s7 .tag', { opacity: 0 }, IM({ opacity: 1, duration: 0.3 }), 27.3);
+  tl.fromTo('#s7 .btn', { scale: 0, opacity: 0 }, IM({ scale: 1, opacity: 1, duration: 0.45, ease: 'back.out(2.4)' }), 27.35);
+  tl.to('#s7 .btn', { scale: 1.06, duration: 0.45, repeat: 4, yoyo: true, ease: 'sine.inOut' }, 27.9);
+  tl.fromTo('#s7 .url, #s7 .wa', { opacity: 0 }, IM({ opacity: 1, duration: 0.3 }), 27.5);
+  tl.set({}, {}, DUR);
+}
+function render(t) {
+  tl.seek(t, false);
+  for (const [sel, a, d] of TYPES) { const el = $(sel), full = el.dataset.text; el.textContent = full.slice(0, Math.max(0, Math.min(full.length, Math.floor(((t - a) / d) * full.length)))); }
+  const p = Math.max(0, Math.min(1, (t - 24.4) / 0.85));
+  $('#price').textContent = (29.99 * (1 - Math.pow(1 - p, 3))).toFixed(2);
+}
+window.render = render;
+window.DURATION = DUR;
+document.fonts.ready.then(() => Promise.all([...document.images].map((i) => (i.complete ? 0 : new Promise((r) => (i.onload = r)))))).then(() => { build(); render(0); window.READY = true; });
+</script>
+</body>
+</html>
