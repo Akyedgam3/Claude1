@@ -1,6 +1,6 @@
 {
   "name": "mizan",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "private": true,
   "description": "ميزان - نظام محاسبة لسطح المكتب يعمل بدون إنترنت",
   "type": "module",
@@ -40,7 +40,7 @@
   "main": "out/main/index.js",
   "build": {
     "appId": "sy.mizan.accounting",
-    "productName": "Miyar",
+    "productName": "Mizan",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -61,7 +61,7 @@
       "icon": "build/icon.ico"
     },
     "nsis": {
-      "artifactName": "Miyar-Setup.${ext}",
+      "artifactName": "Mizan-Setup.${ext}",
       "include": "build/installer.nsh",
       "license": "build/license_ar.txt",
       "installerSidebar": "build/installerSidebar.bmp",
@@ -70,7 +70,7 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "language": "1025",
-      "shortcutName": "معيار",
+      "shortcutName": "ميزان",
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "installerHeaderIcon": "build/icon.ico",
@@ -88,5 +88,5 @@
     "asar": true,
     "icon": "build/icon.png"
   },
-  "author": "Miyar"
+  "author": "Mizan"
 }

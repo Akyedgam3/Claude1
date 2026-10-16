@@ -28,7 +28,7 @@ export function LockScreen({ info, onChanged, notify }: { info: AppInfo; onChang
     <div className="welcome lock">
       <div className="welcome-hero">
         <img src={logo} alt="" className="hero-logo" />
-        <div className="logo big">معيار</div>
+        <div className="logo big">ميزان</div>
         <p>نظام محاسبة لكل المصالح والتجارات</p>
       </div>
       <section className="card lock-card">

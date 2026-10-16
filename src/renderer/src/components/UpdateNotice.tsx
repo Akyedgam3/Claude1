@@ -44,7 +44,7 @@ export function UpdateNotice({ update, current, notify, floating }: { update: Up
             <div className="update-head">
               <Icon name="sparkles" size={34} />
               <div>
-                <h3>{update.mandatory ? 'لازم تحدّث البرنامج' : 'في نسخة جديدة من معيار'}</h3>
+                <h3>{update.mandatory ? 'لازم تحدّث البرنامج' : 'في نسخة جديدة من ميزان'}</h3>
                 <small>
                   نسختك {current} ← النسخة الجديدة <b>{update.version}</b>
                 </small>

@@ -137,7 +137,7 @@ export function peekCompany(dir: string): { meta: CompanyMeta; usernames: string
   const metaFile = path.join(dir, META);
   if (!fs.existsSync(metaFile)) throw new Error('المجلد لا يحتوي ملف شركة');
   const meta = readJson<CompanyMeta>(metaFile);
-  if (meta.app !== 'mizan') throw new Error('الملف ليس ملف شركة معيار');
+  if (meta.app !== 'mizan') throw new Error('الملف ليس ملف شركة ميزان');
   if (meta.format > FORMAT_VERSION) throw new Error('ملف الشركة من إصدار أحدث من البرنامج، يرجى التحديث');
   if (meta.format < FORMAT_VERSION) throw new Error('ملف الشركة من إصدار تجريبي قديم غير مشفّر ولا يمكن فتحه');
   const keyring = readJson<Keyring>(path.join(dir, KEYRING));

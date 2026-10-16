@@ -203,6 +203,6 @@ export function sampleModel(currencySymbol: string): DocModel {
     after: [{ label: 'المقبوض', value: f(8250) }],
     words: 'فقط ثمانية آلاف ومئتان وخمسون ليرة سورية لا غير',
     stamp: 'paid',
-    qrText: 'معيار — فاتورة تجريبية',
+    qrText: 'ميزان — فاتورة تجريبية',
   };
 }
