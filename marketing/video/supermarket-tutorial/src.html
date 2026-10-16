@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<title>Mizan Supermarket Tutorial</title>
+<style>
+@font-face { font-family: Cairo; font-weight: 400; src: url(assets/fonts/cairo-arabic-400-normal.woff2), url(assets/fonts/cairo-latin-400-normal.woff2); }
+@font-face { font-family: Cairo; font-weight: 700; src: url(assets/fonts/cairo-arabic-700-normal.woff2), url(assets/fonts/cairo-latin-700-normal.woff2); }
+@font-face { font-family: Cairo; font-weight: 800; src: url(assets/fonts/cairo-arabic-800-normal.woff2), url(assets/fonts/cairo-latin-800-normal.woff2); }
+@font-face { font-family: Cairo; font-weight: 900; src: url(assets/fonts/cairo-arabic-900-normal.woff2), url(assets/fonts/cairo-latin-900-normal.woff2); }
+:root { --n: #3dffc5; --g: #0f6e5c; --o: #ff8a2a; --o2: #ffb36b; --y: #ffd84d; --r: #ff4d5e; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+body { font-family: Cairo, sans-serif; color: #fff; }
+.icon svg { width: 100%; height: 100%; display: block; }
+.mono { font-family: 'Courier New', monospace; direction: ltr; }
+#stage { position: absolute; inset: 0; overflow: hidden; background: radial-gradient(ellipse at 50% 30%, #0f3a31 0%, #071c18 55%, #030b0a 100%); perspective: 2600px; }
+#grid { position: absolute; inset: -80px; background-image: linear-gradient(rgba(61,255,197,.05) 2px, transparent 2px), linear-gradient(90deg, rgba(61,255,197,.05) 2px, transparent 2px); background-size: 80px 80px; }
+#floaters .f { position: absolute; width: 70px; height: 70px; color: rgba(61,255,197,.10); }
+
+/* الشاشة */
+#mon { position: absolute; left: 60px; top: 74px; width: 1800px; height: 930px; border-radius: 18px; overflow: hidden; background: #f4f6f5; box-shadow: 0 40px 100px rgba(0,0,0,.6), 0 0 0 2px rgba(61,255,197,.35); transform-style: preserve-3d; }
+#world { position: absolute; left: 0; top: 0; width: 1600px; height: 1000px; transform-origin: 0 0; }
+#world img.shot { position: absolute; left: 0; top: 0; width: 1600px; height: 1000px; opacity: 0; }
+.hl { position: absolute; border: 5px solid var(--o); border-radius: 12px; box-shadow: 0 0 0 4000px rgba(10,20,18,.28), 0 0 26px rgba(255,138,42,.8); opacity: 0; pointer-events: none; }
+#glare { position: absolute; top: -200px; left: 0; width: 260px; height: 1400px; background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent); transform: rotate(18deg) translateX(-900px); pointer-events: none; z-index: 5; }
+
+/* فقاعة الشرح */
+.cap { position: absolute; left: 0; top: 0; z-index: 14; padding: 12px 26px; border-radius: 18px; background: var(--o); color: #1d0e00; font-size: 34px; font-weight: 900; white-space: nowrap; box-shadow: 0 14px 40px rgba(0,0,0,.45); opacity: 0; transform-origin: 50% 100%; }
+.cap::after { content: ''; position: absolute; left: 50%; bottom: -14px; margin-left: -14px; border: 14px solid transparent; border-bottom: 0; border-top-color: var(--o); }
+.cap.below { transform-origin: 50% 0%; }
+.cap.below::after { bottom: auto; top: -14px; border-top: 0; border-bottom: 14px solid var(--o); }
+
+/* فوق */
+#chip { position: absolute; right: 60px; top: 14px; height: 48px; display: flex; align-items: center; gap: 14px; font-size: 28px; font-weight: 900; }
+#chip .num { padding: 2px 16px; border-radius: 999px; background: var(--n); color: #03211b; }
+#brand { position: absolute; left: 60px; top: 12px; display: flex; align-items: center; gap: 12px; font-size: 28px; font-weight: 900; color: var(--n); }
+#brand img { width: 44px; height: 44px; border-radius: 12px; }
+#prog { position: absolute; left: 60px; right: 60px; bottom: 26px; height: 40px; display: flex; gap: 10px; direction: rtl; }
+#prog div { flex: 1; border-radius: 10px; background: rgba(255,255,255,.07); font-size: 19px; font-weight: 800; color: rgba(255,255,255,.4); display: grid; place-items: center; white-space: nowrap; overflow: hidden; position: relative; }
+#prog div.on { background: var(--n); color: #03211b; }
+#prog div.done { color: var(--n); background: rgba(61,255,197,.12); }
+
+/* انتقال الفصول: ستارة مائلة */
+#wipe { position: absolute; inset: 0; z-index: 22; pointer-events: none; }
+#wipe .band { position: absolute; top: -200px; height: 1480px; width: 900px; transform: skewX(-18deg) translateX(-2600px); }
+#wipe .b1 { background: #3dffc5; left: 0; } #wipe .b2 { background: #0f6e5c; left: 520px; } #wipe .b3 { background: #071c18; left: 1040px; width: 1300px; }
+#wipe .txt { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; opacity: 0; }
+#wipe .num { font-size: 260px; font-weight: 900; line-height: 1; color: transparent; -webkit-text-stroke: 4px var(--n); font-family: Cairo; letter-spacing: 8px; }
+#wipe .ord { font-size: 54px; font-weight: 900; color: var(--n); margin-top: -10px; }
+#wipe .ttl { font-size: 120px; font-weight: 900; line-height: 1.15; display: none; }
+#wipe .ttl span { display: inline-block; opacity: 0; }
+
+/* بطاقات كاملة */
+.full { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; opacity: 0; background: radial-gradient(ellipse at 50% 40%, #12493e 0%, #071c18 60%, #030b0a 100%); z-index: 20; overflow: hidden; }
+.scene { position: absolute; inset: 0; opacity: 0; z-index: 18; background: radial-gradient(ellipse at 50% 45%, #134d41 0%, #08201b 60%, #030b0a 100%); overflow: hidden; }
+.scene h3 { position: absolute; left: 0; right: 0; bottom: 110px; text-align: center; font-size: 60px; font-weight: 900; }
+.scene h3 b { color: var(--n); }
+
+/* المقدمة */
+#intro .cart { position: absolute; left: 50%; top: 150px; width: 260px; height: 260px; margin-left: -130px; color: var(--n); }
+#intro .drop { position: absolute; width: 90px; height: 90px; color: #fff; left: 50%; top: 0; }
+#intro img.logo { position: absolute; left: 50%; top: 140px; width: 230px; height: 230px; margin-left: -115px; border-radius: 60px; box-shadow: 0 0 100px rgba(61,255,197,.45); opacity: 0; }
+#intro h1 { position: absolute; left: 0; right: 0; top: 420px; font-size: 104px; font-weight: 900; }
+#intro h2 { position: absolute; left: 0; right: 0; top: 570px; font-size: 44px; font-weight: 700; color: #cdeee5; }
+.tags { position: absolute; left: 160px; right: 160px; top: 680px; display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; }
+.tags span { padding: 12px 28px; border-radius: 999px; border: 2px solid rgba(61,255,197,.5); background: rgba(61,255,197,.08); font-size: 34px; font-weight: 800; opacity: 0; }
+
+/* مشهد الباركود */
+#scBar .box { position: absolute; left: 1080px; top: 190px; width: 420px; height: 560px; border-radius: 40px 40px 26px 26px; background: linear-gradient(160deg, #ffe48a, #f2b72c 60%, #c98a12); box-shadow: 0 50px 90px rgba(0,0,0,.6); }
+#scBar .box .cap { position: absolute; left: 140px; top: -70px; width: 140px; height: 90px; border-radius: 22px 22px 6px 6px; background: #2f8f3a; }
+#scBar .box .lbl { position: absolute; left: 40px; right: 40px; top: 80px; text-align: center; color: #5b3a00; font-size: 46px; font-weight: 900; line-height: 1.3; }
+#scBar .bc { position: absolute; left: 70px; right: 70px; bottom: 60px; height: 190px; background: #fff; border-radius: 12px; padding: 18px 20px 8px; }
+#scBar .bc .bars { height: 120px; background: repeating-linear-gradient(90deg, #111 0 4px, #fff 4px 8px, #111 8px 14px, #fff 14px 17px, #111 17px 19px, #fff 19px 25px, #111 25px 31px, #fff 31px 34px); }
+#scBar .bc .d { text-align: center; color: #111; font-size: 30px; font-weight: 800; letter-spacing: 3px; }
+#scBar .laser { position: absolute; left: 1040px; width: 500px; height: 8px; top: 560px; background: #ff2d2d; box-shadow: 0 0 30px #ff2d2d, 0 0 8px #ff2d2d; border-radius: 4px; }
+#scBar .gun { position: absolute; left: 1560px; top: 520px; width: 200px; height: 200px; color: var(--n); }
+#scBar .field { position: absolute; left: 220px; top: 400px; width: 680px; }
+#scBar .field label { display: block; font-size: 38px; font-weight: 800; color: #b9d0ca; margin-bottom: 12px; }
+#scBar .field .in { height: 110px; border-radius: 22px; background: #fff; border: 5px solid var(--n); box-shadow: 0 0 40px rgba(61,255,197,.4); color: #0f3a31; font-size: 58px; font-weight: 900; display: flex; align-items: center; justify-content: center; letter-spacing: 3px; }
+#scBar .digit { position: absolute; font-size: 54px; font-weight: 900; color: var(--y); opacity: 0; }
+
+/* مشهد الكرتونة */
+#scCarton .crate { position: absolute; left: 1140px; top: 330px; width: 460px; height: 340px; }
+#scCarton .front { position: absolute; inset: 0; background: linear-gradient(180deg, #c98a4b, #a86b33); border-radius: 10px; box-shadow: 0 50px 90px rgba(0,0,0,.6); display: grid; place-items: center; font-size: 64px; font-weight: 900; color: #5a3410; }
+#scCarton .flap { position: absolute; top: -8px; width: 230px; height: 120px; background: #d99a5b; border-radius: 8px; transform-origin: 50% 0; }
+#scCarton .fl { left: 0; transform-origin: 0 50%; } #scCarton .fr { right: 0; transform-origin: 100% 50%; }
+#scCarton .tape { position: absolute; left: 200px; top: 0; width: 60px; height: 100%; background: rgba(255,240,200,.35); }
+#scCarton .grid12 { position: absolute; left: 260px; top: 250px; width: 680px; display: grid; grid-template-columns: repeat(4, 150px); gap: 26px; }
+#scCarton .bt { width: 150px; height: 150px; border-radius: 26px; background: rgba(255,216,77,.12); border: 3px solid rgba(255,216,77,.6); color: var(--y); padding: 24px; opacity: 0; }
+#scCarton .eq { position: absolute; left: 0; right: 0; top: 110px; text-align: center; font-size: 76px; font-weight: 900; opacity: 0; }
+#scCarton .eq b { color: var(--y); }
+#scCarton .tags2 { position: absolute; left: 0; right: 0; bottom: 120px; display: flex; justify-content: center; gap: 50px; }
+#scCarton .pt { padding: 18px 44px; border-radius: 24px; font-size: 48px; font-weight: 900; opacity: 0; }
+#scCarton .pt.a { background: var(--n); color: #03211b; } #scCarton .pt.b { background: var(--o); color: #1d0e00; }
+
+/* مشهد الإكسل */
+#scExcel .xl { position: absolute; left: 960px; top: 150px; width: 860px; height: 700px; border-radius: 18px; overflow: hidden; background: #fff; box-shadow: 0 50px 100px rgba(0,0,0,.6); color: #222; direction: rtl; }
+#scExcel .xl .bar { height: 64px; background: #107c41; color: #fff; display: flex; align-items: center; gap: 14px; padding: 0 24px; font-size: 28px; font-weight: 800; }
+#scExcel .xl .bar .icon { width: 40px; height: 40px; }
+#scExcel table { width: 100%; border-collapse: collapse; font-size: 21px; }
+#scExcel th { background: #e8efe9; color: #3b5a45; font-weight: 800; padding: 9px 8px; border: 1px solid #cfd8d1; }
+#scExcel td { padding: 10px 8px; border: 1px solid #e1e6e2; font-weight: 700; white-space: nowrap; }
+#scExcel tr.row { position: relative; }
+#scExcel .mz { position: absolute; left: 100px; top: 150px; width: 640px; height: 700px; border-radius: 26px; background: rgba(4,20,17,.95); border: 3px solid rgba(61,255,197,.55); box-shadow: 0 50px 100px rgba(0,0,0,.6); overflow: hidden; }
+#scExcel .mz .hd { display: flex; align-items: center; gap: 16px; padding: 22px 28px; font-size: 36px; font-weight: 900; border-bottom: 2px solid rgba(61,255,197,.25); }
+#scExcel .mz .hd img { width: 54px; height: 54px; border-radius: 14px; }
+#scExcel .mz .it { margin: 7px 22px 0; padding: 6px 16px; border-radius: 12px; background: rgba(61,255,197,.1); font-size: 23px; font-weight: 800; display: flex; justify-content: space-between; opacity: 0; }
+#scExcel .mz .it span { color: var(--n); }
+#scExcel .count { position: absolute; left: 100px; width: 640px; top: 870px; text-align: center; font-size: 46px; font-weight: 900; color: var(--n); opacity: 0; }
+#scExcel .arrow { position: absolute; left: 770px; top: 440px; width: 160px; height: 120px; color: var(--y); }
+#scExcel .fly { position: absolute; padding: 8px 18px; border-radius: 14px; background: var(--y); color: #222; font-size: 24px; font-weight: 900; white-space: nowrap; opacity: 0; z-index: 3; }
+
+/* مشهد الميزان */
+#scScale .scale { position: absolute; left: 1020px; top: 300px; width: 640px; height: 470px; }
+#scScale .plate { position: absolute; left: 40px; right: 40px; top: 100px; height: 40px; border-radius: 20px; background: linear-gradient(180deg, #dfe7e5, #8fa39e); }
+#scScale .body { position: absolute; left: 0; right: 0; top: 140px; height: 300px; border-radius: 40px; background: linear-gradient(180deg, #1f4a42, #0c2622); border: 3px solid rgba(61,255,197,.4); }
+#scScale .disp { position: absolute; left: 60px; right: 60px; top: 50px; height: 130px; border-radius: 18px; background: #031a14; border: 3px solid #1d5a4d; display: flex; justify-content: space-around; align-items: center; color: var(--n); font-family: 'Courier New', monospace; font-weight: 900; }
+#scScale .disp div { text-align: center; } #scScale .disp small { display: block; font-family: Cairo; font-size: 22px; color: #8fcab9; }
+#scScale .disp span { font-size: 54px; text-shadow: 0 0 18px rgba(61,255,197,.7); }
+#scScale .cheese { position: absolute; left: 190px; top: -40px; width: 260px; height: 150px; opacity: 0; }
+#scScale .cheese div { width: 0; height: 0; border-left: 130px solid transparent; border-right: 130px solid transparent; border-bottom: 150px solid #ffd84d; filter: drop-shadow(0 12px 18px rgba(0,0,0,.4)); }
+#scScale .sticker { position: absolute; left: 260px; top: 360px; width: 520px; padding: 22px 26px 16px; border-radius: 16px; background: #fff; color: #111; box-shadow: 0 30px 70px rgba(0,0,0,.6); opacity: 0; }
+#scScale .sticker .t { display: flex; justify-content: space-between; font-size: 28px; font-weight: 900; }
+#scScale .sticker .bars { height: 90px; margin-top: 12px; background: repeating-linear-gradient(90deg, #111 0 4px, #fff 4px 7px, #111 7px 12px, #fff 12px 15px, #111 15px 17px, #fff 17px 22px); }
+#scScale .sticker .d { text-align: center; font-size: 28px; font-weight: 800; letter-spacing: 3px; }
+#scScale .laser2 { position: absolute; left: 240px; width: 560px; height: 8px; top: 480px; background: #ff2d2d; box-shadow: 0 0 30px #ff2d2d; border-radius: 4px; opacity: 0; }
+
+/* مشهد الصلاحية */
+#scExp .pk { position: absolute; top: 260px; width: 300px; height: 420px; border-radius: 22px 22px 14px 14px; background: linear-gradient(180deg, #ffffff, #dfeaf5); box-shadow: 0 40px 80px rgba(0,0,0,.6); color: #123; text-align: center; padding-top: 70px; }
+#scExp .pk::before { content: ''; position: absolute; left: 60px; right: 60px; top: -50px; height: 70px; background: #e9f1f8; clip-path: polygon(0 100%, 50% 0, 100% 100%); }
+#scExp .pk .nm { font-size: 42px; font-weight: 900; color: #1e5bb8; }
+#scExp .pk .dt { margin: 40px 24px 0; padding: 14px; border-radius: 16px; font-size: 34px; font-weight: 900; }
+#scExp .p1 { left: 1180px; } #scExp .p1 .dt { background: #ffe1e4; color: #c0182b; }
+#scExp .p2 { left: 780px; } #scExp .p2 .dt { background: #dff6ec; color: #11734f; }
+#scExp .first { position: absolute; left: 1150px; top: 170px; width: 360px; padding: 10px; border-radius: 999px; background: var(--o); color: #1d0e00; font-size: 34px; font-weight: 900; text-align: center; opacity: 0; }
+#scExp .cartI { position: absolute; left: 240px; top: 330px; width: 260px; height: 260px; color: var(--n); }
+#scExp .bell { position: absolute; left: 330px; top: 140px; width: 140px; height: 140px; color: var(--y); opacity: 0; }
+
+/* مشهد الدين */
+#scDebt .book { position: absolute; left: 1060px; top: 230px; width: 520px; height: 600px; border-radius: 16px 30px 30px 16px; background: linear-gradient(90deg, #6b4423, #8b5a2b); box-shadow: 0 40px 80px rgba(0,0,0,.6); padding: 40px; }
+#scDebt .page { background: #fdf6e3; border-radius: 10px; height: 100%; padding: 40px 34px; color: #4a3520; font-size: 34px; font-weight: 700; line-height: 2; background-image: repeating-linear-gradient(180deg, transparent 0 66px, #d9cbb0 66px 68px); }
+#scDebt .x { position: absolute; left: 1020px; top: 200px; width: 600px; height: 660px; opacity: 0; }
+#scDebt .x::before, #scDebt .x::after { content: ''; position: absolute; left: 50%; top: -40px; width: 22px; height: 740px; margin-left: -11px; background: var(--r); border-radius: 11px; box-shadow: 0 0 30px rgba(255,77,94,.7); }
+#scDebt .x::before { transform: rotate(40deg); } #scDebt .x::after { transform: rotate(-40deg); }
+#scDebt .card { position: absolute; left: 260px; top: 260px; width: 600px; padding: 34px 40px; border-radius: 30px; background: rgba(4,20,17,.95); border: 3px solid rgba(61,255,197,.6); box-shadow: 0 40px 90px rgba(0,0,0,.6); opacity: 0; }
+#scDebt .card .nm { display: flex; align-items: center; gap: 18px; font-size: 48px; font-weight: 900; }
+#scDebt .card .nm .icon { width: 70px; height: 70px; color: var(--n); }
+#scDebt .card .row { display: flex; justify-content: space-between; margin-top: 22px; font-size: 34px; font-weight: 800; color: #b9d0ca; }
+#scDebt .card .row b { color: #fff; } #scDebt .card .row.t b { color: var(--o2); font-size: 44px; }
+
+/* مشهد الصندوق */
+#scCash .reg { position: absolute; left: 50%; top: 170px; width: 1300px; margin-left: -650px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 30px; }
+#scCash .tile { border-radius: 30px; padding: 40px 20px; background: rgba(4,20,17,.95); border: 3px solid rgba(61,255,197,.4); text-align: center; opacity: 0; }
+#scCash .tile .icon { width: 90px; height: 90px; margin: 0 auto 10px; color: var(--n); }
+#scCash .tile small { display: block; font-size: 34px; font-weight: 800; color: #b9d0ca; }
+#scCash .tile b { display: block; font-size: 56px; font-weight: 900; direction: ltr; margin-top: 8px; }
+#scCash .tile.o .icon, #scCash .tile.o b { color: var(--o2); }
+#scCash .coin { position: absolute; width: 70px; height: 70px; color: var(--y); opacity: 0; }
+
+/* الإيصال */
+#printer { position: absolute; left: 50%; top: 40px; width: 560px; height: 90px; margin-left: -280px; border-radius: 30px; background: linear-gradient(180deg, #2c4a44, #12302b); opacity: 0; z-index: 16; box-shadow: 0 20px 50px rgba(0,0,0,.5); }
+#printer::after { content: ''; position: absolute; left: 70px; right: 70px; bottom: 18px; height: 14px; border-radius: 7px; background: #06120f; }
+#receipt { position: absolute; left: 50%; top: 80px; width: 420px; margin-left: -210px; border-radius: 6px; overflow: hidden; background: #fff; box-shadow: 0 40px 100px rgba(0,0,0,.6); opacity: 0; z-index: 15; height: 900px; }
+#receipt img { width: 420px; display: block; }
+
+/* الخلاصة والتواصل */
+#summary h2 { font-size: 76px; font-weight: 900; }
+#summary .cards { display: flex; gap: 26px; justify-content: center; margin-top: 46px; perspective: 1600px; }
+#summary .c { width: 230px; padding: 32px 10px; border-radius: 30px; background: rgba(255,255,255,.08); border: 2px solid rgba(61,255,197,.45); opacity: 0; }
+#summary .c .icon { width: 90px; height: 90px; margin: 0 auto 14px; color: var(--n); }
+#summary .c b { font-size: 34px; font-weight: 900; }
+#noNet { font-size: 54px; margin-top: 46px; color: #cdeee5; font-weight: 900; opacity: 0; }
+#contact h2 { font-size: 64px; font-weight: 900; }
+#contact .num { font-size: 92px; font-weight: 900; direction: ltr; letter-spacing: 2px; min-height: 120px; }
+#contact .url { font-size: 40px; color: var(--n); font-weight: 800; margin-top: 20px; }
+#contact img { width: 150px; height: 150px; border-radius: 40px; box-shadow: 0 0 60px rgba(61,255,197,.4); }
+#contact .ring { position: absolute; left: 50%; top: 50%; width: 1400px; height: 1400px; margin: -700px 0 0 -700px; border-radius: 50%; border: 2px solid rgba(61,255,197,.12); }
+
+#cursor { position: absolute; left: 0; top: 0; width: 46px; height: 46px; z-index: 30; pointer-events: none; opacity: 0; }
+#cursor svg { width: 100%; height: 100%; filter: drop-shadow(0 6px 10px rgba(0,0,0,.5)); }
+#ripple { position: absolute; width: 90px; height: 90px; margin: -45px 0 0 -45px; border-radius: 50%; border: 5px solid var(--o); z-index: 29; opacity: 0; }
+#flash { position: absolute; inset: 0; background: #fff; opacity: 0; z-index: 25; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="grid"></div>
+  <div id="floaters">{{FLOATERS}}</div>
+  <div id="brand"><img src="assets/logo.png" />ميزان · شرح السوبرماركت</div>
+  <div id="chip"><span class="num" id="chipN">أولاً</span><span id="chipT">التجهيز</span></div>
+  <div id="mon"><div id="world">{{SHOTS}}{{HLS}}</div><div id="glare"></div></div>
+  <div id="caps"></div>
+  <div id="prog">{{PROG}}</div>
+
+  <div id="printer"></div>
+  <div id="receipt"><img src="assets/shots/receipt_c.png" /></div>
+
+  <!-- مشاهد -->
+  <div class="scene" id="scBar">
+    <div class="box"><div class="cap"></div><div class="lbl">زيت دوار الشمس<br>1.8 لتر</div><div class="bc"><div class="bars"></div><div class="d mono">6210001000123</div></div></div>
+    <div class="laser"></div><div class="gun icon">{{icon:scan-barcode}}</div>
+    <div class="field"><label>الباركود</label><div class="in mono"><span id="bcTx" class="tx" data-text="6210001000123"></span></div></div>
+    {{DIGITS}}
+    <h3>امسح الباركود… <b>بينكتب لحالو</b></h3>
+  </div>
+  <div class="scene" id="scCarton">
+    <div class="eq">كرتونة وحدة = <b><span id="cnt12">0</span> قطعة</b></div>
+    <div class="crate"><div class="flap fl"></div><div class="flap fr"></div><div class="front">كرتونة</div><div class="tape"></div></div>
+    <div class="grid12">{{BOTTLES}}</div>
+    <div class="tags2"><div class="pt a">مفرق: 3,900</div><div class="pt b">جملة: 3,650</div><div class="pt a">الكرتونة: 45,000</div></div>
+  </div>
+  <div class="scene" id="scExcel">
+    <div class="xl"><div class="bar"><span class="icon">{{icon:layers}}</span>بضاعة-المحل.xlsx</div><table>{{XLROWS}}</table></div>
+    <div class="arrow icon">{{icon:arrow-left-right}}</div>
+    <div class="mz"><div class="hd"><img src="assets/logo.png" />ميزان · الأصناف</div>{{MZROWS}}</div>
+    <div class="count"><span id="impN">0</span> صنف بكبسة وحدة</div>
+    {{FLYROWS}}
+  </div>
+  <div class="scene" id="scScale">
+    <div class="scale"><div class="cheese"><div></div></div><div class="plate"></div><div class="body"><div class="disp"><div><small>الوزن (كغ)</small><span id="kg">0.000</span></div><div><small>السعر</small><span id="pr">0</span></div></div></div></div>
+    <div class="sticker"><div class="t"><span>جبنة بلدية</span><span>0.750 كغ</span></div><div class="bars"></div><div class="d mono">2100101007507</div></div>
+    <div class="laser2"></div>
+    <h3>الكاشير بيمسح اللزقة… <b>الوزن والسعر لحالهن</b></h3>
+  </div>
+  <div class="scene" id="scExp">
+    <div class="cartI icon">{{icon:shopping-cart}}</div><div class="bell icon">{{icon:bell-ring}}</div>
+    <div class="first">الأقرب انتهاءً أول</div>
+    <div class="pk p2"><div class="nm">حليب</div><div class="dt">ينتهي 15/12</div></div>
+    <div class="pk p1"><div class="nm">حليب</div><div class="dt">ينتهي 18/10</div></div>
+    <h3>ميزان بيبيع <b>الأقرب انتهاءً</b> أول</h3>
+  </div>
+  <div class="scene" id="scDebt">
+    <div class="book"><div class="page">أبو خالد … 12,000<br>أم محمد … 6,400<br>أبو سمير … 3,900<br>؟؟ … ؟؟</div></div><div class="x"></div>
+    <div class="card"><div class="nm"><span class="icon">{{icon:user}}</span>أبو خالد</div><div class="row"><span>أخد على الحساب</span><b>37,500</b></div><div class="row"><span>دفع</span><b>25,000</b></div><div class="row t"><span>الباقي عليه</span><b>12,500 ل.س</b></div></div>
+    <h3>بلا دفتر… <b>كل شي مسجّل</b></h3>
+  </div>
+  <div class="scene" id="scCash">
+    <div class="reg">
+      <div class="tile"><span class="icon">{{icon:chart-column}}</span><small>مبيعات اليوم</small><b><span class="cn" data-v="73500">0</span></b></div>
+      <div class="tile"><span class="icon">{{icon:banknote}}</span><small>نقدي</small><b><span class="cn" data-v="41780">0</span></b></div>
+      <div class="tile o"><span class="icon">{{icon:hand-coins}}</span><small>دين</small><b><span class="cn" data-v="31720">0</span></b></div>
+      <div class="tile"><span class="icon">{{icon:receipt}}</span><small>فواتير</small><b><span class="cn" data-v="7">0</span></b></div>
+    </div>
+    {{COINS}}
+    <h3>إغلاق اليوم… <b>كل شي واضح</b></h3>
+  </div>
+
+  <div class="full" id="intro">
+    <div class="cart icon">{{icon:shopping-cart}}</div>{{DROPS}}
+    <img class="logo" src="assets/logo.png" />
+    <h1>ميزان <span style="color:var(--n)">للسوبرماركت</span></h1>
+    <h2>من أول صنف… لإغلاق الصندوق آخر الليل</h2>
+    <div class="tags"><span>الأصناف بالباركود</span><span>من الإكسل بكبسة</span><span>الكرتونة والقطعة</span><span>المواد بالوزن</span><span>تواريخ الصلاحية</span><span>الكاشير السريع</span><span>ديون الزباين</span><span>إغلاق الصندوق</span></div>
+  </div>
+  <div id="wipe"><div class="band b1"></div><div class="band b2"></div><div class="band b3"></div><div class="txt"><div><div class="num" id="wNum">01</div><div class="ord" id="wOrd">أولاً</div><div id="wTtls"></div></div></div></div>
+  <div class="full" id="summary"><div><h2>السوبرماركت كلو… <span style="color:var(--n)">بميزان</span></h2>
+    <div class="cards">{{SUMCARDS}}</div><div id="noNet">بمكان واحد، وبدون إنترنت</div></div></div>
+  <div class="full" id="contact"><div class="ring"></div><div><img src="assets/logo.png" /><h2>عندك سؤال؟ <span style="color:var(--n)">راسلنا واتساب</span></h2>
+    <div class="num" id="n1"><span class="tx" data-text="+963 968 037 609"></span></div><div class="num" id="n2"><span class="tx" data-text="+963 980 072 891"></span></div>
+    <div class="url mono">akyedgam3.github.io/mizan-updates</div></div></div>
+
+  <div id="ripple"></div>
+  <div id="cursor"><svg viewBox="0 0 24 24"><path d="M4 2 L4 20 L9 15 L12.5 22 L15.5 20.6 L12 14 L19 14 Z" fill="#fff" stroke="#000" stroke-width="1.3" stroke-linejoin="round"/></svg></div>
+  <div id="flash"></div>
+</div>
+<script src="assets/gsap.min.js"></script>
+<script>
+const STATES = {{STATES}};
+const $ = (q) => document.querySelector(q);
+const $$ = (q) => [...document.querySelectorAll(q)];
+const DUR = {{DUR}};
+const MON = { x: 60, y: 74, w: 1800, h: 930 };
+const CH = {{CH}};
+const BEATS = {{BEATS}};
+const SCENES = {{SCENES}};
+const TYPES = [['#n1 .tx', 284.8, 5.8], ['#n2 .tx', 293.3, 6.0], ['#bcTx', 57.4, 1.6]];
+const COUNTS = [['#cnt12', 67.2, 3.2, 12, 0], ['#impN', 91.2, 8.0, 10, 0], ['#kg', 138.0, 1.6, 0.75, 3], ['#pr', 138.0, 1.6, 6750, 0]];
+const fmt = (v, d) => (d ? v.toFixed(d) : Math.round(v).toLocaleString('en'));
+
+const box = (shot, f) => (Array.isArray(f) ? { x: f[0], y: f[1], w: f[2], h: f[3] } : STATES[shot]?.[f]);
+function cam(b, pad = 40, maxS = 2.1) {
+  if (!b) { const s = Math.min(MON.w / 1600, MON.h / 1000); return { s, x: (MON.w - 1600 * s) / 2, y: (MON.h - 1000 * s) / 2 }; }
+  const s = Math.max(Math.min(MON.w / 1600, MON.h / 1000), Math.min(MON.w / (b.w + pad * 2), MON.h / (b.h + pad * 2), maxS));
+  let x = MON.w / 2 - (b.x + b.w / 2) * s, y = MON.h / 2 - (b.y + b.h / 2) * s;
+  x = Math.min(Math.max(x, MON.w - 1600 * s), 0); y = Math.min(Math.max(y, MON.h - 1000 * s), 0);
+  if (1600 * s < MON.w) x = (MON.w - 1600 * s) / 2; if (1000 * s < MON.h) y = (MON.h - 1000 * s) / 2;
+  return { s, x, y };
+}
+let tl;
+function build() {
+  tl = gsap.timeline({ paused: true, defaults: { ease: 'power2.inOut' } });
+  const IM = (o) => ({ ...o, immediateRender: false });
+  tl.set('img.shot, .hl', { opacity: 0 }, 0);
+  // الشاشة بتطوف شوي بالـ 3D
+  tl.set('#mon', { transformPerspective: 2600, rotationY: 2.5, rotationX: 1.5 }, 0);
+  tl.to('#mon', { rotationY: -2.5, rotationX: -1, duration: 7, repeat: Math.floor(DUR / 7), yoyo: true, ease: 'sine.inOut' }, 0);
+  tl.to('#grid', { x: 80, y: 80, duration: DUR, ease: 'none' }, 0);
+  $$('#floaters .f').forEach((f, i) => { const d = 5 + (i % 4); tl.to(f, { y: '-=70', rotation: (i % 2 ? 1 : -1) * 25, duration: d, repeat: Math.floor(DUR / d), yoyo: true, ease: 'sine.inOut' }, 0); });
+  let cur = null, c0 = cam(null), lastCursor = null;
+  tl.set('#world', { x: c0.x, y: c0.y, scale: c0.s }, 0);
+  BEATS.forEach((b, i) => {
+    const [t, shot, focus, hls, click, caption] = b;
+    const next = BEATS[i + 1]?.[0] ?? DUR;
+    const end = Math.min(next, ...SCENES.map((s) => s[1]).filter((a) => a > t), ...CH.map((c) => c[0]).filter((a) => a > t));
+    const c = cam(focus ? box(shot, focus) : null, focus && Array.isArray(focus) ? 20 : 40);
+    if (shot !== cur) {
+      if (cur) tl.to(`#shot_${cur}`, { opacity: 0, duration: 0.3 }, t);
+      tl.fromTo(`#shot_${shot}`, { opacity: 0 }, IM({ opacity: 1, duration: 0.3 }), t);
+      if (!cur) tl.set('#world', { x: c.x, y: c.y, scale: c.s }, t);
+      else tl.to('#world', { x: c.x, y: c.y, scale: c.s, duration: 0.6 }, t);
+      tl.fromTo('#glare', { x: -900 }, IM({ x: 2600, duration: 0.9, ease: 'power1.in' }), t);
+      cur = shot;
+    } else tl.to('#world', { x: c.x, y: c.y, scale: c.s, duration: 0.7 }, t - 0.1);
+    for (const k of hls || []) {
+      const bb = box(shot, k); if (!bb) continue;
+      const id = `#hl_${shot}_${k}`;
+      tl.fromTo(id, { opacity: 0, scale: 1.15 }, IM({ opacity: 1, scale: 1, duration: 0.35, ease: 'back.out(2)' }), t + 0.1);
+      tl.to(id, { opacity: 0, duration: 0.25 }, next - 0.15);
+    }
+    if (caption) {
+      const bb = box(shot, hls?.[0] ?? focus) ?? { x: 700, y: 400, w: 200, h: 100 };
+      const cx = MON.x + c.x + (bb.x + bb.w / 2) * c.s, top = MON.y + c.y + bb.y * c.s, bot = MON.y + c.y + (bb.y + bb.h) * c.s;
+      const below = top < 230;
+      const w = caption.length * 19 + 60;
+      const left = Math.min(Math.max(cx - w / 2, 70), 1850 - w);
+      const y = below ? Math.min(bot + 26, 930) : top - 86;
+      const el = document.createElement('div'); el.className = 'cap' + (below ? ' below' : ''); el.textContent = caption; $('#caps').appendChild(el);
+      gsap.set(el, { x: left, y });
+      tl.fromTo(el, { opacity: 0, scale: 0.4, rotation: below ? 4 : -4 }, IM({ opacity: 1, scale: 1, rotation: 0, duration: 0.45, ease: 'back.out(2.4)' }), t + 0.25);
+      tl.to(el, { opacity: 0, scale: 0.8, duration: 0.2 }, end - 0.25);
+    }
+    if (click) {
+      const [k, at] = click; const bb = box(shot, k);
+      if (bb) {
+        const px = MON.x + c.x + (bb.x + bb.w / 2) * c.s, py = MON.y + c.y + (bb.y + bb.h / 2) * c.s;
+        const from = lastCursor && at - lastCursor.at < 6 ? null : [px + 260, py + 200];
+        if (from) tl.set('#cursor', { x: from[0], y: from[1], opacity: 1 }, at - 0.9);
+        else tl.set('#cursor', { opacity: 1 }, at - 0.9);
+        tl.to('#cursor', { x: px - 8, y: py - 6, duration: 0.8 }, at - 0.8);
+        tl.fromTo('#ripple', { left: px, top: py, opacity: 1, scale: 0.3 }, IM({ opacity: 0, scale: 1.4, duration: 0.45 }), at);
+        tl.fromTo('#cursor', { scale: 1 }, IM({ keyframes: [{ scale: 0.8, duration: 0.07 }, { scale: 1, duration: 0.12 }] }), at);
+        tl.to('#cursor', { opacity: 0, duration: 0.3 }, at + 1.2);
+        lastCursor = { at };
+        window.CLICKS.push(at);
+      }
+    }
+  });
+  // انتقال الفصول: ستارة مائلة + رقم كبير + العنوان حرف حرف
+  CH.forEach(([t, n, title, end], i) => {
+    tl.set('#wNum', { innerText: String(i + 1).padStart(2, '0') }, t);
+    tl.set('#wOrd', { innerText: n }, t);
+    const tt = document.createElement('div'); tt.className = 'ttl'; tt.innerHTML = title.split(' ').map((w) => `<span>${w}</span>`).join('&nbsp;'); $('#wTtls').appendChild(tt);
+    tl.set(tt, { display: 'block' }, t); tl.set(tt, { display: 'none' }, end);
+    $$('#wipe .band').forEach((bd, j) => {
+      tl.fromTo(bd, { x: -2600 }, IM({ x: -200, duration: 0.55, ease: 'power3.out' }), t + j * 0.07);
+      tl.to(bd, { x: 2700, duration: 0.55, ease: 'power3.in' }, end - 0.55 + j * 0.05);
+    });
+    tl.fromTo('#wipe .txt', { opacity: 0 }, IM({ opacity: 1, duration: 0.2 }), t + 0.35);
+    tl.fromTo('#wNum', { scale: 2.2, opacity: 0 }, IM({ scale: 1, opacity: 1, duration: 0.6, ease: 'expo.out' }), t + 0.35);
+    tl.fromTo('#wOrd', { y: 30, opacity: 0 }, IM({ y: 0, opacity: 1, duration: 0.4 }), t + 0.5);
+    tl.fromTo(tt.querySelectorAll('span'), { y: 70, opacity: 0, rotationX: -80 }, IM({ y: 0, opacity: 1, rotationX: 0, duration: 0.45, stagger: 0.12, ease: 'back.out(2)' }), t + 0.6);
+    tl.to('#wipe .txt', { opacity: 0, duration: 0.2 }, end - 0.5);
+    tl.set('#chipN', { innerText: n }, t + 0.5); tl.set('#chipT', { innerText: title }, t + 0.5);
+  });
+  // المشاهد
+  for (const [sel, a, b] of SCENES) {
+    tl.fromTo(sel, { opacity: 0, scale: 1.08 }, IM({ opacity: 1, scale: 1, duration: 0.45, ease: 'power3.out' }), a);
+    tl.to(sel, { opacity: 0, scale: 0.96, duration: 0.35 }, b - 0.35);
+  }
+  // الباركود: الليزر بيمسح والأرقام بتطير للخانة
+  tl.fromTo('#scBar .box', { x: 300, rotation: 12, opacity: 0 }, IM({ x: 0, rotation: -4, opacity: 1, duration: 0.7, ease: 'back.out(1.4)' }), 55.9);
+  tl.fromTo('#scBar .laser', { y: -90, opacity: 0 }, IM({ y: 120, opacity: 1, duration: 0.45, repeat: 3, yoyo: true, ease: 'sine.inOut' }), 56.5);
+  tl.to('#scBar .laser', { opacity: 0, duration: 0.2 }, 58.4);
+  $$('#scBar .digit').forEach((d, i) => tl.fromTo(d, { x: 1200 + i * 26, y: 660, opacity: 0 }, IM({ keyframes: [{ opacity: 1, duration: 0.05 }, { x: 260 + i * 46, y: 455, duration: 0.5, ease: 'power2.in' }, { opacity: 0, duration: 0.05 }] }), 57.3 + i * 0.12));
+  tl.fromTo('#scBar .field .in', { scale: 1 }, IM({ keyframes: [{ scale: 1.08, duration: 0.15 }, { scale: 1, duration: 0.2 }] }), 59.2);
+  // الكرتونة بتنفتح وبتطلع 12 قطعة
+  tl.fromTo('#scCarton .crate', { y: 300, opacity: 0 }, IM({ y: 0, opacity: 1, duration: 0.6, ease: 'back.out(1.5)' }), 66.3);
+  tl.to('#scCarton .fl', { rotation: -130, duration: 0.5 }, 66.9); tl.to('#scCarton .fr', { rotation: 130, duration: 0.5 }, 66.9);
+  tl.to('#scCarton .crate', { x: 150, scale: 0.75, duration: 0.6 }, 67.3);
+  tl.fromTo('#scCarton .eq', { y: -40, opacity: 0 }, IM({ y: 0, opacity: 1, duration: 0.4 }), 67.2);
+  $$('#scCarton .bt').forEach((d, i) => tl.fromTo(d, { x: 560, y: 120, scale: 0.2, opacity: 0 }, IM({ x: 0, y: 0, scale: 1, opacity: 1, duration: 0.45, ease: 'back.out(1.8)' }), 67.4 + i * 0.25));
+  $$('#scCarton .pt').forEach((d, i) => tl.fromTo(d, { y: 60, opacity: 0 }, IM({ y: 0, opacity: 1, duration: 0.4, ease: 'back.out(2)' }), [70.4, 71.8, 72.6][i]));
+  // الإكسل بيطير لميزان
+  tl.fromTo('#scExcel .xl', { x: 400, rotationY: -30, opacity: 0 }, IM({ x: 0, rotationY: 0, opacity: 1, duration: 0.7 }), 90.1);
+  tl.fromTo('#scExcel .mz', { x: -300, opacity: 0 }, IM({ x: 0, opacity: 1, duration: 0.6 }), 90.4);
+  tl.fromTo('#scExcel .arrow', { scale: 0 }, IM({ scale: 1, duration: 0.5, ease: 'back.out(2)' }), 90.8);
+  tl.fromTo('#scExcel .count', { opacity: 0 }, IM({ opacity: 1, duration: 0.3 }), 91.2);
+  $$('#scExcel .fly').forEach((d, i) => {
+    const a = 91.3 + i * 0.75;
+    tl.fromTo(d, { x: 990, y: 255 + i * 46.5, opacity: 0, scale: 1 }, IM({ keyframes: [{ opacity: 1, duration: 0.08 }, { x: 140, y: 240 + i * 46, scale: 0.9, duration: 0.55, ease: 'power2.inOut' }, { opacity: 0, duration: 0.08 }] }), a);
+    tl.fromTo(`#scExcel tr.row:nth-child(${i + 2})`, { backgroundColor: 'rgba(255,216,77,0)' }, IM({ backgroundColor: 'rgba(255,216,77,.55)', duration: 0.15, yoyo: true, repeat: 1 }), a);
+    tl.fromTo(`#scExcel .mz .it:nth-of-type(${i + 1})`, { opacity: 0, x: -40 }, IM({ opacity: 1, x: 0, duration: 0.25 }), a + 0.6);
+  });
+  // الميزان: الجبنة بتنحط، الأرقام بتعد، اللزقة بتطلع وبتنمسح
+  tl.fromTo('#scScale .scale', { y: 260, opacity: 0 }, IM({ y: 0, opacity: 1, duration: 0.6 }), 137.1);
+  tl.fromTo('#scScale .cheese', { y: -400, opacity: 0 }, IM({ y: 0, opacity: 1, duration: 0.5, ease: 'bounce.out' }), 137.5);
+  tl.to('#scScale .scale', { x: 360, duration: 0.6 }, 139.6);
+  tl.fromTo('#scScale .sticker', { x: 400, y: -60, opacity: 0, rotation: 6 }, IM({ x: 0, y: 0, opacity: 1, rotation: -3, duration: 0.6, ease: 'back.out(1.6)' }), 139.8);
+  tl.fromTo('#scScale .laser2', { y: -40, opacity: 0 }, IM({ y: 60, opacity: 1, duration: 0.4, repeat: 3, yoyo: true }), 141.2);
+  tl.to('#scScale .laser2', { opacity: 0, duration: 0.2 }, 142.9);
+  // الصلاحية: الأقرب انتهاءً بيروح عالسلة أول
+  tl.fromTo('#scExp .pk', { y: 300, opacity: 0 }, IM({ y: 0, opacity: 1, duration: 0.5, stagger: 0.2, ease: 'back.out(1.5)' }), 162.5);
+  tl.fromTo('#scExp .first', { scale: 0, opacity: 0 }, IM({ scale: 1, opacity: 1, duration: 0.4, ease: 'back.out(2)' }), 163.4);
+  tl.to('#scExp .p1', { x: -820, y: 40, scale: 0.55, rotation: -12, duration: 0.9, ease: 'power2.in' }, 164.6);
+  tl.to('#scExp .p1', { opacity: 0, duration: 0.2 }, 165.4);
+  tl.to('#scExp .first', { opacity: 0, duration: 0.2 }, 165.2);
+  tl.fromTo('#scExp .cartI', { scale: 1 }, IM({ keyframes: [{ scale: 1.2, duration: 0.15 }, { scale: 1, duration: 0.25 }] }), 165.5);
+  tl.fromTo('#scExp .bell', { opacity: 0 }, IM({ opacity: 1, duration: 0.3 }), 166.2);
+  tl.fromTo('#scExp .bell', { rotation: -18 }, IM({ rotation: 18, duration: 0.12, repeat: 11, yoyo: true }), 166.3);
+  // الدين: الدفتر بينشطب وبتطلع بطاقة الزبون
+  tl.fromTo('#scDebt .book', { rotation: 8, y: 200, opacity: 0 }, IM({ rotation: -4, y: 0, opacity: 1, duration: 0.6 }), 227.3);
+  tl.fromTo('#scDebt .x', { scale: 2, opacity: 0 }, IM({ scale: 1, opacity: 1, duration: 0.35, ease: 'back.out(2)' }), 228.0);
+  tl.fromTo('#scDebt .card', { x: -200, opacity: 0 }, IM({ x: 0, opacity: 1, duration: 0.5, ease: 'back.out(1.4)' }), 228.6);
+  // الصندوق: العدادات بتعد مع الصوت
+  $$('#scCash .tile').forEach((d, i) => tl.fromTo(d, { y: 80, rotationX: -60, opacity: 0 }, IM({ y: 0, rotationX: 0, opacity: 1, duration: 0.5, ease: 'back.out(1.6)' }), [249.6, 251.8, 253.9, 254.9][i]));
+  $$('#scCash .coin').forEach((d, i) => tl.fromTo(d, { y: -150, x: 0, opacity: 0, rotation: 0 }, IM({ y: 1200, opacity: 1, rotation: 540, duration: 1.8 + (i % 3) * 0.3, ease: 'power1.in' }), 249.7 + i * 0.35));
+  // المقدمة
+  tl.set('#intro', { opacity: 1 }, 0);
+  $$('#intro .drop').forEach((d, i) => tl.fromTo(d, { x: -45 + (i - 3) * 160, y: -200, rotation: 0, opacity: 1 }, IM({ keyframes: [{ y: 230, x: -45 + (i - 3) * 20, rotation: (i % 2 ? 1 : -1) * 200, duration: 0.7, ease: 'power2.in' }, { opacity: 0, duration: 0.05 }] }), 0.4 + i * 0.22));
+  tl.fromTo('#intro .cart', { scale: 1 }, IM({ keyframes: [{ scale: 1.12, duration: 0.12 }, { scale: 1, duration: 0.2 }], repeat: 6 }), 1.0);
+  tl.to('#intro .cart', { opacity: 0, scale: 0.4, rotation: -20, duration: 0.4 }, 2.6);
+  tl.fromTo('#intro img.logo', { scale: 0.3, rotationY: 180, opacity: 0 }, IM({ scale: 1, rotationY: 0, opacity: 1, duration: 0.8, ease: 'back.out(1.6)' }), 2.8);
+  tl.fromTo('#intro h1', { y: 40, opacity: 0 }, IM({ y: 0, opacity: 1, duration: 0.5 }), 3.4);
+  tl.fromTo('#intro h2', { y: 30, opacity: 0 }, IM({ y: 0, opacity: 1, duration: 0.5 }), 5.0);
+  [8.6, 10.4, 12.2, 13.9, 16.0, 17.6, 19.4, 21.0].forEach((t, i) => tl.fromTo(`.tags span:nth-child(${i + 1})`, { y: 30, opacity: 0, scale: 0.6 }, IM({ y: 0, opacity: 1, scale: 1, duration: 0.4, ease: 'back.out(2.4)' }), t));
+  tl.to('#intro', { opacity: 0, duration: 0.3 }, 22.6);
+  // الإيصال
+  tl.fromTo('#printer', { opacity: 0 }, IM({ opacity: 1, duration: 0.3 }), 214.3);
+  tl.fromTo('#receipt', { opacity: 1, clipPath: 'inset(0 0 100% 0)' }, IM({ clipPath: 'inset(0 0 0% 0)', duration: 1.4, ease: 'steps(14)' }), 214.5);
+  tl.to(['#printer', '#receipt'], { opacity: 0, duration: 0.3 }, 216.4);
+  // الخلاصة والتواصل
+  tl.fromTo('#flash', { opacity: 0.8 }, IM({ opacity: 0, duration: 0.5 }), 265.0);
+  tl.fromTo('#summary', { opacity: 0 }, IM({ opacity: 1, duration: 0.3 }), 265.0);
+  [268.0, 269.6, 271.2, 272.6, 274.2, 275.8].forEach((t, i) => tl.fromTo(`#summary .c:nth-child(${i + 1})`, { rotationY: 90, opacity: 0, y: 40 }, IM({ rotationY: 0, opacity: 1, y: 0, duration: 0.55, ease: 'back.out(1.6)' }), t));
+  tl.fromTo('#noNet', { opacity: 0, scale: 0.8 }, IM({ opacity: 1, scale: 1, duration: 0.4, ease: 'back.out(2)' }), 278.0);
+  tl.to('#summary', { opacity: 0, duration: 0.3 }, 279.9);
+  tl.fromTo('#contact', { opacity: 0 }, IM({ opacity: 1, duration: 0.4 }), 280.0);
+  tl.fromTo('#contact .ring', { scale: 0.2, opacity: 1 }, IM({ scale: 1.4, opacity: 0, duration: 3, repeat: 7, ease: 'power1.out' }), 280.2);
+  tl.fromTo('#contact img', { scale: 0.5, rotation: -30 }, IM({ scale: 1, rotation: 0, duration: 0.6, ease: 'back.out(2)' }), 280.2);
+  tl.set({}, {}, DUR);
+}
+window.CLICKS = [];
+const PROG_T = [...CH.map((c) => c[0]), 265.0];
+function render(t) {
+  tl.seek(t, false);
+  for (const [sel, a, d] of TYPES) { const el = $(sel), full = el.dataset.text; el.textContent = full.slice(0, Math.max(0, Math.min(full.length, Math.floor(((t - a) / d) * full.length)))); }
+  for (const [sel, a, d, v, dec] of COUNTS) { const p = Math.max(0, Math.min(1, (t - a) / d)); $(sel).textContent = fmt(v * (1 - Math.pow(1 - p, 2)), dec); }
+  $$('#scCash .cn').forEach((el, i) => { const a = [249.8, 252.0, 254.1, 255.1][i]; const p = Math.max(0, Math.min(1, (t - a) / 1.4)); el.textContent = fmt(Number(el.dataset.v) * (1 - Math.pow(1 - p, 3)), 0); });
+  const ci = PROG_T.findIndex((x, i) => t >= x && t < (PROG_T[i + 1] ?? 1e9));
+  $$('#prog div').forEach((d, i) => (d.className = i < ci ? 'done' : i === ci ? 'on' : ''));
+}
+window.render = render;
+window.DURATION = DUR;
+document.fonts.ready.then(() => Promise.all([...document.images].map((i) => (i.complete ? 0 : new Promise((r) => (i.onload = r)))))).then(() => { build(); render(0); window.READY = true; });
+</script>
+</body>
+</html>
