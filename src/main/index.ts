@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, session as electronSession, shell, type IpcMainInvokeEvent, type WebContents } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, screen, session as electronSession, shell, type IpcMainInvokeEvent, type WebContents } from 'electron';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -221,7 +221,52 @@ async function printOrPdf(contents: WebContents, opts: { paper: string; printer?
   });
 }
 
+// ───────────── شاشة الزبون ─────────────
+// نافذة عرض بس: ما بتقدر تستدعي أي عملية (trusted بيقبل النافذة الرئيسية بس)، بتستقبل الطلب الحالي وبتعرضه.
+
+let custWin: BrowserWindow | null = null;
+let custLast: unknown = null;
+
+function openCustomerDisplay(): { secondScreen: boolean } {
+  const primary = screen.getPrimaryDisplay();
+  const other = screen.getAllDisplays().find((d) => d.id !== primary.id);
+  if (custWin && !custWin.isDestroyed()) {
+    custWin.focus();
+    return { secondScreen: !!other };
+  }
+  const b = other?.bounds;
+  custWin = new BrowserWindow({
+    ...(b ? { x: b.x, y: b.y, width: b.width, height: b.height, fullscreen: true } : { width: 1024, height: 640 }),
+    title: 'ميزان — شاشة الزبون',
+    icon: appIcon,
+    autoHideMenuBar: true,
+    backgroundColor: '#071c18',
+    webPreferences: { preload: path.join(here, '../preload/index.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true, spellcheck: false, devTools: isDev },
+  });
+  custWin.removeMenu();
+  custWin.webContents.on('will-navigate', (e) => e.preventDefault());
+  custWin.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  custWin.webContents.on('did-finish-load', () => custWin?.webContents.send('display:update', custLast));
+  custWin.on('closed', () => (custWin = null));
+  if (isDev && process.env['ELECTRON_RENDERER_URL']) void custWin.loadURL(`${process.env['ELECTRON_RENDERER_URL']}#customer`);
+  else void custWin.loadFile(path.join(here, '../renderer/index.html'), { hash: 'customer' });
+  return { secondScreen: !!other };
+}
+
 function registerIpc(): void {
+  handle('display:open', () => openCustomerDisplay(), { allowLocked: true });
+  // شاشة الزبون نفسها بتطلب آخر شي انبعت أول ما تفتح (ما إلها أي صلاحية غير هيك)
+  ipcMain.handle('display:last', (e) => (custWin && e.sender === custWin.webContents ? { ok: true, value: custLast } : { ok: false, error: 'طلب غير موثوق' }));
+  handle('display:close', () => {
+    if (custWin && !custWin.isDestroyed()) custWin.close();
+    custWin = null;
+  }, { allowLocked: true });
+  handle('display:status', () => !!custWin && !custWin.isDestroyed(), { allowLocked: true });
+  handle('display:update', (payload: unknown) => {
+    if (JSON.stringify(payload ?? null).length > 1_500_000) throw new Error('بيانات شاشة الزبون كبيرة');
+    custLast = payload;
+    if (custWin && !custWin.isDestroyed()) custWin.webContents.send('display:update', payload);
+  }, { allowLocked: true });
   handle(
     'app:info',
     () => {
@@ -444,6 +489,10 @@ function createWindow(): void {
   });
   win.removeMenu();
   win.once('ready-to-show', () => win?.show());
+  // سكّرنا البرنامج: شاشة الزبون بتتسكّر معه
+  win.on('closed', () => {
+    if (custWin && !custWin.isDestroyed()) custWin.close();
+  });
 
   // منع التنقل لأي صفحة أخرى أو فتح نوافذ جديدة
   win.webContents.on('will-navigate', (e) => e.preventDefault());

@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { orderTotals, type DiningTable, type Invoice, type Order, type OrderLine, type OrderType } from '../../../core';
-import { money, parseAmount, qtyText, today, toInput, uid, useCompany } from '../api';
+import { money, parseAmount, plainMoney, qtyText, today, toInput, uid, useCompany } from '../api';
+import { ThermalReceipt } from '../components/ThermalReceipt';
 import { DocHeader, usePrinter } from '../components/print';
 import { ConfirmButton, Empty, Field, matches, Modal, PageHeader, partyOptions, Picker } from '../components/ui';
 import { InvoiceDocument } from './InvoiceView';
 import { cashAccounts, itemPrice } from './InvoiceEditor';
 import { Icon } from '../components/icons';
+import { CustomerDisplayButton, showThanks, useCustomerDisplay } from '../components/CustomerDisplay';
 
 const TYPE_NAMES: Record<OrderType, string> = { dine_in: 'صالة', takeaway: 'سفري', delivery: 'توصيل' };
 const QUICK_NOTES = ['بدون بصل', 'بدون ثوم', 'حار', 'بدون حر', 'زيادة صوص', 'على الجنب', 'مستعجل', 'بدون ملح'];
@@ -403,10 +405,34 @@ function OrderPanel({ order, onBack, onSwitch }: { order: Order; onBack: () => v
     if (!res) return;
     setDoc({ kind: 'receipt', inv: res.value });
     if (payMode !== 'account' && received > res.value.total) notify(`الباقي للزبون: ${money(state, received - res.value.total)}`);
+    showThanks(state, money(state, res.value.total), payMode !== 'account' && paid ? { received: money(state, received), change: money(state, Math.max(0, received - res.value.total)) } : null);
     // الطلب صار مسكّر فبترجع شاشة الطاولات لحالها؛ ما منستدعي onBack بعد الطباعة
     // مشان ما نسكّر طاولة تانية فتحها الكاشير بهالأثناء
     setTimeout(() => void printer.print('receipt'), 50);
   };
+
+  // شاشة الزبون: الطلب والمبلغ مباشرة
+  let shownPaid: number | null = null;
+  try {
+    shownPaid = paid ? parseAmount(state, paid, base) : null;
+  } catch {
+    shownPaid = null;
+  }
+  useCustomerDisplay(
+    lines.length
+      ? {
+          title: table ? table.name : TYPE_NAMES[draft.type],
+          lines: lines.map((l) => ({ name: state.items[l.itemId]?.name ?? '', qty: qtyText(l.qty), total: money(state, Math.round(l.qty * l.price)), ...(l.note ? { note: l.note } : {}) })),
+          totals: [
+            ...(t.service > 0 ? [{ label: `خدمة ${draft.servicePercent}%`, value: money(state, t.service) }] : []),
+            ...(t.delivery > 0 ? [{ label: 'أجور التوصيل', value: money(state, t.delivery) }] : []),
+            ...(t.discount > 0 ? [{ label: 'خصم', value: money(state, t.discount) }] : []),
+          ],
+          grand: money(state, t.total),
+          paid: shownPaid && shownPaid > 0 ? { received: money(state, shownPaid), change: money(state, Math.max(0, shownPaid - t.total)) } : null,
+        }
+      : null,
+  );
 
   const activeLine = lines.find((l) => l.id === active && !l.sent);
   const busyTables = new Set(Object.values(state.orders).filter((o) => o.status === 'open' && o.tableId).map((o) => o.tableId));
@@ -441,6 +467,7 @@ function OrderPanel({ order, onBack, onSwitch }: { order: Order; onBack: () => v
             دمج
           </button>
         )}
+        <CustomerDisplayButton />
         <ConfirmButton
           label="إلغاء الطلب"
           onConfirm={async () => {
@@ -717,57 +744,34 @@ function OrderPanel({ order, onBack, onSwitch }: { order: Order; onBack: () => v
       )}
       {doc?.kind === 'bill' && (
         <div className="print-only">
-          <div className="print-area invoice-doc">
-            <DocHeader title="الحساب (مبدئي)">
-              <div>
-                {table ? table.name : TYPE_NAMES[draft.type]} — طلب {draft.number}
-              </div>
-              <div className="ltr">{new Date().toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}</div>
-            </DocHeader>
-            <table className="doc-lines">
-              <thead>
-                <tr>
-                  <th>الصنف</th>
-                  <th>العدد</th>
-                  <th>المبلغ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lines.map((l) => (
-                  <tr key={l.id}>
-                    <td>{state.items[l.itemId]?.name}</td>
-                    <td>{qtyText(l.qty)}</td>
-                    <td>{money(state, Math.round(l.qty * l.price))}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="doc-totals">
-              {t.service > 0 && (
-                <div>
-                  <span>خدمة {draft.servicePercent}%</span>
-                  <strong>{money(state, t.service)}</strong>
-                </div>
-              )}
-              {t.delivery > 0 && (
-                <div>
-                  <span>أجور التوصيل</span>
-                  <strong>{money(state, t.delivery)}</strong>
-                </div>
-              )}
-              {t.discount > 0 && (
-                <div>
-                  <span>خصم</span>
-                  <strong>{money(state, t.discount)}</strong>
-                </div>
-              )}
-              <div className="grand">
-                <span>الإجمالي</span>
-                <strong>{money(state, t.total)}</strong>
-              </div>
-            </div>
-            <p className="center muted">هذه ليست فاتورة نهائية</p>
-          </div>
+          <ThermalReceipt
+            always
+            data={{
+              title: 'الحساب',
+              draft: true,
+              number: draft.number,
+              date: new Date().toLocaleDateString('en-GB'),
+              time: new Date().toLocaleString('en-GB'),
+              ...(table ? { table: table.name } : { orderType: TYPE_NAMES[draft.type] }),
+              ...(draft.waiter ? { captain: draft.waiter } : {}),
+              ...(draft.guests ? { guests: draft.guests } : {}),
+              ...(draft.customerName ? { customer: draft.customerName } : {}),
+              lines: lines.map((l) => ({
+                name: state.items[l.itemId]?.name ?? '',
+                ...(l.note ? { sub: [l.note] } : {}),
+                qty: qtyText(l.qty),
+                price: plainMoney(state, l.price),
+                total: plainMoney(state, Math.round(l.qty * l.price)),
+              })),
+              totals: [
+                { label: 'المجموع', value: money(state, t.items) },
+                ...(t.service > 0 ? [{ label: `خدمة ${draft.servicePercent}%`, value: money(state, t.service) }] : []),
+                ...(t.delivery > 0 ? [{ label: 'أجور التوصيل', value: money(state, t.delivery) }] : []),
+                ...(t.discount > 0 ? [{ label: 'خصم', value: money(state, t.discount) }] : []),
+              ],
+              grand: { label: 'الإجمالي', value: money(state, t.total) },
+            }}
+          />
         </div>
       )}
       {doc?.kind === 'receipt' && (
@@ -852,6 +856,168 @@ export function KitchenDisplay() {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/** لوحة الإدارة المباشرة: كل شي عم يصير بالمطعم هلق، بتتحدث لحالها مع كل طلب وفاتورة. */
+export function RestaurantLive() {
+  const { state, navigate } = useCompany();
+  const now = useNow(15_000);
+  const base = state.info!.baseCurrency;
+  const day = today();
+  const sales = state.invoices.filter((i) => i.kind === 'sale' && !i.voidEntryId && i.date === day && i.currency === base);
+  const total = sales.reduce((s, i) => s + i.total, 0);
+  const cash = sales.reduce((s, i) => s + i.paid, 0);
+  const tables = Object.values(state.tables).filter((t) => !t.archived);
+  const open = Object.values(state.orders).filter((o) => o.status === 'open');
+  const byTable = new Map(open.filter((o) => o.tableId).map((o) => [o.tableId!, o]));
+  const openValue = open.reduce((s, o) => s + orderTotals(o).total, 0);
+  const cookingLines = open.flatMap((o) => o.lines.filter((l) => l.sent && !l.ready));
+  const oldest = cookingLines.reduce((m, l) => Math.max(m, minutesSince(l.sentAt, now)), 0);
+  const readyOrders = open.filter((o) => kitchenState(o) === 'ready').length;
+
+  // الأكثر مبيعاً اليوم
+  const top = new Map<string, { name: string; qty: number; amount: number }>();
+  for (const inv of sales)
+    for (const l of inv.lines) {
+      const k = l.itemId ?? l.description;
+      const x = top.get(k) ?? { name: l.description, qty: 0, amount: 0 };
+      x.qty += l.qty;
+      x.amount += Math.round(l.qty * l.price);
+      top.set(k, x);
+    }
+  const topItems = [...top.values()].sort((a, b) => b.qty - a.qty).slice(0, 8);
+  // المبيعات حسب الساعة
+  const hours = Array.from({ length: 24 }, () => 0);
+  for (const inv of sales) {
+    const h = new Date(inv.createdAt).getHours();
+    if (!Number.isNaN(h)) hours[h] = (hours[h] ?? 0) + inv.total;
+  }
+  const firstH = Math.max(0, Math.min(10, hours.findIndex((v) => v > 0) === -1 ? 10 : hours.findIndex((v) => v > 0)));
+  const shownHours = hours.map((v, h) => ({ h, v })).filter((x) => x.h >= firstH);
+  const maxH = Math.max(1, ...shownHours.map((x) => x.v));
+  // الكاشير والكابتن
+  const people = new Map<string, number>();
+  for (const inv of sales) {
+    const n = state.users[inv.createdBy]?.displayName ?? '—';
+    people.set(`الكاشير: ${n}`, (people.get(`الكاشير: ${n}`) ?? 0) + inv.total);
+    const o = inv.source?.type === 'order' ? state.orders[inv.source.id] : undefined;
+    if (o?.waiter) people.set(`الكابتن: ${o.waiter}`, (people.get(`الكابتن: ${o.waiter}`) ?? 0) + inv.total);
+  }
+  const recent = [...sales].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 6);
+  const m = (v: number) => money(state, v);
+
+  return (
+    <div className="page live-page">
+      <PageHeader title="لوحة الإدارة المباشرة">
+        <span className="live-dot">مباشر · {new Date(now).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+        <button onClick={() => (document.fullscreenElement ? void document.exitFullscreen() : void document.documentElement.requestFullscreen())}>
+          <Icon name="monitor" size={16} /> ملء الشاشة
+        </button>
+      </PageHeader>
+      <div className="live-kpis">
+        <div className="kpi big">
+          <span>مبيعات اليوم</span>
+          <strong>{m(total)}</strong>
+          <small>{sales.length} فاتورة · وسطي الفاتورة {m(sales.length ? Math.round(total / sales.length) : 0)}</small>
+        </div>
+        <div className="kpi">
+          <span>المقبوض نقداً</span>
+          <strong>{m(cash)}</strong>
+          <small>دين: {m(total - cash)}</small>
+        </div>
+        <div className="kpi">
+          <span>طاولات مشغولة</span>
+          <strong>
+            {byTable.size} / {tables.length}
+          </strong>
+          <small>{open.length} طلب مفتوح · {m(openValue)}</small>
+        </div>
+        <div className={`kpi ${oldest >= 20 ? 'bad' : oldest >= 10 ? 'warn' : ''}`}>
+          <span>بالمطبخ</span>
+          <strong>{cookingLines.length} صنف</strong>
+          <small>{cookingLines.length ? `أقدم طلب من ${elapsed(oldest)}` : 'ما في انتظار'}</small>
+        </div>
+        <div className="kpi good">
+          <span>جاهز للتقديم</span>
+          <strong>{readyOrders}</strong>
+          <small>طلب</small>
+        </div>
+      </div>
+      <div className="live-grid">
+        <section className="card">
+          <h3>الطاولات</h3>
+          <div className="live-tables">
+            {tables.map((t) => {
+              const o = byTable.get(t.id);
+              const k = o ? kitchenState(o) : null;
+              return (
+                <button key={t.id} className={`lt ${o ? `busy k-${k}` : ''}`} onClick={() => navigate('restaurant')}>
+                  <b>{t.name}</b>
+                  {o ? (
+                    <>
+                      <span>{m(orderTotals(o).total)}</span>
+                      <small>
+                        {elapsed(minutesSince(o.openedAt, now))} · {KITCHEN_LABEL[k!]}
+                      </small>
+                    </>
+                  ) : (
+                    <small>فاضية</small>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+        <section className="card">
+          <h3>المبيعات حسب الساعة</h3>
+          <div className="live-hours">
+            {shownHours.map(({ h, v }) => (
+              <div key={h} className={new Date(now).getHours() === h ? 'now' : ''}>
+                <i style={{ height: `${(v / maxH) * 100}%` }} title={m(v)} />
+                <small>{h}</small>
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="card">
+          <h3>الأكثر طلباً اليوم</h3>
+          {topItems.length === 0 && <Empty>لسا ما في مبيعات اليوم</Empty>}
+          <ol className="live-top">
+            {topItems.map((x) => (
+              <li key={x.name}>
+                <span>{x.name}</span>
+                <b>{qtyText(x.qty)}</b>
+                <small>{m(x.amount)}</small>
+              </li>
+            ))}
+          </ol>
+        </section>
+        <section className="card">
+          <h3>الكاشير والكباتن</h3>
+          {people.size === 0 && <Empty>لسا ما في مبيعات اليوم</Empty>}
+          <div className="live-people">
+            {[...people.entries()].sort((a, b) => b[1] - a[1]).map(([k, v]) => (
+              <div key={k}>
+                <span>{k}</span>
+                <b>{m(v)}</b>
+              </div>
+            ))}
+          </div>
+          <h3>آخر الفواتير</h3>
+          <div className="live-people">
+            {recent.map((i) => (
+              <div key={i.id} className="clickable" onClick={() => navigate('invoice', i.id)}>
+                <span>
+                  #{i.number} · {new Date(i.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+                <b>{m(i.total)}</b>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

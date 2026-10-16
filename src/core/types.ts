@@ -91,6 +91,34 @@ export interface PrintSettings {
   showStamp?: boolean; // ختم مدفوعة / آجل / ملغاة (افتراضياً نعم)
   showSignatures?: boolean; // خانات التوقيع
   terms?: string; // الشروط والأحكام أسفل الفاتورة
+  receipt?: ReceiptSettings; // تصميم الإيصال الحراري (80/58mm)
+}
+
+/** تصميم الإيصال الحراري: كل خانة إلها مفتاح إظهار/إخفاء، والافتراضي إظهار. */
+export interface ReceiptSettings {
+  logo?: 'none' | 'small' | 'banner'; // بانر = الشعار بعرض الورقة متل المطاعم
+  showName?: boolean;
+  showContact?: boolean; // العنوان والهاتف
+  header?: string; // أسطر تحت الاسم
+  title?: string; // بدل «فاتورة مبيع»
+  showNumber?: boolean;
+  showDate?: boolean;
+  showTime?: boolean;
+  showTable?: boolean;
+  showOrderType?: boolean; // سفري / توصيل
+  showCaptain?: boolean;
+  showGuests?: boolean;
+  showCashier?: boolean;
+  showCustomer?: boolean;
+  showPrice?: boolean; // عمود سعر الوحدة
+  grid?: boolean; // جدول بخطوط متل الإيصالات الكلاسيكية
+  fontSize?: 'sm' | 'md' | 'lg';
+  contactLabel?: string; // «للتوصيات والاستفسار»
+  contactPhone?: string;
+  thanks?: string; // «نشكر لكم زيارتكم»
+  footer?: string; // نص حر بالآخر
+  showQr?: boolean; // افتراضياً لا
+  displayWelcome?: string; // رسالة شاشة الزبون وقت ما في طلب
 }
 
 /** إعدادات باركود الميزان (مواد الوزن): 2 + رمز المادة + الوزن/السعر + رقم تحقق. */

@@ -25,7 +25,7 @@ import { Rates } from './screens/Rates';
 import { RepairEditor } from './screens/RepairEditor';
 import { Repairs } from './screens/Repairs';
 import { Reports } from './screens/Reports';
-import { KitchenDisplay, Restaurant } from './screens/Restaurant';
+import { KitchenDisplay, Restaurant, RestaurantLive } from './screens/Restaurant';
 import { Settings } from './screens/Settings';
 import { TailorEditor, TailorOrders } from './screens/Tailor';
 import { QuoteEditor, Quotes } from './screens/Quotes';
@@ -61,6 +61,7 @@ const NAV: (NavItem | string)[] = [
   { key: 'pos', label: 'نقطة البيع', icon: 'pos', feature: 'pos', perm: 'pos.use' },
   { key: 'restaurant', label: 'الطاولات والطلبات', icon: 'utensils', feature: 'tables', perm: 'restaurant.use' },
   { key: 'kitchen', label: 'شاشة المطبخ', icon: 'beef', feature: 'tables', perm: 'restaurant.use' },
+  { key: 'restaurant-live', label: 'لوحة الإدارة المباشرة', icon: 'live', feature: 'tables', perm: 'reports.financial' },
   { key: 'sale', label: 'فاتورة مبيع', icon: 'plus', perm: 'sales.create' },
   { key: 'quotes', label: 'عروض الأسعار', icon: 'file', perm: 'sales.create' },
   { key: 'repairs', label: 'أوامر الصيانة', icon: 'wrench', feature: 'repairs', perm: 'repairs.manage' },
@@ -348,6 +349,8 @@ function Screen({ screen }: { screen: { key: string; param?: string } }) {
       return <Restaurant />;
     case 'kitchen':
       return <KitchenDisplay />;
+    case 'restaurant-live':
+      return <RestaurantLive />;
     case 'sale':
     case 'purchase':
     case 'sale_return':

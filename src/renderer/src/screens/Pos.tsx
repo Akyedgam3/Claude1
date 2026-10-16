@@ -6,6 +6,7 @@ import { matches, partyOptions, Picker, ScanInput } from '../components/ui';
 import { InvoiceDocument } from './InvoiceView';
 import { itemPrice } from './InvoiceEditor';
 import { Icon } from '../components/icons';
+import { CustomerDisplayButton, showThanks, useCustomerDisplay } from '../components/CustomerDisplay';
 
 interface CartLine {
   key: string;
@@ -205,6 +206,7 @@ export function Pos() {
     setReceived('');
     setDiscount('');
     setPartyId(null);
+    showThanks(state, money(state, total), !credit && received ? { received: money(state, receivedMinor), change: money(state, Math.max(0, change)) } : null);
     notify(change > 0 && !credit ? `تم البيع — الباقي للزبون: ${money(state, change)}` : 'تم البيع');
     if (autoPrint) setTimeout(() => void printer.print('receipt'), 50);
   };
@@ -227,6 +229,21 @@ export function Pos() {
     setReceived('');
     refocus();
   };
+
+  // شاشة الزبون: السلة والمبلغ والمستلم مباشرة
+  useCustomerDisplay(
+    cart.length
+      ? {
+          lines: cart.map((l) => {
+            const it = state.items[l.itemId];
+            return { name: `${it?.name ?? ''}${l.unit ? ` (${l.unit})` : ''}`, qty: qtyText(l.qty), total: money(state, Math.round(l.qty * l.price)), ...(l.note ? { note: l.note } : {}) };
+          }),
+          totals: disc ? [{ label: 'المجموع', value: money(state, subtotal) }, { label: 'الخصم', value: money(state, disc) }] : [],
+          grand: money(state, total),
+          paid: received && receivedMinor > 0 ? { received: money(state, receivedMinor), change: money(state, Math.max(0, change)) } : null,
+        }
+      : null,
+  );
 
   const todaySales = state.invoices.filter((i) => i.kind === 'sale' && !i.voidEntryId && i.date === today() && i.createdBy === user.id);
   const quickNotes = profile.quickNotes ?? [];
@@ -442,6 +459,7 @@ export function Pos() {
               <Icon name="prev" size={14} /> تعليق الفاتورة
             </button>
           )}
+          <CustomerDisplayButton />
           {last && (
             <button className="ghost" onClick={() => printer.print('receipt')}>
               إعادة طباعة آخر إيصال

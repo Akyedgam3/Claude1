@@ -47,6 +47,17 @@ export interface ExportSheet {
 
 const inv = <T,>(channel: string, ...args: unknown[]) => window.mizan.invoke(channel, ...args) as Promise<T>;
 
+/** اللي بيظهر على شاشة الزبون: الطلب الحالي، أو شكراً بعد الدفع، أو null = ترحيب. */
+export interface CustomerDisplayData {
+  brand: { name: string; logo?: string; welcome?: string };
+  title?: string; // طاولة 3، سفري...
+  lines: { name: string; qty: string; total: string; note?: string }[];
+  totals: { label: string; value: string }[];
+  grand: string;
+  paid?: { received: string; change: string } | null;
+  done?: boolean;
+}
+
 export const api = {
   info: () => inv<AppInfo>('app:info'),
   activate: (key: string) => inv<LicenseStatus>('license:activate', key),
@@ -70,6 +81,10 @@ export const api = {
   exportPdf: (o: { paper: string; name: string }) => inv<string | false>('export:pdf', o),
   exportExcel: (name: string, sheets: ExportSheet[], format: 'xlsx' | 'csv' = 'xlsx') => inv<string | null>('export:excel', name, sheets, format),
   importExcel: () => inv<Record<string, string | number>[] | null>('import:excel'),
+  displayOpen: () => inv<{ secondScreen: boolean }>('display:open'),
+  displayClose: () => inv<void>('display:close'),
+  displayStatus: () => inv<boolean>('display:status'),
+  displayUpdate: (payload: CustomerDisplayData | null) => inv<void>('display:update', payload),
   on: (channel: Parameters<typeof window.mizan.on>[0], fn: (payload: unknown) => void) => window.mizan.on(channel, fn),
 };
 
@@ -128,6 +143,11 @@ export function uid(): string {
 export function money(state: CompanyState, minor: number, currency?: string): string {
   const c = state.currencies[currency ?? state.info!.baseCurrency]!;
   return `${formatMinor(minor, c.decimals)} ${c.symbol}`;
+}
+
+/** المبلغ بدون رمز العملة (أعمدة الإيصال الحراري الضيقة). */
+export function plainMoney(state: CompanyState, minor: number, currency?: string): string {
+  return formatMinor(minor, state.currencies[currency ?? state.info!.baseCurrency]!.decimals);
 }
 
 /** المبلغ كرقم عادي (للتصدير إلى Excel). */

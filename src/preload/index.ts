@@ -8,7 +8,7 @@ async function invoke<T>(channel: string, ...args: unknown[]): Promise<T> {
   return res.value;
 }
 
-const EVENTS = ['company:events', 'company:reset', 'company:closed', 'license:changed', 'lan:error'] as const;
+const EVENTS = ['company:events', 'company:reset', 'company:closed', 'license:changed', 'lan:error', 'display:update'] as const;
 
 // الواجهة لا تصل لأي شيء من النظام إلا عبر هذه الدوال المحددة.
 const api = {

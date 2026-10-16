@@ -1,7 +1,8 @@
 import { amountInWords, findRate, INVOICE_KIND_NAMES, lineAmount, type CompanyState, type Invoice } from '../../../core';
-import { dateText, money, qtyText, today, useCompany } from '../api';
+import { dateText, money, plainMoney, qtyText, today, useCompany } from '../api';
 import type { ReactNode } from 'react';
 import { CommercialDoc, type DocModel } from '../components/CommercialDoc';
+import { ThermalReceipt, type ReceiptData } from '../components/ThermalReceipt';
 import { PrintButtons } from '../components/print';
 import { ConfirmButton, Empty, PageHeader } from '../components/ui';
 
@@ -121,7 +122,34 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
     stamp: inv.voidEntryId ? 'void' : remaining > 0 ? 'credit' : 'paid',
     qrText: [company.name, `${INVOICE_KIND_NAMES[inv.kind]} رقم ${inv.number}`, dateText(inv.date), `الإجمالي: ${m(inv.total)}`, party ? party.name : ''].filter(Boolean).join('\n'),
   };
-  return <CommercialDoc model={model} />;
+  // نسخة الطابعة الحرارية: أرقام بدون رمز العملة حتى تساع الأعمدة، وتفاصيل الطلب (طاولة، كابتن...) إذا الفاتورة من مطعم
+  const plain = (v: number) => plainMoney(state, v, inv.currency);
+  const created = new Date(inv.createdAt);
+  const receipt: ReceiptData = {
+    title: INVOICE_KIND_NAMES[inv.kind],
+    number: inv.number,
+    date: dateText(inv.date),
+    time: Number.isNaN(created.getTime()) ? '' : created.toLocaleString('en-GB'),
+    ...(table ? { table: table.name } : {}),
+    ...(order && !table ? { orderType: order.type === 'delivery' ? 'توصيل' : 'سفري' } : {}),
+    ...(order ? { orderNo: order.number } : {}),
+    ...(order?.waiter ? { captain: order.waiter } : {}),
+    ...(order?.guests ? { guests: order.guests } : {}),
+    ...(state.users[inv.createdBy] ? { cashier: state.users[inv.createdBy]!.displayName } : {}),
+    ...(party ? { customer: party.name } : {}),
+    lines: inv.lines.map((l, i) => ({ name: l.description, sub: model.lines[i]!.sub!, qty: qtyText(l.qty), price: plain(l.price), total: plain(lineAmount(l)) })),
+    totals: model.totals,
+    grand: { label: 'الصافي', value: m(inv.total) },
+    after: model.after!.filter((a) => a.label !== 'المقبوض' || remaining > 0),
+    ...(inv.notes && !order ? { note: inv.notes } : {}),
+    qrText: model.qrText!,
+  };
+  return (
+    <>
+      <CommercialDoc model={model} className="has-thermal" />
+      <ThermalReceipt data={receipt} />
+    </>
+  );
 }
 
 /** نص مختصر للفاتورة يُرسل للزبون برسالة. */

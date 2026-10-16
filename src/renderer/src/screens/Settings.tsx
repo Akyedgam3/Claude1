@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
-import { ACTIVITIES, ACTIVITY_LIST, ALL_FEATURES, DEFAULT_SCALE, FEATURE_INFO, type Activity, type ActivityCustomization, type Feature, type Paper, type PrintSettings } from '../../../core';
+import { ACTIVITIES, ACTIVITY_LIST, ALL_FEATURES, DEFAULT_SCALE, FEATURE_INFO, type Activity, type ActivityCustomization, type Feature, type Paper, type PrintSettings, type ReceiptSettings } from '../../../core';
 import { Icon } from '../components/icons';
 import { CommercialDoc, sampleModel } from '../components/CommercialDoc';
 import { api, dateText, today, useCompany, type LanStatus } from '../api';
 import { PAPER_NAMES } from '../components/print';
+import { sampleReceipt, ThermalReceipt } from '../components/ThermalReceipt';
 import { Field, Modal, PageHeader, Tabs } from '../components/ui';
 
-type Tab = 'company' | 'customize' | 'print' | 'taxes' | 'lan' | 'backup' | 'period' | 'account' | 'license' | 'reset';
+type Tab = 'company' | 'customize' | 'print' | 'receipt' | 'taxes' | 'lan' | 'backup' | 'period' | 'account' | 'license' | 'reset';
 
 export function Settings({ tab: initial }: { tab?: string }) {
   const { can, session, user } = useCompany();
@@ -22,6 +23,7 @@ export function Settings({ tab: initial }: { tab?: string }) {
           { key: 'company', label: 'الشركة', hidden: !can('settings.manage') },
           { key: 'customize', label: 'تخصيص النشاط', hidden: !can('settings.manage') },
           { key: 'print', label: 'الطباعة والفواتير', hidden: !can('settings.manage') },
+          { key: 'receipt', label: 'الإيصال وشاشة الزبون', hidden: !can('settings.manage') },
           { key: 'taxes', label: 'الضرائب والمخزون', hidden: !can('settings.manage') },
           { key: 'lan', label: 'الشبكة المحلية', hidden: !local || !can('settings.manage') },
           { key: 'backup', label: 'النسخ الاحتياطي', hidden: !local || !can('backup.manage') },
@@ -34,6 +36,7 @@ export function Settings({ tab: initial }: { tab?: string }) {
       {tab === 'company' && <CompanyTab />}
       {tab === 'customize' && <CustomizeTab />}
       {tab === 'print' && <PrintTab />}
+      {tab === 'receipt' && <ReceiptTab />}
       {tab === 'taxes' && <TaxesTab />}
       {tab === 'lan' && <LanTab />}
       {tab === 'backup' && <BackupTab />}
@@ -225,6 +228,118 @@ function ListEditor({ values, onChange, placeholder }: { values: string[]; onCha
         </button>
       </form>
     </>
+  );
+}
+
+/** تصميم الإيصال الحراري مع معاينة حية، ورسالة شاشة الزبون. */
+function ReceiptTab() {
+  const { state, call, notify, feature } = useCompany();
+  const print = state.info!.print ?? {};
+  const [r, setR] = useState<ReceiptSettings>(print.receipt ?? {});
+  const [logo, setLogo] = useState<string | undefined>(print.logo);
+  const restaurant = feature('tables');
+  const flag = (k: keyof ReceiptSettings, label: string, def = true) => (
+    <label className="check">
+      <input type="checkbox" checked={(r[k] as boolean | undefined) ?? def} onChange={(e) => setR({ ...r, [k]: e.target.checked })} />
+      {label}
+    </label>
+  );
+  const save = async () => {
+    if (await call('updateCompany', { print: { ...print, ...(logo ? { logo } : {}), receipt: r } })) notify('تم حفظ تصميم الإيصال');
+  };
+  const sample = sampleReceipt(state.currencies[state.info!.baseCurrency]?.symbol ?? '');
+  return (
+    <section className="card receipt-designer">
+      <div>
+        <h3>تصميم الإيصال الحراري</h3>
+        <p className="muted">هاد الشكل اللي بيطلع على الطابعة الحرارية (80mm أو 58mm) بنقطة البيع{restaurant ? ' والمطعم' : ''}. المعاينة جنبك بتتغير مباشرة.</p>
+        <div className="form-grid">
+          <Field label="الشعار" wide>
+            <div className="with-button">
+              {logo && <img src={logo} alt="" className="logo-preview" />}
+              <input
+                type="file"
+                accept="image/png,image/jpeg"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  if (file.size > 300_000) return notify('اختر صورة أصغر من 300 كيلوبايت', 'error');
+                  const reader = new FileReader();
+                  reader.onload = () => setLogo(String(reader.result));
+                  reader.readAsDataURL(file);
+                }}
+              />
+            </div>
+          </Field>
+          <Field label="حجم الشعار">
+            <select value={r.logo ?? 'small'} onChange={(e) => setR({ ...r, logo: e.target.value as ReceiptSettings['logo'] })}>
+              <option value="banner">كبير بعرض الورقة</option>
+              <option value="small">صغير بالنص</option>
+              <option value="none">بدون شعار</option>
+            </select>
+          </Field>
+          <Field label="حجم الخط">
+            <select value={r.fontSize ?? 'md'} onChange={(e) => setR({ ...r, fontSize: e.target.value as ReceiptSettings['fontSize'] })}>
+              <option value="sm">صغير</option>
+              <option value="md">وسط</option>
+              <option value="lg">كبير</option>
+            </select>
+          </Field>
+          <Field label="عنوان الإيصال">
+            <input value={r.title ?? ''} onChange={(e) => setR({ ...r, title: e.target.value })} placeholder="فاتورة مبيع" />
+          </Field>
+          <Field label="أسطر تحت الاسم (عنوان، فرع...)">
+            <textarea rows={2} value={r.header ?? ''} onChange={(e) => setR({ ...r, header: e.target.value })} placeholder="دمشق - المزة - جانب الجامع" />
+          </Field>
+        </div>
+        <h4>شو يطلع على الإيصال</h4>
+        <div className="toggles">
+          {flag('showName', 'اسم المحل')}
+          {flag('showContact', 'العنوان والهاتف')}
+          {flag('showNumber', 'رقم الفاتورة')}
+          {flag('showDate', 'التاريخ')}
+          {flag('showTime', 'الوقت بالآخر')}
+          {flag('showTable', 'رقم الطاولة')}
+          {flag('showOrderType', 'سفري / توصيل')}
+          {flag('showCaptain', 'اسم الكابتن')}
+          {flag('showGuests', 'عدد الضيوف')}
+          {flag('showCashier', 'اسم الكاشير')}
+          {flag('showCustomer', 'اسم الزبون')}
+          {flag('showPrice', 'عمود سعر الوحدة')}
+          {flag('grid', 'جدول بخطوط', false)}
+          {flag('showQr', 'رمز QR', false)}
+        </div>
+        <div className="form-grid">
+          <Field label="نص قبل رقم التواصل">
+            <input value={r.contactLabel ?? ''} onChange={(e) => setR({ ...r, contactLabel: e.target.value })} placeholder="للتوصيات والاستفسار" />
+          </Field>
+          <Field label="رقم التواصل">
+            <input className="ltr" value={r.contactPhone ?? ''} onChange={(e) => setR({ ...r, contactPhone: e.target.value })} placeholder="0933 000 000" />
+          </Field>
+          <Field label="رسالة الشكر">
+            <input value={r.thanks ?? ''} onChange={(e) => setR({ ...r, thanks: e.target.value })} placeholder="شكراً لزيارتكم" />
+          </Field>
+          <Field label="نص إضافي بالآخر">
+            <textarea rows={2} value={r.footer ?? ''} onChange={(e) => setR({ ...r, footer: e.target.value })} placeholder="واي فاي: Mizan2026" />
+          </Field>
+        </div>
+        <h4>شاشة الزبون</h4>
+        <p className="muted">شاشة تانية موصولة بالكمبيوتر، بيشوف عليها الزبون طلبه والمبلغ وهو عم ينحسب. بتفتحها من زر «شاشة الزبون» بنقطة البيع{restaurant ? ' أو بشاشة الطلب' : ''}.</p>
+        <Field label="رسالة الترحيب (لما ما في طلب)">
+          <input value={r.displayWelcome ?? ''} onChange={(e) => setR({ ...r, displayWelcome: e.target.value })} placeholder={`أهلاً وسهلاً بكم في ${state.info!.name}`} />
+        </Field>
+        <div className="form-actions">
+          <button className="primary" onClick={() => void save()}>
+            حفظ التصميم
+          </button>
+        </div>
+      </div>
+      <div className="preview-col">
+        <div className="thermal-preview">
+          <ThermalReceipt data={sample} preview={r} {...(logo ? { logo } : {})} />
+        </div>
+      </div>
+    </section>
   );
 }
 
