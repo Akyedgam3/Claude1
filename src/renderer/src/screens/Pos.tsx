@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { findRate, resolveScan, type Invoice, type Item } from '../../../core';
-import { convertPrice, money, parseAmount, qtyText, today, toInput, uid, useCompany } from '../api';
+import { resolveScan, type Invoice, type Item } from '../../../core';
+import { convertPrice, fxRates, money, parseAmount, qtyText, today, toInput, uid, useCompany } from '../api';
 import { usePrinter } from '../components/print';
 import { matches, partyOptions, Picker, ScanInput } from '../components/ui';
 import { InvoiceDocument } from './InvoiceView';
 import { itemPrice } from './InvoiceEditor';
 import { Icon } from '../components/icons';
+import { curLabel, RateNote } from '../components/CurrencySwitch';
 import { CustomerDisplayButton, showThanks, useCustomerDisplay } from '../components/CustomerDisplay';
 
 interface CartLine {
@@ -24,6 +25,7 @@ interface Held {
   at: string;
   cart: CartLine[];
   partyId: string | null;
+  currency?: string;
 }
 
 const WEIGHT_UNIT = /كيلو|كغ|kg/i;
@@ -52,6 +54,12 @@ export function Pos() {
   const [noteFor, setNoteFor] = useState<string | null>(null);
   const [amountFor, setAmountFor] = useState<string | null>(null);
   const party = partyId ? state.parties[partyId] : null;
+  // عملة البيع: الكاشير بيختار ليرة أو دولار لكل فاتورة، والأسعار بتتحوّل بسعر الصرف
+  const [cur, setCur] = useState(base);
+  const rates = fxRates(state, today());
+  const currencies = Object.values(state.currencies);
+  const otherCur = currencies.find((c) => c.code !== cur)?.code;
+  const convert = (minor: number, from: string, to: string) => convertPrice(state, minor, from, to, rates);
 
   // الفواتير المعلّقة محفوظة على هالجهاز بس، حتى ما تضيع إذا انسكرت الشاشة
   const heldKey = `mizan.pos.held.${state.info?.name ?? ''}`;
@@ -99,10 +107,28 @@ export function Pos() {
     return m;
   }, [cart]);
 
-  /** السعر بعملة الشركة، أو null إن كانت المادة مسعّرة بالدولار ولا يوجد سعر صرف. */
+  /** السعر بعملة البيع، أو null إن كانت المادة مسعّرة بعملة تانية وما في سعر صرف. */
   const priceOf = (item: Item, unit = ''): number | null => {
-    const text = itemPrice(state, item, { party, unit, currency: base, date: today() });
-    return text ? parseAmount(state, text, base) : null;
+    const text = itemPrice(state, item, { party, unit, currency: cur, date: today() });
+    return text ? parseAmount(state, text, cur) : null;
+  };
+  const switchCurrency = (next: string) => {
+    if (next === cur) return;
+    if (!rates[next] || !rates[cur]) return notify('سجّل سعر الدولار اليوم أولاً (من «سعر الدولار» بالقائمة)', 'error');
+    // السلة بتنحسب من جديد: سعر المادة الأصلي بالعملة الجديدة، والسعر اليدوي بيتحوّل
+    setCart((c) =>
+      c.map((l) => {
+        const it = state.items[l.itemId];
+        const fresh = it ? itemPrice(state, it, { party, unit: l.unit, currency: cur, date: today() }) : '';
+        const wasList = fresh && parseAmount(state, fresh, cur) === l.price;
+        const nextList = wasList && it ? itemPrice(state, it, { party, unit: l.unit, currency: next, date: today() }) : '';
+        return { ...l, price: nextList ? parseAmount(state, nextList, next) : (convert(l.price, cur, next) ?? l.price) };
+      }),
+    );
+    setDiscount('');
+    setReceived('');
+    setCur(next);
+    refocus();
   };
   const scanRef = useRef<HTMLInputElement>(null);
   const refocus = () => setTimeout(() => scanRef.current?.focus(), 0);
@@ -111,7 +137,7 @@ export function Pos() {
     const unit = opts.unit ?? '';
     const price = opts.price ?? priceOf(item, unit);
     refocus();
-    if (price === null) return notify(`سجّل سعر الدولار اليوم أولاً — سعر "${item.name}" بالدولار`, 'error');
+    if (price === null) return notify(`سجّل سعر الصرف اليوم أولاً — "${item.name}" مسعّرة بـ${state.currencies[item.priceCurrency]?.nameAr ?? item.priceCurrency}`, 'error');
     setCart((c) => {
       if (opts.serial) {
         if (c.some((l) => l.serials.includes(opts.serial!))) {
@@ -133,11 +159,11 @@ export function Pos() {
   const scan = (code: string) => {
     const r = resolveScan(state, code);
     if (!r) return notify(`لا توجد مادة بالرمز ${code}`, 'error');
-    // سعر باركود الميزان بعملة سعر المادة؛ نحوّله لعملة الشركة
+    // سعر باركود الميزان بعملة سعر المادة؛ نحوّله لعملة البيع
     let price: number | undefined;
     if (r.price !== undefined) {
-      const v = convertPrice(state, r.price, r.item.priceCurrency, base, { [base]: 1, USD: findRate(state, 'USD', today()) ?? 0 });
-      if (v === null) return notify('سجّل سعر الدولار اليوم أولاً', 'error');
+      const v = convert(r.price, r.item.priceCurrency, cur);
+      if (v === null) return notify('سجّل سعر الصرف اليوم أولاً', 'error');
       price = v;
     }
     add(r.item, { ...(r.unit ? { unit: r.unit } : {}), ...(r.qty ? { qty: r.qty } : {}), ...(price !== undefined ? { price } : {}), ...(r.serial ? { serial: r.serial } : {}) });
@@ -146,7 +172,7 @@ export function Pos() {
   const subtotal = cart.reduce((s, l) => s + Math.round(l.qty * l.price), 0);
   let disc = 0;
   try {
-    disc = parseAmount(state, discount, base);
+    disc = parseAmount(state, discount, cur);
   } catch {
     disc = 0;
   }
@@ -155,7 +181,7 @@ export function Pos() {
   const total = net + taxes.reduce((s, t) => s + Math.round((net * t.percent) / 100), 0);
   let receivedMinor = 0;
   try {
-    receivedMinor = received ? parseAmount(state, received, base) : total;
+    receivedMinor = received ? parseAmount(state, received, cur) : total;
   } catch {
     receivedMinor = 0;
   }
@@ -164,15 +190,15 @@ export function Pos() {
   // أزرار المبلغ المستلم: المضبوط، وأقرب مبالغ مدوّرة فوقه
   const cashSteps = useMemo(() => {
     if (total <= 0) return [];
-    const unit = 10 ** (state.currencies[base]?.decimals ?? 0);
+    const unit = 10 ** (state.currencies[cur]?.decimals ?? 0);
     const out: number[] = [];
-    for (const step of [100, 500, 1000, 5000, 10000]) {
+    for (const step of cur === 'USD' ? [5, 10, 20, 50, 100] : [100, 500, 1000, 5000, 10000]) {
       const v = Math.ceil(total / (step * unit)) * step * unit;
       if (v > total && !out.includes(v)) out.push(v);
       if (out.length >= 3) break;
     }
     return out;
-  }, [total, base, state.currencies]);
+  }, [total, cur, state.currencies]);
 
   const pay = async (credit: boolean) => {
     if (!cart.length || busy) return;
@@ -183,6 +209,7 @@ export function Pos() {
       kind: 'sale',
       date: today(),
       partyId,
+      ...(cur !== base ? { currency: cur } : {}),
       lines: cart.map((l) => ({
         itemId: l.itemId,
         qty: l.qty,
@@ -206,14 +233,14 @@ export function Pos() {
     setReceived('');
     setDiscount('');
     setPartyId(null);
-    showThanks(state, money(state, total), !credit && received ? { received: money(state, receivedMinor), change: money(state, Math.max(0, change)) } : null);
-    notify(change > 0 && !credit ? `تم البيع — الباقي للزبون: ${money(state, change)}` : 'تم البيع');
+    showThanks(state, money(state, total, cur), !credit && received ? { received: money(state, receivedMinor, cur), change: money(state, Math.max(0, change), cur) } : null);
+    notify(change > 0 && !credit ? `تم البيع — الباقي للزبون: ${money(state, change, cur)}` : 'تم البيع');
     if (autoPrint) setTimeout(() => void printer.print('receipt'), 50);
   };
 
   const hold = () => {
     if (!cart.length) return;
-    setHeld((h) => [...h, { id: uid(), at: new Date().toISOString(), cart, partyId }]);
+    setHeld((h) => [...h, { id: uid(), at: new Date().toISOString(), cart, partyId, currency: cur }]);
     setCart([]);
     setPartyId(null);
     setReceived('');
@@ -223,8 +250,9 @@ export function Pos() {
     refocus();
   };
   const resume = (h: Held) => {
-    setHeld((list) => [...list.filter((x) => x.id !== h.id), ...(cart.length ? [{ id: uid(), at: new Date().toISOString(), cart, partyId }] : [])]);
+    setHeld((list) => [...list.filter((x) => x.id !== h.id), ...(cart.length ? [{ id: uid(), at: new Date().toISOString(), cart, partyId, currency: cur }] : [])]);
     setCart(h.cart);
+    setCur(h.currency && state.currencies[h.currency] ? h.currency : base);
     setPartyId(h.partyId && state.parties[h.partyId] ? h.partyId : null);
     setReceived('');
     refocus();
@@ -236,11 +264,11 @@ export function Pos() {
       ? {
           lines: cart.map((l) => {
             const it = state.items[l.itemId];
-            return { name: `${it?.name ?? ''}${l.unit ? ` (${l.unit})` : ''}`, qty: qtyText(l.qty), total: money(state, Math.round(l.qty * l.price)), ...(l.note ? { note: l.note } : {}) };
+            return { name: `${it?.name ?? ''}${l.unit ? ` (${l.unit})` : ''}`, qty: qtyText(l.qty), total: money(state, Math.round(l.qty * l.price), cur), ...(l.note ? { note: l.note } : {}) };
           }),
-          totals: disc ? [{ label: 'المجموع', value: money(state, subtotal) }, { label: 'الخصم', value: money(state, disc) }] : [],
-          grand: money(state, total),
-          paid: received && receivedMinor > 0 ? { received: money(state, receivedMinor), change: money(state, Math.max(0, change)) } : null,
+          totals: disc ? [{ label: 'المجموع', value: money(state, subtotal, cur) }, { label: 'الخصم', value: money(state, disc, cur) }] : [],
+          grand: money(state, total, cur),
+          paid: received && receivedMinor > 0 ? { received: money(state, receivedMinor, cur), change: money(state, Math.max(0, change), cur) } : null,
         }
       : null,
   );
@@ -275,7 +303,7 @@ export function Pos() {
                 <button className={`pos-item ${inCart[i.id] ? 'in-cart' : ''}`} onClick={() => (i.price > 0 ? add(i) : i.units?.[0] && add(i, { unit: i.units[0].name }))}>
                   {inCart[i.id] ? <span className="badge">{inCart[i.id]}</span> : null}
                   <strong>{i.name}</strong>
-                  <span>{i.price > 0 ? (p === null ? 'لا يوجد سعر دولار' : `${money(state, p)} / ${i.unit}`) : ''}</span>
+                  <span>{i.price > 0 ? (p === null ? 'لا يوجد سعر صرف' : `${money(state, p, cur)} / ${i.unit}`) : ''}</span>
                   {i.kind === 'stock' && (
                     <small>
                       {qtyText(state.stock[i.id]?.totalQty ?? 0)} {i.unit}
@@ -287,9 +315,9 @@ export function Pos() {
                     {i.units.slice(0, 4).map((u) => {
                       const up = priceOf(i, u.name);
                       return (
-                        <button key={u.name} onClick={() => add(i, { unit: u.name })} title={`${u.name}${up !== null ? ' — ' + money(state, up) : ''}`}>
+                        <button key={u.name} onClick={() => add(i, { unit: u.name })} title={`${u.name}${up !== null ? ' — ' + money(state, up, cur) : ''}`}>
                           {u.name}
-                          {up !== null && <small>{money(state, up)}</small>}
+                          {up !== null && <small>{money(state, up, cur)}</small>}
                         </button>
                       );
                     })}
@@ -310,6 +338,18 @@ export function Pos() {
                 <Icon name="receipt" size={14} /> {h.partyId && state.parties[h.partyId] ? state.parties[h.partyId]!.name : `#${n + 1}`} · {h.cart.length}
               </button>
             ))}
+          </div>
+        )}
+        {currencies.length > 1 && (
+          <div className="cur-switch">
+            <div className="segmented">
+              {currencies.map((c) => (
+                <button key={c.code} className={cur === c.code ? 'active' : ''} onClick={() => switchCurrency(c.code)} title={`البيع بـ${c.nameAr}`}>
+                  {curLabel(c)}
+                </button>
+              ))}
+            </div>
+            <RateNote />
           </div>
         )}
         <div className="with-button">
@@ -333,7 +373,7 @@ export function Pos() {
                   <div>
                     <strong>{item.name}</strong>
                     <small>
-                      {money(state, l.price)} / {l.unit || item.unit}
+                      {money(state, l.price, cur)} / {l.unit || item.unit}
                       {l.note ? <em className="line-note"> · {l.note}</em> : null}
                     </small>
                     {item.trackSerial && (
@@ -345,7 +385,7 @@ export function Pos() {
                     <QtyInput value={l.qty} onChange={(q) => setCart((c) => (q > 0 ? c.map((x) => (x.key === l.key ? { ...x, qty: q } : x)) : c))} />
                     <button onClick={() => setLine(l.key, { qty: l.qty + 1 })}>+</button>
                   </div>
-                  <strong className="num">{money(state, Math.round(l.qty * l.price))}</strong>
+                  <strong className="num">{money(state, Math.round(l.qty * l.price), cur)}</strong>
                   <button className="icon" onClick={() => setCart(cart.filter((x) => x.key !== l.key))}>
                     <Icon name="close" size={16} />
                   </button>
@@ -371,7 +411,7 @@ export function Pos() {
                     onPick={(amountText) => {
                       let a = 0;
                       try {
-                        a = parseAmount(state, amountText, base);
+                        a = parseAmount(state, amountText, cur);
                       } catch {
                         a = 0;
                       }
@@ -403,7 +443,7 @@ export function Pos() {
         </div>
         <div className="kv pos-totals">
           <span>المجموع</span>
-          <strong>{money(state, subtotal)}</strong>
+          <strong>{money(state, subtotal, cur)}</strong>
           {can('discount.give') && (
             <>
               <span>خصم</span>
@@ -417,12 +457,18 @@ export function Pos() {
             </span>
           ))}
           <span className="grand">الإجمالي</span>
-          <strong className="grand">{money(state, total)}</strong>
+          <strong className="grand">{money(state, total, cur)}</strong>
+          {otherCur && total > 0 && convert(total, cur, otherCur) !== null && (
+            <>
+              <span className="muted">يعادل</span>
+              <strong className="muted">{money(state, convert(total, cur, otherCur)!, otherCur)}</strong>
+            </>
+          )}
           <span>المستلم</span>
           <input
             className="num-input big-input"
             value={received}
-            placeholder={toInput(state, total, base)}
+            placeholder={toInput(state, total, cur)}
             onChange={(e) => setReceived(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && void pay(false)}
             inputMode="decimal"
@@ -432,14 +478,14 @@ export function Pos() {
             <div className="cash-quick">
               <button onClick={() => setReceived('')}>مضبوط</button>
               {cashSteps.map((v) => (
-                <button key={v} onClick={() => setReceived(toInput(state, v, base))}>
-                  {money(state, v)}
+                <button key={v} onClick={() => setReceived(toInput(state, v, cur))}>
+                  {money(state, v, cur)}
                 </button>
               ))}
             </div>
           )}
           <span>الباقي للزبون</span>
-          <strong className={change < 0 ? 'bad' : 'good'}>{money(state, Math.max(0, change))}</strong>
+          <strong className={change < 0 ? 'bad' : 'good'}>{money(state, Math.max(0, change), cur)}</strong>
         </div>
         <div className="pos-pay">
           <button className="primary big" disabled={busy || !cart.length} onClick={() => pay(false)}>
@@ -466,7 +512,12 @@ export function Pos() {
             </button>
           )}
           <span className="muted">
-            مبيعاتي اليوم: {todaySales.length} فاتورة · {money(state, todaySales.reduce((s, i) => s + (i.currency === base ? i.total : 0), 0))}
+            مبيعاتي اليوم: {todaySales.length} فاتورة ·{' '}
+            {currencies
+              .map((c) => [c.code, todaySales.reduce((s, i) => s + (i.currency === c.code ? i.total : 0), 0)] as const)
+              .filter(([c, v]) => v || c === base)
+              .map(([c, v]) => money(state, v, c))
+              .join(' + ')}
           </span>
         </div>
       </div>

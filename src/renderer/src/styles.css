@@ -3245,3 +3245,19 @@ tr.strike td {
   .live-kpis { grid-template-columns: repeat(2, 1fr); }
   .live-grid { grid-template-columns: 1fr; }
 }
+
+/* تبديل عملة البيع (ليرة / دولار) */
+.cur-switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.cur-switch .segmented {
+  margin-bottom: 0;
+}
+.cur-switch .segmented button {
+  padding: 6px 16px;
+  font-weight: 700;
+}

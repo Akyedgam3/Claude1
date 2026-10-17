@@ -847,6 +847,16 @@ export interface OrderTotals {
 }
 
 /** مجموع الطلب: الأصناف + الخدمة + التوصيل - الخصم. */
+/** نسخة من الطلب بأسعار محوّلة لعملة تانية (الحساب بالدولار مثلاً). */
+export function convertOrder<T extends Pick<Order, 'lines' | 'deliveryFee' | 'discount'>>(order: T, conv: (minor: number) => number): T {
+  return {
+    ...order,
+    lines: order.lines.map((l) => ({ ...l, price: conv(l.price) })),
+    ...(order.deliveryFee ? { deliveryFee: conv(order.deliveryFee) } : {}),
+    ...(order.discount ? { discount: conv(order.discount) } : {}),
+  };
+}
+
 export function orderTotals(order: Pick<Order, 'lines' | 'servicePercent' | 'deliveryFee' | 'discount'>): OrderTotals {
   const items = order.lines.reduce((s, l) => s + Math.round(l.qty * l.price), 0);
   const service = order.servicePercent ? Math.round((items * order.servicePercent) / 100) : 0;

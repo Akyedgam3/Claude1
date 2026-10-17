@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { computeTaxes, findRate, INVOICE_KIND_NAMES, resolveScan, type CompanyState, type Invoice, type InvoiceKind, type Item, type Party } from '../../../core';
-import { convertPrice, money, parseAmount, toInput, today, uid, useCompany } from '../api';
+import { convertPrice, fxRates, money, parseAmount, toInput, today, uid, useCompany } from '../api';
 import { CurrencySelect, Field, itemMatches, itemOptions, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
 import { ItemForm } from './Items';
 import { PartyForm } from './Parties';
@@ -31,7 +31,7 @@ export function cashAccounts(state: CompanyState, currency?: string) {
 
 /** سعر المادة حسب شريحة العميل والوحدة، محوّلاً لعملة الفاتورة. */
 export function itemPrice(state: CompanyState, item: Item, opts: { party?: Party | null; unit?: string; currency: string; date: string; purchase?: boolean }): string {
-  const rates = { [state.info!.baseCurrency]: 1, USD: findRate(state, 'USD', opts.date) ?? 0 };
+  const rates = fxRates(state, opts.date);
   if (opts.purchase) {
     const unitCost = state.stock[item.id]?.lastCost ?? 0;
     const factor = item.units?.find((u) => u.name === opts.unit)?.factor ?? 1;
@@ -71,7 +71,10 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
 
   const party = partyId ? state.parties[partyId] : null;
   const storedRate = findRate(state, currency, date);
-  const rate = currency === base ? 1 : Number(rateText) || storedRate || 0;
+  // الشركة بالدولار والفاتورة بالليرة: السعر بينكتب «الدولار بكم ليرة» ومنقلبه
+  const invertRate = base === 'USD' && currency === 'SYP';
+  const typedRate = Number(rateText) || 0;
+  const rate = currency === base ? 1 : (typedRate ? (invertRate ? 1 / typedRate : typedRate) : storedRate || 0);
   const items = useMemo(() => itemOptions(state, (i) => isSale || i.kind !== 'composite'), [state, isSale]);
   const boxes = cashAccounts(state, currency);
   const cashId = boxes.some((b) => b.id === cashAccountId) ? cashAccountId : (boxes.find((b) => b.currency === currency) ?? boxes[0])?.id ?? '1101';
@@ -105,7 +108,7 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
     if (!r) return notify(`لا توجد مادة بالرمز ${code}`, 'error');
     const unit = r.unit ?? '';
     // سعر باركود الميزان مكتوب بعملة سعر المادة؛ نحوّله لعملة الفاتورة
-    const scanned = r.price !== undefined ? convertPrice(state, r.price, r.item.priceCurrency, currency, { [base]: 1, USD: findRate(state, 'USD', date) ?? 0 }) : null;
+    const scanned = r.price !== undefined ? convertPrice(state, r.price, r.item.priceCurrency, currency, fxRates(state, date)) : null;
     const priceOverride = scanned !== null ? toInput(state, scanned, currency) : undefined;
     setLines((ls) => {
       if (r.serial) {
@@ -228,8 +231,8 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
           <CurrencySelect value={currency} onChange={changeCurrency} />
         </Field>
         {currency !== base && (
-          <Field label={`سعر الصرف (${state.currencies[base]?.symbol})`}>
-            <input value={rateText} placeholder={storedRate ? String(storedRate) : 'أدخل السعر'} onChange={(e) => setRateText(e.target.value)} inputMode="decimal" />
+          <Field label={invertRate ? 'سعر الدولار (ل.س)' : `سعر الصرف (${state.currencies[base]?.symbol})`}>
+            <input value={rateText} placeholder={storedRate ? String(invertRate ? Math.round(10000 / storedRate) / 10000 : storedRate) : 'أدخل السعر'} onChange={(e) => setRateText(e.target.value)} inputMode="decimal" />
           </Field>
         )}
         {warehouses.length > 1 && (

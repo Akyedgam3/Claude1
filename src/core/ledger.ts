@@ -1,4 +1,4 @@
-import { applyCommerceEvent, buildInvoice, orderTotals, piecesTotal, repairToInvoiceLines, rollRemaining, UNIT_NAMES, tailorDeposits, tailorToInvoiceLines, validateCommerceEvent, workOrderProgress, type InvoiceDraft, type InvoiceLineDraft } from './commerce';
+import { applyCommerceEvent, buildInvoice, convertOrder, orderTotals, piecesTotal, repairToInvoiceLines, rollRemaining, UNIT_NAMES, tailorDeposits, tailorToInvoiceLines, validateCommerceEvent, workOrderProgress, type InvoiceDraft, type InvoiceLineDraft } from './commerce';
 import { ACTIVITIES } from './activities';
 import { loadDemo } from './demo';
 import { buildSchedule, installmentState } from './electronics';
@@ -386,6 +386,9 @@ export interface CloseOrderOptions {
   discount?: number;
   taxIds?: string[];
   partyId?: string | null;
+  /** عملة الحساب (الطلب مسعّر بعملة الشركة، فبنحوّله بسعر الصرف). */
+  currency?: string;
+  rate?: number;
 }
 
 /** يستقبل الحدث ليحفظه (على الملف مثلاً) قبل اعتماده في الذاكرة. */
@@ -815,7 +818,12 @@ export class Ledger {
     if (order.lines.length === 0) fail('الطلب فارغ');
     const table = order.tableId ? this.state.tables[order.tableId] : null;
     const partyId = opts.partyId ?? order.partyId ?? null;
-    const t = orderTotals(order);
+    // الزبون بدو يدفع بعملة تانية: منحوّل أسعار الطلب من عملة الشركة قبل الحساب
+    const currency = opts.currency ?? this.base.code;
+    const fx = currency === this.base.code ? null : (this.state.currencies[currency] ?? fail('عملة غير معرّفة'));
+    const rate = fx ? (opts.rate ?? this.rateFor(currency, opts.date) ?? fail(`لا يوجد سعر صرف لـ ${fx.nameAr} بتاريخ ${opts.date}`)) : 1;
+    const priced = fx ? convertOrder(order, (minor) => Math.round((minor / rate) * 10 ** (fx.decimals - this.base.decimals))) : order;
+    const t = orderTotals(priced);
     const extra: InvoiceLineDraft[] = [];
     if (t.service > 0) extra.push({ description: `خدمة ${order.servicePercent}%`, qty: 1, price: t.service });
     if (t.delivery > 0) extra.push({ description: 'أجور توصيل', qty: 1, price: t.delivery });
@@ -825,7 +833,8 @@ export class Ledger {
       kind: 'sale',
       date: opts.date,
       partyId,
-      lines: [...order.lines.map((l) => ({ itemId: l.itemId, qty: l.qty, price: l.price, ...(l.note ? { note: l.note } : {}) })), ...extra],
+      ...(fx ? { currency, rate } : {}),
+      lines: [...priced.lines.map((l) => ({ itemId: l.itemId, qty: l.qty, price: l.price, ...(l.note ? { note: l.note } : {}) })), ...extra],
       ...(discount ? { discount } : {}),
       ...(opts.taxIds ? { taxIds: opts.taxIds } : {}),
       ...(opts.paid !== undefined ? { paid: opts.paid } : {}),

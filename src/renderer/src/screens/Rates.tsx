@@ -12,6 +12,9 @@ export function Rates() {
   const [official, setOfficial] = useState('');
   const history = state.rates.filter((r) => r.currency === foreign).sort((a, b) => b.date.localeCompare(a.date) || a.kind.localeCompare(b.kind)).slice(0, 300);
   const current = findRate(state, foreign, today());
+  // الشركة بالدولار: الناس بتحكي «الدولار بكم ليرة»، فمنكتبه هيك ومنخزّنه مقلوب (كم دولار بالليرة)
+  const inverted = foreign === 'SYP';
+  const shown = (r: number | undefined) => (r ? (inverted ? Math.round((1 / r) * 10000) / 10000 : r) : undefined);
 
   const save = async () => {
     let saved = 0;
@@ -19,7 +22,7 @@ export function Rates() {
       const n = Number(v);
       if (!v.trim()) continue;
       if (!(n > 0)) return notify('سعر غير صالح', 'error');
-      if (await call('setRate', { date, currency: foreign, kind, rate: n })) saved++;
+      if (await call('setRate', { date, currency: foreign, kind, rate: inverted ? 1 / n : n })) saved++;
     }
     if (saved) {
       notify('تم حفظ السعر');
@@ -34,12 +37,13 @@ export function Rates() {
       <div className="stats">
         <div className="stat">
           <span>سعر السوق الحالي</span>
-          <strong>{current ? `${current.toLocaleString('en')} ${state.currencies[base]?.symbol}` : 'غير مسجّل'}</strong>
+          <strong>{current ? (inverted ? `1$ = ${shown(current)!.toLocaleString('en')} ${state.currencies['SYP']?.symbol}` : `${current.toLocaleString('en')} ${state.currencies[base]?.symbol}`) : 'غير مسجّل'}</strong>
         </div>
       </div>
       <section className="card">
         <p className="muted">
-          كم {state.currencies[base]?.nameAr} يساوي 1 {state.currencies[foreign]?.nameAr}. الفواتير والسندات تستخدم سعر السوق المسجّل بتاريخها أو قبله.
+          {inverted ? `كم ${state.currencies[foreign]?.nameAr} يساوي 1 ${state.currencies[base]?.nameAr}` : `كم ${state.currencies[base]?.nameAr} يساوي 1 ${state.currencies[foreign]?.nameAr}`}. الفواتير والسندات تستخدم سعر السوق المسجّل بتاريخها أو قبله.
+          {' '}فيك تبيع وتسعّر بأي عملة: كل مادة إلها «عملة السعر»، وكل فاتورة أو بيعة بالكاشير بتختار عملتها.
         </p>
         <form
           className="form-grid four"
@@ -52,10 +56,10 @@ export function Rates() {
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </Field>
           <Field label="سعر السوق (المستخدم في الفواتير)">
-            <input value={market} placeholder={String(findRate(state, foreign, date, 'market') ?? '')} onChange={(e) => setMarket(e.target.value)} inputMode="decimal" autoFocus />
+            <input value={market} placeholder={String(shown(findRate(state, foreign, date, 'market')) ?? '')} onChange={(e) => setMarket(e.target.value)} inputMode="decimal" autoFocus />
           </Field>
           <Field label="السعر الرسمي (للمرجعية)">
-            <input value={official} placeholder={String(findRate(state, foreign, date, 'official') ?? '')} onChange={(e) => setOfficial(e.target.value)} inputMode="decimal" />
+            <input value={official} placeholder={String(shown(findRate(state, foreign, date, 'official')) ?? '')} onChange={(e) => setOfficial(e.target.value)} inputMode="decimal" />
           </Field>
           <div className="form-actions">
             <button className="primary">حفظ</button>
@@ -80,7 +84,7 @@ export function Rates() {
                 <tr key={`${r.date}-${r.kind}`}>
                   <td>{dateText(r.date)}</td>
                   <td>{r.kind === 'market' ? 'سوق' : 'رسمي'}</td>
-                  <td className="num">{r.rate.toLocaleString('en')}</td>
+                  <td className="num">{shown(r.rate)!.toLocaleString('en')}</td>
                 </tr>
               ))}
             </tbody>

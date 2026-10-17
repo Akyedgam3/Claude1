@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { orderTotals, type DiningTable, type Invoice, type Order, type OrderLine, type OrderType } from '../../../core';
-import { money, parseAmount, plainMoney, qtyText, today, toInput, uid, useCompany } from '../api';
+import { convertOrder, orderTotals, type DiningTable, type Invoice, type Order, type OrderLine, type OrderType } from '../../../core';
+import { convertPrice, fxRates, money, parseAmount, plainMoney, qtyText, today, toInput, uid, useCompany } from '../api';
 import { ThermalReceipt } from '../components/ThermalReceipt';
 import { DocHeader, usePrinter } from '../components/print';
 import { ConfirmButton, Empty, Field, matches, Modal, PageHeader, partyOptions, Picker } from '../components/ui';
 import { InvoiceDocument } from './InvoiceView';
 import { cashAccounts, itemPrice } from './InvoiceEditor';
 import { Icon } from '../components/icons';
+import { curLabel, RateNote } from '../components/CurrencySwitch';
 import { CustomerDisplayButton, showThanks, useCustomerDisplay } from '../components/CustomerDisplay';
 
 const TYPE_NAMES: Record<OrderType, string> = { dine_in: 'صالة', takeaway: 'سفري', delivery: 'توصيل' };
@@ -308,8 +309,12 @@ function OrderPanel({ order, onBack, onSwitch }: { order: Order; onBack: () => v
   const [discount, setDiscount] = useState(order.discount ? toInput(state, order.discount, base) : '');
   const [deliveryFee, setDeliveryFee] = useState(order.deliveryFee ? toInput(state, order.deliveryFee, base) : '');
   const [payMode, setPayMode] = useState<PayMode>('cash');
-  const cashes = cashAccounts(state, base);
-  const [cash, setCash] = useState(cashes[0]?.id ?? '1101');
+  // عملة الحساب: الطلب مسعّر بعملة الشركة، والزبون فيه يدفع بالعملة اللي بدو ياها
+  const [payCur, setPayCur] = useState(base);
+  const rates = fxRates(state, today());
+  const cashes = cashAccounts(state, payCur);
+  const [cashPick, setCash] = useState(cashes[0]?.id ?? '1101');
+  const cash = cashes.some((c) => c.id === cashPick) ? cashPick : (cashes.find((c) => c.currency === payCur) ?? cashes[0])?.id ?? '1101';
   const [moving, setMoving] = useState<'move' | 'merge' | null>(null);
   const [doc, setDoc] = useState<{ kind: 'ticket'; lines: OrderLine[] } | { kind: 'bill' } | { kind: 'receipt'; inv: Invoice } | null>(null);
   const menu = useMemo(() => Object.values(state.items).filter((i) => !i.archived && i.price > 0 && i.category !== 'مواد أولية' && i.category !== 'مواد خام'), [state.items]);
@@ -333,6 +338,8 @@ function OrderPanel({ order, onBack, onSwitch }: { order: Order; onBack: () => v
     amountsOk = false;
   }
   const t = orderTotals(current);
+  const fxOk = payCur === base || (!!rates[payCur] && !!rates[base]);
+  const tp = payCur === base || !fxOk ? t : orderTotals(convertOrder(current, (m) => convertPrice(state, m, base, payCur, rates) ?? 0));
   const clean = (o: Order): Order => {
     const copy: Order = { ...o };
     for (const k of ['discount', 'deliveryFee', 'servicePercent', 'guests'] as const) if (!copy[k]) delete copy[k];
@@ -387,25 +394,27 @@ function OrderPanel({ order, onBack, onSwitch }: { order: Order; onBack: () => v
     let received = t.total;
     if (payMode !== 'account') {
       try {
-        received = paid ? parseAmount(state, paid, base) : t.total;
+        received = paid ? parseAmount(state, paid, payCur) : tp.total;
       } catch {
         return notify('مبلغ غير صالح', 'error');
       }
-      if (received < t.total) return notify('المبلغ المستلم أقل من الإجمالي. لتسجيله دين اختار «على الحساب»', 'error');
+      if (received < tp.total) return notify('المبلغ المستلم أقل من الإجمالي. لتسجيله دين اختار «على الحساب»', 'error');
     }
     if (payMode === 'account' && !draft.partyId) return notify('اختار الزبون اللي بدو يسجّل عليه', 'error');
     const taxIds = Object.values(state.taxes)
       .filter((x) => x.active && x.percent > 0)
       .map((x) => x.id);
+    if (!fxOk) return notify('سجّل سعر الصرف اليوم أولاً', 'error');
     const res = await call<Invoice>('closeOrder', order.id, {
       date: today(),
       taxIds,
+      ...(payCur !== base ? { currency: payCur } : {}),
       ...(payMode === 'account' ? { paid: 0, partyId: draft.partyId } : { cashAccountId: cash }),
     });
     if (!res) return;
     setDoc({ kind: 'receipt', inv: res.value });
-    if (payMode !== 'account' && received > res.value.total) notify(`الباقي للزبون: ${money(state, received - res.value.total)}`);
-    showThanks(state, money(state, res.value.total), payMode !== 'account' && paid ? { received: money(state, received), change: money(state, Math.max(0, received - res.value.total)) } : null);
+    if (payMode !== 'account' && received > res.value.total) notify(`الباقي للزبون: ${money(state, received - res.value.total, payCur)}`);
+    showThanks(state, money(state, res.value.total, payCur), payMode !== 'account' && paid ? { received: money(state, received, payCur), change: money(state, Math.max(0, received - res.value.total), payCur) } : null);
     // الطلب صار مسكّر فبترجع شاشة الطاولات لحالها؛ ما منستدعي onBack بعد الطباعة
     // مشان ما نسكّر طاولة تانية فتحها الكاشير بهالأثناء
     setTimeout(() => void printer.print('receipt'), 50);
@@ -414,7 +423,7 @@ function OrderPanel({ order, onBack, onSwitch }: { order: Order; onBack: () => v
   // شاشة الزبون: الطلب والمبلغ مباشرة
   let shownPaid: number | null = null;
   try {
-    shownPaid = paid ? parseAmount(state, paid, base) : null;
+    shownPaid = paid ? parseAmount(state, paid, payCur) : null;
   } catch {
     shownPaid = null;
   }
@@ -428,8 +437,8 @@ function OrderPanel({ order, onBack, onSwitch }: { order: Order; onBack: () => v
             ...(t.delivery > 0 ? [{ label: 'أجور التوصيل', value: money(state, t.delivery) }] : []),
             ...(t.discount > 0 ? [{ label: 'خصم', value: money(state, t.discount) }] : []),
           ],
-          grand: money(state, t.total),
-          paid: shownPaid && shownPaid > 0 ? { received: money(state, shownPaid), change: money(state, Math.max(0, shownPaid - t.total)) } : null,
+          grand: money(state, tp.total, payCur),
+          paid: shownPaid && shownPaid > 0 ? { received: money(state, shownPaid, payCur), change: money(state, Math.max(0, shownPaid - tp.total), payCur) } : null,
         }
       : null,
   );
@@ -619,7 +628,34 @@ function OrderPanel({ order, onBack, onSwitch }: { order: Order; onBack: () => v
             )}
             <span className="grand">الإجمالي</span>
             <strong className="grand">{money(state, t.total)}</strong>
+            {payCur !== base && fxOk && (
+              <>
+                <span className="grand">المطلوب {state.currencies[payCur]?.code === 'USD' ? 'بالدولار' : `بـ${state.currencies[payCur]?.nameAr}`}</span>
+                <strong className="grand">{money(state, tp.total, payCur)}</strong>
+              </>
+            )}
           </div>
+          {Object.keys(state.currencies).length > 1 && (
+            <div className="cur-switch">
+              <span className="muted">الدفع بـ</span>
+              <div className="segmented">
+                {Object.values(state.currencies).map((c) => (
+                  <button
+                    key={c.code}
+                    className={payCur === c.code ? 'active' : ''}
+                    onClick={() => {
+                      if (c.code !== base && (!rates[c.code] || !rates[base])) return notify('سجّل سعر الصرف اليوم أولاً', 'error');
+                      setPayCur(c.code);
+                      setPaid('');
+                    }}
+                  >
+                    {curLabel(c)}
+                  </button>
+                ))}
+              </div>
+              <RateNote />
+            </div>
+          )}
           <div className="pay-modes segmented">
             <button className={payMode === 'cash' ? 'active' : ''} onClick={() => setPayMode('cash')}>
               نقدي
@@ -650,14 +686,14 @@ function OrderPanel({ order, onBack, onSwitch }: { order: Order; onBack: () => v
                 </>
               )}
               <span>المستلم</span>
-              <input className="num-input" value={paid} placeholder={toInput(state, t.total, base)} onChange={(e) => setPaid(e.target.value)} inputMode="decimal" />
+              <input className="num-input" value={paid} placeholder={toInput(state, tp.total, payCur)} onChange={(e) => setPaid(e.target.value)} inputMode="decimal" />
               {(() => {
                 try {
-                  const r = paid ? parseAmount(state, paid, base) : 0;
-                  return r > t.total ? (
+                  const r = paid ? parseAmount(state, paid, payCur) : 0;
+                  return r > tp.total ? (
                     <>
                       <span>الباقي للزبون</span>
-                      <strong className="good">{money(state, r - t.total)}</strong>
+                      <strong className="good">{money(state, r - tp.total, payCur)}</strong>
                     </>
                   ) : null;
                 } catch {

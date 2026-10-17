@@ -107,6 +107,22 @@ describe('restaurant: recipes, tables and orders', () => {
     expect(() => l.closeOrder('o1', { date: '2026-01-02' })).toThrow(/مغلق/);
     balanced(l);
   });
+
+  it('lets the customer pay an order in dollars', () => {
+    const l = company('restaurant');
+    l.saveItem({ id: 'shawarma', code: 'M1', name: 'سندويشة', kind: 'service', unit: 'قطعة', price: 250_00, priceCurrency: 'SYP' });
+    l.saveOrder({ id: 'o1', type: 'dine_in', status: 'open', servicePercent: 10, lines: [{ id: 'x', itemId: 'shawarma', qty: 3, price: 250_00 }] });
+    expect(() => l.closeOrder('o1', { date: '2026-01-02', currency: 'USD' })).toThrow(/سعر صرف/);
+    l.setRate({ date: '2026-01-01', currency: 'USD', rate: 120, kind: 'market' });
+    const inv = l.closeOrder('o1', { date: '2026-01-02', currency: 'USD' });
+    expect(inv.currency).toBe('USD');
+    expect(inv.rate).toBe(120);
+    // 250 ل.س = 2.08$ للسندويشة، 3 = 6.24$، والخدمة 10% = 0.62$
+    expect(inv.lines[0]!.price).toBe(208);
+    expect(inv.total).toBe(686);
+    expect(accountBalance(l.state, '1108').balance).toBe(686 * 120);
+    balanced(l);
+  });
 });
 
 describe('bakery: production', () => {

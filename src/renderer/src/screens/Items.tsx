@@ -53,7 +53,8 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
         }
         if (existingCodes.has(code)) continue;
         existingCodes.add(code); // يمنع تكرار الرمز داخل نفس الملف
-        const currency = String(r['العملة'] ?? base).trim().toUpperCase() === 'USD' ? 'USD' : base;
+        const curText = String(r['العملة'] ?? base).trim();
+        const currency = /^(usd|\$|دولار)/i.test(curText) ? 'USD' : /^(syp|ل\.?س|ليرة)/i.test(curText) ? 'SYP' : base;
         const id = uid();
         if (qty > 0) stock.push({ itemId: id, qty, unitCost: cost });
         parsed.push({

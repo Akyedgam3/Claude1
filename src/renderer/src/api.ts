@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import { can as canDo, effectiveProfile, formatMinor, toMinor, type ActivityProfile, type CompanyState, type Feature, type Permission, type User } from '../../core';
+import { can as canDo, effectiveProfile, findRate, formatMinor, toMinor, type ActivityProfile, type CompanyState, type Feature, type Permission, type User } from '../../core';
 import type { LicenseStatus } from '../../license/manager';
 
 export interface SessionInfo {
@@ -168,6 +168,16 @@ export function parseAmount(state: CompanyState, text: string, currency: string)
 
 export function qtyText(q: number): string {
   return Number.isInteger(q) ? String(q) : q.toFixed(3).replace(/0+$/, '');
+}
+
+/** أسعار كل العملات بعملة الشركة بتاريخ معيّن (العملة اللي ما إلها سعر مسجّل ما بتطلع). */
+export function fxRates(state: CompanyState, date: string): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const c of Object.keys(state.currencies)) {
+    const r = findRate(state, c, date);
+    if (r) out[c] = r;
+  }
+  return out;
 }
 
 /** يحوّل مبلغاً من عملة إلى أخرى بأسعار تاريخ معيّن (للأسعار المعروضة فقط). */
