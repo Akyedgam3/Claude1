@@ -21,7 +21,7 @@ if not exist "keys\license-private.pem" (
   exit /b 1
 )
 
-if not exist "node_modules\.bin\tsx.cmd" (
+if not exist "node_modules\tsx\dist\cli.mjs" (
   echo First run: installing packages, please wait a few minutes...
   set ELECTRON_SKIP_BINARY_DOWNLOAD=1
   call npm install --no-audit --no-fund
