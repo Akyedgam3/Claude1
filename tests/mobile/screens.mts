@@ -3,8 +3,10 @@ import fs from 'node:fs';
 import { issueLicense } from '../../src/license/license';
 const devKey = fs.readFileSync('dev-keys/license-private.dev.pem', 'utf8');
 const S = process.argv[2] ?? '/tmp';
+const [W, H] = (process.argv[3] ?? '390x844').split('x').map(Number) as [number, number];
+const tag = process.argv[4] ?? 'p';
 const b = await chromium.launch();
-const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+const ctx = await b.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
 const p = await ctx.newPage();
 const errs: string[] = [];
 p.on('pageerror', (e) => errs.push('pageerror: ' + e.message));
@@ -24,15 +26,25 @@ await p.locator('.field', { hasText: 'تأكيد كلمة السر' }).locator('
 await p.locator('.demo-check input').check();
 await p.getByRole('button', { name: 'إنشاء الشركة' }).click();
 await p.getByRole('button', { name: 'حفظته، تابع' }).click();
-const shot = async (n: string) => { await p.waitForTimeout(500); await p.screenshot({ path: `${S}/s-${n}.png` }); };
-const go = async (label: string) => { await p.locator('.mobile-bar .menu').click(); await p.locator('.sidebar nav button', { hasText: label }).first().click(); };
+const shot = async (n: string) => { await p.waitForTimeout(500); await p.screenshot({ path: `${S}/${tag}-${n}.png` }); };
+const go = async (label: string) => {
+  if (await p.locator('.mobile-bar .menu').isVisible()) await p.locator('.mobile-bar .menu').click();
+  await p.locator('.sidebar nav button', { hasText: label }).first().click();
+};
 await shot('1-dashboard');
-await p.locator('.mobile-bar .menu').click();
-await shot('2-drawer');
-await p.locator('.sidebar nav button', { hasText: 'نقطة البيع' }).first().click();
+if (await p.locator('.bottom-nav').isVisible()) {
+  await p.locator('.bottom-nav button', { hasText: 'المزيد' }).click();
+  await shot('2-drawer');
+  await p.locator('.nav-backdrop').click({ position: { x: 10, y: 300 } });
+  await p.locator('.bottom-nav button', { hasText: 'البيع' }).click();
+} else await go('نقطة البيع');
 await p.locator('.pos-item').first().click();
 await p.locator('.pos-item').nth(1).click();
 await shot('3-pos');
+if (await p.locator('.m-cart-bar').isVisible()) {
+  await p.locator('.m-cart-bar').click();
+  await shot('3b-cart');
+}
 await p.getByRole('button', { name: 'دفع نقداً' }).click();
 await p.waitForTimeout(800);
 await go('فاتورة مبيع');

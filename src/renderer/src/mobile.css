@@ -1,8 +1,14 @@
-/* نسخة الموبايل (أندرويد): بتنطبق بس جوا التطبيق (body.mobile)، الكمبيوتر ما بيتأثر. */
+/*
+ * تطبيق وزن على الجوال والتابلت (body.mobile بس — الكمبيوتر ما بيتأثر).
+ *   جوال (أقل من 700px):       شريط فوق + أزرار تحت + القائمة درج، كل شي بعمود، والجداول بطاقات.
+ *   تابلت عمودي (700–1023px):   نفس الأزرار تحت، بس النماذج والإحصائيات بعمودين، والبيع جنب السلة.
+ *   تابلت عرضي (1024px وأكتر):  القائمة الجانبية ثابتة متل الكمبيوتر، بدون أزرار تحت.
+ */
 
 body.mobile {
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
+  --bottom-nav: 64px;
 }
 body.mobile input,
 body.mobile select,
@@ -12,203 +18,419 @@ body.mobile textarea {
 body.mobile button {
   min-height: 40px;
 }
-
-/* ───── الهيكل: شريط فوق + القائمة درج من اليمين ───── */
 body.mobile .shell {
-  display: flex;
-  flex-direction: column;
   height: 100dvh;
 }
-body.mobile .mobile-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: calc(env(safe-area-inset-top, 0px) + 6px) 10px 6px;
-  background: var(--sidebar);
+
+/* ───── الشريط العلوي، الأزرار تحت، والقائمة كدرج ───── */
+body.mobile .mobile-bar,
+body.mobile .bottom-nav {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  body.mobile .shell {
+    display: flex;
+    flex-direction: column;
+  }
+  body.mobile .mobile-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: calc(env(safe-area-inset-top, 0px) + 6px) 10px 6px;
+    background: var(--sidebar);
+    color: #fff;
+    flex: none;
+    z-index: 30;
+  }
+  body.mobile .mobile-bar strong {
+    flex: 1;
+    font-size: 17px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  body.mobile .mobile-bar button.icon {
+    background: transparent;
+    border: 0;
+    color: #fff;
+    min-width: 44px;
+    min-height: 44px;
+  }
+  body.mobile .sidebar {
+    position: fixed;
+    inset: 0 0 0 auto;
+    width: min(84vw, 320px);
+    z-index: 60;
+    transform: translateX(105%);
+    transition: transform 0.22s ease;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 14px);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+    box-shadow: -10px 0 40px rgba(0, 0, 0, 0.3);
+  }
+  body.mobile .shell.nav-open .sidebar {
+    transform: none;
+  }
+  body.mobile .nav-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 50;
+  }
+  body.mobile .sidebar nav button {
+    padding: 11px 12px;
+  }
+  body.mobile .content {
+    flex: 1;
+    min-height: 0;
+    padding: 12px 12px calc(var(--bottom-nav) + env(safe-area-inset-bottom, 0px) + 20px);
+  }
+
+  /* أزرار القائمة تحت */
+  body.mobile .bottom-nav {
+    display: flex;
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 40;
+    height: calc(var(--bottom-nav) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -6px 20px rgba(16, 24, 40, 0.08);
+  }
+  body.mobile .bottom-nav button {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 6px 2px;
+  }
+  body.mobile .bottom-nav button.active {
+    color: var(--primary);
+  }
+  body.mobile .bottom-nav button.active svg {
+    background: var(--primary-soft);
+    border-radius: 14px;
+    padding: 2px 14px;
+    box-sizing: content-box;
+  }
+  body.mobile .toast {
+    bottom: calc(var(--bottom-nav) + env(safe-area-inset-bottom, 0px) + 12px);
+  }
+}
+
+/* تابلت عرضي: القائمة الجانبية ثابتة متل الكمبيوتر */
+@media (min-width: 1024px) {
+  body.mobile .shell {
+    grid-template-columns: 220px 1fr;
+  }
+  body.mobile .nav-backdrop {
+    display: none;
+  }
+}
+
+/* ───── الجوال والتابلت العمودي ───── */
+@media (max-width: 1023px) {
+  body.mobile .page-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  body.mobile .page-header h2 {
+    font-size: 19px;
+  }
+  body.mobile .button-row {
+    flex-wrap: wrap;
+  }
+  body.mobile .tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+  }
+  body.mobile .tabs button {
+    white-space: nowrap;
+    flex: none;
+  }
+  body.mobile .segmented {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  body.mobile .two-col.wide-first,
+  body.mobile .split,
+  body.mobile .print-designer,
+  body.mobile .receipt-designer,
+  body.mobile .live-grid,
+  body.mobile .sheet-tables,
+  body.mobile .welcome-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  body.mobile .content table.table:not(.m-cards) {
+    display: block;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  body.mobile .content table.table:not(.m-cards) td,
+  body.mobile .content table.table:not(.m-cards) th {
+    white-space: nowrap;
+  }
+  body.mobile .content table.lines td:first-child {
+    white-space: normal;
+    min-width: 170px;
+  }
+  body.mobile .paper-preview {
+    overflow-x: auto;
+  }
+  body.mobile .quick-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 8px;
+  }
+  body.mobile .quick-actions button {
+    justify-content: center;
+    min-height: 54px;
+  }
+  body.mobile .tour-card {
+    width: calc(100vw - 32px) !important;
+    max-width: 480px;
+  }
+}
+
+/* ───── الجوال بس (أقل من 700px) ───── */
+@media (max-width: 699px) {
+  body.mobile .form-grid,
+  body.mobile .form-grid.four,
+  body.mobile .two-col,
+  body.mobile .invoice-bottom,
+  body.mobile .activities {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  body.mobile .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  body.mobile .stat {
+    padding: 10px 12px;
+  }
+  body.mobile .stat strong {
+    font-size: 17px;
+  }
+  body.mobile .live-kpis,
+  body.mobile .template-cards,
+  body.mobile .perm-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  body.mobile .card {
+    padding: 12px;
+  }
+  body.mobile .activity-hero {
+    padding: 14px;
+  }
+  body.mobile .activity-hero h1 {
+    font-size: 20px;
+  }
+  body.mobile .quick-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  body.mobile .quick-actions button {
+    flex-direction: column;
+    gap: 4px;
+    min-height: 76px;
+    font-size: 14px;
+  }
+
+  /* النوافذ المنبثقة من تحت متل تطبيقات الجوال */
+  body.mobile .modal {
+    width: 100% !important;
+    max-width: 100vw;
+    max-height: 92dvh;
+    border-radius: 18px 18px 0 0;
+    align-self: flex-end;
+  }
+  body.mobile .modal-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  /* الجداول بطاقات: كل سطر بطاقة، وكل قيمة فوقها اسم عمودها */
+  body.mobile table.m-cards,
+  body.mobile table.m-cards tbody,
+  body.mobile table.m-cards tfoot {
+    display: block;
+    width: 100%;
+  }
+  body.mobile table.m-cards thead {
+    display: none;
+  }
+  body.mobile table.m-cards tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px 14px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+  }
+  body.mobile table.m-cards tr.clickable:active {
+    background: var(--primary-soft);
+  }
+  body.mobile table.m-cards td {
+    display: block;
+    border: 0;
+    padding: 0;
+    white-space: normal;
+    text-align: start;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  body.mobile table.m-cards td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--muted);
+  }
+  body.mobile table.m-cards td[data-label='']::before,
+  body.mobile table.m-cards td:not([data-label])::before {
+    content: none;
+  }
+  body.mobile table.m-cards td:empty {
+    display: none;
+  }
+  body.mobile table.m-cards td:first-child {
+    grid-column: 1 / -1;
+    font-weight: 700;
+    font-size: 15px;
+  }
+  body.mobile table.m-cards td:first-child::before {
+    content: none;
+  }
+  body.mobile table.m-cards tfoot tr {
+    background: var(--primary-soft);
+  }
+
+  /* ───── نقطة البيع والمطعم: تبويب المواد وتبويب السلة ───── */
+  body.mobile .pos {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    gap: 10px;
+  }
+  body.mobile .m-cart-tabs {
+    display: flex;
+    width: 100%;
+    margin: 0;
+    position: sticky;
+    top: -12px;
+    z-index: 5;
+  }
+  body.mobile .m-cart-tabs button {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-weight: 700;
+  }
+  body.mobile .pos.m-items .pos-cart,
+  body.mobile .pos.m-cart .pos-products {
+    display: none;
+  }
+  body.mobile .pos-search {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  body.mobile .pos-grid {
+    grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+    max-height: none;
+  }
+  body.mobile .pos-cats {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  body.mobile .pos-cats button {
+    flex: none;
+  }
+  body.mobile .pos-cart {
+    position: static;
+    max-height: none;
+  }
+  body.mobile .pos-line {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+  body.mobile .pos-line > strong.num {
+    grid-column: 2 / 4;
+  }
+  body.mobile .pos-pay {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  body.mobile .order-info {
+    flex-wrap: wrap;
+  }
+  body.mobile .tables-grid {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  }
+  body.mobile .m-cart-bar {
+    position: fixed;
+    inset: auto 12px calc(var(--bottom-nav) + env(safe-area-inset-bottom, 0px) + 10px) 12px;
+    z-index: 35;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: 16px;
+    font-size: 16px;
+    font-weight: 700;
+    box-shadow: 0 10px 30px rgba(15, 110, 92, 0.35);
+  }
+  body.mobile .m-cart-bar span:nth-child(2) {
+    flex: 1;
+    text-align: start;
+  }
+}
+
+/* عدد بالدائرة (السلة) */
+body.mobile .m-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  background: var(--accent);
   color: #fff;
-  flex: none;
-  z-index: 30;
+  font-size: 12px;
+  font-weight: 700;
 }
-body.mobile .mobile-bar strong {
-  flex: 1;
-  font-size: 17px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+body.mobile .m-cart-tabs,
+body.mobile .m-cart-bar {
+  display: none;
 }
-body.mobile .mobile-bar button.icon {
-  background: transparent;
-  border: 0;
-  color: #fff;
-  min-width: 44px;
-  min-height: 44px;
-}
-body.mobile .sidebar {
-  position: fixed;
-  inset: 0 0 0 auto;
-  width: min(84vw, 320px);
-  z-index: 60;
-  transform: translateX(105%);
-  transition: transform 0.22s ease;
-  padding-top: calc(env(safe-area-inset-top, 0px) + 14px);
-  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.3);
-}
-body.mobile .shell.nav-open .sidebar {
-  transform: none;
-}
-body.mobile .nav-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  z-index: 50;
-}
-body.mobile .sidebar nav button {
-  padding: 11px 12px;
-}
-body.mobile .content {
-  flex: 1;
-  min-height: 0;
-  padding: 12px 12px calc(env(safe-area-inset-bottom, 0px) + 28px);
+@media (max-width: 699px) {
+  body.mobile .m-cart-tabs,
+  body.mobile .m-cart-bar {
+    display: flex;
+  }
 }
 
-/* ───── الصفحات والنماذج بعمود واحد ───── */
-body.mobile .page-header {
-  flex-wrap: wrap;
-  gap: 8px;
-}
-body.mobile .page-header h2 {
-  font-size: 19px;
-}
-body.mobile .page-header .button-row,
-body.mobile .button-row {
-  flex-wrap: wrap;
-}
-body.mobile .form-grid,
-body.mobile .form-grid.four,
-body.mobile .two-col,
-body.mobile .two-col.wide-first,
-body.mobile .split,
-body.mobile .invoice-bottom,
-body.mobile .welcome-grid,
-body.mobile .print-designer,
-body.mobile .receipt-designer,
-body.mobile .live-grid,
-body.mobile .sheet-tables {
-  grid-template-columns: minmax(0, 1fr);
-}
-body.mobile .stats {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-body.mobile .stat strong {
-  font-size: 18px;
-}
-body.mobile .live-kpis,
-body.mobile .template-cards,
-body.mobile .perm-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-body.mobile .card {
-  padding: 12px;
-}
-body.mobile .tabs {
-  overflow-x: auto;
-  flex-wrap: nowrap;
-  scrollbar-width: none;
-}
-body.mobile .tabs button {
-  white-space: nowrap;
-  flex: none;
-}
-body.mobile .segmented {
-  max-width: 100%;
-  overflow-x: auto;
-}
-
-/* الجداول العريضة بتتمرّر لحالها بدل ما تخرّب الصفحة */
-body.mobile .content table.table {
-  display: block;
-  overflow-x: auto;
-  max-width: 100%;
-  -webkit-overflow-scrolling: touch;
-}
-body.mobile .content table.table td,
-body.mobile .content table.table th {
-  white-space: nowrap;
-}
-body.mobile .content table.table td.wrap,
-body.mobile .content table.lines td:first-child {
-  white-space: normal;
-  min-width: 160px;
-}
-
-/* النوافذ المنبثقة بعرض الشاشة */
-body.mobile .modal {
-  width: 100% !important;
-  max-width: 100vw;
-  max-height: 92dvh;
-  border-radius: 16px 16px 0 0;
-  align-self: flex-end;
-}
-body.mobile .modal-backdrop {
-  align-items: flex-end;
-  padding: 0;
-}
-
-/* ───── نقطة البيع والمطعم: المواد فوق والسلة تحت ───── */
-body.mobile .pos {
-  display: flex;
-  flex-direction: column;
-  height: auto;
-  gap: 10px;
-}
-body.mobile .pos-search {
-  grid-template-columns: minmax(0, 1fr);
-}
-body.mobile .pos-grid {
-  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-  max-height: 46dvh;
-  overflow-y: auto;
-}
-body.mobile .pos-cats {
-  flex-wrap: nowrap;
-  overflow-x: auto;
-}
-body.mobile .pos-cats button {
-  flex: none;
-}
-body.mobile .pos-cart {
-  position: static;
-  max-height: none;
-}
-body.mobile .pos-line {
-  grid-template-columns: minmax(0, 1fr) auto auto;
-}
-body.mobile .pos-line > strong.num {
-  grid-column: 2 / 4;
-}
-body.mobile .pos-pay {
-  grid-template-columns: minmax(0, 1fr);
-  position: sticky;
-  bottom: 0;
-  background: var(--surface);
-  padding-top: 8px;
-}
-body.mobile .order-info {
-  flex-wrap: wrap;
-}
-
-/* الفاتورة ومعاينة الطباعة: بتتصغّر لتوسع الشاشة */
-body.mobile .paper-preview {
-  overflow-x: auto;
-}
-body.mobile .tables-grid {
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+/* ───── تابلت عمودي (700–1023px): بيع جنب السلة بعمودين ───── */
+@media (min-width: 700px) and (max-width: 1023px) {
+  body.mobile .pos {
+    grid-template-columns: minmax(0, 1fr) 380px;
+  }
+  body.mobile .stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 /* ───── شاشة البداية والقفل ───── */
-body.mobile .welcome,
-body.mobile .lock {
+body.mobile .welcome {
   padding: calc(env(safe-area-inset-top, 0px) + 16px) 14px 30px;
 }
 body.mobile .welcome .segmented.center {
@@ -216,10 +438,4 @@ body.mobile .welcome .segmented.center {
 }
 body.mobile .welcome .segmented.center button {
   flex: 1;
-}
-body.mobile .activities {
-  grid-template-columns: minmax(0, 1fr);
-}
-body.mobile .tour-card {
-  width: calc(100vw - 32px) !important;
 }

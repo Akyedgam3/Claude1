@@ -340,6 +340,27 @@ export function App() {
             <Icon name="logout" size={16} /> تسجيل الخروج
           </button>
         </aside>
+        {IS_MOBILE && (
+          <nav className="bottom-nav" aria-label="القائمة السريعة">
+            {[
+              screens.find((n) => n.key === 'dashboard'),
+              screens.find((n) => n.key === 'pos') ?? screens.find((n) => n.key === 'restaurant') ?? screens.find((n) => n.key === 'sale'),
+              screens.find((n) => n.key === 'invoices'),
+              screens.find((n) => n.key === 'debts') ?? screens.find((n) => n.key === 'items'),
+            ]
+              .filter((n): n is NavItem => !!n)
+              .map((n) => (
+                <button key={n.key} className={screen.key === n.key ? 'active' : ''} onClick={() => navigate(n.key)}>
+                  <Icon name={n.icon} size={22} />
+                  <span>{n.key === 'dashboard' ? 'الرئيسية' : n.key === 'pos' || n.key === 'restaurant' || n.key === 'sale' ? 'البيع' : n.key === 'invoices' ? 'الفواتير' : n.label}</span>
+                </button>
+              ))}
+            <button className={navOpen ? 'active' : ''} onClick={() => setNavOpen(true)}>
+              <Icon name="menu" size={22} />
+              <span>المزيد</span>
+            </button>
+          </nav>
+        )}
         <Tour />
         <main className="content">
           {lic.message && !lic.locked && <div className="banner">{lic.message}</div>}

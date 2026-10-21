@@ -8,6 +8,7 @@ import { InvoiceDocument } from './InvoiceView';
 import { cashAccounts, itemPrice } from './InvoiceEditor';
 import { Icon } from '../components/icons';
 import { curLabel, RateNote } from '../components/CurrencySwitch';
+import { CartBar, CartTabs, useCartTab } from '../components/MobileCart';
 import { CustomerDisplayButton, showThanks, useCustomerDisplay } from '../components/CustomerDisplay';
 
 const TYPE_NAMES: Record<OrderType, string> = { dine_in: 'صالة', takeaway: 'سفري', delivery: 'توصيل' };
@@ -338,6 +339,7 @@ function OrderPanel({ order, onBack, onSwitch }: { order: Order; onBack: () => v
     amountsOk = false;
   }
   const t = orderTotals(current);
+  const mobileTab = useCartTab();
   const fxOk = payCur === base || (!!rates[payCur] && !!rates[base]);
   const tp = payCur === base || !fxOk ? t : orderTotals(convertOrder(current, (m) => convertPrice(state, m, base, payCur, rates) ?? 0));
   const clean = (o: Order): Order => {
@@ -524,7 +526,8 @@ function OrderPanel({ order, onBack, onSwitch }: { order: Order; onBack: () => v
           {draft.waiter ? ` · ${draft.waiter}` : ''}
         </span>
       </div>
-      <div className="pos">
+      <div className={`pos ${mobileTab.className}`}>
+        <CartTabs tab={mobileTab.tab} setTab={mobileTab.setTab} count={lines.length} itemsLabel="المنيو" />
         <div className="pos-products">
           <div className="pos-search">
             <input placeholder="بحث في القائمة..." value={query} onChange={(e) => setQuery(e.target.value)} />
@@ -555,6 +558,7 @@ function OrderPanel({ order, onBack, onSwitch }: { order: Order; onBack: () => v
             {shown.length === 0 && <p className="muted">ما في أصناف. أضف أصناف المنيو من «المواد» مع السعر والتصنيف.</p>}
           </div>
         </div>
+        <CartBar tab={mobileTab.tab} setTab={mobileTab.setTab} count={lines.length} total={money(state, t.total)} />
         <div className="pos-cart card">
           <div className="pos-lines">
             {lines.length === 0 && <p className="muted center">اختار الأصناف من المنيو</p>}

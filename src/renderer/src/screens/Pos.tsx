@@ -7,6 +7,7 @@ import { InvoiceDocument } from './InvoiceView';
 import { itemPrice } from './InvoiceEditor';
 import { Icon } from '../components/icons';
 import { curLabel, RateNote } from '../components/CurrencySwitch';
+import { CartBar, CartTabs, useCartTab } from '../components/MobileCart';
 import { CustomerDisplayButton, showThanks, useCustomerDisplay } from '../components/CustomerDisplay';
 
 interface CartLine {
@@ -169,6 +170,7 @@ export function Pos() {
     add(r.item, { ...(r.unit ? { unit: r.unit } : {}), ...(r.qty ? { qty: r.qty } : {}), ...(price !== undefined ? { price } : {}), ...(r.serial ? { serial: r.serial } : {}) });
   };
 
+  const mobileTab = useCartTab();
   const subtotal = cart.reduce((s, l) => s + Math.round(l.qty * l.price), 0);
   let disc = 0;
   try {
@@ -226,6 +228,7 @@ export function Pos() {
     setBusy(false);
     if (!res) return;
     setLast(res.value);
+    mobileTab.setTab('items');
     setCart([]);
     setNoteFor(null);
     setAmountFor(null);
@@ -277,7 +280,8 @@ export function Pos() {
   const quickNotes = profile.quickNotes ?? [];
 
   return (
-    <div className="pos">
+    <div className={`pos ${mobileTab.className}`}>
+      <CartTabs tab={mobileTab.tab} setTab={mobileTab.setTab} count={cart.length} />
       <div className="pos-products">
         <div className="pos-search">
           <ScanInput onScan={scan} placeholder="امسح الباركود أو باركود الميزان..." autoFocus inputRef={scanRef} />
@@ -329,6 +333,7 @@ export function Pos() {
         </div>
       </div>
 
+      <CartBar tab={mobileTab.tab} setTab={mobileTab.setTab} count={cart.length} total={money(state, total, cur)} />
       <div className="pos-cart card">
         {held.length > 0 && (
           <div className="held-bar">
