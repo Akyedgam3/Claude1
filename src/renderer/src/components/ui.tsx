@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { CompanyState, Item, Party } from '../../../core';
-import { useCompany } from '../api';
+import { api, IS_MOBILE, useCompany } from '../api';
 import { Icon } from './icons';
 
 export function Field({ label, children, wide }: { label: string; children: ReactNode; wide?: boolean }) {
@@ -263,10 +263,34 @@ export function ConfirmButton({ label, confirmLabel, onConfirm, className }: { l
   );
 }
 
-/** حقل الماسح الضوئي: يقرأ الباركود أو الرمز أو رقم القطعة أو باركود الميزان. */
+/** زر الكاميرا (الجوال بس): بيقرأ الباركود وبيرجّع الرقم. على الكمبيوتر ما بيظهر. */
+export function CameraScanButton({ onCode, title = 'قراءة الباركود بالكاميرا' }: { onCode: (code: string) => void; title?: string }) {
+  const { notify } = useCompany();
+  if (!IS_MOBILE) return null;
+  return (
+    <button
+      type="button"
+      className="icon camera-scan"
+      title={title}
+      aria-label={title}
+      onClick={async () => {
+        try {
+          const code = await api.scanBarcode();
+          if (code) onCode(code.trim());
+        } catch (e) {
+          notify((e as Error).message, 'error');
+        }
+      }}
+    >
+      <Icon name="camera" size={20} />
+    </button>
+  );
+}
+
+/** حقل الماسح الضوئي: يقرأ الباركود أو الرمز أو رقم القطعة أو باركود الميزان (وبالجوال كمان بالكاميرا). */
 export function ScanInput({ onScan, placeholder, autoFocus, inputRef }: { onScan: (code: string) => void; placeholder?: string; autoFocus?: boolean; inputRef?: React.Ref<HTMLInputElement> }) {
   const [value, setValue] = useState('');
-  return (
+  const input = (
     <input
       ref={inputRef}
       autoFocus={autoFocus}
@@ -282,5 +306,12 @@ export function ScanInput({ onScan, placeholder, autoFocus, inputRef }: { onScan
         }
       }}
     />
+  );
+  if (!IS_MOBILE) return input;
+  return (
+    <div className="scan-wrap">
+      {input}
+      <CameraScanButton onCode={onScan} />
+    </div>
   );
 }

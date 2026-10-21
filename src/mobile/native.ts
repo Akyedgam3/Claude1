@@ -1,6 +1,7 @@
 // كل شي بيحتاج أندرويد نفسه (معرّف الجهاز، الطباعة، المشاركة، فتح الروابط) بمكان واحد.
 // بالمتصفح (التجارب الآلية) في بدائل بسيطة لكل وحدة.
 import { App } from '@capacitor/app';
+import { BarcodeScanner, GoogleBarcodeScannerModuleInstallState } from '@capacitor-mlkit/barcode-scanning';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { Device } from '@capacitor/device';
 import { Directory, Filesystem } from '@capacitor/filesystem';
@@ -69,6 +70,43 @@ export const native = {
       document.body.append(input);
       input.click();
     });
+  },
+
+  /**
+   * قراءة باركود بالكاميرا بقارئ غوغل (ما بيحتاج إذن كاميرا، وأول مرة بينزّل حاله من خدمات غوغل).
+   * null إذا سكّر المستخدم القارئ.
+   */
+  async scanBarcode(): Promise<string | null> {
+    if (!isNative()) throw new Error('قراءة الباركود بالكاميرا على الجوال بس');
+    const { supported } = await BarcodeScanner.isSupported();
+    if (!supported) throw new Error('هالجوال ما بيدعم قراءة الباركود بالكاميرا');
+    const { available } = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
+    if (!available) {
+      // أول مرة: قارئ غوغل بينزل من خدمات Google Play (بدو إنترنت)
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('تنزيل قارئ الباركود طوّل، تأكد من الإنترنت وجرّب مرة تانية')), 120_000);
+        void BarcodeScanner.addListener('googleBarcodeScannerModuleInstallProgress', (e) => {
+          if (e.state === GoogleBarcodeScannerModuleInstallState.COMPLETED) {
+            clearTimeout(timer);
+            resolve();
+          } else if (e.state === GoogleBarcodeScannerModuleInstallState.FAILED || e.state === GoogleBarcodeScannerModuleInstallState.CANCELED) {
+            clearTimeout(timer);
+            reject(new Error('ما قدرنا ننزّل قارئ الباركود من خدمات غوغل'));
+          }
+        });
+        BarcodeScanner.installGoogleBarcodeScannerModule().catch((e: Error) => {
+          clearTimeout(timer);
+          reject(e);
+        });
+      });
+    }
+    try {
+      const { barcodes } = await BarcodeScanner.scan();
+      return barcodes[0]?.rawValue ?? null;
+    } catch (e) {
+      if (/cancel/i.test((e as Error).message)) return null;
+      throw e;
+    }
   },
 
   async openUrl(url: string): Promise<void> {

@@ -312,6 +312,8 @@ function registerHandlers(): void {
   handle('display:update', () => undefined, { allowLocked: true });
   handle('display:last', () => null, { allowLocked: true });
 
+  handle('device:scan', () => native.scanBarcode());
+
   // الطباعة عبر أندرويد (طابعة الشبكة أو البلوتوث المعرّفة على الجهاز، أو حفظ PDF)
   handle('print:printers', () => []);
   handle('print:run', (opts: { paper: string }) => native.print(`وزن — ${opts?.paper ?? ''}`));

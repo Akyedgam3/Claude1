@@ -88,6 +88,8 @@ export const api = {
   displayClose: () => inv<void>('display:close'),
   displayStatus: () => inv<boolean>('display:status'),
   displayUpdate: (payload: CustomerDisplayData | null) => inv<void>('display:update', payload),
+  /** الجوال بس: قراءة باركود بالكاميرا. null إذا تراجع المستخدم. */
+  scanBarcode: () => inv<string | null>('device:scan'),
   on: (channel: Parameters<typeof window.mizan.on>[0], fn: (payload: unknown) => void) => window.mizan.on(channel, fn),
 };
 

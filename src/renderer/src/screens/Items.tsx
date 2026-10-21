@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { attributesFor, generateVariants, type Item, type ItemKind, type ItemUnit, type RecipeLine } from '../../../core';
 import { api, major, money, parseAmount, qtyText, toInput, today, uid, useCompany } from '../api';
 import { Barcode, ExportButtons, usePrinter } from '../components/print';
-import { CurrencySelect, Empty, Field, itemMatches, itemOptions, Modal, PageHeader, Picker, SearchBox, Tabs } from '../components/ui';
+import { CameraScanButton, CurrencySelect, Empty, Field, itemMatches, itemOptions, Modal, PageHeader, Picker, SearchBox, Tabs } from '../components/ui';
 import { Icon } from '../components/icons';
 
 export function Items({ initialQuery }: { initialQuery?: string } = {}) {
@@ -143,7 +143,10 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
         />
       </PageHeader>
       <div className="toolbar">
-        <SearchBox value={query} onChange={setQuery} placeholder="ابحث بالاسم، الرمز، الباركود، رقم القطعة، المقاس، اللون..." />
+        <div className="scan-wrap">
+          <SearchBox value={query} onChange={setQuery} placeholder="ابحث بالاسم، الرمز، الباركود، رقم القطعة، المقاس، اللون..." />
+          <CameraScanButton onCode={setQuery} />
+        </div>
         {categories.length > 0 && (
           <select value={category} onChange={(e) => setCategory(e.target.value)}>
             <option value="">كل التصنيفات</option>
@@ -357,7 +360,10 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
               </Field>
             )}
             <Field label="الباركود">
-              <input value={f.barcode} onChange={set('barcode')} className="mono" dir="ltr" />
+              <div className="scan-wrap">
+                <input value={f.barcode} onChange={set('barcode')} className="mono" dir="ltr" />
+                <CameraScanButton onCode={(code) => setF({ ...f, barcode: code })} />
+              </div>
             </Field>
             <Field label="المكان (رف / مستودع)">
               <input value={f.location} onChange={set('location')} />

@@ -17,6 +17,7 @@
     "build:mobile": "vite build -c vite.mobile.config.ts && cap sync android"
   },
   "devDependencies": {
+    "@capacitor-mlkit/barcode-scanning": "^8.2.1",
     "@capacitor/android": "^8.5.3",
     "@capacitor/app": "^8.1.2",
     "@capacitor/cli": "^8.5.3",
@@ -37,6 +38,7 @@
     "electron": "^38.8.6",
     "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
+    "firebase": "^12.19.0",
     "path-browserify": "^1.0.1",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",

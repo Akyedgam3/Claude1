@@ -439,3 +439,23 @@ body.mobile .welcome .segmented.center {
 body.mobile .welcome .segmented.center button {
   flex: 1;
 }
+
+/* زر الكاميرا جنب خانات الباركود */
+body.mobile .scan-wrap {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+body.mobile .scan-wrap > input,
+body.mobile .scan-wrap > .search {
+  flex: 1;
+  min-width: 0;
+}
+body.mobile .camera-scan {
+  flex: none;
+  min-width: 48px;
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  border-radius: var(--radius);
+}

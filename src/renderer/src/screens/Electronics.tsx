@@ -3,7 +3,7 @@ import { installmentState, serialHistory, serialsInStock, type InstallmentPlan, 
 import { addDays, dateText, money, parseAmount, toInput, today, useCompany } from '../api';
 import { Icon } from '../components/icons';
 import { DocHeader, usePrinter } from '../components/print';
-import { ConfirmButton, Empty, Field, itemOptions, matches, Modal, PageHeader, partyOptions, Picker, SearchBox } from '../components/ui';
+import { CameraScanButton, ConfirmButton, Empty, Field, itemOptions, matches, Modal, PageHeader, partyOptions, Picker, SearchBox } from '../components/ui';
 import { cashAccounts, itemPrice } from './InvoiceEditor';
 import { PartyForm } from './Parties';
 
@@ -103,7 +103,10 @@ export function DeviceLookup({ serial: initial }: { serial?: string }) {
       <section className="card">
         <header className="panel-header">
           <h3>الأجهزة الموجودة بالمخزون ({serialsInStock(state).length})</h3>
-          <SearchBox value={query} onChange={setQuery} placeholder="بحث بالرقم أو الموديل..." />
+          <div className="scan-wrap">
+            <SearchBox value={query} onChange={setQuery} placeholder="بحث بالرقم أو الموديل..." />
+            <CameraScanButton onCode={setQuery} title="قراءة IMEI بالكاميرا" />
+          </div>
         </header>
         {stock.length === 0 ? (
           <p className="muted">ما في أجهزة برقم تسلسلي بالمخزون.</p>
