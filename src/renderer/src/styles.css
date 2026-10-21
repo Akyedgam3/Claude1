@@ -3452,3 +3452,49 @@ button.danger-soft {
 .stat.clickable:hover {
   border-color: var(--primary);
 }
+.page-intro {
+  margin: -6px 0 14px;
+  line-height: 1.7;
+}
+.count-badge {
+  font-size: 12px;
+  padding: 2px 9px;
+  border-radius: 10px;
+  background: #fff4e0;
+  color: var(--warn);
+  white-space: nowrap;
+}
+.debt-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.debt-balance {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 20px;
+  margin-top: 4px;
+}
+.debt-mini {
+  grid-template-columns: repeat(4, 1fr);
+}
+.debt-mini .stat input {
+  margin-top: 4px;
+  width: 100%;
+}
+.debt-detail h4 {
+  margin-top: 16px;
+}
+.debt-detail tfoot td {
+  font-weight: 700;
+  border-top: 2px solid var(--border);
+}
+@media (max-width: 800px) {
+  .debt-mini {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

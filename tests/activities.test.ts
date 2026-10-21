@@ -4,6 +4,7 @@ import {
   Ledger,
   accountBalance,
   partyBalance,
+  partyDebts,
   amountInWords,
   chartFor,
   defaultTaxes,
@@ -237,5 +238,23 @@ describe('debts without invoices', () => {
     expect(partyBalance(l.state, 'abu').base).toBe(-100_00);
     expect(() => l.postDebt({ direction: 'owed', partyId: 'abu', date: '2026-01-01', amount: 0, reason: 'old' })).toThrow(/أكبر من صفر/);
     balanced(l);
+  });
+});
+
+describe('party debts: invoices and direct debts in one place', () => {
+  it('shows which invoices are still unpaid, oldest settled first', () => {
+    const l = company('general');
+    l.postInvoice({ kind: 'sale', date: '2026-01-01', partyId: 'c', lines: [{ description: 'أ', qty: 1, price: 100_00 }], paid: 0 });
+    l.postInvoice({ kind: 'sale', date: '2026-01-02', partyId: 'c', lines: [{ description: 'ب', qty: 1, price: 300_00 }], paid: 50_00 });
+    l.postDebt({ direction: 'owed', partyId: 'c', date: '2026-01-03', amount: 40_00, reason: 'old' });
+    l.settleDebt({ direction: 'in', partyId: 'c', date: '2026-01-04', amount: 150_00 });
+    const [d] = partyDebts(l.state, 'c');
+    expect(d!.balance).toBe(100_00 + 250_00 + 40_00 - 150_00);
+    // الدفعة سدّت الفاتورة الأولى كاملة و50 من التانية
+    expect(d!.open.map((m) => m.remaining)).toEqual([200_00, 40_00]);
+    expect(d!.open[0]!.source?.type).toBe('invoice');
+    expect(d!.movements).toHaveLength(4);
+    l.postInvoice({ kind: 'purchase', date: '2026-01-05', partyId: 's', lines: [{ description: 'ج', qty: 1, price: 70_00 }], paid: 0 });
+    expect(partyDebts(l.state, 's')[0]!.open[0]!.remaining).toBe(-70_00);
   });
 });

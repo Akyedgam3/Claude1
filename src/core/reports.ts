@@ -459,3 +459,59 @@ export function dailySummary(state: CompanyState, date: string, userId?: string)
     .map(([itemId, qty]) => ({ itemId, name: state.items[itemId]?.name ?? '', qty: Math.round(qty * 1000) / 1000 }));
   return { date, ...(userId ? { userId } : {}), invoices, voided, discounts, rows: [...rows.values()], topItems };
 }
+
+/** حركة على حساب شخص (فاتورة، دين، قبض، دفع) مع ما تبقّى منها غير مسدَّد. */
+export interface DebtItem {
+  entryId: string;
+  date: string;
+  memo: string;
+  source?: { type: string; id: string };
+  amount: number; // موجب = زاد ما له علينا من حق، سالب = نقص (بعملة الحركة)
+  remaining: number; // ما بقي غير مسدَّد من هذه الحركة (بنفس إشارتها)
+}
+
+export interface PartyDebts {
+  currency: string;
+  balance: number; // موجب = لنا عليه، سالب = له علينا
+  movements: DebtItem[];
+  open: DebtItem[]; // الحركات غير المسدَّدة (الأقدم أولاً)
+}
+
+/**
+ * ديون الشخص بكل عملة: الرصيد، والحركات، والفواتير/الديون غير المسدَّدة.
+ * الدفعات تُسدِّد الأقدم فالأقدم (FIFO)، لذلك «غير المسدَّد» هو آخر ما تراكم.
+ */
+export function partyDebts(state: CompanyState, partyId: string): PartyDebts[] {
+  const byCur = new Map<string, DebtItem[]>();
+  const sorted = [...state.entries].sort((a, b) => a.date.localeCompare(b.date) || a.number - b.number);
+  for (const e of sorted) {
+    const sums = new Map<string, number>();
+    for (const l of e.lines) if (l.partyId === partyId) sums.set(l.currency, (sums.get(l.currency) ?? 0) + l.debit - l.credit);
+    for (const [cur, amount] of sums) {
+      if (amount === 0) continue;
+      const list = byCur.get(cur) ?? [];
+      list.push({ entryId: e.id, date: e.date, memo: e.memo, ...(e.source ? { source: e.source } : {}), amount, remaining: amount });
+      byCur.set(cur, list);
+    }
+  }
+  const out: PartyDebts[] = [];
+  for (const [currency, movements] of byCur) {
+    const balance = movements.reduce((s, m) => s + m.amount, 0);
+    const sign = Math.sign(balance);
+    // كل حركة بعكس اتجاه الرصيد تُسدِّد أقدم الحركات المفتوحة باتجاهه
+    const queue: DebtItem[] = [];
+    let credit = 0;
+    for (const m of movements) {
+      if (sign !== 0 && Math.sign(m.amount) === sign) queue.push(m);
+      else credit += Math.abs(m.amount);
+    }
+    for (const m of movements) m.remaining = 0;
+    for (const m of queue) {
+      const use = Math.min(credit, Math.abs(m.amount));
+      credit -= use;
+      m.remaining = (Math.abs(m.amount) - use) * sign;
+    }
+    out.push({ currency, balance, movements, open: queue.filter((m) => m.remaining !== 0) });
+  }
+  return out.sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance));
+}

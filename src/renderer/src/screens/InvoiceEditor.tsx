@@ -175,7 +175,7 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
     if (savingRef.current) return; // منع الحفظ مرتين (Ctrl+Enter المتكرر)
     if (preview.error) return notify(preview.error, 'error');
     if (currency !== base && !rate) return notify('أدخل سعر الصرف', 'error');
-    if (payMode !== 'cash' && !partyId) return notify(isSale ? 'اختار الزبون مشان ينسجّل الدين عليه' : 'اختار المورد مشان ينسجّل الدين إلو', 'error');
+    if (payMode !== 'cash' && !partyId) return notify(isSale ? 'اختر العميل ليُسجَّل الدين عليه' : 'اختر المورد ليُسجَّل الدين له', 'error');
     savingRef.current = true;
     setSaving(true);
     try {
@@ -447,7 +447,7 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
             )}
           </div>
           <PaySwitch kind={kind} mode={payMode} onChange={setPayMode} />
-          {payMode !== 'cash' && !partyId && <p className="bad small-note">{isSale ? 'اختار الزبون فوق مشان ينسجّل الدين عليه' : 'اختار المورد فوق مشان ينسجّل الدين إلو'}</p>}
+          {payMode !== 'cash' && !partyId && <p className="bad small-note">{isSale ? 'اختر العميل في الأعلى ليُسجَّل الدين عليه' : 'اختر المورد في الأعلى ليُسجَّل الدين له'}</p>}
           <div className="kv">
             {payMode === 'partial' && (
               <>
@@ -496,8 +496,8 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
 function PaySwitch({ kind, mode, onChange }: { kind: InvoiceKind; mode: 'cash' | 'credit' | 'partial'; onChange: (m: 'cash' | 'credit' | 'partial') => void }) {
   const inflow = kind === 'sale' || kind === 'purchase_return';
   const labels = inflow
-    ? { cash: 'انقبض كامل بالصندوق', credit: 'ما انقبض (دين عليه)', partial: 'قبضت جزء' }
-    : { cash: 'ينخصم من الصندوق', credit: 'ما ينخصم (دين إلو)', partial: 'دفعت جزء' };
+    ? { cash: 'قبض كامل في الصندوق', credit: 'دون قبض (دين عليه)', partial: 'قبض جزئي' }
+    : { cash: 'خصم من الصندوق', credit: 'دون خصم (دين له)', partial: 'دفع جزئي' };
   return (
     <div className="pay-switch">
       {(['cash', 'credit', 'partial'] as const).map((m) => (

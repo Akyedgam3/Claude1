@@ -249,7 +249,7 @@ export function Dashboard() {
           {data.dueDebts.length > 0 && (
             <section className="card clickable" onClick={() => navigate('debts')}>
               <h3>
-                <Icon name="bell" size={16} /> ديون موعدها قرّب أو فات ({data.dueDebts.length})
+                <Icon name="bell" size={16} /> ديون حان موعد سدادها ({data.dueDebts.length})
               </h3>
               <table className="table compact">
                 <tbody>
@@ -258,7 +258,7 @@ export function Dashboard() {
                       <td>{x.name}</td>
                       <td className={x.due < d ? 'bad' : ''}>{x.due < d ? `متأخر — ${dateText(x.due)}` : dateText(x.due)}</td>
                       <td className={`num ${x.amount > 0 ? 'good' : 'bad'}`}>
-                        {money(state, Math.abs(x.amount))} {x.amount > 0 ? 'إلنا' : 'علينا'}
+                        {money(state, Math.abs(x.amount))} {x.amount > 0 ? 'لنا' : 'علينا'}
                       </td>
                     </tr>
                   ))}

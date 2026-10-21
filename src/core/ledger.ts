@@ -724,10 +724,10 @@ export class Ledger {
     const counter =
       d.reason === 'old' ? SYSTEM_ACCOUNTS.openingBalances : d.reason === 'cash' ? cash : owed ? SYSTEM_ACCOUNTS.serviceRevenue : SYSTEM_ACCOUNTS.miscExpenses;
     const partyAccount = owed ? SYSTEM_ACCOUNTS.customers : SYSTEM_ACCOUNTS.suppliers;
-    const why = d.reason === 'old' ? 'دين سابق' : d.reason === 'cash' ? (owed ? 'سلفة' : 'قرض') : owed ? 'بضاعة/خدمة بالدين' : 'بضاعة/خدمة أخدناها بالدين';
+    const why = d.reason === 'old' ? 'دين سابق' : d.reason === 'cash' ? (owed ? 'سلفة نقدية' : 'قرض نقدي') : 'بضاعة أو خدمة دون فاتورة';
     return this.postEntry({
       date: d.date,
-      memo: `${owed ? 'دين إلنا على' : 'دين علينا لـ'} ${party.name} — ${why}${d.memo?.trim() ? `: ${d.memo.trim()}` : ''}`,
+      memo: `${owed ? 'دين لنا على' : 'دين علينا لـ'} ${party.name} — ${why}${d.memo?.trim() ? `: ${d.memo.trim()}` : ''}`,
       lines: [
         { accountId: partyAccount, ...(owed ? { debit: d.amount } : { credit: d.amount }), ...fx, partyId: party.id },
         { accountId: counter, ...(owed ? { credit: d.amount } : { debit: d.amount }), ...fx },
