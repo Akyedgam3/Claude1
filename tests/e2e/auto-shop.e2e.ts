@@ -94,7 +94,7 @@ test('a full day in an auto parts shop and workshop', async () => {
     await expect(page.locator('.stat.good')).toContainText('55,000.00');
 
     await nav(page, 'الرئيسية');
-    await expect(page.locator('.stat', { hasText: 'ديون لنا على العملاء' })).toContainText('50,000.00');
+    await expect(page.locator('.stat', { hasText: 'ديون لنا على الناس' })).toContainText('50,000.00');
   } finally {
     await close();
   }

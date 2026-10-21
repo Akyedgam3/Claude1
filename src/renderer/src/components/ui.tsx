@@ -214,11 +214,12 @@ export function CurrencySelect({ value, onChange }: { value: string; onChange: (
   );
 }
 
-export function Stat({ label, value, tone }: { label: string; value: string; tone?: 'good' | 'bad' }) {
+export function Stat({ label, value, tone, hint, onClick }: { label: string; value: string; tone?: 'good' | 'bad'; hint?: string; onClick?: () => void }) {
   return (
-    <div className={`stat ${tone ?? ''}`}>
+    <div className={`stat ${tone ?? ''} ${onClick ? 'clickable' : ''}`} onClick={onClick} title={onClick ? 'اكبس لتشوف التفاصيل' : undefined}>
       <span>{label}</span>
       <strong>{value}</strong>
+      {hint && <small className="muted">{hint}</small>}
     </div>
   );
 }

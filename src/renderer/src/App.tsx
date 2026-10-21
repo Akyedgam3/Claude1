@@ -34,6 +34,7 @@ import { Users } from './screens/Users';
 import { Workshop, WorkOrderEditor } from './screens/Workshop';
 import { DeviceLookup, Installments, PcBuild, TradeIn } from './screens/Electronics';
 import { Vehicles } from './screens/Vehicles';
+import { Debts } from './screens/Debts';
 import { Vouchers } from './screens/Vouchers';
 import { Welcome } from './screens/Welcome';
 
@@ -67,6 +68,7 @@ const NAV: (NavItem | string)[] = [
   { key: 'repairs', label: 'أوامر الصيانة', icon: 'wrench', feature: 'repairs', perm: 'repairs.manage' },
   { key: 'appointments', label: 'المواعيد', icon: 'calendar', feature: 'appointments', perm: 'appointments.manage' },
   { key: 'purchase', label: 'فاتورة شراء', icon: 'purchase', perm: 'purchases.create' },
+  { key: 'debts', label: 'الديون', icon: 'debts', perm: 'vouchers.create' },
   { key: 'vouchers', label: 'سندات القبض والدفع', icon: 'wallet', perm: 'vouchers.create' },
   { key: 'invoices', label: 'سجل الفواتير', icon: 'receipt' },
   'المخزون والبطاقات',
@@ -86,7 +88,7 @@ const NAV: (NavItem | string)[] = [
 ];
 
 /** مفاتيح سريعة للشاشات الأكثر استخداماً. */
-const SHORTCUTS: Record<string, string> = { F2: 'sale', F3: 'pos', F4: 'purchase', F6: 'items', F7: 'parties', F8: 'reports' };
+const SHORTCUTS: Record<string, string> = { F2: 'sale', F3: 'pos', F4: 'purchase', F6: 'items', F7: 'parties', F8: 'reports', F9: 'debts' };
 const SHORTCUT_OF = Object.fromEntries(Object.entries(SHORTCUTS).map(([k, v]) => [v, k]));
 
 /** نسخة سطحية جديدة لكل مجموعة حتى تلاحظ React التغيير بعد تطبيق الأحداث. */
@@ -396,6 +398,8 @@ function Screen({ screen }: { screen: { key: string; param?: string } }) {
       return <Production />;
     case 'parties':
       return <Parties {...(p ? { focus: p } : {})} />;
+    case 'debts':
+      return <Debts />;
     case 'vouchers':
       return <Vouchers />;
     case 'rates':

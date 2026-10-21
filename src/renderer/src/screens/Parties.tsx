@@ -108,7 +108,7 @@ export function BalanceText({ value, currency }: { value: number; currency?: str
   );
 }
 
-function PartyPanel({ party, onEdit }: { party: Party; onEdit: () => void }) {
+export function PartyPanel({ party, onEdit }: { party: Party; onEdit?: () => void }) {
   const { state, navigate, feature, can, notify } = useCompany();
   const [currency, setCurrency] = useState<string>('');
   const orders = feature('tailoring') ? Object.values(state.tailorOrders).filter((o) => o.partyId === party.id).sort((a, b) => b.number - a.number) : [];
@@ -136,7 +136,7 @@ function PartyPanel({ party, onEdit }: { party: Party; onEdit: () => void }) {
               تذكير بالدين
             </button>
           )}
-          {can('parties.manage') && <button onClick={onEdit}>تعديل</button>}
+          {can('parties.manage') && onEdit && <button onClick={onEdit}>تعديل</button>}
         </span>
       </header>
       <div className="kv">

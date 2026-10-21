@@ -93,6 +93,8 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
   },
   voidInvoice: 'sales.void',
   postVoucher: 'vouchers.create',
+  postDebt: 'vouchers.create',
+  settleDebt: 'vouchers.create',
   // أرصدة الحسابات والذمم الافتتاحية قيد مالي؛ أرصدة المخزون وحدها لأمين المستودع
   postOpeningBalances: (args) => {
     const d = args[0] as { accounts?: unknown[]; parties?: unknown[] } | undefined;

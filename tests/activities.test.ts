@@ -3,6 +3,7 @@ import {
   DEFAULT_CURRENCIES,
   Ledger,
   accountBalance,
+  partyBalance,
   amountInWords,
   chartFor,
   defaultTaxes,
@@ -111,7 +112,7 @@ describe('restaurant: recipes, tables and orders', () => {
   it('lets the customer pay an order in dollars', () => {
     const l = company('restaurant');
     l.saveItem({ id: 'shawarma', code: 'M1', name: 'سندويشة', kind: 'service', unit: 'قطعة', price: 250_00, priceCurrency: 'SYP' });
-    l.saveOrder({ id: 'o1', type: 'dine_in', status: 'open', servicePercent: 10, lines: [{ id: 'x', itemId: 'shawarma', qty: 3, price: 250_00 }] });
+    l.saveOrder({ id: 'o1', type: 'dine_in', tableId: null, status: 'open', servicePercent: 10, lines: [{ id: 'x', itemId: 'shawarma', qty: 3, price: 250_00 }] });
     expect(() => l.closeOrder('o1', { date: '2026-01-02', currency: 'USD' })).toThrow(/سعر صرف/);
     l.setRate({ date: '2026-01-01', currency: 'USD', rate: 120, kind: 'market' });
     const inv = l.closeOrder('o1', { date: '2026-01-02', currency: 'USD' });
@@ -211,5 +212,30 @@ describe('scale barcodes, variants and words', () => {
     expect(numberToArabicWords(2_500_000)).toBe('مليونان وخمسمئة ألف');
     expect(amountInWords(125_050, 'SYP')).toBe('فقط ألف ومئتان وخمسون ليرة سورية وخمسون قرشاً لا غير');
     expect(amountInWords(10_000, 'USD')).toBe('فقط مئة دولار أمريكي لا غير');
+  });
+});
+
+describe('debts without invoices', () => {
+  it('records what people owe us and what we owe, and settles them', () => {
+    const l = company('general');
+    l.saveParty({ id: 'abu', kind: 'customer', name: 'أبو أحمد' });
+    l.saveParty({ id: 'hajj', kind: 'supplier', name: 'الحج محمود' });
+    l.postDebt({ direction: 'owed', partyId: 'abu', date: '2026-01-01', amount: 500_00, reason: 'old' });
+    l.postDebt({ direction: 'owed', partyId: 'abu', date: '2026-01-02', amount: 200_00, reason: 'cash' });
+    l.postDebt({ direction: 'owe', partyId: 'hajj', date: '2026-01-02', amount: 1_000_00, reason: 'goods' });
+    expect(partyBalance(l.state, 'abu').base).toBe(700_00);
+    expect(partyBalance(l.state, 'hajj').base).toBe(-1_000_00);
+    expect(accountBalance(l.state, '1101').balance).toBe(-200_00); // السلفة طلعت من الصندوق
+    l.settleDebt({ direction: 'in', partyId: 'abu', date: '2026-01-05', amount: 300_00 });
+    l.settleDebt({ direction: 'out', partyId: 'hajj', date: '2026-01-05', amount: 1_000_00 });
+    expect(partyBalance(l.state, 'abu').base).toBe(400_00);
+    expect(partyBalance(l.state, 'hajj').base).toBe(0);
+    expect(accountBalance(l.state, '1101').balance).toBe(-200_00 + 300_00 - 1_000_00);
+    // الدين بينلغى متل السند
+    const e = l.state.entries.find((x) => x.source?.type === 'debt')!;
+    l.voidEntry(e.id, '2026-01-06');
+    expect(partyBalance(l.state, 'abu').base).toBe(-100_00);
+    expect(() => l.postDebt({ direction: 'owed', partyId: 'abu', date: '2026-01-01', amount: 0, reason: 'old' })).toThrow(/أكبر من صفر/);
+    balanced(l);
   });
 });

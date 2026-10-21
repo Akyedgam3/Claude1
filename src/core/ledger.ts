@@ -370,6 +370,34 @@ export interface VoucherDraft {
   createdBy?: string;
 }
 
+/** دين بدون فاتورة: إلي على حدا (owed) أو علي لحدا (owe). */
+export interface DebtDraft {
+  direction: 'owed' | 'owe';
+  partyId: string;
+  date: string;
+  amount: number; // بأصغر وحدة من العملة
+  currency?: string;
+  rate?: number;
+  /** old: دين قديم من قبل البرنامج. cash: مصاري (سلفة/قرض) طلعت أو فاتت عالصندوق. goods: بضاعة أو خدمة بدون فاتورة. */
+  reason: 'old' | 'cash' | 'goods';
+  cashAccountId?: string;
+  memo?: string;
+  createdBy?: string;
+}
+
+/** تسديد دين: قبضت من حدا أو دفعت لحدا. */
+export interface DebtPaymentDraft {
+  direction: 'in' | 'out';
+  partyId: string;
+  date: string;
+  amount: number;
+  currency?: string;
+  rate?: number;
+  cashAccountId?: string;
+  memo?: string;
+  createdBy?: string;
+}
+
 export interface OpeningDraft {
   date: string;
   warehouseId?: string;
@@ -514,7 +542,7 @@ export class Ledger {
   /** لا يُحذف أي قيد؛ الإلغاء يكون بقيد عكسي يحفظ أثر العملية. */
   voidEntry(entryId: string, date: string): JournalEntry {
     const original = this.state.entries.find((e) => e.id === entryId) ?? fail('القيد غير موجود');
-    if (original.source && !['receipt', 'payment', 'manual', 'opening', 'work-adjust'].includes(original.source.type)) {
+    if (original.source && !['receipt', 'payment', 'manual', 'opening', 'work-adjust', 'debt'].includes(original.source.type)) {
       fail('هذا القيد تابع لمستند؛ ألغِ المستند نفسه');
     }
     const entry = this.reversal(original, date);
@@ -679,6 +707,61 @@ export class Ledger {
       ],
       source: { type: v.kind, id: crypto.randomUUID() },
       ...(v.createdBy ? { createdBy: v.createdBy } : {}),
+    });
+  }
+
+  // ───────────── الديون ─────────────
+
+  /** يسجّل دين بدون فاتورة على حساب الزبون/المورد. */
+  postDebt(d: DebtDraft): JournalEntry {
+    if (!(d.amount > 0) || !Number.isSafeInteger(d.amount)) fail('المبلغ يجب أن يكون أكبر من صفر');
+    const party = this.state.parties[d.partyId] ?? fail('الشخص غير موجود');
+    if (!['old', 'cash', 'goods'].includes(d.reason)) fail('سبب الدين غير معروف');
+    const currency = d.currency ?? this.base.code;
+    const fx = { currency, ...(d.rate ? { rate: d.rate } : {}) };
+    const owed = d.direction === 'owed';
+    const cash = d.cashAccountId ?? (currency === 'USD' && this.state.accounts[SYSTEM_ACCOUNTS.usdCash] ? SYSTEM_ACCOUNTS.usdCash : SYSTEM_ACCOUNTS.cash);
+    const counter =
+      d.reason === 'old' ? SYSTEM_ACCOUNTS.openingBalances : d.reason === 'cash' ? cash : owed ? SYSTEM_ACCOUNTS.serviceRevenue : SYSTEM_ACCOUNTS.miscExpenses;
+    const partyAccount = owed ? SYSTEM_ACCOUNTS.customers : SYSTEM_ACCOUNTS.suppliers;
+    const why = d.reason === 'old' ? 'دين سابق' : d.reason === 'cash' ? (owed ? 'سلفة' : 'قرض') : owed ? 'بضاعة/خدمة بالدين' : 'بضاعة/خدمة أخدناها بالدين';
+    return this.postEntry({
+      date: d.date,
+      memo: `${owed ? 'دين إلنا على' : 'دين علينا لـ'} ${party.name} — ${why}${d.memo?.trim() ? `: ${d.memo.trim()}` : ''}`,
+      lines: [
+        { accountId: partyAccount, ...(owed ? { debit: d.amount } : { credit: d.amount }), ...fx, partyId: party.id },
+        { accountId: counter, ...(owed ? { credit: d.amount } : { debit: d.amount }), ...fx },
+      ],
+      source: { type: 'debt', id: crypto.randomUUID() },
+      ...(d.createdBy ? { createdBy: d.createdBy } : {}),
+    });
+  }
+
+  /** قبضت من حدا (in) أو دفعت لحدا (out). بيسكّر الدين من الحساب اللي عليه الرصيد. */
+  settleDebt(d: DebtPaymentDraft): JournalEntry {
+    const party = this.state.parties[d.partyId] ?? fail('الشخص غير موجود');
+    const balance = (acc: string) =>
+      this.state.entries.reduce((s, e) => s + e.lines.reduce((x, l) => x + (l.partyId === party.id && l.accountId === acc ? l.baseDebit - l.baseCredit : 0), 0), 0);
+    // القبض بيسكّر دين الزبون أولاً؛ الدفع بيسكّر دين المورد أولاً
+    const accountId =
+      d.direction === 'in'
+        ? balance(SYSTEM_ACCOUNTS.customers) > 0 || balance(SYSTEM_ACCOUNTS.suppliers) >= 0
+          ? SYSTEM_ACCOUNTS.customers
+          : SYSTEM_ACCOUNTS.suppliers
+        : balance(SYSTEM_ACCOUNTS.suppliers) < 0 || balance(SYSTEM_ACCOUNTS.customers) <= 0
+          ? SYSTEM_ACCOUNTS.suppliers
+          : SYSTEM_ACCOUNTS.customers;
+    return this.postVoucher({
+      kind: d.direction === 'in' ? 'receipt' : 'payment',
+      date: d.date,
+      amount: d.amount,
+      partyId: party.id,
+      accountId,
+      memo: `${d.direction === 'in' ? 'تسديد من' : 'تسديد لـ'} ${party.name}${d.memo?.trim() ? ` — ${d.memo.trim()}` : ''}`,
+      ...(d.currency ? { currency: d.currency } : {}),
+      ...(d.rate ? { rate: d.rate } : {}),
+      ...(d.cashAccountId ? { cashAccountId: d.cashAccountId } : {}),
+      ...(d.createdBy ? { createdBy: d.createdBy } : {}),
     });
   }
 

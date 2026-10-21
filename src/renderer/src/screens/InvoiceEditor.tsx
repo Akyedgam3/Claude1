@@ -61,6 +61,24 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
   const [discount, setDiscount] = useState('');
   const [taxIds, setTaxIds] = useState<string[]>(() => (isSale ? Object.values(state.taxes).filter((t) => t.active && t.percent > 0).map((t) => t.id) : []));
   const [paidText, setPaidText] = useState<string | null>(null);
+  // الخصم من الصندوق: كامل، لا (دين)، أو جزء. البرنامج بيتذكّر آخر اختيار لكل نوع فاتورة
+  const payKey = `mizan.payMode.${kind}`;
+  const [payMode, setPayModeState] = useState<'cash' | 'credit' | 'partial'>(() => {
+    try {
+      const v = localStorage.getItem(payKey);
+      return v === 'credit' || v === 'partial' ? v : 'cash';
+    } catch {
+      return 'cash';
+    }
+  });
+  const setPayMode = (m: 'cash' | 'credit' | 'partial') => {
+    setPayModeState(m);
+    try {
+      localStorage.setItem(payKey, m);
+    } catch {
+      // ما في تخزين: بيضل الاختيار لهالفاتورة بس
+    }
+  };
   const [cashAccountId, setCashAccountId] = useState('');
   const [salesman, setSalesman] = useState('');
   const [notes, setNotes] = useState('');
@@ -144,9 +162,10 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
   }, [used, discount, taxIds, currency, state]);
 
   const paid = (() => {
-    if (paidText === null) return partyId ? 0 : preview.total;
+    if (payMode === 'cash') return preview.total;
+    if (payMode === 'credit') return 0;
     try {
-      return parseAmount(state, paidText, currency);
+      return paidText === null ? 0 : parseAmount(state, paidText, currency);
     } catch {
       return 0;
     }
@@ -156,6 +175,7 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
     if (savingRef.current) return; // منع الحفظ مرتين (Ctrl+Enter المتكرر)
     if (preview.error) return notify(preview.error, 'error');
     if (currency !== base && !rate) return notify('أدخل سعر الصرف', 'error');
+    if (payMode !== 'cash' && !partyId) return notify(isSale ? 'اختار الزبون مشان ينسجّل الدين عليه' : 'اختار المورد مشان ينسجّل الدين إلو', 'error');
     savingRef.current = true;
     setSaving(true);
     try {
@@ -425,17 +445,29 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
                 <strong className="muted">{money(state, Math.round(preview.total * rate * 10 ** (state.currencies[base]!.decimals - state.currencies[currency]!.decimals)), base)}</strong>
               </>
             )}
-            <span>{kind === 'sale' || kind === 'purchase_return' ? 'المقبوض' : 'المدفوع'}</span>
-            <input className="num-input" value={paidText ?? toInput(state, paid, currency)} onChange={(e) => setPaidText(e.target.value)} disabled={!partyId} title={!partyId ? 'الفاتورة النقدية تُدفع كاملة' : ''} inputMode="decimal" />
-            <span>الصندوق</span>
-            <select value={cashId} onChange={(e) => setCashAccountId(e.target.value)}>
-              {boxes.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
-            {partyId && preview.total - paid > 0 && (
+          </div>
+          <PaySwitch kind={kind} mode={payMode} onChange={setPayMode} />
+          {payMode !== 'cash' && !partyId && <p className="bad small-note">{isSale ? 'اختار الزبون فوق مشان ينسجّل الدين عليه' : 'اختار المورد فوق مشان ينسجّل الدين إلو'}</p>}
+          <div className="kv">
+            {payMode === 'partial' && (
+              <>
+                <span>{kind === 'sale' || kind === 'purchase_return' ? 'المقبوض' : 'المدفوع'}</span>
+                <input className="num-input" autoFocus value={paidText ?? ''} placeholder="0" onChange={(e) => setPaidText(e.target.value)} inputMode="decimal" />
+              </>
+            )}
+            {payMode !== 'credit' && (
+              <>
+                <span>الصندوق</span>
+                <select value={cashId} onChange={(e) => setCashAccountId(e.target.value)}>
+                  {boxes.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
+            {preview.total - paid > 0 && (
               <>
                 <span>الباقي بالدين</span>
                 <strong className="bad">{money(state, preview.total - paid, currency)}</strong>
@@ -456,6 +488,23 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
         />
       )}
       {newParty && <PartyForm party={null} defaultKind={isSale ? 'customer' : 'supplier'} onClose={() => setNewParty(false)} onSaved={(p) => changeParty(p.id)} />}
+    </div>
+  );
+}
+
+/** زر «ينخصم من الصندوق أو لا»: كامل / بالدين / جزء. */
+function PaySwitch({ kind, mode, onChange }: { kind: InvoiceKind; mode: 'cash' | 'credit' | 'partial'; onChange: (m: 'cash' | 'credit' | 'partial') => void }) {
+  const inflow = kind === 'sale' || kind === 'purchase_return';
+  const labels = inflow
+    ? { cash: 'انقبض كامل بالصندوق', credit: 'ما انقبض (دين عليه)', partial: 'قبضت جزء' }
+    : { cash: 'ينخصم من الصندوق', credit: 'ما ينخصم (دين إلو)', partial: 'دفعت جزء' };
+  return (
+    <div className="pay-switch">
+      {(['cash', 'credit', 'partial'] as const).map((m) => (
+        <button key={m} type="button" className={`${m} ${mode === m ? 'active' : ''}`} onClick={() => onChange(m)}>
+          {labels[m]}
+        </button>
+      ))}
     </div>
   );
 }

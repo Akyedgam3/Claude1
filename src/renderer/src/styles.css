@@ -3261,3 +3261,194 @@ tr.strike td {
   padding: 6px 16px;
   font-weight: 700;
 }
+
+small.block {
+  display: block;
+}
+.entry-lines > td {
+  background: var(--surface-2, rgba(0, 0, 0, 0.03));
+}
+
+/* قسم الديون */
+button.danger-soft {
+  background: #fdecea;
+  border-color: #f5c6c0;
+  color: var(--danger);
+  font-weight: 700;
+}
+.stat.selected {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-soft);
+}
+.stat.warn {
+  border-color: #f0d199;
+}
+.stat > small {
+  display: block;
+  margin-top: 2px;
+}
+.debt-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.debt-toolbar .segmented {
+  margin-bottom: 0;
+}
+.debt-toolbar .search {
+  flex: 1;
+  min-width: 200px;
+}
+.debt-table tr.late td {
+  background: #fff7f6;
+}
+.due-badge {
+  font-size: 12px;
+  padding: 2px 9px;
+  border-radius: 10px;
+  background: #e8f0fe;
+  color: #1a56c4;
+  white-space: nowrap;
+}
+.due-badge.today {
+  background: #fff4e0;
+  color: var(--warn);
+}
+.due-badge.late {
+  background: #fdecea;
+  color: var(--danger);
+}
+.debt-dir {
+  margin-bottom: 14px;
+}
+.debt-dir button {
+  padding: 8px 22px;
+  font-weight: 700;
+}
+.reason-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 12px 0;
+}
+.reason-cards .reason {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: start;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+}
+.reason-cards .reason small {
+  color: var(--muted);
+  font-weight: 400;
+  line-height: 1.4;
+}
+.reason-cards .reason.active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.debt-panel-actions {
+  margin-bottom: 12px;
+  align-items: center;
+}
+.inline-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.debts .debit {
+  color: var(--good);
+}
+.debts .credit {
+  color: var(--danger);
+}
+@media (max-width: 700px) {
+  .reason-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ينخصم من الصندوق أو لا (الفواتير) */
+.pay-switch {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin: 12px 0 8px;
+}
+.pay-switch button {
+  padding: 8px 6px;
+  font-weight: 700;
+  font-size: 13px;
+  border-radius: var(--radius);
+}
+.pay-switch button.cash.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+.pay-switch button.credit.active {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+.pay-switch button.partial.active {
+  background: var(--warn);
+  border-color: var(--warn);
+  color: #fff;
+}
+.small-note {
+  font-size: 12px;
+  margin: 0 0 8px;
+}
+
+/* مبيعات آخر 7 أيام (الرئيسية) */
+.week-bars .bars {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  height: 150px;
+  align-items: end;
+}
+.week-bars .bar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+}
+.week-bars .bar-track {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.week-bars .bar {
+  width: 60%;
+  max-width: 34px;
+  background: var(--primary);
+  opacity: 0.55;
+  border-radius: 4px 4px 0 0;
+}
+.week-bars .bar-col:hover .bar,
+.week-bars .bar-col.today .bar {
+  opacity: 1;
+}
+.week-bars small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.week-bars .bar-col.today small {
+  color: var(--text);
+  font-weight: 700;
+}
+.week-sum {
+  margin-top: 8px;
+}
+.stat.clickable:hover {
+  border-color: var(--primary);
+}

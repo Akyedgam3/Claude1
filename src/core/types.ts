@@ -185,6 +185,7 @@ export interface Party {
   priceTier?: PriceTier;
   notes?: string;
   measurements?: Record<string, string>; // قياسات الزبون (خياطة): اسم القياس ← القيمة
+  debtDue?: string; // موعد السداد المتّفق عليه (قسم الديون)
   archived?: boolean;
 }
 

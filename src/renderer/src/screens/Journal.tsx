@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import type { JournalEntry } from '../../../core';
 import { dateText, major, money, parseAmount, today, uid, useCompany } from '../api';
 import { ExportButtons } from '../components/print';
@@ -25,6 +25,17 @@ export function Journal() {
   const [currency, setCurrency] = useState(base);
   const [rows, setRows] = useState<Row[]>([emptyRow(), emptyRow()]);
   const [query, setQuery] = useState('');
+  const [openId, setOpenId] = useState<string | null>(null);
+  const invoicesById = useMemo(() => Object.fromEntries(state.invoices.map((i) => [i.id, i])), [state.invoices]);
+  /** مبلغ القيد متل ما بيعرفه الزبون: قيد الفاتورة = إجمالي الفاتورة (بدون سطور التكلفة والمخزون). */
+  const amountOf = (e: JournalEntry): { text: string; hint?: string } => {
+    const inv = e.source?.type === 'invoice' ? invoicesById[e.source.id] : undefined;
+    if (inv) {
+      const cost = e.lines.filter((l) => /^5101/.test(l.accountId)).reduce((x, l) => x + l.baseDebit - l.baseCredit, 0);
+      return { text: money(state, inv.total, inv.currency), ...(cost ? { hint: `تكلفة البضاعة: ${money(state, Math.abs(cost))}` } : {}) };
+    }
+    return { text: money(state, e.lines.reduce((x, l) => x + l.baseDebit, 0)) };
+  };
 
   const accountOpts = useMemo(
     () =>
@@ -178,20 +189,59 @@ export function Journal() {
             </tr>
           </thead>
           <tbody>
-            {entries.map((e: JournalEntry) => (
-              <tr key={e.id} className={state.voided[e.id] || e.voidOf ? 'voided' : ''}>
-                <td className="mono">{e.number}</td>
-                <td>{dateText(e.date)}</td>
-                <td>{e.memo}</td>
-                <td className="muted">{[...new Set(e.lines.map((l) => state.accounts[l.accountId]?.name))].join('، ')}</td>
-                <td className="num">{money(state, e.lines.reduce((s, l) => s + l.baseDebit, 0))}</td>
-                <td>
-                  {e.source?.type === 'manual' && !e.voidOf && !state.voided[e.id] && can('vouchers.void') && (
-                    <ConfirmButton label="إلغاء" onConfirm={() => call('voidEntry', e.id, today()).then((r) => r && notify('تم إلغاء القيد'))} />
+            {entries.map((e: JournalEntry) => {
+              const amt = amountOf(e);
+              const open = openId === e.id;
+              return (
+                <Fragment key={e.id}>
+                  <tr className={`clickable ${state.voided[e.id] || e.voidOf ? 'voided' : ''}`} onClick={() => setOpenId(open ? null : e.id)} title="اكبس لتشوف المدين والدائن">
+                    <td className="mono">{e.number}</td>
+                    <td>{dateText(e.date)}</td>
+                    <td>{e.memo}</td>
+                    <td className="muted">{[...new Set(e.lines.map((l) => state.accounts[l.accountId]?.name))].join('، ')}</td>
+                    <td className="num">
+                      {amt.text}
+                      {amt.hint && <small className="muted block">{amt.hint}</small>}
+                    </td>
+                    <td onClick={(ev) => ev.stopPropagation()}>
+                      {e.source?.type === 'manual' && !e.voidOf && !state.voided[e.id] && can('vouchers.void') && (
+                        <ConfirmButton label="إلغاء" onConfirm={() => call('voidEntry', e.id, today()).then((r) => r && notify('تم إلغاء القيد'))} />
+                      )}
+                    </td>
+                  </tr>
+                  {open && (
+                    <tr className="entry-lines">
+                      <td />
+                      <td colSpan={5}>
+                        <table className="table compact">
+                          <thead>
+                            <tr>
+                              <th>الحساب</th>
+                              <th className="num">مدين</th>
+                              <th className="num">دائن</th>
+                              <th>ملاحظة</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {e.lines.map((l, i) => (
+                              <tr key={i}>
+                                <td>
+                                  {state.accounts[l.accountId]?.name ?? l.accountId}
+                                  {l.partyId && state.parties[l.partyId] ? <span className="muted"> — {state.parties[l.partyId]!.name}</span> : null}
+                                </td>
+                                <td className="num">{l.baseDebit ? money(state, l.baseDebit) : ''}</td>
+                                <td className="num">{l.baseCredit ? money(state, l.baseCredit) : ''}</td>
+                                <td className="muted">{l.memo ?? ''}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </td>
+                    </tr>
                   )}
-                </td>
-              </tr>
-            ))}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
       </section>

@@ -1,4 +1,8 @@
 import {
+  HandCoins,
+  Bell,
+  MessageCircle,
+  TrendingUp,
   Monitor,
   Activity,
   IceCreamCone,
@@ -107,6 +111,11 @@ const ICONS: Record<string, LucideIcon> = {
   sparkles: Sparkles,
   monitor: Monitor,
   live: Activity,
+  debts: HandCoins,
+  bell: Bell,
+  message: MessageCircle,
+  trend: TrendingUp,
+  chart: ChartColumn,
 };
 
 export type IconName = keyof typeof ICONS;
