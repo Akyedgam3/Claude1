@@ -468,3 +468,11 @@ body.mobile .cloud-code {
 body.mobile .cloud-code .doc-qr {
   align-self: center;
 }
+
+body.mobile .row-between {
+  flex-direction: column;
+}
+body.mobile .cur-tabs {
+  overflow-x: auto;
+  flex-wrap: nowrap;
+}

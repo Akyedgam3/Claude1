@@ -54,7 +54,9 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
         if (existingCodes.has(code)) continue;
         existingCodes.add(code); // يمنع تكرار الرمز داخل نفس الملف
         const curText = String(r['العملة'] ?? base).trim();
-        const currency = /^(usd|\$|دولار)/i.test(curText) ? 'USD' : /^(syp|ل\.?س|ليرة)/i.test(curText) ? 'SYP' : base;
+        // العملات المضافة أولاً بالرمز أو الاسم الكامل («ليرة تركية» قبل «ليرة»)
+        const custom = Object.values(state.currencies).find((c) => [c.code, c.nameAr, c.symbol].some((x) => x.toLowerCase() === curText.toLowerCase()));
+        const currency = custom?.code ?? (/^(usd|\$|دولار)/i.test(curText) ? 'USD' : /^(syp|ل\.?س|ليرة)/i.test(curText) ? 'SYP' : base);
         const id = uid();
         if (qty > 0) stock.push({ itemId: id, qty, unitCost: cost });
         parsed.push({

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { convertOrder, orderTotals, type DiningTable, type Invoice, type Order, type OrderLine, type OrderType } from '../../../core';
-import { convertPrice, fxRates, money, parseAmount, plainMoney, qtyText, today, toInput, uid, useCompany } from '../api';
+import { convertPrice, fxRates, money, parseAmount, plainMoney, qtyText, shownCurrencies, today, toInput, uid, useCompany } from '../api';
 import { ThermalReceipt } from '../components/ThermalReceipt';
 import { DocHeader, usePrinter } from '../components/print';
 import { ConfirmButton, Empty, Field, matches, Modal, PageHeader, partyOptions, Picker } from '../components/ui';
@@ -362,7 +362,7 @@ function OrderPanel({ order, onBack, onSwitch }: { order: Order; onBack: () => v
     if (existing) setLines(lines.map((l) => (l === existing ? { ...l, qty: l.qty + 1 } : l)));
     else {
       const text = itemPrice(state, item, { currency: base, date: today() });
-      if (!text) return notify(`سجّل سعر الدولار أولاً لتسعير "${item.name}"`, 'error');
+      if (!text) return notify(`سجّل سعر صرف ${state.currencies[item.priceCurrency]?.nameAr ?? ''} أولاً لتسعير "${item.name}"`, 'error');
       const line = { id: uid(), itemId, qty: 1, price: parseAmount(state, text, base) };
       setLines([...lines, line]);
       setActive(line.id);
@@ -639,11 +639,11 @@ function OrderPanel({ order, onBack, onSwitch }: { order: Order; onBack: () => v
               </>
             )}
           </div>
-          {Object.keys(state.currencies).length > 1 && (
+          {shownCurrencies(state, payCur).length > 1 && (
             <div className="cur-switch">
               <span className="muted">الدفع بـ</span>
               <div className="segmented">
-                {Object.values(state.currencies).map((c) => (
+                {shownCurrencies(state, payCur).map((c) => (
                   <button
                     key={c.code}
                     className={payCur === c.code ? 'active' : ''}
@@ -657,7 +657,7 @@ function OrderPanel({ order, onBack, onSwitch }: { order: Order; onBack: () => v
                   </button>
                 ))}
               </div>
-              <RateNote />
+              <RateNote code={payCur} />
             </div>
           )}
           <div className="pay-modes segmented">

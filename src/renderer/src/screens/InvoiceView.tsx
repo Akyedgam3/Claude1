@@ -1,5 +1,5 @@
 import { amountInWords, findRate, INVOICE_KIND_NAMES, lineAmount, type CompanyState, type Invoice } from '../../../core';
-import { dateText, money, plainMoney, qtyText, today, useCompany } from '../api';
+import { dateText, money, plainMoney, qtyText, rateLine, today, useCompany } from '../api';
 import type { ReactNode } from 'react';
 import { CommercialDoc, type DocModel } from '../components/CommercialDoc';
 import { ThermalReceipt, type ReceiptData } from '../components/ThermalReceipt';
@@ -114,7 +114,7 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
     after: [
       { label: moneyIn ? 'المقبوض' : 'المدفوع', value: m(inv.paid) },
       ...(remaining > 0 ? [{ label: 'الباقي', value: m(remaining) }] : []),
-      ...(inv.currency !== company.baseCurrency ? [{ label: 'سعر الصرف', value: company.baseCurrency === 'USD' && inv.currency === 'SYP' ? `1$ = ${(Math.round(10000 / inv.rate) / 10000).toLocaleString('en')}` : inv.rate.toLocaleString('en') }] : []),
+      ...(inv.currency !== company.baseCurrency ? [{ label: 'سعر الصرف', value: rateLine(state, inv.currency, inv.rate) }] : []),
       ...(showUsd ? [{ label: 'المقابل بالدولار', value: money(state, Math.round(((inv.total * inv.rate) / usdRate) * 10 ** (2 - decimals)), 'USD') }] : []),
     ],
     ...(print.showAmountInWords !== false ? { words: amountInWords(inv.total, inv.currency, decimals) } : {}),

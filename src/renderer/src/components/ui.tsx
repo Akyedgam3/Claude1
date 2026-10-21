@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { CompanyState, Item, Party } from '../../../core';
-import { api, IS_MOBILE, useCompany } from '../api';
+import { api, IS_MOBILE, shownCurrencies, useCompany } from '../api';
 import { Icon } from './icons';
 
 export function Field({ label, children, wide }: { label: string; children: ReactNode; wide?: boolean }) {
@@ -205,9 +205,9 @@ export function CurrencySelect({ value, onChange }: { value: string; onChange: (
   const { state } = useCompany();
   return (
     <select value={value} onChange={(e) => onChange(e.target.value)}>
-      {Object.values(state.currencies).map((c) => (
+      {shownCurrencies(state, value).map((c) => (
         <option key={c.code} value={c.code}>
-          {c.nameAr}
+          {c.nameAr} ({c.symbol})
         </option>
       ))}
     </select>

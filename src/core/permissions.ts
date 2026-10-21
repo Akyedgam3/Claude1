@@ -77,6 +77,7 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
   saveAccount: 'accounts.manage',
   saveTax: 'settings.manage',
   setRate: 'rates.manage',
+  saveCurrency: 'rates.manage',
   postEntry: 'journal.create',
   voidEntry: 'vouchers.void',
   lockPeriod: 'period.close',

@@ -1,4 +1,4 @@
-import { SYSTEM_ACCOUNTS } from './chart-templates';
+import { cashAccountFor, SYSTEM_ACCOUNTS } from './chart-templates';
 import type { EntryDraft, LineDraft } from './ledger';
 import { convertMinor } from './money';
 import { adjustmentMoves, applyMove, assertMovesPossible, invoiceMoves, negate, productionMoves, roundQty, StockPlanner, transferMoves } from './stock';
@@ -510,7 +510,7 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft): { invoic
   const paid = draft.paid ?? (partyId ? 0 : total);
   if (!Number.isSafeInteger(paid) || paid < 0 || paid > total) fail('المبلغ المدفوع غير صالح');
   if (!partyId && paid !== total) fail('الفاتورة النقدية بدون اسم يجب أن تُدفع كاملة؛ اختر عميلاً/مورداً للبيع بالدين');
-  const cashAccountId = draft.cashAccountId ?? (currency === 'USD' && state.accounts[SYSTEM_ACCOUNTS.usdCash] ? SYSTEM_ACCOUNTS.usdCash : SYSTEM_ACCOUNTS.cash);
+  const cashAccountId = draft.cashAccountId ?? cashAccountFor(state, currency);
   const cashAccount = state.accounts[cashAccountId] ?? fail('الصندوق غير موجود');
   if (cashAccount.currency && cashAccount.currency !== currency && paid > 0) fail(`الصندوق "${cashAccount.name}" يقبل ${cashAccount.currency} فقط`);
   const toBase = (minor: number) => convertMinor(minor, state.currencies[currency]!, state.currencies[baseCode]!, rate);

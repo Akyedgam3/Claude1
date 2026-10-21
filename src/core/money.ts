@@ -2,19 +2,30 @@
 // لتجنّب أخطاء الفاصلة العائمة في الحسابات المالية.
 
 export interface Currency {
-  code: string; // SYP أو USD
+  code: string; // SYP، USD، أو رمز يختاره المستخدم (TRY، EUR...)
   nameAr: string;
   symbol: string;
   decimals: number; // عدد المنازل العشرية لأصغر وحدة
+  /** السعر بيتكتب «1 عملة أساسية = كم من هالعملة» (متل الليرة بشركة عملتها دولار). */
+  rateInverted?: boolean;
+  /** مخفية من قوائم الاختيار (الحركات القديمة بتضل متل ما هي). */
+  hidden?: boolean;
 }
 
-// العملتان المعتمدتان فقط: الليرة السورية الجديدة (بعد حذف الصفرين) والدولار الأمريكي.
+// العملات الافتراضية: الليرة السورية الجديدة (بعد حذف الصفرين) والدولار الأمريكي. المستخدم بيقدر يضيف غيرهن.
 export const DEFAULT_CURRENCIES: Currency[] = [
   { code: 'SYP', nameAr: 'ليرة سورية جديدة', symbol: 'ل.س', decimals: 2 },
   { code: 'USD', nameAr: 'دولار أمريكي', symbol: '$', decimals: 2 },
 ];
 
-export const ALLOWED_CURRENCIES = new Set(DEFAULT_CURRENCIES.map((c) => c.code));
+/** يتحقق من شكل العملة (رمز لاتيني، اسم، رمز مختصر، منازل عشرية). */
+export function currencyProblem(c: Currency): string | null {
+  if (!c || typeof c.code !== 'string' || !/^[A-Z][A-Z0-9]{1,7}$/.test(c.code)) return 'رمز العملة من 2 إلى 8 أحرف إنكليزية كبيرة (مثل TRY أو EUR)';
+  if (typeof c.nameAr !== 'string' || !c.nameAr.trim() || c.nameAr.length > 40) return 'اسم العملة مطلوب (حتى 40 حرفاً)';
+  if (typeof c.symbol !== 'string' || !c.symbol.trim() || c.symbol.length > 8) return 'رمز العرض مطلوب (حتى 8 أحرف)';
+  if (!Number.isInteger(c.decimals) || c.decimals < 0 || c.decimals > 4) return 'عدد المنازل العشرية بين 0 و 4';
+  return null;
+}
 
 function assertSafe(n: number): number {
   if (!Number.isSafeInteger(n)) throw new Error(`المبلغ خارج النطاق المسموح: ${n}`);

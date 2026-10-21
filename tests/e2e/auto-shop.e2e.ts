@@ -10,7 +10,7 @@ test('a full day in an auto parts shop and workshop', async () => {
     expect(recovery).toMatch(/^([A-Z2-9]{4}-){5}[A-Z2-9]{4}$/);
 
     // سعر الدولار
-    await nav(page, 'سعر الدولار');
+    await nav(page, 'العملات وسعر الصرف');
     await page.locator('.field', { hasText: 'سعر السوق' }).locator('input').fill('120');
     await page.getByRole('button', { name: 'حفظ' }).click();
     await toast(page, 'تم حفظ السعر');

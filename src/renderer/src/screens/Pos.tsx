@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { resolveScan, type Invoice, type Item } from '../../../core';
-import { convertPrice, fxRates, money, parseAmount, qtyText, today, toInput, uid, useCompany } from '../api';
+import { convertPrice, fxRates, money, parseAmount, qtyText, shownCurrencies, today, toInput, uid, useCompany } from '../api';
 import { usePrinter } from '../components/print';
 import { matches, partyOptions, Picker, ScanInput } from '../components/ui';
 import { InvoiceDocument } from './InvoiceView';
@@ -58,8 +58,8 @@ export function Pos() {
   // عملة البيع: الكاشير بيختار ليرة أو دولار لكل فاتورة، والأسعار بتتحوّل بسعر الصرف
   const [cur, setCur] = useState(base);
   const rates = fxRates(state, today());
-  const currencies = Object.values(state.currencies);
-  const otherCur = currencies.find((c) => c.code !== cur)?.code;
+  const currencies = shownCurrencies(state, cur);
+  const otherCur = cur !== state.info!.baseCurrency ? state.info!.baseCurrency : (currencies.find((c) => c.code === 'USD' && c.code !== cur) ?? currencies.find((c) => c.code !== cur))?.code;
   const convert = (minor: number, from: string, to: string) => convertPrice(state, minor, from, to, rates);
 
   // الفواتير المعلّقة محفوظة على هالجهاز بس، حتى ما تضيع إذا انسكرت الشاشة
@@ -115,7 +115,7 @@ export function Pos() {
   };
   const switchCurrency = (next: string) => {
     if (next === cur) return;
-    if (!rates[next] || !rates[cur]) return notify('سجّل سعر الدولار اليوم أولاً (من «سعر الدولار» بالقائمة)', 'error');
+    if (!rates[next] || !rates[cur]) return notify(`سجّل سعر ${state.currencies[next === state.info!.baseCurrency ? cur : next]?.nameAr ?? 'الصرف'} اليوم أولاً (من «العملات وسعر الصرف» بالقائمة)`, 'error');
     // السلة بتنحسب من جديد: سعر المادة الأصلي بالعملة الجديدة، والسعر اليدوي بيتحوّل
     setCart((c) =>
       c.map((l) => {
@@ -194,13 +194,19 @@ export function Pos() {
     if (total <= 0) return [];
     const unit = 10 ** (state.currencies[cur]?.decimals ?? 0);
     const out: number[] = [];
-    for (const step of cur === 'USD' ? [5, 10, 20, 50, 100] : [100, 500, 1000, 5000, 10000]) {
+    // الدولار والليرة متل ما هن؛ العملات المضافة حسب قيمتها مقابل الدولار (اليورو متل الدولار، اللبنانية بالآلاف)
+    let steps = cur === 'USD' ? [5, 10, 20, 50, 100] : [100, 500, 1000, 5000, 10000];
+    if (cur !== 'USD' && cur !== 'SYP' && rates[cur] && rates['USD']) {
+      const scale = 10 ** Math.max(0, Math.floor(Math.log10(rates['USD'] / rates[cur])));
+      steps = [5, 10, 20, 50, 100].map((x) => x * scale);
+    }
+    for (const step of steps) {
       const v = Math.ceil(total / (step * unit)) * step * unit;
       if (v > total && !out.includes(v)) out.push(v);
       if (out.length >= 3) break;
     }
     return out;
-  }, [total, cur, state.currencies]);
+  }, [total, cur, state.currencies, rates]);
 
   const pay = async (credit: boolean) => {
     if (!cart.length || busy) return;
@@ -354,7 +360,7 @@ export function Pos() {
                 </button>
               ))}
             </div>
-            <RateNote />
+            <RateNote code={cur} />
           </div>
         )}
         <div className="with-button">

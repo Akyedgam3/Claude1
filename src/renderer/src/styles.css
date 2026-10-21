@@ -3577,3 +3577,30 @@ button.danger-soft {
   word-break: break-all;
   font-size: 18px;
 }
+
+/* العملات: تبويب لكل عملة، واختيار سريع للعملات المشهورة */
+.cur-tabs {
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.quick-cur {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.quick-cur button {
+  padding: 4px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+}
+.row-between {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.row-between > p {
+  margin: 0 0 12px;
+}

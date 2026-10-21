@@ -82,7 +82,7 @@ const NAV: (NavItem | string)[] = [
   'المحاسبة',
   { key: 'reports', label: 'التقارير', icon: 'reports', perms: ['reports.financial', 'reports.stock', 'sales.create'] },
   { key: 'journal', label: 'القيود اليومية', icon: 'journal', perm: 'journal.create' },
-  { key: 'rates', label: 'سعر الدولار', icon: 'dollar', perm: 'rates.manage' },
+  { key: 'rates', label: 'العملات وسعر الصرف', icon: 'dollar', perm: 'rates.manage' },
   { key: 'accounts', label: 'دليل الحسابات', icon: 'accounts', perm: 'accounts.manage' },
   'الإدارة',
   { key: 'users', label: 'المستخدمون', icon: 'user-cog', perm: 'users.manage' },

@@ -2,8 +2,8 @@ import { applyCommerceEvent, buildInvoice, convertOrder, orderTotals, piecesTota
 import { ACTIVITIES } from './activities';
 import { loadDemo } from './demo';
 import { buildSchedule, installmentState } from './electronics';
-import { SYSTEM_ACCOUNTS } from './chart-templates';
-import { ALLOWED_CURRENCIES, convertMinor, type Currency } from './money';
+import { cashAccountFor, SYSTEM_ACCOUNTS } from './chart-templates';
+import { convertMinor, currencyProblem, type Currency } from './money';
 import {
   buildAdjustment,
   buildCount,
@@ -170,7 +170,10 @@ export function validateEvent(state: CompanyState, event: CompanyEvent): void {
       if (state.info) fail('الشركة منشأة مسبقاً');
       if (!event.info.name.trim()) fail('اسم الشركة مطلوب');
       if (!event.currencies.some((c) => c.code === event.info.baseCurrency)) fail('العملة الأساسية غير موجودة');
-      for (const c of event.currencies) if (!ALLOWED_CURRENCIES.has(c.code)) fail(`العملة ${c.code} غير مدعومة`);
+      for (const c of event.currencies) {
+        const problem = currencyProblem(c);
+        if (problem) fail(problem);
+      }
       return;
     case 'company.updated':
       if (event.info.baseCurrency && event.info.baseCurrency !== state.info!.baseCurrency) {
@@ -189,13 +192,13 @@ export function validateEvent(state: CompanyState, event: CompanyEvent): void {
       }
       return;
     case 'currency.saved':
-      if (!ALLOWED_CURRENCIES.has(event.currency.code)) fail('العملات المدعومة: الليرة السورية الجديدة والدولار فقط');
-      if (!Number.isInteger(event.currency.decimals) || event.currency.decimals < 0 || event.currency.decimals > 4) {
-        fail('عدد المنازل العشرية بين 0 و 4');
-      }
       {
+        const problem = currencyProblem(event.currency);
+        if (problem) fail(problem);
         const existing = state.currencies[event.currency.code];
         if (existing && existing.decimals !== event.currency.decimals) fail('لا يمكن تغيير المنازل العشرية لعملة مستخدمة');
+        if (event.currency.code === state.info!.baseCurrency && event.currency.hidden) fail('لا يمكن إخفاء العملة الأساسية');
+        if (!existing && Object.keys(state.currencies).length >= 20) fail('الحد الأقصى 20 عملة');
       }
       return;
     case 'account.saved':
@@ -468,8 +471,25 @@ export class Ledger {
     this.emit({ type: 'company.updated', info });
   }
 
-  saveCurrency(currency: Currency): void {
-    this.emit({ type: 'currency.saved', currency });
+  /** عملة جديدة أو تعديل اسمها ورمزها. العملة الجديدة بيتعمللها صندوق خاص فيها. */
+  saveCurrency(currency: Currency): Currency {
+    const c: Currency = {
+      code: String(currency?.code ?? '').trim().toUpperCase(),
+      nameAr: String(currency?.nameAr ?? '').trim(),
+      symbol: String(currency?.symbol ?? '').trim(),
+      decimals: Number(currency?.decimals ?? 2),
+      ...(currency?.rateInverted ? { rateInverted: true } : {}),
+      ...(currency?.hidden ? { hidden: true } : {}),
+    };
+    const isNew = !this.state.currencies[c.code];
+    this.emit({ type: 'currency.saved', currency: c });
+    if (isNew && c.code !== this.base.code && !Object.values(this.state.accounts).some((a) => a.currency === c.code && !a.isGroup)) {
+      const parent = this.state.accounts['11']?.isGroup ? '11' : null;
+      let id = '';
+      for (let n = 9; n < 100 && !id; n++) if (!this.state.accounts[`11${String(n).padStart(2, '0')}`]) id = `11${String(n).padStart(2, '0')}`;
+      if (parent && id) this.emit({ type: 'account.saved', account: { id, name: `صندوق ${c.nameAr}`, type: 'asset', parentId: parent, isGroup: false, currency: c.code } });
+    }
+    return c;
   }
 
   saveAccount(account: Account): void {
@@ -689,7 +709,7 @@ export class Ledger {
           : SYSTEM_ACCOUNTS.customers
         : fail('اختر الحساب المقابل أو العميل/المورد'));
     const currency = v.currency ?? this.base.code;
-    const cash = v.cashAccountId ?? (currency === 'USD' && this.state.accounts[SYSTEM_ACCOUNTS.usdCash] ? SYSTEM_ACCOUNTS.usdCash : SYSTEM_ACCOUNTS.cash);
+    const cash = v.cashAccountId ?? cashAccountFor(this.state, currency);
     const fx = { currency, ...(v.rate ? { rate: v.rate } : {}) };
     const inflow = v.kind === 'receipt';
     const number = this.state.entries.filter((e) => e.source?.type === v.kind && !e.voidOf).length + 1;
@@ -720,7 +740,7 @@ export class Ledger {
     const currency = d.currency ?? this.base.code;
     const fx = { currency, ...(d.rate ? { rate: d.rate } : {}) };
     const owed = d.direction === 'owed';
-    const cash = d.cashAccountId ?? (currency === 'USD' && this.state.accounts[SYSTEM_ACCOUNTS.usdCash] ? SYSTEM_ACCOUNTS.usdCash : SYSTEM_ACCOUNTS.cash);
+    const cash = d.cashAccountId ?? cashAccountFor(this.state, currency);
     const counter =
       d.reason === 'old' ? SYSTEM_ACCOUNTS.openingBalances : d.reason === 'cash' ? cash : owed ? SYSTEM_ACCOUNTS.serviceRevenue : SYSTEM_ACCOUNTS.miscExpenses;
     const partyAccount = owed ? SYSTEM_ACCOUNTS.customers : SYSTEM_ACCOUNTS.suppliers;

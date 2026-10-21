@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { computeTaxes, findRate, INVOICE_KIND_NAMES, resolveScan, type CompanyState, type Invoice, type InvoiceKind, type Item, type Party } from '../../../core';
-import { convertPrice, fxRates, money, parseAmount, toInput, today, uid, useCompany } from '../api';
+import { convertPrice, fxRates, money, parseAmount, rateInverted, toInput, today, uid, useCompany } from '../api';
 import { CurrencySelect, Field, itemMatches, itemOptions, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
 import { ItemForm } from './Items';
 import { PartyForm } from './Parties';
@@ -89,8 +89,8 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
 
   const party = partyId ? state.parties[partyId] : null;
   const storedRate = findRate(state, currency, date);
-  // الشركة بالدولار والفاتورة بالليرة: السعر بينكتب «الدولار بكم ليرة» ومنقلبه
-  const invertRate = base === 'USD' && currency === 'SYP';
+  // بعض العملات سعرها بينكتب مقلوب (الشركة بالدولار والفاتورة بالليرة: «الدولار بكم ليرة»)
+  const invertRate = rateInverted(state, currency);
   const typedRate = Number(rateText) || 0;
   const rate = currency === base ? 1 : (typedRate ? (invertRate ? 1 / typedRate : typedRate) : storedRate || 0);
   const items = useMemo(() => itemOptions(state, (i) => isSale || i.kind !== 'composite'), [state, isSale]);
@@ -251,7 +251,7 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
           <CurrencySelect value={currency} onChange={changeCurrency} />
         </Field>
         {currency !== base && (
-          <Field label={invertRate ? 'سعر الدولار (ل.س)' : `سعر الصرف (${state.currencies[base]?.symbol})`}>
+          <Field label={invertRate ? `سعر الصرف: 1 ${state.currencies[base]?.symbol} = ؟ ${state.currencies[currency]?.symbol}` : `سعر الصرف: 1 ${state.currencies[currency]?.symbol} = ؟ ${state.currencies[base]?.symbol}`}>
             <input value={rateText} placeholder={storedRate ? String(invertRate ? Math.round(10000 / storedRate) / 10000 : storedRate) : 'أدخل السعر'} onChange={(e) => setRateText(e.target.value)} inputMode="decimal" />
           </Field>
         )}

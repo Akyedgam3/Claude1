@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import { can as canDo, effectiveProfile, findRate, formatMinor, toMinor, type ActivityProfile, type CompanyState, type Feature, type Permission, type User } from '../../core';
+import { can as canDo, effectiveProfile, findRate, formatMinor, toMinor, type ActivityProfile, type CompanyState, type Currency, type Feature, type Permission, type User } from '../../core';
 import type { LicenseStatus } from '../../license/manager';
 
 /** نسخة الموبايل (أندرويد): مستقلة، بدون شبكة محلية ولا شاشة زبون. */
@@ -211,4 +211,53 @@ export function convertPrice(state: CompanyState, minor: number, from: string, t
   if (!rf || !rt) return null;
   const scale = 10 ** (state.currencies[to]!.decimals - state.currencies[from]!.decimals);
   return Math.round(((minor * rf) / rt) * scale);
+}
+
+// ───────── العملات المضافة وأسعار صرفها ─────────
+
+/** العملات اللي بتطلع بقوائم الاختيار: الأساسية أولاً، وبدون المخفية (إلا المختارة حالياً). */
+export function shownCurrencies(state: CompanyState, keep?: string): Currency[] {
+  const base = state.info?.baseCurrency;
+  return Object.values(state.currencies)
+    .filter((c) => !c.hidden || c.code === keep || c.code === base)
+    .sort((a, b) => (a.code === base ? -1 : b.code === base ? 1 : 0));
+}
+
+/** السعر بينكتب «1 عملة أساسية = كم من هالعملة» (متل الليرة بشركة عملتها دولار). */
+export function rateInverted(state: CompanyState, code: string): boolean {
+  const base = state.info?.baseCurrency;
+  if (!base || code === base) return false;
+  const c = state.currencies[code];
+  return c?.rateInverted ?? (base === 'USD' && code === 'SYP');
+}
+
+const round4 = (n: number) => Math.round(n * 10000) / 10000;
+
+/** السعر المخزّن (كم عملة أساسية بالوحدة) ← الرقم اللي بيكتبه المستخدم. */
+export function rateToInput(state: CompanyState, code: string, rate: number): number {
+  return rateInverted(state, code) ? round4(1 / rate) : round4(rate);
+}
+
+/** الرقم اللي كتبه المستخدم ← السعر المخزّن. */
+export function inputToRate(state: CompanyState, code: string, typed: number): number {
+  return rateInverted(state, code) ? 1 / typed : typed;
+}
+
+/** «1 $ = 120 ل.س» أو «1 $ = 34 TRY» حسب طريقة كتابة سعر هالعملة. */
+export function rateLine(state: CompanyState, code: string, rate: number): string {
+  const base = state.currencies[state.info!.baseCurrency]!;
+  const c = state.currencies[code];
+  if (!c) return '';
+  const v = rateToInput(state, code, rate).toLocaleString('en');
+  // عزل اتجاه النص حتى ما ينقلب «1 ₺ = 3.5 ل.س» جوا الواجهة العربية
+  const line = rateInverted(state, code) ? `1 ${base.symbol} = ${v} ${c.symbol}` : `1 ${c.symbol} = ${v} ${base.symbol}`;
+  return `\u2066${line}\u2069`;
+}
+
+/** عنوان خانة السعر: «كم ل.س يساوي 1 $». */
+export function rateQuestion(state: CompanyState, code: string): string {
+  const base = state.currencies[state.info!.baseCurrency]!;
+  const c = state.currencies[code];
+  if (!c) return '';
+  return rateInverted(state, code) ? `كم ${c.nameAr} يساوي 1 ${base.nameAr}` : `كم ${base.nameAr} يساوي 1 ${c.nameAr}`;
 }

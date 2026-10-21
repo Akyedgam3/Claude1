@@ -49,13 +49,29 @@ const balanced = (l: Ledger) => {
 };
 
 describe('currencies', () => {
-  it('only allows the new Syrian pound and the US dollar', () => {
+  it('lets the user add currencies with their own rate and cash box', () => {
     expect(DEFAULT_CURRENCIES.map((c) => c.code)).toEqual(['SYP', 'USD']);
     const l = company();
-    expect(() => l.saveCurrency({ code: 'TRY', nameAr: 'تركي', symbol: '₺', decimals: 2 })).toThrow(/فقط/);
+    expect(() => l.saveCurrency({ code: 'T', nameAr: 'تركي', symbol: '₺', decimals: 2 })).toThrow(/رمز العملة/);
+    expect(() => l.saveCurrency({ code: 'TRY', nameAr: ' ', symbol: '₺', decimals: 2 })).toThrow(/اسم العملة/);
+    expect(() => l.saveCurrency({ code: 'TRY', nameAr: 'ليرة تركية', symbol: '₺', decimals: 7 })).toThrow(/المنازل/);
+    l.saveCurrency({ code: 'TRY', nameAr: 'ليرة تركية', symbol: '₺', decimals: 2 });
+    const box = Object.values(l.state.accounts).find((a) => a.currency === 'TRY')!;
+    expect(box).toMatchObject({ name: 'صندوق ليرة تركية', parentId: '11', isGroup: false });
+    // التعديل ما بيعمل صندوق تاني، والمنازل العشرية ما بتتغير
+    l.saveCurrency({ code: 'TRY', nameAr: 'ليرة تركية', symbol: 'TL', decimals: 2 });
+    expect(Object.values(l.state.accounts).filter((a) => a.currency === 'TRY')).toHaveLength(1);
+    expect(l.state.currencies['TRY']!.symbol).toBe('TL');
+    expect(() => l.saveCurrency({ code: 'TRY', nameAr: 'ليرة تركية', symbol: 'TL', decimals: 0 })).toThrow(/المنازل/);
+    expect(() => l.saveCurrency({ code: 'SYP', nameAr: 'ليرة', symbol: 'ل.س', decimals: 2, hidden: true })).toThrow(/الأساسية/);
+
+    // البيع بالتركي: السعر بعملة الشركة، والقبض بصندوق التركي
+    l.setRate({ date: '2026-01-01', currency: 'TRY', kind: 'market', rate: 3.5 });
+    l.postVoucher({ kind: 'receipt', date: '2026-01-02', amount: 100_00, currency: 'TRY', accountId: '3101', memo: 'رأس مال' });
+    expect(accountBalance(l.state, box.id).balance).toBe(350_00);
     expect(() =>
       new Ledger(() => {}).createCompany({ name: 'x', baseCurrency: 'EUR', fiscalYearStart: '01-01' }, [{ code: 'EUR', nameAr: '', symbol: '', decimals: 2 }]),
-    ).toThrow(/غير مدعومة/);
+    ).toThrow(/اسم العملة/);
   });
 
   it('has a USD-only cash box', () => {

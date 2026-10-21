@@ -103,6 +103,13 @@ export function defaultTaxes(): Tax[] {
   ];
 }
 
+/** صندوق العملة: صندوق الدولار للدولار، صندوق العملة المضافة إذا موجود، وإلا الصندوق الرئيسي. */
+export function cashAccountFor(state: { accounts: Record<string, Account> }, currency: string): string {
+  if (currency === 'USD' && state.accounts[SYSTEM_ACCOUNTS.usdCash]) return SYSTEM_ACCOUNTS.usdCash;
+  const own = Object.values(state.accounts).find((a) => a.currency === currency && !a.isGroup && !a.archived && a.type === 'asset' && a.id.startsWith('11') && a.id !== SYSTEM_ACCOUNTS.usdCash);
+  return own?.id ?? SYSTEM_ACCOUNTS.cash;
+}
+
 // حسابات النظام التي تعتمد عليها العمليات التلقائية (الفواتير، السندات...)
 export const SYSTEM_ACCOUNTS = {
   cash: '1101',
