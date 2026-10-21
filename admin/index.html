@@ -103,7 +103,7 @@
       <label><span>الهاتف</span><input name="phone" /></label>
       <label><span>بصمة الجهاز (من شاشة التفعيل)</span><input name="machineId" class="mono" placeholder="XXXX-XXXX-XXXX-XXXX" required /></label>
       <label><span>الاشتراك</span><select name="plan" id="plans"></select></label>
-      <label><span>عدد الأجهزة</span><input name="devices" type="number" min="1" value="1" /></label>
+      <label><span>عدد الأجهزة</span><input name="devices" type="number" min="1" value="2" /></label>
       <label><span>أيام العمل بدون إنترنت</span><input name="offlineDays" type="number" min="1" value="7" /></label>
       <label style="grid-column: span 1"><span>ملاحظات</span><input name="notes" /></label>
       <button class="primary">إصدار المفتاح</button>
@@ -185,6 +185,7 @@ function render() {
         ${c.status !== 'active' ? `<button onclick="setStatus('${c.id}','active')">تفعيل</button>` : `<button class="danger" onclick="setStatus('${c.id}','suspended')">إيقاف</button>`}
         ${c.status !== 'revoked' ? `<button class="danger" onclick="setStatus('${c.id}','revoked')">إلغاء نهائي</button>` : ''}
         <button onclick="changeMachine('${c.id}')">تغيير الجهاز</button>
+        <button onclick="setDevices('${c.id}', ${c.devices})">عدد الأجهزة</button>
       </td></tr>`;
   }).join('') || '<tr><td colspan="7" class="muted">لا يوجد عملاء</td></tr>';
   renderAgents();
@@ -355,6 +356,11 @@ function setCloud(id, on) {
 function changeMachine(id) {
   const machineId = prompt('بصمة الجهاز الجديد:');
   if (machineId) run(() => api(`/api/customers/${id}/update`, { machineId }), 'تم إصدار مفتاح للجهاز الجديد');
+}
+function setDevices(id, current) {
+  const n = Number(prompt('عدد الأجهزة المسموح (الجهاز الرئيسي + الأجهزة الفرعية):', String(current)));
+  if (!Number.isInteger(n) || n < 1 || n > 50) return;
+  run(() => api(`/api/customers/${id}/update`, { devices: n }), 'تم. اضغط "نشر قائمة الحالة" ورفع feed.txt — الزبون ما بيحتاج مفتاح جديد.');
 }
 function copyKey(id) { const c = state.customers.find((x) => x.id === id); navigator.clipboard.writeText(c.key).then(() => toast('تم نسخ المفتاح')); }
 function publish() { run(async () => { const r = await api('/api/publish', {}); toast('تم الكتابة إلى ' + r.file + ' — ارفعه الآن'); }); }
