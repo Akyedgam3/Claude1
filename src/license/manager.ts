@@ -24,6 +24,8 @@ export interface LicenseStatus {
   expiresAt?: string | null;
   daysLeft?: number | null;
   devices: number;
+  /** خدمة الاتصال عن بعد مفعّلة لهالترخيص (من القائمة الموقّعة). */
+  cloud: boolean;
   onlineEnabled: boolean;
   lastOnline?: string;
   /** أيام متبقية قبل القفل إن لم يتصل بالإنترنت. */
@@ -117,6 +119,7 @@ export class LicenseManager {
       machineId: this.machineId,
       locked: check.status === 'locked',
       devices: check.status === 'valid' ? check.devices : (payload?.devices ?? 1),
+      cloud: check.status === 'valid' && check.cloud,
       onlineEnabled: this.onlineEnabled,
       ...(data.lastOnline ? { lastOnline: data.lastOnline } : {}),
       ...(update ? { update } : {}),

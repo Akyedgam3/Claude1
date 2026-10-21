@@ -21,6 +21,7 @@
   th, td { padding: 8px; border-bottom: 1px solid #eef0f3; text-align: start; vertical-align: top; }
   th { font-size: 12px; color: var(--muted); background: #f8f9fb; }
   .tag { padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+  .cloud-toggle { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; font-size: 12px; color: var(--accent, #0f6e5c); cursor: pointer; }
   .active { background: #e3f6ea; color: #1e8a4c; } .suspended { background: #fff4e0; color: var(--warn); } .revoked { background: #fdecea; color: var(--bad); }
   .mono { font-family: Consolas, monospace; direction: ltr; unicode-bidi: isolate; }
   .key { font-family: Consolas, monospace; font-size: 11px; word-break: break-all; direction: ltr; background: #f7f8fa; padding: 6px; border-radius: 4px; max-width: 360px; }
@@ -174,7 +175,8 @@ function render() {
     return `<tr>
       <td><b>${esc(c.name)}</b><div class="muted">${esc(c.phone)}</div><div class="mono muted">${esc(c.machineId)}</div><div class="muted">${esc(c.notes)}</div></td>
       <td>${c.agentId ? esc(agentName(c.agentId)) : '<span class="muted">مباشر</span>'}</td>
-      <td>${esc(state.plans[c.plan]?.nameAr)}<div class="muted">${c.devices} جهاز · ${c.offlineDays} أيام بدون إنترنت</div></td>
+      <td>${esc(state.plans[c.plan]?.nameAr)}<div class="muted">${c.devices} جهاز · ${c.offlineDays} أيام بدون إنترنت</div>
+        <label class="cloud-toggle" title="خدمة إضافية: الجوال من البيت بيتصل بالمحل عبر الإنترنت"><input type="checkbox" ${c.cloud ? 'checked' : ''} onchange="setCloud('${c.id}', this.checked)" /> الاتصال عن بعد</label></td>
       <td style="${expired ? 'color:var(--bad)' : ''}">${exp}</td>
       <td><span class="tag ${c.status}">${statusName[c.status]}</span>${c.message ? `<div class="muted">${esc(c.message)}</div>` : ''}</td>
       <td><div class="key">${esc(c.key)}</div><button onclick="copyKey('${c.id}')">نسخ</button></td>
@@ -346,6 +348,9 @@ function setStatus(id, status) {
   if (message === null) return;
   if (status === 'revoked' && !confirm('إلغاء نهائي؟')) return;
   run(() => api(`/api/customers/${id}/status`, { status, message }), 'تم. اضغط "نشر قائمة الحالة" لتطبيقه.');
+}
+function setCloud(id, on) {
+  run(() => api(`/api/customers/${id}/cloud`, { on }), on ? 'تم تفعيل الاتصال عن بعد. اضغط "نشر قائمة الحالة" ورفع feed.txt.' : 'تم إيقاف الاتصال عن بعد. اضغط "نشر قائمة الحالة" ورفع feed.txt.');
 }
 function changeMachine(id) {
   const machineId = prompt('بصمة الجهاز الجديد:');

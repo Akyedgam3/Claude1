@@ -22,6 +22,8 @@ export interface Customer {
   history: { at: string; action: string }[];
   /** الوكيل اللي باع الرخصة (إن وجد). */
   agentId?: string;
+  /** خدمة الاتصال عن بعد (إضافية). */
+  cloud?: boolean;
 }
 
 /** وكيل: بيشتري باقات رخص بسعر الوكلاء، وكل تفعيل أو تجديد لزبون بينخصم من رصيده. */
@@ -194,6 +196,16 @@ export class Registry {
     return c;
   }
 
+  /** تشغيل/إيقاف خدمة الاتصال عن بعد لزبون (بتوصله مع القائمة الموقّعة الجاية). */
+  setCloud(id: string, on: boolean): Customer {
+    const c = this.find(id);
+    if (on) c.cloud = true;
+    else delete c.cloud;
+    c.history.push({ at: new Date().toISOString(), action: on ? 'تفعيل الاتصال عن بعد' : 'إيقاف الاتصال عن بعد' });
+    this.save();
+    return c;
+  }
+
   update(id: string, patch: { name?: string; phone?: string; notes?: string; devices?: number; offlineDays?: number; machineId?: string }): Customer {
     const c = this.find(id);
     if (patch.machineId && !/^[0-9A-F]{4}(-[0-9A-F]{4}){3}$/i.test(patch.machineId.trim())) throw new Error('بصمة الجهاز غير صحيحة');
@@ -298,7 +310,7 @@ export class Registry {
       entries: Object.fromEntries(
         this.data.customers.map((c) => [
           c.id,
-          { status: c.status, expiresAt: c.expiresAt, devices: c.devices, ...(c.message ? { message: c.message } : {}) },
+          { status: c.status, expiresAt: c.expiresAt, devices: c.devices, ...(c.message ? { message: c.message } : {}), ...(c.cloud ? { cloud: true } : {}) },
         ]),
       ),
       ...(this.data.update ? { update: this.data.update } : {}),

@@ -66,7 +66,7 @@ const server = http.createServer(async (req, res) => {
       });
     }
     const body = req.method === 'POST' ? await readBody(req) : {};
-    const m = /^\/api\/customers\/([^/]+)\/(extend|status|update)$/.exec(url.pathname);
+    const m = /^\/api\/customers\/([^/]+)\/(extend|status|update|cloud)$/.exec(url.pathname);
     if (req.method === 'POST' && url.pathname === '/api/customers') {
       const c = registry.add({
         name: str(body['name']) ?? '',
@@ -136,6 +136,7 @@ const server = http.createServer(async (req, res) => {
       const [, id, action] = m;
       if (action === 'extend') return send(200, registry.extend(id!, str(body['plan']) as Plan));
       if (action === 'status') return send(200, registry.setStatus(id!, str(body['status']) as FeedStatus, str(body['message'])));
+      if (action === 'cloud') return send(200, registry.setCloud(id!, body['on'] === true));
       return send(
         200,
         registry.update(id!, {

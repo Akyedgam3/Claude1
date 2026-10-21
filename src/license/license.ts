@@ -39,6 +39,8 @@ export interface FeedEntry {
   expiresAt?: string | null; // تمديد/تعديل تاريخ الانتهاء دون مفتاح جديد
   devices?: number;
   message?: string; // رسالة تظهر للعميل (مثلاً: يرجى تسديد الاشتراك)
+  /** خدمة الاتصال عن بعد (إضافية، بتنفتح من لوحة الإدارة لكل زبون). */
+  cloud?: boolean;
 }
 
 /** إعلان نسخة جديدة من البرنامج، ينشر مع قائمة الحالة الموقّعة فلا يمكن تزويره. */
@@ -190,7 +192,7 @@ export function parseFeed(text: string, publicKeyPem: string): LicenseFeed | nul
 }
 
 export type LicenseCheck =
-  | { status: 'valid'; payload: LicensePayload; expiresAt: string | null; daysLeft: number | null; devices: number; message?: string }
+  | { status: 'valid'; payload: LicensePayload; expiresAt: string | null; daysLeft: number | null; devices: number; cloud: boolean; message?: string }
   | { status: 'locked'; reason: 'none' | 'invalid' | 'machine' | 'expired' | 'suspended' | 'revoked' | 'offline' | 'clock'; message: string; payload?: LicensePayload };
 
 export interface VerifyOptions {
@@ -240,9 +242,10 @@ export function checkLicense(key: string | undefined, publicKeyPem: string, opts
 
   const expiresAt = entry && entry.expiresAt !== undefined ? entry.expiresAt : payload.expiresAt;
   const devices = entry?.devices ?? payload.devices;
+  const cloud = entry?.cloud === true;
   const message = entry?.message;
-  if (expiresAt === null) return { status: 'valid', payload, expiresAt, daysLeft: null, devices, ...(message ? { message } : {}) };
+  if (expiresAt === null) return { status: 'valid', payload, expiresAt, daysLeft: null, devices, cloud, ...(message ? { message } : {}) };
   const left = new Date(expiresAt).getTime() - now.getTime();
   if (left <= 0) return { status: 'locked', reason: 'expired', message: 'انتهى الاشتراك. يرجى التجديد للمتابعة.', payload };
-  return { status: 'valid', payload, expiresAt, daysLeft: Math.ceil(left / DAY), devices, ...(message ? { message } : {}) };
+  return { status: 'valid', payload, expiresAt, daysLeft: Math.ceil(left / DAY), devices, cloud, ...(message ? { message } : {}) };
 }
