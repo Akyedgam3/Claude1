@@ -44,6 +44,15 @@
 - العمليات من الواجهة: `window.mizan.invoke('company:call', method, args)`، والصلاحيات في `src/core/permissions.ts` و `src/app/executor.ts`.
 - Prettier غير مطبّق على كامل المستودع — لا تشغّله على ملفات كاملة.
 
+## تطبيق أندرويد (APK)
+- نسخة مستقلة على الجوال (ما بتتصل بالكمبيوتر)، بنفس الميزات. البيانات محلية على الجوال (IndexedDB) ومشفّرة بنفس طريقة الكمبيوتر.
+- نفس كود التخزين والترخيص والصلاحيات حرفياً: `src/mobile/shims/` بتعطيه نسخ صغيرة من `node:fs` (ملفات بالذاكرة محفوظة بـ IndexedDB) و`node:crypto` (noble). `src/mobile/host.ts` = «العملية الرئيسية» للموبايل. الواجهة بتعرف إنها موبايل بـ `IS_MOBILE` (`src/renderer/src/api.ts`)، وستايلات الموبايل بـ `mobile.css` تحت `body.mobile`.
+- البناء: `npm run build:mobile` (vite.mobile.config.ts ← www ← `cap sync android`). بصمة الجوال بتنحسب من معرّف أندرويد، والترخيص بيتصدر من لوحة الإدارة متل الكمبيوتر.
+- التجربة هون بالمتصفح بحجم موبايل: `MIZAN_TEST_BUILD=1 npx vite build -c vite.mobile.config.ts` ثم شغّل `tests/mobile/screens.mts` على سيرفر لـ www.
+- **النشر**: `scripts/publish-android.sh` (GitHub Actions بيبني APK غير موقّع بفرع `apk/<النسخة>`، منوقّعه هون بـ `scripts/apk-signer/sign.sh`، ومنرفعه على Release النسخة بـ `mizan-updates`). رابط ثابت: https://github.com/Akyedgam3/mizan-updates/releases/latest/download/Wazn.apk
+- **مفتاح التوقيع** `keys/wazn-android.jks` و`keys/wazn-android.properties` (مستثنى من git، نسخة عند صاحب المشروع). **لا تولّد مفتاحاً جديداً**: أندرويد بيرفض تحديث التطبيق إذا تغيّر المفتاح (الزبون لازم يحذف التطبيق ويخسر بياناته).
+- رقم نسخة التطبيق = رقم `package.json` (نفس نسخة الكمبيوتر)، وversionCode محسوب منه بـ `android/app/build.gradle`.
+
 ## الفيديوهات
 - أدوات صناعة الفيديوهات في `marketing/video/` (اقرأ README هناك). الأسلوب: لقطات حقيقية من البرنامج عبر Playwright + كاميرا وتأشيرات تلقائية + موسيقى مولّدة + صوت من صاحب المشروع.
 - الإعلان (`ad`) يذكر الرقم القديم 981 **بالصوت** — يحتاج تسجيل جملة الرقم من جديد قبل نشره.

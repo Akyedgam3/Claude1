@@ -10,7 +10,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * توقيع APK وزن بمفتاح keys/wazn-android.jks (مكتبة apksig الرسمية من غوغل)، ثم التحقق منه.
+ * توقيع APK وزن (مخطط v2) بمفتاح keys/wazn-android.jks (مكتبة apksig الرسمية من غوغل)، ثم التحقق منه.
  * الاستعمال: java -cp apksig.jar:. SignApk in.apk out.apk keystore.jks storePassword alias
  */
 public class SignApk {
@@ -29,7 +29,7 @@ public class SignApk {
             .setInputApk(new File(a[0]))
             .setOutputApk(new File(a[1]))
             .setMinSdkVersion(24)
-            .setV1SigningEnabled(true)
+            .setV1SigningEnabled(false) // أندرويد 7+ (minSdk 24) بيكفيه v2
             .setV2SigningEnabled(true)
             .build()
             .sign();

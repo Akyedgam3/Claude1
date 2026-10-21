@@ -14,4 +14,5 @@ fi
 [ -f "$here/.cache/SignApk.class" ] && [ "$here/.cache/SignApk.class" -nt "$here/SignApk.java" ] || javac -cp "$jar" -d "$here/.cache" "$here/SignApk.java"
 pass="$(sed -n 's/^storePassword=//p' "$props")"
 alias="$(sed -n 's/^keyAlias=//p' "$props")"
-java -cp "$jar:$here/.cache" SignApk "$1" "$2" "$root/keys/wazn-android.jks" "$pass" "$alias"
+# apksig القديمة بتقرأ صفوف داخلية من جافا وقت التحميل
+java --add-exports java.base/sun.security.x509=ALL-UNNAMED --add-exports java.base/sun.security.pkcs=ALL-UNNAMED --add-exports java.base/sun.security.util=ALL-UNNAMED -cp "$jar:$here/.cache" SignApk "$1" "$2" "$root/keys/wazn-android.jks" "$pass" "$alias"
