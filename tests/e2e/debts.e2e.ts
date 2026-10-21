@@ -75,6 +75,9 @@ test('debts section, cash-deduct switch, journal amounts and a clickable dashboa
     // الرئيسية: البطاقات بتفتح التفاصيل
     await nav(page, 'الرئيسية');
     await expect(page.locator('.week-bars')).toBeVisible();
+    // الديون على الرئيسية بعد خصم المقبوض والمدفوع: 50,000 − 30,000 = 20,000 لنا، و20,000 + 5,000 علينا
+    await expect(page.locator('.stat', { hasText: 'ديون لنا على الناس' })).toContainText('20,000.00');
+    await expect(page.locator('.stat', { hasText: 'ديون علينا للناس' })).toContainText('25,000.00');
     await page.locator('.stat', { hasText: 'ديون لنا على الناس' }).click();
     await expect(page.locator('.debt-stats')).toBeVisible();
     await nav(page, 'الرئيسية');
