@@ -1,0 +1,60 @@
+# يبني تطبيق وزن لأندرويد (APK غير موقّع) ويحطه بفرع apk/<النسخة> بنفس المستودع.
+# التشغيل: دفع فرع اسمه build/android-<أي شي> (scripts/publish-android.sh بيعملها).
+# التوقيع بيصير بعدين بمفتاح keys/wazn-android.jks (مش موجود على GitHub).
+name: Build Android APK
+
+on:
+  push:
+    branches: ['build/android-*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+
+      - name: Build web app for Android
+        run: npm run build:mobile
+
+      - name: The sale build must not trust the development key
+        run: |
+          if grep -rq MCowBQYDK2VwAyEAWu46 www; then echo "dev key found in www"; exit 1; fi
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Gradle
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Push the unsigned APK to apk/<version>
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          APK=android/app/build/outputs/apk/release/app-release-unsigned.apk
+          ls -la "$APK"
+          mkdir -p /tmp/out && cp "$APK" /tmp/out/Wazn-unsigned.apk
+          cd /tmp/out
+          git init -q -b "apk/$VERSION"
+          git add Wazn-unsigned.apk
+          git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -q -m "Unsigned APK $VERSION (${GITHUB_SHA::7})"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" "apk/$VERSION"

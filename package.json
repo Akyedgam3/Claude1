@@ -13,7 +13,8 @@
     "start": "electron-vite preview",
     "dist:win": "npm run build && electron-builder --win nsis --publish never",
     "admin": "tsx admin/server.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "build:mobile": "vite build -c vite.mobile.config.ts && cap sync android"
   },
   "devDependencies": {
     "@capacitor/android": "^8.5.3",

@@ -24,6 +24,7 @@
     "scripts",
     "admin",
     "electron.vite.config.ts",
-    "vite.mobile.config.ts"
+    "vite.mobile.config.ts",
+    "capacitor.config.ts"
   ]
 }
