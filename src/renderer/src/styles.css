@@ -3604,3 +3604,18 @@ button.danger-soft {
 .row-between > p {
   margin: 0 0 12px;
 }
+
+/* زر X بالشاشات التفصيلية (فاتورة، صيانة...): يرجّع للقائمة */
+.page-header .back-x {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+.page-header .back-x + h2 {
+  flex: 1;
+}

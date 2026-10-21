@@ -204,3 +204,33 @@ test('users: a cashier sees only what the role allows', async () => {
     await close();
   }
 });
+
+test('back button: invoice opened from the log returns to the log', async () => {
+  const { page, close } = await launch();
+  try {
+    await activate(page);
+    await page.getByRole('button', { name: 'شركة جديدة' }).click();
+    await page.locator('.activity', { hasText: 'سوبرماركت' }).click();
+    await page.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill('محل الرجوع');
+    await page.locator('.field', { hasText: 'اسمك' }).locator('input').fill('المالك');
+    await page.locator('.field', { hasText: 'كلمة السر (6' }).locator('input').fill('secret123');
+    await page.locator('.field', { hasText: 'تأكيد كلمة السر' }).locator('input').fill('secret123');
+    await page.locator('.demo-check input').check();
+    await page.getByRole('button', { name: 'إنشاء الشركة' }).click();
+    await page.getByRole('button', { name: 'حفظته، تابع' }).click();
+    await nav(page, 'نقطة البيع');
+    await page.locator('.pos-item').first().click();
+    await page.getByRole('button', { name: 'دفع نقداً' }).click();
+    await expect(page.locator('.toast')).toContainText('تم البيع');
+    await nav(page, 'سجل الفواتير');
+    await page.locator('table.table tbody tr').first().click();
+    await expect(page.locator('.paper-preview')).toBeVisible();
+    await shot(page, '82-invoice-back');
+    await page.getByRole('button', { name: 'رجوع' }).click();
+    await expect(page.locator('table.table tbody tr').first()).toBeVisible();
+    await expect(page.locator('.paper-preview')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'رجوع' })).toHaveCount(0);
+  } finally {
+    await close();
+  }
+});

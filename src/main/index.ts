@@ -112,7 +112,7 @@ async function refreshLicenseNow(): Promise<void> {
   await license.refresh();
   const before = lastLicense;
   const now = licenseStatus();
-  if (!before || before.locked !== now.locked || before.message !== now.message || before.daysLeft !== now.daysLeft || before.update?.version !== now.update?.version) {
+  if (!before || before.locked !== now.locked || before.message !== now.message || before.daysLeft !== now.daysLeft || before.devices !== now.devices || before.cloud !== now.cloud || before.expiresAt !== now.expiresAt || before.update?.version !== now.update?.version) {
     send('license:changed', now);
   }
   // إيقاف فوري عند قفل الترخيص (إلا الأجهزة الفرعية التي يتحكم بها الجهاز الرئيسي)

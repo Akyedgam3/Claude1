@@ -789,6 +789,8 @@ function LicenseTab() {
           <>
             <span>آخر تحقق</span>
             <strong>{lic.lastOnline ? new Date(lic.lastOnline).toLocaleString('ar-SY') : 'لم يتم'}</strong>
+            <span>آخر قائمة وصلت</span>
+            <strong>{lic.feedIssuedAt ? new Date(lic.feedIssuedAt).toLocaleString('ar-SY') : 'لم تصل بعد'}</strong>
           </>
         )}
       </div>

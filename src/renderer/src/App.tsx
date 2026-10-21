@@ -103,6 +103,9 @@ function refreshRefs(s: CompanyState): CompanyState {
   return next as unknown as CompanyState;
 }
 
+/** الشاشات التفصيلية وقائمة كل وحدة منها (لزر الرجوع إذا ما في سجل). */
+const DETAIL_PARENT: Record<string, string> = { invoice: 'invoices', repair: 'repairs', quote: 'quotes', 'tailor-order': 'tailor', 'work-order': 'workshop' };
+
 export function App() {
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [state, setState] = useState<CompanyState | null>(null);
@@ -181,12 +184,26 @@ export function App() {
     [loadState, notify],
   );
 
-  const navigate = useCallback((key: string, param?: string) => setScreen(param ? { key, param } : { key }), []);
+  // سجل الشاشات: زر X بالشاشات التفصيلية (فاتورة، صيانة...) بيرجّع لحيث جيت منه
+  const screenRef = useRef(screen);
+  screenRef.current = screen;
+  const trail = useRef<{ key: string; param?: string }[]>([]);
+  const navigate = useCallback((key: string, param?: string) => {
+    const cur = screenRef.current;
+    if (cur.key !== key || cur.param !== param) trail.current = [...trail.current.slice(-29), cur];
+    setScreen(param ? { key, param } : { key });
+  }, []);
+  const back = useCallback(() => {
+    const prev = trail.current.pop();
+    const cur = screenRef.current;
+    const parent = DETAIL_PARENT[cur.key];
+    setScreen(prev ?? (parent ? { key: parent } : { key: 'dashboard' }));
+  }, []);
 
   const ctx = useMemo<CompanyCtx | null>(() => {
     if (!info?.session || !state) return null;
-    return { state, info, session: info.session, call, notify, navigate, reloadInfo: loadInfo, ...makeCtxHelpers(state, info.session.user) };
-  }, [info, state, call, notify, navigate, loadInfo]);
+    return { state, info, session: info.session, call, notify, navigate, screenKey: screen.key, back, reloadInfo: loadInfo, ...makeCtxHelpers(state, info.session.user) };
+  }, [info, state, call, notify, navigate, screen.key, back, loadInfo]);
 
   // الاتصال عن بعد (خدمة إضافية): بس إذا مفعّلة بالترخيص والشركة مفتوحة على هالجهاز
   useCloudHost(info?.session?.kind === 'local' && !!info.license.cloud && !!state, state?.info?.name ?? '', notify);

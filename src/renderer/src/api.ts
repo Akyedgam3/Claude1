@@ -123,6 +123,9 @@ export interface CompanyCtx {
   feature: (f: Feature) => boolean;
   notify: (message: string, kind?: 'ok' | 'error') => void;
   navigate: (screen: string, param?: string) => void;
+  /** الشاشة الحالية، ورجوع للشاشة اللي قبلها (أو لقائمتها إذا ما في سجل). */
+  screenKey: string;
+  back: () => void;
   reloadInfo: () => Promise<void>;
 }
 

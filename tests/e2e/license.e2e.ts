@@ -47,3 +47,28 @@ test('the app stays locked without a license and can be suspended remotely', asy
     server.close();
   }
 });
+
+test('a device-count change in the feed reaches the screen without restarting', async () => {
+  let feed: LicenseFeed = { v: 1, issuedAt: new Date().toISOString(), entries: {} };
+  const server = http.createServer((_req, res) => res.end(signFeed(feed, devKey)));
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+  const port = (server.address() as { port: number }).port;
+  const { page, close } = await launch({ feedUrl: `http://127.0.0.1:${port}/feed.txt` });
+  try {
+    await activate(page, { id: 'E2E-DEVICES' });
+    await createCompany(page, { name: 'محل الأجهزة', activity: 'تجارة عامة' });
+    await nav(page, 'الإعدادات');
+    await page.getByRole('button', { name: 'الترخيص' }).click();
+    const devices = page.locator('.kv', { hasText: 'عدد الأجهزة' });
+    await expect(devices).toContainText('1');
+
+    // البائع بيرفع العدد لـ 5 وبينشر؛ البرنامج بيقرا القائمة بالخلفية (بدون زر «تحقق الآن» وبدون إعادة تحميل)
+    feed = { v: 1, issuedAt: new Date(Date.now() + 1000).toISOString(), entries: { 'E2E-DEVICES': { status: 'active', devices: 5, cloud: true } } };
+    await page.evaluate(() => window.mizan.invoke('license:refresh'));
+    await expect(devices.locator('strong').filter({ hasText: /^5$/ })).toBeVisible();
+    await expect(page.locator('.kv', { hasText: 'آخر قائمة وصلت' })).not.toContainText('لم تصل بعد');
+  } finally {
+    await close();
+    server.close();
+  }
+});

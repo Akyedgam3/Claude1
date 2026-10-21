@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { CompanyState, Item, Party } from '../../../core';
-import { api, IS_MOBILE, shownCurrencies, useCompany } from '../api';
+import { api, Company, IS_MOBILE, shownCurrencies, useCompany, type CompanyCtx } from '../api';
 import { Icon } from './icons';
 
 export function Field({ label, children, wide }: { label: string; children: ReactNode; wide?: boolean }) {
@@ -46,9 +46,18 @@ export function Modal({ title, onClose, children, width }: { title: string; onCl
   );
 }
 
+/** الشاشات التفصيلية: بيطلع فيها زر X يرجّع للقائمة اللي جيت منها. */
+const DETAIL_SCREENS = new Set(['invoice', 'repair', 'quote', 'tailor-order', 'work-order']);
+
 export function PageHeader({ title, children }: { title: string; children?: ReactNode }) {
+  const ctx = useContext(Company) as CompanyCtx | null;
   return (
     <div className="page-header">
+      {ctx && DETAIL_SCREENS.has(ctx.screenKey) && (
+        <button className="back-x" onClick={ctx.back} title="رجوع" aria-label="رجوع">
+          <Icon name="close" size={18} />
+        </button>
+      )}
       <h2>{title}</h2>
       <div className="actions">{children}</div>
     </div>

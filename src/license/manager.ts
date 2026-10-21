@@ -28,6 +28,8 @@ export interface LicenseStatus {
   cloud: boolean;
   onlineEnabled: boolean;
   lastOnline?: string;
+  /** وقت نشر آخر قائمة حالة وصلت لهالجهاز (حتى يتأكد البائع إنو التعديل وصل). */
+  feedIssuedAt?: string;
   /** أيام متبقية قبل القفل إن لم يتصل بالإنترنت. */
   offlineDaysLeft?: number;
   /** نسخة أحدث منشورة (من القائمة الموقّعة). */
@@ -122,6 +124,7 @@ export class LicenseManager {
       cloud: check.status === 'valid' && check.cloud,
       onlineEnabled: this.onlineEnabled,
       ...(data.lastOnline ? { lastOnline: data.lastOnline } : {}),
+      ...(this.feedOf(data) ? { feedIssuedAt: this.feedOf(data)!.issuedAt } : {}),
       ...(update ? { update } : {}),
       ...(payload ? { licenseId: payload.id, customer: payload.customer, planName: PLANS[payload.plan].nameAr } : {}),
     };

@@ -109,6 +109,22 @@ describe('LicenseManager', () => {
       },
     });
 
+  it('takes the device count from the feed without a new key', async () => {
+    const key = issueLicense({ id: 'dev-1', customer: 'ز', machineId: MACHINE, plan: 'annual', devices: 1, issuedAt }, priv);
+    const m = manager();
+    m.activate(key);
+    expect(m.status().devices).toBe(1);
+    served = feed({ 'dev-1': { status: 'active', devices: 5 } }, '2026-01-03T00:00:00Z');
+    clock = at('2026-01-03T01:00:00Z');
+    await m.refresh();
+    expect(m.status().devices).toBe(5);
+    // رجوع للرقم الأصلي إذا انشال من القائمة
+    served = feed({}, '2026-01-04T00:00:00Z');
+    clock = at('2026-01-04T01:00:00Z');
+    await m.refresh();
+    expect(m.status().devices).toBe(1);
+  });
+
   it('is locked until activated, then follows the online feed', async () => {
     const m = manager();
     expect(m.status()).toMatchObject({ locked: true, reason: 'none', machineId: MACHINE });
