@@ -1,6 +1,6 @@
-# ميزان (Mizan) — دليل المشروع
+# وزن (Wazn) — دليل المشروع
 
-> جرّبنا اسم «معيار / Miyar» بنسخة 1.2.3 ورجعنا لـ«ميزان» بـ 1.2.4 (صاحب المشروع عم يتأكد من تسجيل العلامة). لهيك: مجلد البيانات مثبّت على `%APPDATA%\Mizan` بأول `src/main/index.ts`، و`companiesRoot` بيقبل `Documents\Miyar` إذا هو الموجود، وكل Release فيه `Mizan-Setup.exe` و`Miyar-Setup.exe`.
+> الاسم الحالي «وزن / Wazn» من النسخة 1.2.9. قبلها «ميزان / Mizan» (حتى 1.2.8)، وجرّبنا «معيار / Miyar» بـ 1.2.3. الأسماء الداخلية ما تغيّرت حتى ما ينكسر شي عند الزباين: `appId` (`sy.mizan.accounting`)، مجلد البيانات مثبّت على `%APPDATA%\Mizan` بأول `src/main/index.ts`، مجلد الشركات `Documents\Mizan` (أو `Documents\Miyar` إذا هو الموجود)، `meta.app = 'mizan'`، `window.mizan`، مستودع `mizan-updates` ورابط `feed.txt`، ولوحة الإدارة `Mizan-Admin.cmd`. كل Release فيه `Wazn-Setup.exe` ونسختين `Mizan-Setup.exe` و`Miyar-Setup.exe` للروابط القديمة. عبارات «ميزان المراجعة» و«باركود الميزان» مصطلحات محاسبية مش اسم البرنامج.
 
 برنامج محاسبة وإدارة محلات عربي (RTL) لسطح المكتب، يعمل بدون إنترنت. Electron + React 19 + TypeScript، الهدف ويندوز.
 
@@ -16,7 +16,7 @@
 - `Akyedgam3/Claude1` (خاص): كود البرنامج. فرع التطوير: `claude/syria-accounting-system-pj25xg`. لا تفتح PR إلا إذا طُلب.
 - `Akyedgam3/mizan-updates` (عام): الموقع الرسمي + `feed.txt` + ملفات التنصيب (Releases).
   - الموقع: https://akyedgam3.github.io/mizan-updates/
-  - التحميل: https://github.com/Akyedgam3/mizan-updates/releases/latest/download/Mizan-Setup.exe
+  - التحميل: https://github.com/Akyedgam3/mizan-updates/releases/latest/download/Wazn-Setup.exe
   - صفحات الموقع تُعدَّل في `tools/pages/` ثم `python3 tools/build_site.py`.
 
 ## الترخيص (مهم جداً)

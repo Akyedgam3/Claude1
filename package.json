@@ -1,8 +1,8 @@
 {
   "name": "mizan",
-  "version": "1.2.8",
+  "version": "1.2.9",
   "private": true,
-  "description": "ميزان - نظام محاسبة لسطح المكتب يعمل بدون إنترنت",
+  "description": "وزن - نظام محاسبة لسطح المكتب يعمل بدون إنترنت",
   "type": "module",
   "scripts": {
     "test": "vitest run",
@@ -40,7 +40,7 @@
   "main": "out/main/index.js",
   "build": {
     "appId": "sy.mizan.accounting",
-    "productName": "Mizan",
+    "productName": "Wazn",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -61,7 +61,7 @@
       "icon": "build/icon.ico"
     },
     "nsis": {
-      "artifactName": "Mizan-Setup.${ext}",
+      "artifactName": "Wazn-Setup.${ext}",
       "include": "build/installer.nsh",
       "license": "build/license_ar.txt",
       "installerSidebar": "build/installerSidebar.bmp",
@@ -70,7 +70,7 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "language": "1025",
-      "shortcutName": "ميزان",
+      "shortcutName": "وزن",
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "installerHeaderIcon": "build/icon.ico",
@@ -88,5 +88,5 @@
     "asar": true,
     "icon": "build/icon.png"
   },
-  "author": "Mizan"
+  "author": "Wazn"
 }

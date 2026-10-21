@@ -228,7 +228,7 @@ export function App() {
   const splash = (
     <div className="splash">
       <img src={logo} alt="" />
-      ميزان
+      وزن
     </div>
   );
   if (!info) return splash;
@@ -278,7 +278,7 @@ export function App() {
           <div className="brand">
             <div className="logo">
               <img src={logoSmall} alt="" className="logo-img" />
-              ميزان
+              وزن
             </div>
             <div className="company-name">
               <Icon name={ctx.profile.icon} size={16} /> {ctx.state.info?.name}

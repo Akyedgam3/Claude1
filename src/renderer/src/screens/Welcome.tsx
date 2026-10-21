@@ -34,7 +34,7 @@ export function Welcome({
     <div className="welcome">
       <div className="welcome-hero">
         <img src={logo} alt="" className="hero-logo" />
-        <div className="logo big">ميزان</div>
+        <div className="logo big">وزن</div>
         <p>نظام محاسبة لكل المصالح والتجارات — يعمل بدون إنترنت وبياناتك مشفّرة على جهازك.</p>
         {info.license.customer && (
           <p className="muted">

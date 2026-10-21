@@ -8,7 +8,7 @@ test('first-run tour: 10 steps, shown once, can be replayed from settings', asyn
     await activate(page);
     await createCompany(page, { name: 'محل الجولة', activity: 'تجارة عامة' });
     const card = page.locator('.tour-card');
-    await expect(card).toContainText('أهلاً بك في ميزان');
+    await expect(card).toContainText('أهلاً بك في وزن');
     await expect(card).toContainText('1 / 10');
     await page.screenshot({ path: 'test-results/screens/90-tour-start.png' });
     await card.getByRole('button', { name: 'لنبدأ' }).click();
@@ -33,7 +33,7 @@ test('first-run tour: 10 steps, shown once, can be replayed from settings', asyn
     // بتنعاد من الإعدادات
     await nav(page, 'الإعدادات');
     await page.getByRole('button', { name: 'الجولة التعريفية' }).click();
-    await expect(card).toContainText('أهلاً بك في ميزان');
+    await expect(card).toContainText('أهلاً بك في وزن');
     await page.keyboard.press('Escape');
     await expect(page.locator('.tour')).toHaveCount(0);
   } finally {

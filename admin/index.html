@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>ميزان — إدارة التراخيص</title>
+<title>وزن — إدارة التراخيص</title>
 <style>
   :root { --p: #0f6e5c; --bg: #f4f5f7; --b: #e3e6eb; --muted: #6b7385; --bad: #c0392b; --warn: #b7791f; font-family: 'Segoe UI', Tahoma, sans-serif; font-size: 14px; }
   body { margin: 0; background: var(--bg); color: #1d2433; }
@@ -52,7 +52,7 @@
 </style>
 </head>
 <body>
-<header><h1>ميزان — إدارة التراخيص والاشتراكات</h1><button class="primary" onclick="publish()">نشر قائمة الحالة</button></header>
+<header><h1>وزن — إدارة التراخيص والاشتراكات</h1><button class="primary" onclick="publish()">نشر قائمة الحالة</button></header>
 <main>
   <div id="warnings"></div>
   <div class="tabs">
@@ -86,7 +86,7 @@
       <div id="curUpdate"></div>
       <form class="grid" onsubmit="setUpdate(event)">
         <label><span>رقم النسخة الجديدة</span><input name="version" class="mono" placeholder="0.3.0" required /></label>
-        <label style="grid-column: span 2"><span>رابط التحميل (https)</span><input name="url" class="mono" placeholder="https://github.com/.../Mizan-Setup-0.3.0.exe" required /></label>
+        <label style="grid-column: span 2"><span>رابط التحميل (https)</span><input name="url" class="mono" placeholder="https://github.com/.../Wazn-Setup.exe" required /></label>
         <label><span>تحديث إجباري للنسخ الأقدم من (اختياري)</span><input name="minVersion" class="mono" placeholder="مثلاً 0.2.0" /></label>
         <label style="grid-column: span 3"><span>شو الجديد؟ (كل سطر نقطة)</span><textarea name="notes" rows="5"></textarea></label>
         <button class="primary">حفظ الإعلان</button>
@@ -308,7 +308,7 @@ function activateForAgent(e, agentId) {
 }
 let lastIssued = null;
 function waText(c) {
-  return `ترخيص ميزان للزبون: ${c.name}\nالاشتراك: سنوي حتى ${fmtDate(c.expiresAt)}\nعدد الأجهزة: ${c.devices}\n\nمفتاح التفعيل (انسخه كامل والصقه بشاشة التفعيل):\n${c.key}`;
+  return `ترخيص وزن للزبون: ${c.name}\nالاشتراك: سنوي حتى ${fmtDate(c.expiresAt)}\nعدد الأجهزة: ${c.devices}\n\nمفتاح التفعيل (انسخه كامل والصقه بشاشة التفعيل):\n${c.key}`;
 }
 function sendWa(agentId, customerId) {
   const a = state.agents.find((x) => x.id === agentId);
