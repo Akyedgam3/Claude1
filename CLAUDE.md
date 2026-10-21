@@ -52,6 +52,7 @@
 - **النشر**: `scripts/publish-android.sh` (GitHub Actions بيبني APK غير موقّع بفرع `apk/<النسخة>`، منوقّعه هون بـ `scripts/apk-signer/sign.sh`، ومنرفعه على Release النسخة بـ `mizan-updates`). رابط ثابت: https://github.com/Akyedgam3/mizan-updates/releases/latest/download/Wazn.apk
 - **مفتاح التوقيع** `keys/wazn-android.jks` و`keys/wazn-android.properties` (مستثنى من git، نسخة عند صاحب المشروع). **لا تولّد مفتاحاً جديداً**: أندرويد بيرفض تحديث التطبيق إذا تغيّر المفتاح (الزبون لازم يحذف التطبيق ويخسر بياناته).
 - التصميم (`mobile.css`): جوال أقل من 700px = أزرار تحت (`.bottom-nav` بـ App.tsx) + الجداول بطاقات (`mobile-tables.ts` بيحط `data-label` و`.m-cards`) + نقطة البيع والمطعم بتبويب المواد/السلة (`components/MobileCart.tsx`). تابلت عمودي 700–1023px = أزرار تحت وعمودين. تابلت عرضي 1024px+ = قائمة جانبية ثابتة.
+- **الشكل والحركة (1.2.14)**: آخر جزء بـ `mobile.css` («تصميم عصري وأنميشن») كله تحت `body.mobile` فالكمبيوتر ما بيتأثر: شريط علوي متدرّج، شريط تنقل عايم بزجاج شفاف (`--bottom-nav` = المحجوز تحت، و`--nav-h` ارتفاع الشريط)، بطاقات أنعم، نوافذ بتطلع من تحت، ودخول تدريجي للشاشات والبطاقات (`--i` ترتيب الظهور). أنميشن فتح التطبيق بـ `src/mobile/intro.ts` + `intro.css` (بيتركّب قبل تحميل أي شي وبيتلاشى لما تجهز الواجهة، بحد أدنى 1.9 ثانية)؛ كله بيحترم `prefers-reduced-motion`.
 - فروع `build/android-*` و`apk/*` مؤقتة للبناء؛ حذفها من الجلسة مرفوض أحياناً وما بيضر.
 - رقم نسخة التطبيق = رقم `package.json` (نفس نسخة الكمبيوتر)، وversionCode محسوب منه بـ `android/app/build.gradle`.
 

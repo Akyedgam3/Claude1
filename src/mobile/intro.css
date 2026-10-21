@@ -1,0 +1,159 @@
+/* أنميشن الدخول لتطبيق وزن: بيبلّش من أول لحظة وبيغطي وقت التحميل، وبعدها بيتلاشى. */
+#wazn-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 28%, #166654 0%, #0f3a33 38%, #071a17 72%, #030b0a 100%);
+  color: #fff;
+  font-family: Cairo, system-ui, sans-serif;
+  direction: rtl;
+  transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+#wazn-intro.wi-out {
+  opacity: 0;
+  transform: scale(1.06);
+  pointer-events: none;
+}
+#wazn-intro .wi-grid {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 42px 42px;
+  -webkit-mask-image: radial-gradient(ellipse at 50% 40%, #000, transparent 72%);
+  mask-image: radial-gradient(ellipse at 50% 40%, #000, transparent 72%);
+  animation: wi-grid 8s linear infinite;
+}
+#wazn-intro .wi-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.5;
+}
+#wazn-intro .wi-o1 {
+  width: 70vmax;
+  height: 70vmax;
+  background: #14957c;
+  top: -30vmax;
+  left: -25vmax;
+  animation: wi-float 7s ease-in-out infinite alternate;
+}
+#wazn-intro .wi-o2 {
+  width: 60vmax;
+  height: 60vmax;
+  background: #c9952f;
+  opacity: 0.28;
+  bottom: -28vmax;
+  right: -22vmax;
+  animation: wi-float 9s ease-in-out infinite alternate-reverse;
+}
+#wazn-intro .wi-center {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-top: -6vh;
+}
+#wazn-intro .wi-ring {
+  position: absolute;
+  top: 0;
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  border: 2px solid rgba(95, 224, 191, 0.55);
+  opacity: 0;
+  animation: wi-ring 1.9s ease-out 0.55s infinite;
+}
+#wazn-intro .wi-ring.r2 {
+  animation-delay: 1.15s;
+}
+#wazn-intro .wi-logo {
+  width: 132px;
+  height: 132px;
+  border-radius: 34px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.12);
+  opacity: 0;
+  animation: wi-logo 0.95s cubic-bezier(0.2, 1.3, 0.3, 1) 0.1s forwards;
+}
+#wazn-intro .wi-name {
+  margin-top: 22px;
+  font-size: 54px;
+  font-weight: 800;
+  line-height: 1.1;
+  opacity: 0;
+  animation: wi-up 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) 0.55s forwards;
+}
+#wazn-intro .wi-tag {
+  margin-top: 8px;
+  font-size: 17px;
+  font-weight: 600;
+  color: #cfe3de;
+  opacity: 0;
+  animation: wi-up 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) 0.85s forwards;
+}
+#wazn-intro .wi-tag b {
+  color: #e7b75a;
+}
+#wazn-intro .wi-bar {
+  position: absolute;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 9vh);
+  width: 120px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+  opacity: 0;
+  animation: wi-fade 0.4s ease 0.9s forwards;
+}
+#wazn-intro .wi-bar i {
+  display: block;
+  height: 100%;
+  width: 40%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #5fe0bf, #e7b75a);
+  animation: wi-load 1.1s ease-in-out infinite;
+}
+@keyframes wi-logo {
+  0% { opacity: 0; transform: scale(0.45) rotate(-10deg); }
+  60% { opacity: 1; transform: scale(1.08) rotate(2deg); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes wi-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes wi-fade {
+  to { opacity: 1; }
+}
+@keyframes wi-ring {
+  0% { opacity: 0.7; transform: scale(1); }
+  100% { opacity: 0; transform: scale(2.1); }
+}
+@keyframes wi-load {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(300%); }
+}
+@keyframes wi-float {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(6vmax, 5vmax, 0) scale(1.15); }
+}
+@keyframes wi-grid {
+  from { background-position: 0 0; }
+  to { background-position: 0 42px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #wazn-intro *,
+  #wazn-intro {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+  #wazn-intro .wi-logo,
+  #wazn-intro .wi-name,
+  #wazn-intro .wi-tag,
+  #wazn-intro .wi-bar {
+    opacity: 1;
+  }
+}
