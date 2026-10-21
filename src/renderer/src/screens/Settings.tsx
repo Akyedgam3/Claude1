@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ACTIVITIES, ACTIVITY_LIST, ALL_FEATURES, DEFAULT_SCALE, FEATURE_INFO, type Activity, type ActivityCustomization, type Feature, type Paper, type PrintSettings, type ReceiptSettings } from '../../../core';
 import { Icon } from '../components/icons';
+import { startTour } from '../components/Tour';
 import { CommercialDoc, sampleModel } from '../components/CommercialDoc';
 import { api, dateText, today, useCompany, type LanStatus } from '../api';
 import { PAPER_NAMES } from '../components/print';
@@ -15,7 +16,11 @@ export function Settings({ tab: initial }: { tab?: string }) {
   const local = session.kind === 'local';
   return (
     <div className="page">
-      <PageHeader title="الإعدادات" />
+      <PageHeader title="الإعدادات">
+        <button onClick={startTour}>
+          <Icon name="sparkles" size={16} /> الجولة التعريفية
+        </button>
+      </PageHeader>
       <Tabs<Tab>
         value={tab}
         onChange={setTab}

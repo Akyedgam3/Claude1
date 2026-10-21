@@ -3498,3 +3498,64 @@ button.danger-soft {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* الجولة التعريفية */
+.tour {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+.tour-dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 20, 18, 0.55);
+}
+.tour-spot {
+  position: absolute;
+  border-radius: 10px;
+  box-shadow: 0 0 0 9999px rgba(10, 20, 18, 0.55);
+  outline: 2px solid #f0b429;
+  pointer-events: none;
+  transition: all 0.25s ease;
+}
+.tour-card {
+  position: absolute;
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 18px 20px 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  transition: top 0.25s ease, left 0.25s ease;
+}
+.tour-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  color: var(--primary);
+}
+.tour-card p {
+  margin: 0 0 14px;
+  line-height: 1.8;
+}
+.tour-progress {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.tour-progress span {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+}
+.tour-progress span.done,
+.tour-progress span.on {
+  background: var(--primary);
+}
+.tour-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}

@@ -32,6 +32,8 @@ export async function launch(opts: { home?: string; feedUrl?: string } = {}): Pr
   });
   const page = await app.firstWindow();
   await page.setViewportSize({ width: 1366, height: 860 });
+  // الجولة التعريفية بتغطي الشاشة؛ الاختبارات بتطفيها (عدا اختبار الجولة نفسها)
+  await page.evaluate(() => localStorage.setItem('mizan.tour.off', '1'));
   // نوافذ الحفظ تُستبدل بمسارات داخل مجلد الاختبار، والطباعة لا تفتح نافذة الطابعة
   await app.evaluate(({ dialog, BrowserWindow }, dir) => {
     let n = 0;

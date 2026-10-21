@@ -35,6 +35,7 @@ import { Workshop, WorkOrderEditor } from './screens/Workshop';
 import { DeviceLookup, Installments, PcBuild, TradeIn } from './screens/Electronics';
 import { Vehicles } from './screens/Vehicles';
 import { Debts } from './screens/Debts';
+import { Tour } from './components/Tour';
 import { Vouchers } from './screens/Vouchers';
 import { Welcome } from './screens/Welcome';
 
@@ -287,7 +288,7 @@ export function App() {
               {ctx.session.kind === 'remote' && <span title={ctx.session.address}> · متصل بالجهاز الرئيسي</span>}
             </div>
           </div>
-          <button className="quick-search-button" onClick={() => setSearching(true)}>
+          <button className="quick-search-button" data-tour="search" onClick={() => setSearching(true)}>
             <Icon name="search" size={16} /> بحث سريع <kbd>Ctrl+K</kbd>
           </button>
           <nav>
@@ -297,7 +298,7 @@ export function App() {
                   {n}
                 </div>
               ) : (
-                <button key={n.key} className={screen.key === n.key ? 'active' : ''} onClick={() => navigate(n.key)}>
+                <button key={n.key} data-nav={n.key} className={screen.key === n.key ? 'active' : ''} onClick={() => navigate(n.key)}>
                   <Icon name={n.icon} className="nav-icon" />
                   {n.label}
                   {SHORTCUT_OF[n.key] && <kbd className="nav-kbd">{SHORTCUT_OF[n.key]}</kbd>}
@@ -325,6 +326,7 @@ export function App() {
             <Icon name="logout" size={16} /> تسجيل الخروج
           </button>
         </aside>
+        <Tour />
         <main className="content">
           {lic.message && !lic.locked && <div className="banner">{lic.message}</div>}
           {ctx.session.kind === 'local' && lic.onlineEnabled && lic.offlineDaysLeft !== undefined && lic.offlineDaysLeft <= 2 && (
