@@ -459,3 +459,12 @@ body.mobile .camera-scan {
   color: #fff;
   border-radius: var(--radius);
 }
+
+body.mobile .cloud-code {
+  flex-direction: column;
+  align-items: stretch;
+  text-align: center;
+}
+body.mobile .cloud-code .doc-qr {
+  align-self: center;
+}

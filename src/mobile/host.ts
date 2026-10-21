@@ -4,7 +4,10 @@
 import { Buffer } from 'buffer';
 import path from 'path-browserify';
 import { ACTIVITIES, can, chartFor, DEFAULT_CURRENCIES, defaultTaxes, PERMISSIONS, type Activity, type CompanyEvent, type Permission, type User } from '../core';
+import { CloudSessions, CLOUD_MIN_DEVICES } from '../app/cloud-sessions';
 import { execute } from '../app/executor';
+import type { CloudClient } from '../cloud/client';
+import { newCloudCode, normalizeCloudCode } from '../cloud/code';
 import { FEED_CHECK_HOURS, LICENSE_FEED_URLS } from '../license/config';
 import { LicenseManager, type LicenseStatus } from '../license/manager';
 import { IS_TEST_BUILD, LICENSE_PUBLIC_KEY } from '../license/public-key';
@@ -23,6 +26,10 @@ const BACKUP_FILES = ['company.json', 'keyring.json', 'journal.mzl', 'head.json'
 interface Settings {
   deviceId: string;
   recent: { name: string; dir: string }[];
+  /** الاتصال عن بعد كجهاز رئيسي: رمز لكل شركة. */
+  cloud?: Record<string, string>;
+  /** آخر رمز اتصلنا فيه بجهاز رئيسي عن بعد (حتى ما ينكتب كل مرة). */
+  lastCloud?: { code: string; username: string };
 }
 
 type Listener = (payload: unknown) => void;
@@ -33,6 +40,9 @@ let store: CompanyStore | null = null;
 let unsubscribe: (() => void) | null = null;
 let license: LicenseManager;
 let lastLicense: LicenseStatus | null = null;
+// جوال متصل عن بعد بجهاز رئيسي (بدل شركة محلية)
+let remote: CloudClient | null = null;
+const cloudSessions = new CloudSessions(() => activeStore(), () => Math.max(CLOUD_MIN_DEVICES, (lastLicense ?? licenseStatus()).devices - 1));
 
 // ───────── الإعدادات ─────────
 
@@ -45,7 +55,7 @@ function readSettings(): Settings {
   } catch {
     // أول تشغيل
   }
-  const full: Settings = { deviceId: s.deviceId ?? crypto.randomUUID(), recent: s.recent ?? [] };
+  const full: Settings = { ...s, deviceId: s.deviceId ?? crypto.randomUUID(), recent: s.recent ?? [] };
   if (!s.deviceId) writeSettings(full);
   return full;
 }
@@ -95,7 +105,7 @@ async function refreshLicense(): Promise<void> {
   if (!before || before.locked !== now.locked || before.message !== now.message || before.daysLeft !== now.daysLeft || before.update?.version !== now.update?.version) {
     send('license:changed', now);
   }
-  if (now.locked && store) {
+  if (now.locked && store && !remote) {
     closeStore();
     send('company:closed', now.message);
   }
@@ -124,6 +134,11 @@ function attach(s: CompanyStore): void {
 }
 
 function closeStore(): void {
+  cloudSessions.clear();
+  if (remote) {
+    void remote.close();
+    remote = null;
+  }
   const s = store;
   store = null;
   unsubscribe?.();
@@ -138,6 +153,7 @@ function closeStore(): void {
 }
 
 function sessionInfo() {
+  if (remote) return { kind: 'remote' as const, user: remote.user!, company: remote.companyName, address: 'عن بعد' };
   if (!store) return null;
   return {
     kind: 'local' as const,
@@ -270,10 +286,12 @@ function registerHandlers(): void {
 
   handle('company:close', () => closeStore(), { allowLocked: true });
   handle('company:state', () => {
+    if (remote) return remote.snapshot();
     const s = activeStore();
     return { state: s.ledger.state, seq: s.lastSeq };
   });
   handle('company:call', (method: string, args: unknown[]) => {
+    if (remote) return remote.call(method, args);
     const s = activeStore();
     return execute(s, currentUser(s), method, args);
   });
@@ -312,7 +330,72 @@ function registerHandlers(): void {
   handle('display:update', () => undefined, { allowLocked: true });
   handle('display:last', () => null, { allowLocked: true });
 
-  handle('device:scan', () => native.scanBarcode());
+  handle('device:scan', () => native.scanBarcode(), { allowLocked: true });
+
+  // ── الاتصال عن بعد (خدمة إضافية) ──
+  // جهاز رئيسي: نفس قنوات الكمبيوتر
+  const cloudCode = (): string | null => readSettings().cloud?.[activeStore().meta.id] ?? null;
+  const cloudStatus = () => ({ available: (lastLicense ?? licenseStatus()).cloud, enabled: !!cloudCode(), code: cloudCode(), devices: cloudSessions.devices() });
+  const requireCloud = () => {
+    if (!(lastLicense ?? licenseStatus()).cloud) throw new Error('خدمة الاتصال عن بعد غير مفعّلة في ترخيصك');
+  };
+  handle('cloud:status', () => {
+    requirePermission('settings.manage');
+    return cloudStatus();
+  });
+  handle('cloud:setup', (enable: boolean, newCode?: boolean) => {
+    requirePermission('settings.manage');
+    const id = activeStore().meta.id;
+    if (enable) requireCloud();
+    const s = readSettings();
+    const all = { ...s.cloud };
+    if (!enable) delete all[id];
+    else if (newCode || !all[id]) all[id] = newCloudCode();
+    s.cloud = all;
+    writeSettings(s);
+    cloudSessions.clear();
+    return cloudStatus();
+  });
+  handle('cloud:hostConfig', () => {
+    if (!store || remote || !(lastLicense ?? licenseStatus()).cloud) return null;
+    const code = cloudCode();
+    return code ? { code } : null;
+  });
+  handle('cloud:hostLogin', (username: string, password: string, deviceId: string, deviceName: string) => {
+    requireCloud();
+    return cloudSessions.login(String(username), String(password), String(deviceId), String(deviceName));
+  });
+  handle('cloud:hostSnapshot', (token: string) => {
+    requireCloud();
+    return cloudSessions.snapshot(String(token));
+  });
+  handle('cloud:hostCall', (token: string, method: string, args: unknown[]) => {
+    requireCloud();
+    return cloudSessions.call(String(token), method, args);
+  });
+  handle('cloud:hostLogout', (token: string) => cloudSessions.logout(String(token)));
+
+  // جوال بعيد: بيشتغل على بيانات الجهاز الرئيسي وبترخيصه (متل الأجهزة الفرعية على الشبكة)
+  handle('cloud:last', () => readSettings().lastCloud ?? null, { allowLocked: true });
+  handle('cloud:connect', async (o: { code: string; username: string; password: string }) => {
+    const code = normalizeCloudCode(String(o?.code ?? ''));
+    if (!code) throw new Error('رمز الاتصال غير صحيح. انسخه أو امسحه من الجهاز الرئيسي (الإعدادات ← الاتصال عن بعد).');
+    closeStore();
+    const [{ CloudClient }, { FirestoreTransport }, { cloudRoom }] = await Promise.all([import('../cloud/client'), import('../cloud/firestore'), import('../cloud/code')]);
+    const s = readSettings();
+    const client = new CloudClient(new FirestoreTransport(), await cloudRoom(code), { username: String(o.username ?? ''), password: String(o.password ?? ''), deviceId: s.deviceId, deviceName: 'جوال' });
+    await client.ping();
+    await client.login();
+    remote = client;
+    client.listen(
+      (items) => send('company:events', structuredClone(items)),
+      () => send('company:reset'),
+      (message) => send('lan:error', message),
+    );
+    s.lastCloud = { code, username: String(o.username ?? '') };
+    writeSettings(s);
+    return sessionInfo();
+  }, { allowLocked: true });
 
   // الطباعة عبر أندرويد (طابعة الشبكة أو البلوتوث المعرّفة على الجهاز، أو حفظ PDF)
   handle('print:printers', () => []);
@@ -337,7 +420,7 @@ function registerHandlers(): void {
 async function invoke(channel: string, ...args: unknown[]): Promise<unknown> {
   const h = handlers.get(channel);
   if (!h) throw new Error(`قناة غير معروفة: ${channel}`);
-  if (!h.allowLocked && licenseBlocked()) throw new Error(licenseBlocked()!);
+  if (!h.allowLocked && licenseBlocked() && !remote) throw new Error(licenseBlocked()!);
   // نسخة منفصلة من البيانات متل الكمبيوتر (IPC بينسخ)، حتى ما تعدّل الواجهة حالة الشركة مباشرة
   const value = await (h.fn as (...a: unknown[]) => unknown)(...structuredClone(args));
   return value === undefined ? undefined : structuredClone(value);

@@ -7,6 +7,8 @@ import { execute } from './executor';
 // كلمة السر بتتحقق هون، وكل عملية بتتنفذ باسم صاحب الجلسة وبصلاحياته متل الشبكة المحلية تماماً.
 
 const ACTIVE_MS = 30 * 60_000;
+/** الخدمة مدفوعة لحالها: جوالين عن بعد على الأقل (بالبيت وبالمحل) مهما كان عدد أجهزة الترخيص. */
+export const CLOUD_MIN_DEVICES = 2;
 
 interface Session {
   user: User;

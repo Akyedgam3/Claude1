@@ -38,6 +38,7 @@ import { Debts } from './screens/Debts';
 import { Tour } from './components/Tour';
 import { Vouchers } from './screens/Vouchers';
 import { Welcome } from './screens/Welcome';
+import { useCloudHost } from './cloud/useCloudHost';
 
 interface NavItem {
   key: string;
@@ -186,6 +187,9 @@ export function App() {
     if (!info?.session || !state) return null;
     return { state, info, session: info.session, call, notify, navigate, reloadInfo: loadInfo, ...makeCtxHelpers(state, info.session.user) };
   }, [info, state, call, notify, navigate, loadInfo]);
+
+  // الاتصال عن بعد (خدمة إضافية): بس إذا مفعّلة بالترخيص والشركة مفتوحة على هالجهاز
+  useCloudHost(info?.session?.kind === 'local' && !!info.license.cloud && !!state, state?.info?.name ?? '', notify);
 
   const [searching, setSearching] = useState(false);
   // الموبايل: القائمة الجانبية درج بينفتح من زر ☰

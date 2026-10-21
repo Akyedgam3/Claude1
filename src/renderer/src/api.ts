@@ -40,6 +40,14 @@ export interface LanStatus {
   devices: { deviceName: string; user: string; lastSeen: number }[];
 }
 
+export interface CloudStatus {
+  /** الخدمة مفعّلة بالترخيص (خدمة إضافية). */
+  available: boolean;
+  enabled: boolean;
+  code: string | null;
+  devices: { deviceName: string; user: string; lastSeen: number }[];
+}
+
 export interface ExportSheet {
   name: string;
   title?: string;
@@ -79,6 +87,16 @@ export const api = {
   lanStatus: () => inv<LanStatus>('lan:status'),
   lanHost: (enable: boolean, newCode?: boolean) => inv<boolean>('lan:host', enable, newCode),
   lanConnect: (o: { host: string; port?: number; pairingCode: string; username: string; password: string }) => inv<SessionInfo>('lan:connect', o),
+  cloudStatus: () => inv<CloudStatus>('cloud:status'),
+  cloudSetup: (enable: boolean, newCode?: boolean) => inv<CloudStatus>('cloud:setup', enable, newCode),
+  cloudHostConfig: () => inv<{ code: string } | null>('cloud:hostConfig'),
+  cloudHostLogin: (username: string, password: string, deviceId: string, deviceName: string) => inv<{ token: string; user: User }>('cloud:hostLogin', username, password, deviceId, deviceName),
+  cloudHostSnapshot: (token: string) => inv<{ state: CompanyState; seq: number }>('cloud:hostSnapshot', token),
+  cloudHostCall: (token: string, method: string, args: unknown[]) => inv<{ value: unknown; seq: number }>('cloud:hostCall', token, method, args),
+  cloudHostLogout: (token: string) => inv<void>('cloud:hostLogout', token),
+  /** الجوال بس: الاتصال بجهاز رئيسي عن بعد. */
+  cloudConnect: (o: { code: string; username: string; password: string }) => inv<SessionInfo>('cloud:connect', o),
+  cloudLast: () => inv<{ code: string; username: string } | null>('cloud:last'),
   printers: () => inv<{ name: string; label: string }[]>('print:printers'),
   print: (o: { paper: string; printer?: string; copies?: number }) => inv<boolean>('print:run', o),
   exportPdf: (o: { paper: string; name: string }) => inv<string | false>('export:pdf', o),

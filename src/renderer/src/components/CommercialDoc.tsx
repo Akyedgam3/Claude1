@@ -37,7 +37,7 @@ export interface DocModel {
 
 const STAMP_TEXT: Record<Exclude<DocStamp, null>, string> = { paid: 'مدفوعة', credit: 'آجل', void: 'ملغاة', quote: 'عرض سعر' };
 
-function Qr({ text, size = 104 }: { text: string; size?: number }) {
+export function Qr({ text, size = 104 }: { text: string; size?: number }) {
   const qr = qrcode(0, 'M');
   qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8']!;
   qr.addData(text, 'Byte');

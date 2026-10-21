@@ -7,8 +7,9 @@ import { api, dateText, IS_MOBILE, today, useCompany, type LanStatus } from '../
 import { PAPER_NAMES } from '../components/print';
 import { sampleReceipt, ThermalReceipt } from '../components/ThermalReceipt';
 import { Field, Modal, PageHeader, Tabs } from '../components/ui';
+import { CloudTab } from '../cloud/CloudTab';
 
-type Tab = 'company' | 'customize' | 'print' | 'receipt' | 'taxes' | 'lan' | 'backup' | 'period' | 'account' | 'license' | 'reset';
+type Tab = 'company' | 'customize' | 'print' | 'receipt' | 'taxes' | 'lan' | 'cloud' | 'backup' | 'period' | 'account' | 'license' | 'reset';
 
 export function Settings({ tab: initial }: { tab?: string }) {
   const { can, session, user } = useCompany();
@@ -31,6 +32,7 @@ export function Settings({ tab: initial }: { tab?: string }) {
           { key: 'receipt', label: 'الإيصال وشاشة الزبون', hidden: !can('settings.manage') },
           { key: 'taxes', label: 'الضرائب والمخزون', hidden: !can('settings.manage') },
           { key: 'lan', label: 'الشبكة المحلية', hidden: IS_MOBILE || !local || !can('settings.manage') },
+          { key: 'cloud', label: 'الاتصال عن بعد', hidden: !local || !can('settings.manage') },
           { key: 'backup', label: 'النسخ الاحتياطي', hidden: !local || !can('backup.manage') },
           { key: 'period', label: 'إقفال الفترات', hidden: !can('period.close') },
           { key: 'account', label: 'حسابي' },
@@ -44,6 +46,7 @@ export function Settings({ tab: initial }: { tab?: string }) {
       {tab === 'receipt' && <ReceiptTab />}
       {tab === 'taxes' && <TaxesTab />}
       {tab === 'lan' && <LanTab />}
+      {tab === 'cloud' && <CloudTab />}
       {tab === 'backup' && <BackupTab />}
       {tab === 'period' && <PeriodTab />}
       {tab === 'account' && <AccountTab />}

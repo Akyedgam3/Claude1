@@ -1,6 +1,7 @@
 // النقل الحقيقي: Firestore (مشروع وزن على Firebase). بينحمّل بس إذا الاتصال عن بعد مفعّل.
 import { getApps, initializeApp } from 'firebase/app';
-import { collection, deleteDoc, doc, documentId, getDoc, getDocs, initializeFirestore, onSnapshot, orderBy, query, setDoc, where, type Firestore } from 'firebase/firestore';
+import { collection, connectFirestoreEmulator, deleteDoc, doc, documentId, getDoc, getDocs, initializeFirestore, onSnapshot, orderBy, query, setDoc, where, type Firestore } from 'firebase/firestore';
+import { IS_TEST_BUILD } from '../license/public-key';
 import type { CloudDoc, CloudTransport, Coll } from './transport';
 
 // إعدادات عامة (مش سرية): الحماية بقواعد Firestore والتشفير من طرفنا
@@ -20,7 +21,15 @@ function firestore(): Firestore {
   const app = getApps().find((a) => a.name === 'wazn-cloud') ?? initializeApp(CONFIG, 'wazn-cloud');
   // بعض الشبكات وبرامج VPN بتقطع الاتصال المستمر: منخلي Firestore يكتشف ويحوّل لـ long polling
   db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
+  // نسخة الاختبارات بس: Firestore المحلي بدل الحقيقي
+  const emu = IS_TEST_BUILD && typeof localStorage !== 'undefined' ? localStorage.getItem('wazn.cloudEmulator') : null;
+  if (emu) connectFirestoreEmulator(db, emu.split(':')[0]!, Number(emu.split(':')[1]));
   return db;
+}
+
+/** للاختبارات بس: Firestore المحلي (firebase emulators). */
+export function useFirestoreEmulator(host: string, port: number): void {
+  connectFirestoreEmulator(firestore(), host, port);
 }
 
 const FIELDS = ['iv', 'ct', 'last', 'epoch', 'seen', 'at'] as const;

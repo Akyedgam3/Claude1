@@ -3559,3 +3559,21 @@ button.danger-soft {
   align-items: center;
   gap: 8px;
 }
+
+/* الاتصال عن بعد: رمز QR مع الرمز المكتوب */
+.cloud-code {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 14px 0;
+}
+.cloud-code .doc-qr {
+  border-radius: 10px;
+  border: 1px solid var(--border, #ddd);
+  flex: none;
+}
+.cloud-code .big-code {
+  word-break: break-all;
+  font-size: 18px;
+}

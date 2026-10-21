@@ -2,6 +2,7 @@ import { useState } from 'react';
 import logo from '../assets/logo.png';
 import { api, IS_MOBILE, type AppInfo } from '../api';
 import { ConnectForm } from './Welcome';
+import { CloudConnectForm } from '../cloud/CloudConnect';
 
 /** يظهر عند عدم وجود ترخيص صالح: لا يمكن فتح أي شركة على هذا الجهاز. */
 export function LockScreen({ info, onChanged, notify }: { info: AppInfo; onChanged: () => Promise<void>; notify: (m: string, k?: 'ok' | 'error') => void }) {
@@ -84,6 +85,13 @@ export function LockScreen({ info, onChanged, notify }: { info: AppInfo; onChang
           </button>
         </div>
       </section>
+      {IS_MOBILE && (
+        <section className="card lock-card">
+          <h3>متصل بمحل عن بعد؟</h3>
+          <p className="muted">الجوال المتصل عن بعد يعمل بترخيص الجهاز الرئيسي في المحل ولا يحتاج مفتاحاً خاصاً.</p>
+          {connect ? <CloudConnectForm notify={notify} onConnected={onChanged} /> : <button onClick={() => setConnect(true)}>اتصال عن بعد</button>}
+        </section>
+      )}
       {!IS_MOBILE && <section className="card lock-card">
         <h3>جهاز فرعي على الشبكة؟</h3>
         <p className="muted">الأجهزة الإضافية (كاشير ثانٍ مثلاً) تعمل بترخيص الجهاز الرئيسي ولا تحتاج مفتاحاً خاصاً.</p>

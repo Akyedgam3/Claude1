@@ -4,8 +4,9 @@ import logo from '../assets/logo.png';
 import { Icon } from '../components/icons';
 import { api, IS_MOBILE, type AppInfo, type CompanyPeek } from '../api';
 import { Field, Modal } from '../components/ui';
+import { CloudConnectForm } from '../cloud/CloudConnect';
 
-type Tab = 'open' | 'new' | 'connect';
+type Tab = 'open' | 'new' | 'connect' | 'cloud';
 
 export function Welcome({
   info,
@@ -56,6 +57,11 @@ export function Welcome({
             الاتصال بجهاز رئيسي
           </button>
         )}
+        {IS_MOBILE && (
+          <button className={tab === 'cloud' ? 'active' : ''} onClick={() => setTab('cloud')}>
+            اتصال عن بعد
+          </button>
+        )}
       </div>
 
       {tab === 'open' && (
@@ -96,6 +102,12 @@ export function Welcome({
       {tab === 'connect' && (
         <section className="card">
           <ConnectForm info={info} notify={notify} onConnected={onOpened} />
+        </section>
+      )}
+
+      {tab === 'cloud' && (
+        <section className="card">
+          <CloudConnectForm notify={notify} onConnected={onOpened} />
         </section>
       )}
 

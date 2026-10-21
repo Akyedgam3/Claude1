@@ -4,8 +4,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ACTIVITIES, can, chartFor, DEFAULT_CURRENCIES, defaultTaxes, PERMISSIONS, type Activity, type Permission } from '../core';
+import { CloudSessions, CLOUD_MIN_DEVICES } from '../app/cloud-sessions';
 import { hostCompanyFor } from '../app/host-company';
 import { DEFAULT_LAN_PORT, LanClient, LanHost, newPairingCode } from '../app/lan';
+import { newCloudCode } from '../cloud/code';
 import { FEED_CHECK_HOURS, LICENSE_FEED_URLS } from '../license/config';
 import { LicenseManager, type LicenseStatus } from '../license/manager';
 import { IS_TEST_BUILD, LICENSE_PUBLIC_KEY } from '../license/public-key';
@@ -22,6 +24,8 @@ interface Settings {
   recent: { name: string; dir: string }[];
   lan: { hostEnabled: boolean; port: number; pairingCode: string };
   lastRemote?: { host: string; port: number };
+  /** الاتصال عن بعد: رمز لكل شركة (حسب معرّفها). */
+  cloud?: Record<string, string>;
 }
 
 let win: BrowserWindow | null = null;
@@ -29,6 +33,8 @@ let backend: Backend | null = null;
 let host: LanHost | null = null;
 let license: LicenseManager;
 let lastLicense: LicenseStatus | null = null;
+// الأجهزة البعيدة عبر السحابة: الواجهة بتشغّل الاتصال، وهون التحقق من كلمات السر والتنفيذ
+const cloudSessions = new CloudSessions(() => localStore(), () => Math.max(CLOUD_MIN_DEVICES, (lastLicense ?? licenseStatus()).devices - 1));
 
 // ───────────── الإعدادات المحلية ─────────────
 
@@ -46,6 +52,7 @@ function readSettings(): Settings {
     recent: s.recent ?? [],
     lan: { hostEnabled: false, port: DEFAULT_LAN_PORT, pairingCode: newPairingCode(), ...s.lan },
     ...(s.lastRemote ? { lastRemote: s.lastRemote } : {}),
+    ...(s.cloud ? { cloud: s.cloud } : {}),
   };
   if (!s.deviceId || !s.lan) writeSettings(full);
   return full;
@@ -151,6 +158,7 @@ function attach(b: Backend): void {
 
 async function closeBackend(): Promise<void> {
   stopHosting(); // لا يبقى الخادم يقدّم بيانات شركة أُغلقت
+  cloudSessions.clear();
   const b = backend;
   backend = null;
   if (b) await b.close();
@@ -442,6 +450,58 @@ function registerIpc(): void {
     writeSettings(s);
     return sessionInfo();
   }, { allowLocked: true });
+
+  // ── الاتصال عن بعد (خدمة إضافية بتتفعّل من الترخيص) ──
+  const cloudCode = (): string | null => readSettings().cloud?.[localStore().meta.id] ?? null;
+  const cloudStatus = () => ({
+    available: (lastLicense ?? licenseStatus()).cloud,
+    enabled: !!cloudCode(),
+    code: cloudCode(),
+    devices: cloudSessions.devices(),
+  });
+  const requireCloud = () => {
+    if (!(lastLicense ?? licenseStatus()).cloud) throw new Error('خدمة الاتصال عن بعد غير مفعّلة في ترخيصك');
+  };
+
+  handle('cloud:status', () => {
+    requirePermission('settings.manage');
+    return cloudStatus();
+  });
+
+  handle('cloud:setup', (enable: boolean, newCode?: boolean) => {
+    requirePermission('settings.manage');
+    const id = localStore().meta.id;
+    if (enable) requireCloud();
+    const s = readSettings();
+    const all = { ...s.cloud };
+    if (!enable) delete all[id];
+    else if (newCode || !all[id]) all[id] = newCloudCode();
+    s.cloud = all;
+    writeSettings(s);
+    cloudSessions.clear(); // رمز جديد أو إيقاف: كل الأجهزة البعيدة بتنفصل
+    return cloudStatus();
+  });
+
+  /** للواجهة: هل لازم تشغّل الاتصال عن بعد على هالجهاز؟ */
+  handle('cloud:hostConfig', () => {
+    if (!(backend instanceof LocalBackend) || !(lastLicense ?? licenseStatus()).cloud) return null;
+    const code = cloudCode();
+    return code ? { code } : null;
+  });
+
+  handle('cloud:hostLogin', (username: string, password: string, deviceId: string, deviceName: string) => {
+    requireCloud();
+    return cloudSessions.login(String(username), String(password), String(deviceId), String(deviceName));
+  });
+  handle('cloud:hostSnapshot', (token: string) => {
+    requireCloud();
+    return cloudSessions.snapshot(String(token));
+  });
+  handle('cloud:hostCall', (token: string, method: string, args: unknown[]) => {
+    requireCloud();
+    return cloudSessions.call(String(token), method, args);
+  });
+  handle('cloud:hostLogout', (token: string) => cloudSessions.logout(String(token)));
 
   // ── الطباعة والتصدير ──
   handle('print:printers', async () => (await win!.webContents.getPrintersAsync()).map((p) => ({ name: p.name, label: p.displayName || p.name })));
