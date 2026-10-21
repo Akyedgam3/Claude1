@@ -18,6 +18,7 @@
   - الموقع: https://akyedgam3.github.io/mizan-updates/
   - التحميل: https://github.com/Akyedgam3/mizan-updates/releases/latest/download/Wazn-Setup.exe
   - صفحات الموقع تُعدَّل في `tools/pages/` ثم `python3 tools/build_site.py`.
+  - التقييمات (`reviews.html` وقسم بالرئيسية): تسجيل دخول بغوغل عبر Firebase. الإعدادات بـ `assets/js/firebase-config.js` (عامة مش سرية)، والحماية بـ `firestore.rules` اللي بتنلصق بـ Firebase Console. الفيديوهات انشالت من الموقع بانتظار فيديوهات جديدة.
 
 ## الترخيص (مهم جداً)
 - المفتاح العام الحقيقي مضمّن في `src/license/public-key.ts`. المفتاح الخاص **عند صاحب المشروع فقط** (`keys/license-private.pem`، مستثنى من git). **لا تولّد مفتاحاً جديداً** — هذا يُبطل كل التراخيص المباعة.
