@@ -155,7 +155,7 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-// ملف Mizan-Admin.cmd بيشغّل اللوحة مع MIZAN_ADMIN_OPEN=1 فبتنفتح بالمتصفح لحالها
+// ملف Wazn-Admin.cmd بيشغّل اللوحة مع MIZAN_ADMIN_OPEN=1 فبتنفتح بالمتصفح لحالها
 const adminUrl = `http://127.0.0.1:${port}`;
 function openBrowser() {
   if (process.env['MIZAN_ADMIN_OPEN'] !== '1') return;

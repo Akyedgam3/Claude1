@@ -1,6 +1,6 @@
 @echo off
-rem Mizan admin panel launcher: double-click to start. Close this window to stop.
-title Mizan Admin
+rem Wazn admin panel launcher: double-click to start. Close this window to stop.
+title Wazn Admin
 cd /d "%~dp0"
 
 where node >nul 2>nul
@@ -33,7 +33,7 @@ if not exist "node_modules\.bin\tsx.cmd" (
 )
 
 echo.
-echo   Mizan Admin: http://127.0.0.1:4100
+echo   Wazn Admin: http://127.0.0.1:4100
 echo   Keep this window open while you work. Close it to stop.
 echo.
 set MIZAN_ADMIN_OPEN=1
