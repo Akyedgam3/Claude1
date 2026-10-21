@@ -23,6 +23,7 @@
     "tests",
     "scripts",
     "admin",
-    "electron.vite.config.ts"
+    "electron.vite.config.ts",
+    "vite.mobile.config.ts"
   ]
 }

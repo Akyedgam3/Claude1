@@ -2,6 +2,9 @@ import { createContext, useContext } from 'react';
 import { can as canDo, effectiveProfile, findRate, formatMinor, toMinor, type ActivityProfile, type CompanyState, type Feature, type Permission, type User } from '../../core';
 import type { LicenseStatus } from '../../license/manager';
 
+/** نسخة الموبايل (أندرويد): مستقلة، بدون شبكة محلية ولا شاشة زبون. */
+export const IS_MOBILE = typeof __WAZN_MOBILE__ !== 'undefined' && __WAZN_MOBILE__ === true;
+
 export interface SessionInfo {
   kind: 'local' | 'remote';
   user: User;
