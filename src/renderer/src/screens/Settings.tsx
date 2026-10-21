@@ -3,7 +3,7 @@ import { ACTIVITIES, ACTIVITY_LIST, ALL_FEATURES, DEFAULT_SCALE, FEATURE_INFO, t
 import { Icon } from '../components/icons';
 import { startTour } from '../components/Tour';
 import { CommercialDoc, sampleModel } from '../components/CommercialDoc';
-import { api, dateText, today, useCompany, type LanStatus } from '../api';
+import { api, dateText, IS_MOBILE, today, useCompany, type LanStatus } from '../api';
 import { PAPER_NAMES } from '../components/print';
 import { sampleReceipt, ThermalReceipt } from '../components/ThermalReceipt';
 import { Field, Modal, PageHeader, Tabs } from '../components/ui';
@@ -30,7 +30,7 @@ export function Settings({ tab: initial }: { tab?: string }) {
           { key: 'print', label: 'الطباعة والفواتير', hidden: !can('settings.manage') },
           { key: 'receipt', label: 'الإيصال وشاشة الزبون', hidden: !can('settings.manage') },
           { key: 'taxes', label: 'الضرائب والمخزون', hidden: !can('settings.manage') },
-          { key: 'lan', label: 'الشبكة المحلية', hidden: !local || !can('settings.manage') },
+          { key: 'lan', label: 'الشبكة المحلية', hidden: IS_MOBILE || !local || !can('settings.manage') },
           { key: 'backup', label: 'النسخ الاحتياطي', hidden: !local || !can('backup.manage') },
           { key: 'period', label: 'إقفال الفترات', hidden: !can('period.close') },
           { key: 'account', label: 'حسابي' },
@@ -486,10 +486,10 @@ function PrintTab() {
         <Field label="عدد نسخ الفاتورة">
           <input type="number" min={1} max={5} value={p.copies ?? 1} onChange={(e) => setP({ ...p, copies: Number(e.target.value) })} />
         </Field>
-        {printerSelect('invoice', 'طابعة الفواتير')}
-        {printerSelect('receipt', 'طابعة الإيصالات (حرارية)')}
-        {printerSelect('kitchen', 'طابعة المطبخ')}
-        {printerSelect('label', 'طابعة الملصقات')}
+        {!IS_MOBILE && printerSelect('invoice', 'طابعة الفواتير')}
+        {!IS_MOBILE && printerSelect('receipt', 'طابعة الإيصالات (حرارية)')}
+        {!IS_MOBILE && printerSelect('kitchen', 'طابعة المطبخ')}
+        {!IS_MOBILE && printerSelect('label', 'طابعة الملصقات')}
         <label className="check">
           <input type="checkbox" checked={p.showAmountInWords !== false} onChange={(e) => setP({ ...p, showAmountInWords: e.target.checked })} />
           كتابة المبلغ بالحروف (التفقيط)
@@ -654,14 +654,16 @@ function BackupTab() {
     <section className="card">
       <h3>النسخ الاحتياطي</h3>
       <p className="muted">
-        يأخذ البرنامج نسخة تلقائية عند كل خروج (آخر 30 نسخة داخل مجلد الشركة). يُنصح بنسخة أسبوعية على فلاشة. النسخ مشفّرة وتُفتح بنفس كلمات السر. لاستعادة نسخة: شاشة البداية ← فتح شركة ← استعادة نسخة احتياطية.
+        {IS_MOBILE
+          ? 'يأخذ البرنامج نسخة تلقائية داخل الجوال عند كل خروج. يُنصح بإرسال نسخة أسبوعياً لمكان آمن (واتساب، درايف، أو كمبيوتر). النسخ مشفّرة وتُفتح بنفس كلمات السر. لاستعادة نسخة: شاشة البداية ← فتح شركة ← استعادة نسخة احتياطية.'
+          : 'يأخذ البرنامج نسخة تلقائية عند كل خروج (آخر 30 نسخة داخل مجلد الشركة). يُنصح بنسخة أسبوعية على فلاشة. النسخ مشفّرة وتُفتح بنفس كلمات السر. لاستعادة نسخة: شاشة البداية ← فتح شركة ← استعادة نسخة احتياطية.'}
       </p>
       <div className="button-row">
         <button onClick={() => run(() => api.backup(false))}>نسخة احتياطية الآن</button>
         <button className="primary" onClick={() => run(() => api.backup(true))}>
-          نسخ إلى فلاشة / مجلد آخر...
+          {IS_MOBILE ? 'حفظ أو إرسال ملف النسخة...' : 'نسخ إلى فلاشة / مجلد آخر...'}
         </button>
-        <button onClick={() => run(() => api.reveal())}>فتح مجلد الشركة</button>
+        {!IS_MOBILE && <button onClick={() => run(() => api.reveal())}>فتح مجلد الشركة</button>}
       </div>
     </section>
   );

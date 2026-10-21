@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import logo from '../assets/logo.png';
-import { api, type AppInfo } from '../api';
+import { api, IS_MOBILE, type AppInfo } from '../api';
 import { ConnectForm } from './Welcome';
 
 /** يظهر عند عدم وجود ترخيص صالح: لا يمكن فتح أي شركة على هذا الجهاز. */
@@ -84,11 +84,11 @@ export function LockScreen({ info, onChanged, notify }: { info: AppInfo; onChang
           </button>
         </div>
       </section>
-      <section className="card lock-card">
+      {!IS_MOBILE && <section className="card lock-card">
         <h3>جهاز فرعي على الشبكة؟</h3>
         <p className="muted">الأجهزة الإضافية (كاشير ثانٍ مثلاً) تعمل بترخيص الجهاز الرئيسي ولا تحتاج مفتاحاً خاصاً.</p>
         {connect ? <ConnectForm info={info} notify={notify} onConnected={onChanged} /> : <button onClick={() => setConnect(true)}>الاتصال بالجهاز الرئيسي</button>}
-      </section>
+      </section>}
       <footer className="muted">الإصدار {info.version}</footer>
     </div>
   );

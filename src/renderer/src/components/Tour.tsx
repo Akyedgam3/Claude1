@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
-import { useCompany } from '../api';
+import { IS_MOBILE, useCompany } from '../api';
 import { Icon } from './icons';
 
 // جولة تعريفية سريعة: بتنعرض مرة وحدة لكل مستخدم على هالجهاز، وبتنعاد من الإعدادات.
@@ -53,7 +53,8 @@ export function Tour() {
   const [rect, setRect] = useState<DOMRect | null>(null);
 
   // الخطوات اللي عنصرها مش ظاهر لهالمستخدم (صلاحيات أو نشاط مختلف) منتخطّاها
-  const steps = STEPS.filter((s) => !s.target || document.querySelector(s.target));
+  // على الموبايل القائمة درج مسكّر، فالبطاقات بتطلع بالنص بدون تأشير
+  const steps: Step[] = IS_MOBILE ? STEPS.map(({ title, text }) => ({ title, text })) : STEPS.filter((s) => !s.target || document.querySelector(s.target));
   const step = steps[Math.min(i, steps.length - 1)]!;
 
   useEffect(() => {

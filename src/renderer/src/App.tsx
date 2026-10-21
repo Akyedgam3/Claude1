@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { applyEvent, ROLE_NAMES, type CompanyState, type Feature, type Permission } from '../../core';
 import type { EventItem } from '../../app/lan';
 import type { LicenseStatus } from '../../license/manager';
-import { api, Company, makeCtxHelpers, type AppInfo, type CompanyCtx } from './api';
+import { api, Company, IS_MOBILE, makeCtxHelpers, type AppInfo, type CompanyCtx } from './api';
 import logoSmall from './assets/logo-64.png';
 import logo from './assets/logo.png';
 import { Icon } from './components/icons';
@@ -188,6 +188,8 @@ export function App() {
   }, [info, state, call, notify, navigate, loadInfo]);
 
   const [searching, setSearching] = useState(false);
+  // الموبايل: القائمة الجانبية درج بينفتح من زر ☰
+  const [navOpen, setNavOpen] = useState(false);
   // الوضع الداكن: تفضيل لكل جهاز
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     try {
@@ -273,8 +275,20 @@ export function App() {
 
   return (
     <Company.Provider value={ctx}>
-      <div className="shell" style={{ ['--activity' as string]: ctx.profile.color }}>
-        <aside className="sidebar">
+      <div className={`shell ${navOpen ? 'nav-open' : ''}`} style={{ ['--activity' as string]: ctx.profile.color }}>
+        {IS_MOBILE && (
+          <header className="mobile-bar">
+            <button className="icon menu" aria-label="القائمة" onClick={() => setNavOpen(true)}>
+              <Icon name="menu" size={22} />
+            </button>
+            <strong>{screens.find((n) => n.key === screen.key)?.label ?? 'وزن'}</strong>
+            <button className="icon" aria-label="بحث" onClick={() => setSearching(true)}>
+              <Icon name="search" size={20} />
+            </button>
+          </header>
+        )}
+        {IS_MOBILE && navOpen && <div className="nav-backdrop" onClick={() => setNavOpen(false)} />}
+        <aside className="sidebar" onClick={(e) => IS_MOBILE && (e.target as HTMLElement).closest('nav button, .close-company') && setNavOpen(false)}>
           <div className="brand">
             <div className="logo">
               <img src={logoSmall} alt="" className="logo-img" />
@@ -289,7 +303,7 @@ export function App() {
             </div>
           </div>
           <button className="quick-search-button" data-tour="search" onClick={() => setSearching(true)}>
-            <Icon name="search" size={16} /> بحث سريع <kbd>Ctrl+K</kbd>
+            <Icon name="search" size={16} /> بحث سريع {!IS_MOBILE && <kbd>Ctrl+K</kbd>}
           </button>
           <nav>
             {visible.map((n) =>
@@ -301,7 +315,7 @@ export function App() {
                 <button key={n.key} data-nav={n.key} className={screen.key === n.key ? 'active' : ''} onClick={() => navigate(n.key)}>
                   <Icon name={n.icon} className="nav-icon" />
                   {n.label}
-                  {SHORTCUT_OF[n.key] && <kbd className="nav-kbd">{SHORTCUT_OF[n.key]}</kbd>}
+                  {!IS_MOBILE && SHORTCUT_OF[n.key] && <kbd className="nav-kbd">{SHORTCUT_OF[n.key]}</kbd>}
                 </button>
               ),
             )}

@@ -1,4 +1,5 @@
 import {
+  Menu,
   HandCoins,
   Bell,
   MessageCircle,
@@ -112,6 +113,7 @@ const ICONS: Record<string, LucideIcon> = {
   monitor: Monitor,
   live: Activity,
   debts: HandCoins,
+  menu: Menu,
   bell: Bell,
   message: MessageCircle,
   trend: TrendingUp,

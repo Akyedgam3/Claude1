@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { api, useCompany, type CustomerDisplayData } from '../api';
+import { api, IS_MOBILE, useCompany, type CustomerDisplayData } from '../api';
 import { Icon } from './icons';
 
 // شاشة الزبون: نافذة على الشاشة التانية بتعرض الطلب الحالي والمبلغ. ما فيها أي بيانات غير اللي بتنبعتلها.
@@ -31,6 +31,7 @@ export function showThanks(state: ReturnType<typeof useCompany>['state'], grand:
 /** زر فتح/تسكير شاشة الزبون. */
 export function CustomerDisplayButton() {
   const { notify } = useCompany();
+  if (IS_MOBILE) return null;
   const [open, setOpen] = useState(false);
   useEffect(() => {
     api.displayStatus().then(setOpen).catch(() => {});

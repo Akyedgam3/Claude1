@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ACTIVITY_LIST } from '../../../core';
 import logo from '../assets/logo.png';
 import { Icon } from '../components/icons';
-import { api, type AppInfo, type CompanyPeek } from '../api';
+import { api, IS_MOBILE, type AppInfo, type CompanyPeek } from '../api';
 import { Field, Modal } from '../components/ui';
 
 type Tab = 'open' | 'new' | 'connect';
@@ -51,9 +51,11 @@ export function Welcome({
         <button className={tab === 'new' ? 'active' : ''} onClick={() => setTab('new')}>
           شركة جديدة
         </button>
-        <button className={tab === 'connect' ? 'active' : ''} onClick={() => setTab('connect')}>
-          الاتصال بجهاز رئيسي
-        </button>
+        {!IS_MOBILE && (
+          <button className={tab === 'connect' ? 'active' : ''} onClick={() => setTab('connect')}>
+            الاتصال بجهاز رئيسي
+          </button>
+        )}
       </div>
 
       {tab === 'open' && (
@@ -64,13 +66,13 @@ export function Welcome({
               <li key={r.dir}>
                 <button onClick={() => peek(r.dir)}>
                   <strong>{r.name}</strong>
-                  <small dir="ltr">{r.dir}</small>
+                  {!IS_MOBILE && <small dir="ltr">{r.dir}</small>}
                 </button>
               </li>
             ))}
           </ul>
           <div className="button-row">
-            <button onClick={() => peek()}>فتح من مجلد...</button>
+            {!IS_MOBILE && <button onClick={() => peek()}>فتح من مجلد...</button>}
             <button
               onClick={async () => {
                 try {
@@ -84,7 +86,7 @@ export function Welcome({
                 }
               }}
             >
-              استعادة نسخة احتياطية...
+              {IS_MOBILE ? 'استعادة نسخة احتياطية (ملف .wazn)' : 'استعادة نسخة احتياطية...'}
             </button>
           </div>
         </section>
