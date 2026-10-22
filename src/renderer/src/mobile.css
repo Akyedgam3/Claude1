@@ -521,10 +521,11 @@ body.mobile {
   to { opacity: 1; transform: none; }
 }
 
-/* الشاشة بتدخل بنعومة كل ما تتغير */
+/* الشاشة بتدخل بنعومة كل ما تتغير.
+   backwards مش both: إذا ضل transform بعد الحركة، النوافذ (position: fixed) جوا الشاشة بتنحسب عليها مش على الجوال وبتطلع لتحت. */
 body.mobile .content > .page,
 body.mobile .content > .welcome {
-  animation: m-enter 0.4s var(--ease) both;
+  animation: m-enter 0.4s var(--ease) backwards;
 }
 /* وبطاقاتها بتطلع وحدة وحدة */
 body.mobile .stats > *,
@@ -537,7 +538,7 @@ body.mobile .activities > *,
 body.mobile .template-cards > *,
 body.mobile .activity-hero {
   --i: 8;
-  animation: m-rise 0.5s var(--ease) both;
+  animation: m-rise 0.5s var(--ease) backwards;
   animation-delay: calc(var(--i) * 45ms + 60ms);
 }
 body.mobile .activity-hero {
@@ -890,7 +891,7 @@ body.mobile .activity-badge {
   /* النوافذ: ورقة بتطلع من تحت مع مقبض */
   body.mobile .modal {
     border-radius: 26px 26px 0 0;
-    animation: m-sheet 0.42s var(--ease) both;
+    animation: m-sheet 0.42s var(--ease) backwards;
     box-shadow: 0 -16px 50px rgba(0, 0, 0, 0.28);
   }
   body.mobile .modal::before {
@@ -915,7 +916,7 @@ body.mobile .welcome-hero .hero-logo {
 }
 body.mobile .welcome .card,
 body.mobile .welcome .segmented {
-  animation: m-rise 0.55s var(--ease) 0.15s both;
+  animation: m-rise 0.55s var(--ease) 0.15s backwards;
 }
 body.mobile .splash img {
   animation: m-pop 0.8s var(--spring) both, m-breathe 2.4s ease-in-out 0.8s infinite;
