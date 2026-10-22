@@ -4,6 +4,7 @@
 # النسخة من package.json. يحتاج wine (بينزّله لحالو على أوبونتو إذا ناقص).
 set -euo pipefail
 cd "$(dirname "$0")/.."
+REPO=$(pwd)
 VERSION=$(node -p "require('./package.json').version")
 NOTES=${1:-}
 UPDATES=${UPDATES_DIR:-/home/user/mizan-updates}
@@ -42,6 +43,11 @@ git branch -D -q upload-tmp
 git pull -q origin main
 echo "$VERSION" > tools/version.txt
 python3 tools/build_site.py >/dev/null
+# نسخة الويب للآيفون (الاتصال عن بعد) بنفس واجهة هالنسخة ← app/
+(cd "$REPO" && npm run build:web >/dev/null)
+if grep -rq MCowBQYDK2VwAyEAWu46 "$REPO/web-dist"; then echo "خطأ: مفتاح التطوير موجود بنسخة الويب!"; exit 1; fi
+rm -rf app && cp -r "$REPO/web-dist" app
+git add -A app
 git add tools/version.txt ./*.html
 git -c user.name="$(git -C "$OLDPWD" log -1 --format=%an)" -c user.email="$(git -C "$OLDPWD" log -1 --format=%ae)" commit -q -m "الموقع: النسخة $VERSION" || true
 git push -q origin main
