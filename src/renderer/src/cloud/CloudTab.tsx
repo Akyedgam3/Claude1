@@ -54,7 +54,7 @@ export function CloudTab() {
           <div className="cloud-code">
             <Qr text={cloudCodeLink(s.code)} size={180} />
             <div>
-              <p>على الجوال: افتح تطبيق وزن ← «اتصال عن بعد» ← امسح الرمز بالكاميرا، أو اكتبه:</p>
+              <p>أندرويد: افتح تطبيق وزن ← «اتصال عن بعد» ← امسح الرمز. آيفون: امسح الرمز بكاميرا الجوال فبتنفتح نسخة الويب والرمز جاهز. أو اكتب الرمز:</p>
               <p className="big-code mono selectable" dir="ltr">
                 {s.code.slice(0, 19)}
                 <br />

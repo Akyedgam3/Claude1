@@ -4,6 +4,8 @@ import type { LicenseStatus } from '../../license/manager';
 
 /** نسخة الموبايل (أندرويد): مستقلة، بدون شبكة محلية ولا شاشة زبون. */
 export const IS_MOBILE = typeof __WAZN_MOBILE__ !== 'undefined' && __WAZN_MOBILE__ === true;
+/** نسخة الويب (آيفون بالمتصفح): نفس نسخة الموبايل بس للاتصال عن بعد بجهاز المحل، بدون بيانات محلية. */
+export const IS_WEB = IS_MOBILE && typeof __WAZN_WEB__ !== 'undefined' && __WAZN_WEB__ === true;
 
 export interface SessionInfo {
   kind: 'local' | 'remote';

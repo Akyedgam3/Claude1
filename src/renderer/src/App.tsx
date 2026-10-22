@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { applyEvent, ROLE_NAMES, type CompanyState, type Feature, type Permission } from '../../core';
 import type { EventItem } from '../../app/lan';
 import type { LicenseStatus } from '../../license/manager';
-import { api, Company, IS_MOBILE, makeCtxHelpers, type AppInfo, type CompanyCtx } from './api';
+import { api, Company, IS_MOBILE, IS_WEB, makeCtxHelpers, type AppInfo, type CompanyCtx } from './api';
 import logoSmall from './assets/logo-64.png';
 import logo from './assets/logo.png';
 import { Icon } from './components/icons';
@@ -39,6 +39,7 @@ import { Tour } from './components/Tour';
 import { Vouchers } from './screens/Vouchers';
 import { Welcome } from './screens/Welcome';
 import { useCloudHost } from './cloud/useCloudHost';
+import { WebConnect } from './cloud/WebConnect';
 
 interface NavItem {
   key: string;
@@ -262,7 +263,15 @@ export function App() {
   if (!info.session) {
     return (
       <>
-        {lic.locked ? (
+        {IS_WEB ? (
+          <WebConnect
+            notify={notify}
+            onConnected={async () => {
+              await loadInfo();
+              setScreen({ key: 'dashboard' });
+            }}
+          />
+        ) : lic.locked ? (
           <LockScreen info={info} onChanged={loadInfo} notify={notify} />
         ) : (
           <Welcome
@@ -275,7 +284,7 @@ export function App() {
             onLicense={loadInfo}
           />
         )}
-        <UpdateNotice update={lic.update} current={info.version} notify={notify} floating />
+        {!IS_WEB && <UpdateNotice update={lic.update} current={info.version} notify={notify} floating />}
         {toastEl}
       </>
     );
@@ -347,7 +356,7 @@ export function App() {
               {lic.daysLeft !== null && lic.daysLeft !== undefined && <small> · متبقٍ {lic.daysLeft} يوم</small>}
             </div>
           )}
-          <UpdateNotice update={lic.update} current={info.version} notify={notify} />
+          {!IS_WEB && <UpdateNotice update={lic.update} current={info.version} notify={notify} />}
           <button className="theme-toggle" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
             <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={16} /> {theme === 'dark' ? 'الوضع الفاتح' : 'الوضع الداكن'}
           </button>

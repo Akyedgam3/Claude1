@@ -14,7 +14,8 @@
     "dist:win": "npm run build && electron-builder --win nsis --publish never",
     "admin": "tsx admin/server.ts",
     "test:e2e": "playwright test",
-    "build:mobile": "vite build -c vite.mobile.config.ts && cap sync android"
+    "build:mobile": "vite build -c vite.mobile.config.ts && cap sync android",
+    "build:web": "WAZN_WEB=1 vite build -c vite.mobile.config.ts"
   },
   "devDependencies": {
     "@capacitor-mlkit/barcode-scanning": "^8.2.1",

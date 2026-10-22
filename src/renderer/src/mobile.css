@@ -943,3 +943,24 @@ body.mobile .splash img {
     width: min(560px, calc(100% - 24px));
   }
 }
+
+/* نسخة الويب (آيفون): شاشة الاتصال مختصرة حتى يبيّن النموذج من أول نظرة */
+body.mobile .web-connect .welcome-hero {
+  padding-block: 12px 4px;
+}
+body.mobile .web-connect .hero-logo {
+  width: 72px;
+  height: 72px;
+}
+body.mobile .web-connect .welcome-hero .logo.big {
+  display: none;
+}
+body.mobile .web-connect .web-install ol {
+  margin: 0;
+  padding-inline-start: 20px;
+  line-height: 2;
+}
+body.mobile .web-connect > p.center {
+  text-align: center;
+  font-size: 13px;
+}

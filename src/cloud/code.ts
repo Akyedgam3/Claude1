@@ -18,9 +18,11 @@ export function newCloudCode(): string {
   return formatCloudCode(out);
 }
 
-/** بيقبل الرمز مكتوب بأي شكل (مسافات، شرطات، حروف صغيرة) ورابط QR. */
+/** بيقبل الرمز مكتوب بأي شكل (مسافات، شرطات، حروف صغيرة) ورابط QR (الجديد https والقديم wazn://). */
 export function normalizeCloudCode(input: string): string | null {
-  const raw = input.trim().replace(/^wazn:\/\/connect\//i, '').toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/0/g, 'O').replace(/1/g, 'I');
+  const text = input.trim();
+  const fromLink = /#c=([A-Za-z0-9-]+)/.exec(text)?.[1];
+  const raw = (fromLink ?? text.replace(/^wazn:\/\/connect\//i, '')).toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/0/g, 'O').replace(/1/g, 'I');
   const clean = [...raw].map((c) => (c === 'O' ? 'Q' : c === 'I' ? 'J' : c)).join('');
   if (clean.length !== 32 || [...clean].some((c) => !ALPHABET.includes(c))) return null;
   return formatCloudCode(clean);
@@ -30,9 +32,17 @@ export function formatCloudCode(clean: string): string {
   return clean.replace(/-/g, '').match(/.{1,4}/g)!.join('-');
 }
 
-/** رابط QR بيفتحه تطبيق الجوال. */
+/** نسخة الويب (للآيفون): الموقع الرسمي ← app/. */
+export const CLOUD_WEB_APP = 'https://akyedgam3.github.io/mizan-updates/app/';
+
+/** رابط QR: كاميرا الآيفون بتفتحه بسفاري على نسخة الويب والرمز معبّى، وتطبيق أندرويد بيقرأ الرمز منه. */
 export function cloudCodeLink(code: string): string {
-  return `wazn://connect/${code.replace(/-/g, '')}`;
+  return `${CLOUD_WEB_APP}#c=${code.replace(/-/g, '')}`;
+}
+
+/** الرمز من رابط الصفحة (#c=...) إذا انفتحت نسخة الويب من QR. */
+export function cloudCodeFromHash(hash: string): string | null {
+  return /^#c=/.test(hash) ? normalizeCloudCode(hash) : null;
 }
 
 async function sha256(text: string): Promise<Uint8Array> {
