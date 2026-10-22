@@ -110,7 +110,7 @@
     </form>
   </section>
   <section class="card">
-    <h2>العملاء <span class="muted" id="count"></span></h2>
+    <h2>العملاء <span class="muted" id="count"></span> <button style="float:left" onclick="importKeys()">استيراد مفاتيح جاهزة</button></h2>
     <input id="q" placeholder="بحث بالاسم أو الهاتف أو البصمة..." oninput="render()" style="margin-bottom:10px" />
     <table>
       <thead><tr><th>العميل</th><th>الوكيل</th><th>الاشتراك</th><th>ينتهي</th><th>الحالة</th><th>المفتاح</th><th>إجراءات</th></tr></thead>
@@ -361,6 +361,14 @@ function setDevices(id, current) {
   const n = Number(prompt('عدد الأجهزة المسموح (الجهاز الرئيسي + الأجهزة الفرعية):', String(current)));
   if (!Number.isInteger(n) || n < 1 || n > 50) return;
   run(() => api(`/api/customers/${id}/update`, { devices: n }), 'تم. اضغط "نشر قائمة الحالة" ورفع feed.txt — الزبون ما بيحتاج مفتاح جديد.');
+}
+function importKeys() {
+  const text = prompt('الصق النص اللي فيه المفاتيح (من Claude أو مفاتيح، كل مفتاح بسطر):');
+  if (!text) return;
+  run(async () => {
+    const r = await api('/api/import', { text });
+    toast(`انضاف ${r.added.length}` + (r.skipped.length ? ` · موجودين من قبل ${r.skipped.length}` : '') + ' — اضغط "نشر قائمة الحالة" ورفع feed.txt');
+  });
 }
 function copyKey(id) { const c = state.customers.find((x) => x.id === id); navigator.clipboard.writeText(c.key).then(() => toast('تم نسخ المفتاح')); }
 function publish() { run(async () => { const r = await api('/api/publish', {}); toast('تم الكتابة إلى ' + r.file + ' — ارفعه الآن'); }); }

@@ -1,7 +1,7 @@
-import { randomUUID } from 'node:crypto';
+import { createPublicKey, randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { buildPayload, compareVersions, issueLicense, signFeed, type FeedStatus, type LicenseFeed, type Plan, PLANS, type UpdateInfo } from '../src/license/license';
+import { buildPayload, compareVersions, issueLicense, parseLicense, signFeed, type FeedStatus, type LicenseFeed, type Plan, PLANS, type UpdateInfo } from '../src/license/license';
 
 // سجل العملاء والتراخيص — يبقى عندك فقط (مجلد keys/ مستثنى من git).
 
@@ -194,6 +194,56 @@ export class Registry {
     c.history.push({ at: new Date().toISOString(), action: names[status] + (message ? `: ${message}` : '') });
     this.save();
     return c;
+  }
+
+  /**
+   * استيراد مفاتيح صادرة من مكان تاني (مثلاً Claude وانت مش عاللابتوب) حتى تنحفظ هون وتطلع بكل نشر.
+   * النص: JSON ‏{ customers: [{ key, phone?, notes?, agent?, cloud? }] } أو مفاتيح، كل مفتاح بسطر.
+   * المفتاح لازم يكون موقّع بمفتاحك. اللي موجود من قبل (نفس الرقم) بيتجاهل.
+   */
+  importKeys(text: string): { added: string[]; skipped: string[] } {
+    const pub = createPublicKey(this.privateKey).export({ type: 'spki', format: 'pem' }).toString();
+    let items: { key: string; phone?: string; notes?: string; agent?: string; cloud?: boolean }[];
+    try {
+      const j = JSON.parse(text) as { customers?: typeof items } | typeof items;
+      items = Array.isArray(j) ? j : (j.customers ?? []);
+    } catch {
+      items = text.split(/\s+/).filter((x) => x.startsWith('MZN')).map((key) => ({ key }));
+    }
+    if (!items.length) throw new Error('ما لقيت مفاتيح بالنص');
+    const added: string[] = [], skipped: string[] = [];
+    for (const it of items) {
+      const p = parseLicense(String(it.key ?? '').trim(), pub);
+      if (!p) throw new Error('مفتاح غير صالح أو مش موقّع بمفتاحك: ' + String(it.key ?? '').slice(0, 24) + '…');
+      if (this.data.customers.some((c) => c.id === p.id)) {
+        skipped.push(p.customer);
+        continue;
+      }
+      const agent = it.agent ? this.agents.find((a) => a.name === it.agent) : undefined;
+      if (it.agent && !agent) throw new Error(`الوكيل ${it.agent} مش موجود`);
+      const c: Customer = {
+        id: p.id,
+        name: p.customer,
+        ...(it.phone ? { phone: it.phone } : {}),
+        ...(it.notes ? { notes: it.notes } : {}),
+        machineId: p.machineId,
+        plan: p.plan,
+        devices: p.devices,
+        offlineDays: p.offlineDays,
+        issuedAt: p.issuedAt,
+        expiresAt: p.expiresAt,
+        status: 'active',
+        key: String(it.key).trim(),
+        history: [{ at: new Date().toISOString(), action: `استيراد ${PLANS[p.plan].nameAr}` + (agent ? ` عن طريق الوكيل ${agent.name}` : '') }],
+        ...(agent ? { agentId: agent.id } : {}),
+        ...(it.cloud ? { cloud: true } : {}),
+      };
+      this.data.customers.push(c);
+      if (agent) agent.uses.push({ at: p.issuedAt, customerId: c.id, action: 'issue' });
+      added.push(c.name);
+    }
+    this.save();
+    return { added, skipped };
   }
 
   /** تشغيل/إيقاف خدمة الاتصال عن بعد لزبون (بتوصله مع القائمة الموقّعة الجاية). */

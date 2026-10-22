@@ -80,6 +80,7 @@ const server = http.createServer(async (req, res) => {
       });
       return send(200, c);
     }
+    if (req.method === 'POST' && url.pathname === '/api/import') return send(200, registry.importKeys(str(body['text']) ?? ''));
     // الوكلاء
     if (req.method === 'POST' && url.pathname === '/api/agents') {
       return send(

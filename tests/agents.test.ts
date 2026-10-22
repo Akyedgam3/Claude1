@@ -100,4 +100,25 @@ describe('app updates', () => {
     r.setUpdate(null);
     expect(parseFeed(r.publish(path.join(dir, 'feed.txt')).text, PUB)!.update).toBeUndefined();
   });
+
+  it('imports keys issued elsewhere so the next publish keeps them', () => {
+    // مفاتيح طلعت من سجل تاني (مثلاً وصاحب المشروع بعيد عن اللابتوب)
+    const other = new Registry(path.join(dir, 'other.json'), PRIV);
+    const k1 = other.add({ name: 'بكر', machineId: M1, plan: 'lifetime', devices: 2 }).key;
+    const k2 = other.add({ name: 'محمود', machineId: M2, plan: 'lifetime', devices: 2 }).key;
+    const r = new Registry(path.join(dir, 'registry.json'), PRIV);
+    const a = r.addAgent({ name: 'LaptopHome', packages: 1 });
+    const res = r.importKeys(JSON.stringify({ customers: [{ key: k1, agent: 'LaptopHome', cloud: true, notes: 'حماة' }, { key: k2, phone: '+963 956 060 786' }] }));
+    expect(res.added).toEqual(['بكر', 'محمود']);
+    expect(agentBalance(r.agent(a.id)).used).toBe(1);
+    const feed = parseFeed(r.publish(path.join(dir, 'feed.txt')).text, PUB)!;
+    expect(Object.keys(feed.entries)).toHaveLength(2);
+    expect(feed.entries[parseLicense(k1, PUB)!.id]).toMatchObject({ cloud: true, expiresAt: null, devices: 2 });
+    // مرة تانية: ما بيتكرر
+    expect(r.importKeys(k1 + '\n' + k2)).toEqual({ added: [], skipped: ['بكر', 'محمود'] });
+    // مفتاح من مكان غريب بيترفض
+    const { privateKey: x } = generateKeyPairSync('ed25519');
+    const bad = new Registry(path.join(dir, 'bad.json'), x.export({ type: 'pkcs8', format: 'pem' }).toString()).add({ name: 'ز', machineId: M1, plan: 'monthly' }).key;
+    expect(() => r.importKeys(bad)).toThrow(/غير صالح/);
+  });
 });

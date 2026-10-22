@@ -14,7 +14,7 @@ fs.writeFileSync('www/test-feed.txt', signFeed({ v: 1, issuedAt: new Date().toIS
 const b = await chromium.launch();
 const errs: string[] = [];
 async function open(tag: string, url: string, iphone: boolean): Promise<Page> {
-  const ctx = await b.newContext(iphone ? { ...devices['iPhone 13'], defaultBrowserType: undefined, bypassCSP: true } : { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, bypassCSP: true });
+  const ctx = await b.newContext(iphone ? { ...devices['iPhone 13'], bypassCSP: true } : { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, bypassCSP: true });
   const p = await ctx.newPage();
   p.on('pageerror', (e) => errs.push(`${tag} pageerror: ${e.message}`));
   p.on('console', (m) => m.type() === 'error' && errs.push(`${tag} console: ${m.text().slice(0, 300)}`));
