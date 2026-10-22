@@ -80,6 +80,7 @@ try {
   const fp = p.locator('.big-code').first();
   await snap(p, 'lock', { fp, copy: btn(p, 'نسخ البصمة'), key: p.locator('textarea').first(), activate: btn(p, 'تفعيل', true) });
   const machineId = (await fp.innerText()).trim();
+  fs.writeFileSync(path.join(OUT, 'fp.txt'), machineId);
   await p.locator('textarea').first().fill(issueLicense({ id: 'lic-v', customer: 'ماركت الخير', machineId, plan: 'annual', devices: 3 }, devKey));
   await snap(p, 'lock_key', { key: p.locator('textarea').first(), activate: btn(p, 'تفعيل', true) });
   await btn(p, 'تفعيل', true).click();

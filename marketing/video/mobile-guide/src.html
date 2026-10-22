@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<title>وزن — شرح تطبيق الجوال</title>
+<style>
+@font-face { font-family: Cairo; font-weight: 400; src: url(fonts/cairo-arabic-400-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 700; src: url(fonts/cairo-arabic-700-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 900; src: url(fonts/cairo-arabic-900-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 400; src: url(fonts/cairo-latin-400-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F, U+20AC, U+20BA; }
+@font-face { font-family: Cairo; font-weight: 700; src: url(fonts/cairo-latin-700-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F, U+20AC, U+20BA; }
+@font-face { font-family: Cairo; font-weight: 900; src: url(fonts/cairo-latin-900-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F, U+20AC, U+20BA; }
+:root { --g: #0f6e5c; --g2: #14957c; --mint: #5fe0bf; --gold: #e7b75a; --gold2: #ffe29a; --deep: #03110d; --ink: #0d1f1b; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+body { font-family: Cairo, sans-serif; color: #fff; }
+#stage { position: absolute; inset: 0; overflow: hidden; background: radial-gradient(ellipse 120% 90% at 30% 50%, #0d3a31 0%, #06221c 45%, #020c0a 100%); }
+.blob { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.55; }
+#b1 { width: 760px; height: 760px; background: #0f6e5c; }
+#b2 { width: 620px; height: 620px; background: #7a5a16; opacity: 0.28; }
+#dots { position: absolute; inset: 0; background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1.5px, transparent 1.6px); background-size: 34px 34px; mask-image: radial-gradient(ellipse at 30% 50%, #000 0%, transparent 70%); }
+#vig { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 50%, transparent 60%, rgba(0, 0, 0, 0.55) 100%); }
+.ic svg { width: 100%; height: 100%; display: block; }
+i.ic { display: block; }
+.ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+
+/* الهوية */
+#brand { position: absolute; top: 46px; right: 70px; display: flex; align-items: center; gap: 16px; }
+#brand img { width: 58px; height: 58px; border-radius: 16px; box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4); }
+#brand b { font-size: 34px; font-weight: 900; line-height: 1; }
+#brand small { display: block; font-size: 19px; color: var(--mint); font-weight: 700; margin-top: 4px; }
+
+/* الجوال */
+#cam { position: absolute; inset: 0; transform-origin: 0 0; }
+#phone { position: absolute; left: 338px; top: 56px; width: 444px; height: 969px; border-radius: 62px; background: linear-gradient(160deg, #3c4a47, #111a18 55%, #2a3533); padding: 12px; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1), 0 40px 90px rgba(0, 0, 0, 0.65), 0 0 120px rgba(95, 224, 191, 0.12); }
+#phone::after { content: ''; position: absolute; right: -4px; top: 210px; width: 5px; height: 90px; border-radius: 3px; background: #2c3735; }
+#scr { position: relative; width: 420px; height: 945px; border-radius: 50px; overflow: hidden; background: #f3f5f4; }
+#sbar { position: absolute; left: 0; right: 0; top: 0; height: 36px; background: #0c2d26; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; font: 700 15px Cairo; direction: ltr; z-index: 3; }
+#sbar .r { display: flex; gap: 6px; align-items: center; }
+#sbar .bat { width: 24px; height: 11px; border: 1.5px solid #fff; border-radius: 3px; position: relative; }
+#sbar .bat::after { content: ''; position: absolute; inset: 1.5px; right: 5px; background: #fff; border-radius: 1px; }
+#sbar .sig { width: 18px; height: 11px; background: linear-gradient(90deg, #fff 0 3px, transparent 3px 5px, #fff 5px 8px, transparent 8px 10px, #fff 10px 13px, transparent 13px 15px, #fff 15px 18px); clip-path: polygon(0 100%, 100% 0, 100% 100%); }
+#hole { position: absolute; top: 9px; left: 50%; width: 18px; height: 18px; margin-left: -9px; border-radius: 50%; background: #050807; z-index: 4; }
+#island { position: absolute; top: 7px; left: 50%; width: 120px; height: 30px; margin-left: -60px; border-radius: 18px; background: #050807; z-index: 4; display: none; }
+#app { position: absolute; left: 0; top: 36px; width: 390px; height: 844px; transform: scale(1.076923); transform-origin: 0 0; overflow: hidden; }
+#app img.sh { position: absolute; inset: 0; width: 390px; height: 844px; }
+.hl { position: absolute; border-radius: 14px; border: 3px solid var(--gold); box-shadow: 0 0 0 4px rgba(231, 183, 90, 0.25), 0 0 30px rgba(231, 183, 90, 0.55); opacity: 0; pointer-events: none; z-index: 5; }
+.tapdot { position: absolute; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; background: rgba(255, 255, 255, 0.55); border: 3px solid rgba(255, 255, 255, 0.95); box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35); opacity: 0; z-index: 6; }
+.tapring { position: absolute; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; border: 3px solid #fff; opacity: 0; z-index: 6; }
+
+/* طبقات فوق شاشة الجوال (مساحة 390×844) */
+.ov { position: absolute; inset: 0; opacity: 0; z-index: 4; color: #1b2421; }
+.ov .dim { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.48); }
+.card { position: absolute; background: #fff; border-radius: 26px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35); }
+.abtn { position: absolute; display: grid; place-items: center; font: 700 16px Cairo; color: #0f6e5c; border-radius: 22px; }
+.abtn.fill { background: #0f6e5c; color: #fff; }
+#ov-notif .card { left: 10px; right: 10px; top: 8px; height: 76px; border-radius: 22px; display: flex; align-items: center; gap: 12px; padding: 0 16px; }
+.nic { width: 44px; height: 44px; border-radius: 14px; background: #0f6e5c; color: #fff; padding: 10px; flex: none; }
+#ov-notif b { font: 700 16px Cairo; display: block; }
+#ov-notif small { font: 400 13px Cairo; color: #66706d; }
+#ov-block .card { left: 26px; right: 26px; top: 300px; height: 230px; padding: 26px 24px; }
+#ov-block h4 { font: 700 18px Cairo; margin-bottom: 10px; }
+#ov-block p { font: 400 14.5px/1.7 Cairo; color: #4b5552; }
+#ov-allow { background: #f6f7f7; }
+#ov-allow .top { height: 110px; background: #fff; padding: 56px 24px 0; font: 700 21px Cairo; border-bottom: 1px solid #e3e6e5; }
+#ov-allow .row { position: absolute; left: 0; right: 0; height: 74px; background: #fff; display: flex; align-items: center; padding: 0 24px; gap: 14px; font: 700 16px Cairo; }
+#ov-allow .sw { position: absolute; left: 24px; top: 25px; width: 50px; height: 28px; border-radius: 14px; background: #b9c1bf; }
+#ov-allow .sw i { position: absolute; top: 3px; right: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25); }
+#ov-install .card { left: 0; right: 0; bottom: 0; height: 300px; border-radius: 28px 28px 0 0; padding: 30px 26px; text-align: center; }
+#ov-install img { width: 74px; height: 74px; border-radius: 20px; }
+#ov-install h4 { font: 900 22px Cairo; margin-top: 8px; }
+#ov-install p { font: 400 15px Cairo; color: #59625f; }
+#ov-install .bar { position: absolute; left: 40px; right: 40px; bottom: 112px; height: 6px; border-radius: 3px; background: #e5e9e8; overflow: hidden; opacity: 0; }
+#ov-install .bar i { position: absolute; inset: 0; right: auto; background: #0f6e5c; }
+#ov-scan, #ov-qrscan { background: #0a0d0c; }
+.vf { position: absolute; left: 55px; top: 250px; width: 280px; height: 280px; }
+.vf i { position: absolute; width: 46px; height: 46px; border: 5px solid #fff; }
+.vf i:nth-child(1) { top: 0; left: 0; border-width: 5px 0 0 5px; border-radius: 14px 0 0 0; }
+.vf i:nth-child(2) { top: 0; right: 0; border-width: 5px 5px 0 0; border-radius: 0 14px 0 0; }
+.vf i:nth-child(3) { bottom: 0; left: 0; border-width: 0 0 5px 5px; border-radius: 0 0 0 14px; }
+.vf i:nth-child(4) { bottom: 0; right: 0; border-width: 0 5px 5px 0; border-radius: 0 0 14px 0; }
+.bc { position: absolute; left: 75px; top: 320px; width: 240px; height: 150px; background: #f4f1e8; border-radius: 10px; padding: 18px 20px 30px; }
+.bc .bars { height: 100%; background: repeating-linear-gradient(90deg, #111 0 3px, transparent 3px 5px, #111 5px 6px, transparent 6px 9px, #111 9px 13px, transparent 13px 15px, #111 15px 16px, transparent 16px 20px); }
+.bc span { position: absolute; bottom: 4px; left: 0; right: 0; text-align: center; font: 700 13px monospace; letter-spacing: 3px; color: #111; direction: ltr; }
+.laser { position: absolute; left: 70px; width: 250px; height: 3px; background: #ff3b30; box-shadow: 0 0 14px #ff3b30, 0 0 4px #ff3b30; }
+.scan-ok { position: absolute; left: 40px; right: 40px; top: 600px; height: 64px; border-radius: 20px; background: #0f6e5c; color: #fff; display: grid; place-items: center; font: 700 18px Cairo; opacity: 0; }
+.scan-hint { position: absolute; top: 160px; left: 0; right: 0; text-align: center; color: #fff; font: 700 17px Cairo; }
+.qrimg { position: absolute; left: 85px; top: 280px; width: 220px; height: 220px; overflow: hidden; border-radius: 8px; background: #fff; }
+.qrimg img { position: absolute; }
+#ov-big { display: grid; place-items: center; }
+#ov-big .bigok { position: relative; width: 250px; padding: 34px 0 26px; border-radius: 34px; background: #fff; text-align: center; box-shadow: 0 30px 70px rgba(0, 0, 0, 0.4); }
+#ov-big .chk { width: 96px; height: 96px; border-radius: 50%; background: #14957c; color: #fff; padding: 22px; margin: 0 auto 12px; }
+#ov-big b { font: 900 24px Cairo; color: #0f3d33; }
+#ov-share .card, #ov-iosshare .card { left: 0; right: 0; bottom: 0; border-radius: 28px 28px 0 0; }
+#ov-share .card { height: 330px; padding: 22px 22px; }
+#ov-share h4 { font: 700 16px Cairo; margin-bottom: 4px; }
+#ov-share small { font: 400 13px Cairo; color: #6b7471; direction: ltr; display: block; text-align: right; }
+.apps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 26px; text-align: center; font: 700 13px Cairo; }
+.apps i { display: block; width: 62px; height: 62px; border-radius: 20px; margin: 0 auto 8px; padding: 15px; color: #fff; }
+#ov-iosshare .card { height: 470px; background: #f2f2f7; padding: 18px 16px; }
+#ov-iosshare .hd { display: flex; align-items: center; gap: 12px; background: #fff; border-radius: 16px; padding: 12px; margin-bottom: 14px; }
+#ov-iosshare .hd img { width: 46px; height: 46px; border-radius: 12px; }
+#ov-iosshare .hd b { font: 700 15px Cairo; display: block; }
+#ov-iosshare .hd small { font: 400 12px Cairo; color: #777; }
+#ov-iosshare .lst { background: #fff; border-radius: 16px; overflow: hidden; }
+#ov-iosshare .lst div { height: 52px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font: 400 16px Cairo; border-bottom: 1px solid #e5e5ea; }
+#ov-iosshare .lst div.on { background: #e9f6f2; font-weight: 700; color: #0f6e5c; }
+#ov-iosshare .lst i { width: 24px; height: 24px; color: #333; }
+#ov-home { background: linear-gradient(170deg, #4a6bd6, #9b59b6 55%, #e67e9b); }
+.hgrid { position: absolute; left: 26px; right: 26px; top: 70px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 26px 18px; }
+.hgrid i { display: block; width: 62px; height: 62px; border-radius: 16px; margin: 0 auto; background: rgba(255, 255, 255, 0.35); }
+.hgrid span { display: block; text-align: center; color: #fff; font: 400 11px Cairo; margin-top: 5px; }
+#homeW { position: absolute; width: 62px; height: 62px; border-radius: 16px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35); }
+#homeL { position: absolute; color: #fff; font: 700 12px Cairo; width: 80px; text-align: center; }
+
+/* الجهة اليمين: الشرح */
+#panel { position: absolute; right: 80px; top: 150px; width: 860px; }
+#chipTag { display: inline-flex; align-items: center; gap: 12px; padding: 8px 22px 8px 14px; border-radius: 40px; background: rgba(95, 224, 191, 0.12); border: 1.5px solid rgba(95, 224, 191, 0.35); color: var(--mint); font: 700 22px Cairo; }
+#chipTag .n { font: 900 22px Cairo; color: var(--deep); background: var(--mint); border-radius: 20px; padding: 0 12px; }
+#title { margin-top: 18px; font: 900 76px/1.15 Cairo; text-shadow: 0 8px 30px rgba(0, 0, 0, 0.4); }
+#uline { margin-top: 14px; height: 6px; width: 180px; border-radius: 3px; background: linear-gradient(90deg, var(--gold), var(--gold2)); transform-origin: right center; }
+#subs { position: relative; margin-top: 44px; height: 220px; }
+.sub { position: absolute; inset: 0; font: 700 44px/1.55 Cairo; }
+.sub span { opacity: 0.28; }
+#chips { position: absolute; right: 0; top: 480px; width: 860px; display: flex; flex-wrap: wrap; gap: 16px; justify-content: flex-start; }
+.chip { display: inline-flex; align-items: center; gap: 12px; padding: 12px 24px 12px 18px; border-radius: 22px; background: rgba(255, 255, 255, 0.08); border: 1.5px solid rgba(255, 255, 255, 0.16); font: 700 30px Cairo; box-shadow: 0 10px 26px rgba(0, 0, 0, 0.25); opacity: 0; }
+.chip .ic { width: 36px; height: 36px; color: var(--gold); }
+.side { position: absolute; right: 0; top: 470px; width: 860px; opacity: 0; }
+.sc { border-radius: 30px; background: rgba(255, 255, 255, 0.07); border: 1.5px solid rgba(255, 255, 255, 0.14); padding: 30px 34px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3); display: flex; gap: 28px; align-items: center; }
+.sc .big { width: 120px; height: 120px; flex: none; border-radius: 34px; padding: 28px; background: linear-gradient(150deg, var(--g2), var(--g)); color: #fff; box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35); }
+.sc h3 { font: 900 40px/1.3 Cairo; }
+.sc p { font: 700 28px/1.55 Cairo; color: rgba(255, 255, 255, 0.78); margin-top: 6px; }
+.sc.warn { border-color: rgba(231, 183, 90, 0.55); background: rgba(231, 183, 90, 0.1); }
+.sc.warn .big { background: linear-gradient(150deg, #e7b75a, #b9842a); }
+/* محادثة */
+#chat { border-radius: 30px; background: #0b1714; border: 1.5px solid rgba(255, 255, 255, 0.12); overflow: hidden; width: 700px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35); }
+#chat .hd { display: flex; align-items: center; gap: 14px; padding: 16px 22px; background: #12302b; font: 700 24px Cairo; }
+#chat .hd img { width: 46px; height: 46px; border-radius: 50%; }
+#chat .hd small { display: block; font: 400 17px Cairo; color: var(--mint); }
+#chat .body { padding: 22px; height: 300px; position: relative; background: radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px) 0 0/18px 18px; }
+.bub { position: absolute; max-width: 560px; padding: 14px 20px; border-radius: 20px; font: 700 26px Cairo; opacity: 0; }
+.bub.me { right: 22px; top: 22px; background: #1f6b57; border-top-right-radius: 6px; }
+.bub.you { left: 22px; top: 130px; background: #22302d; border-top-left-radius: 6px; }
+.bub code { font: 700 26px monospace; direction: ltr; display: block; letter-spacing: 1px; }
+.bub small { display: block; font: 400 18px Cairo; opacity: 0.75; }
+/* مخطط الاتصال عن بعد */
+#flow { position: relative; height: 330px; }
+.node { position: absolute; top: 60px; width: 220px; text-align: center; font: 700 28px Cairo; }
+.node .ic { width: 150px; height: 150px; margin: 0 auto 12px; border-radius: 40px; padding: 36px; background: linear-gradient(150deg, var(--g2), var(--g)); box-shadow: 0 16px 34px rgba(0, 0, 0, 0.35); }
+#nShop { right: 0; } #nHome { left: 0; }
+#nCloud { left: 50%; top: 80px; width: 130px; margin-left: -65px; text-align: center; font: 700 20px Cairo; color: var(--gold); }
+#nCloud .ic { width: 96px; height: 96px; margin: 0 auto 8px; border-radius: 50%; padding: 24px; background: rgba(231, 183, 90, 0.16); border: 2px solid rgba(231, 183, 90, 0.6); color: var(--gold); }
+.wire { position: absolute; top: 135px; height: 4px; background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.45) 0 12px, transparent 12px 22px); }
+.pk { position: absolute; top: 127px; width: 20px; height: 20px; margin-left: -10px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 18px var(--mint); }
+
+/* شريط التقدم */
+#prog { position: absolute; right: 80px; bottom: 54px; width: 860px; display: flex; gap: 8px; direction: rtl; }
+#prog i { flex: 1; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.12); overflow: hidden; position: relative; }
+#prog i b { position: absolute; right: 0; top: 0; bottom: 0; background: linear-gradient(270deg, var(--mint), var(--gold)); }
+#progL { position: absolute; right: 80px; bottom: 74px; font: 700 20px Cairo; color: rgba(255, 255, 255, 0.55); }
+
+/* بطاقة الفصل */
+#chap { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; z-index: 20; }
+#chapBg { position: absolute; inset: 0; background: linear-gradient(120deg, #0f6e5c, #0a4a3e 50%, #062a23); }
+#chapBg::after { content: ''; position: absolute; inset: 0; background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1.5px, transparent 1.6px); background-size: 34px 34px; }
+#chapIn { position: relative; text-align: center; }
+#chapNum { font: 900 260px/1 Cairo; color: transparent; -webkit-text-stroke: 4px rgba(255, 226, 154, 0.85); direction: ltr; }
+#chapIc { width: 120px; height: 120px; margin: -40px auto 10px; border-radius: 34px; padding: 28px; background: #fff; color: #0f6e5c; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35); position: relative; }
+#chapT { font: 900 92px Cairo; text-shadow: 0 10px 30px rgba(0, 0, 0, 0.35); }
+#chapS { font: 700 30px Cairo; color: var(--gold2); margin-top: 6px; }
+
+/* المقدمة والخاتمة */
+.full { position: absolute; inset: 0; z-index: 15; }
+#introLogo { position: absolute; left: 50%; top: 190px; width: 230px; height: 230px; margin-left: -115px; border-radius: 62px; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5), 0 0 140px rgba(95, 224, 191, 0.35); }
+.ring { position: absolute; left: 50%; top: 305px; width: 230px; height: 230px; margin: -115px 0 0 -115px; border-radius: 50%; border: 4px solid var(--mint); opacity: 0; }
+#introT { position: absolute; left: 0; right: 0; top: 470px; text-align: center; font: 900 120px/1.1 Cairo; text-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); }
+#introT em { font-style: normal; color: var(--gold); }
+#introS { position: absolute; left: 0; right: 0; top: 625px; text-align: center; font: 700 44px Cairo; color: var(--mint); }
+#introTiles { position: absolute; left: 0; right: 0; top: 780px; display: flex; justify-content: center; gap: 30px; }
+.tile { display: flex; align-items: center; gap: 16px; padding: 18px 34px 18px 26px; border-radius: 28px; background: rgba(255, 255, 255, 0.08); border: 1.5px solid rgba(255, 255, 255, 0.18); font: 700 36px Cairo; opacity: 0; }
+.tile .ic { width: 50px; height: 50px; color: var(--gold); }
+#outLogo { position: absolute; left: 50%; top: 90px; width: 170px; height: 170px; margin-left: -85px; border-radius: 46px; box-shadow: 0 30px 70px rgba(0, 0, 0, 0.5), 0 0 120px rgba(95, 224, 191, 0.3); }
+#outT { position: absolute; left: 0; right: 0; top: 290px; text-align: center; font: 900 70px Cairo; }
+#outT2 { position: absolute; left: 0; right: 0; top: 290px; text-align: center; font: 900 70px Cairo; display: flex; justify-content: center; align-items: center; gap: 22px; }
+#outT2 .ic { width: 74px; height: 74px; color: #25d366; }
+.num { position: absolute; left: 50%; width: 900px; margin-left: -450px; height: 150px; border-radius: 36px; background: rgba(255, 255, 255, 0.07); border: 2px solid rgba(255, 255, 255, 0.16); display: flex; align-items: center; justify-content: center; gap: 30px; direction: ltr; opacity: 0; }
+.num .cc { font: 700 34px Cairo; color: var(--mint); }
+.num .g { font: 900 84px Cairo; letter-spacing: 4px; opacity: 0.25; }
+#num1 { top: 420px; } #num2 { top: 600px; }
+#slogan { position: absolute; left: 0; right: 0; top: 800px; text-align: center; font: 900 66px Cairo; }
+#slogan em { font-style: normal; background: linear-gradient(180deg, var(--gold2), var(--gold)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+#link { position: absolute; left: 0; right: 0; top: 900px; text-align: center; font: 700 34px Cairo; color: rgba(255, 255, 255, 0.85); }
+#arrow { width: 54px; height: 54px; margin: 6px auto 0; color: var(--gold); transform: rotate(-90deg); }
+#fade { position: absolute; inset: 0; background: #000; opacity: 0; z-index: 50; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="blob" id="b1"></div>
+  <div class="blob" id="b2"></div>
+  <div id="dots"></div>
+
+  <div id="main">
+    <div id="brand"><img src="logo.png" alt="" /><div><b>وزن</b><small>شرح تطبيق الجوال</small></div></div>
+    <div id="cam">
+      <div id="phone">
+        <div id="scr">
+          <div id="sbar"><span>9:41</span><span class="r"><i class="sig"></i><i class="bat"></i></span></div>
+          <div id="hole"></div><div id="island"></div>
+          <div id="app">
+            <div id="shots"></div>
+            <div class="ov" id="ov-notif"><div class="card"><i class="nic ic">{{icon:download}}</i><div><b class="ltr">Wazn.apk</b><small>اكتمل التنزيل · اضغط للفتح</small></div></div></div>
+            <div class="ov" id="ov-block"><div class="dim"></div><div class="card"><h4>تم حظر التثبيت</h4><p>لأسباب أمنية، لا يُسمح لهاتفك بتثبيت تطبيقات غير معروفة من هذا المصدر.</p><div class="abtn" style="left:20px;bottom:18px;width:100px;height:40px">إلغاء</div><div class="abtn" style="right:20px;bottom:18px;width:120px;height:40px">الإعدادات</div></div></div>
+            <div class="ov" id="ov-allow"><div class="top">تثبيت تطبيقات غير معروفة</div><div class="row" style="top:126px"><i class="nic ic" style="width:40px;height:40px;padding:9px">{{icon:download}}</i>الملفات والتنزيلات</div><div class="row" style="top:210px">السماح من هذا المصدر<div class="sw"><i></i></div></div></div>
+            <div class="ov" id="ov-install"><div class="dim"></div><div class="card"><img src="logo.png" alt="" /><h4>وزن</h4><p>هل تريد تثبيت هذا التطبيق؟</p><div class="bar"><i></i></div><div class="abtn" style="left:30px;bottom:40px;width:130px;height:46px">إلغاء</div><div class="abtn fill" style="right:30px;bottom:40px;width:130px;height:46px">تثبيت</div></div></div>
+            <div class="ov" id="ov-scan"><div class="scan-hint">وجّه الكاميرا عالباركود</div><div class="bc"><div class="bars"></div><span>6291041500213</span></div><div class="vf"><i></i><i></i><i></i><i></i></div><div class="laser"></div><div class="scan-ok">6291041500213 ✓</div></div>
+            <div class="ov" id="ov-qrscan"><div class="scan-hint">امسح رمز الاتصال</div><div class="qrimg"><img id="qrsrc" alt="" /></div><div class="vf"><i></i><i></i><i></i><i></i></div><div class="scan-ok" id="qrok">وزن · فتح بسفاري</div></div>
+            <div class="ov" id="ov-big"><div class="dim"></div><div class="bigok"><i class="chk ic">{{icon:check}}</i><b id="bigT">تم</b></div></div>
+            <div class="ov" id="ov-share"><div class="dim"></div><div class="card"><h4>حفظ أو مشاركة الملف</h4><small>Wazn-ماركت-الخير.wazn</small><div class="apps"><div><i class="ic" style="background:#1fa463">{{icon:database}}</i>غوغل درايف</div><div><i class="ic" style="background:#25d366">{{icon:message-circle}}</i>واتساب</div><div><i class="ic" style="background:#3478f6">{{icon:network}}</i>بلوتوث</div><div><i class="ic" style="background:#7d8b88">{{icon:layers}}</i>الملفات</div></div></div></div>
+            <div class="ov" id="ov-iosshare"><div class="dim"></div><div class="card"><div class="hd"><img src="logo.png" alt="" /><div><b>وزن</b><small class="ltr">akyedgam3.github.io</small></div></div><div class="lst"><div>نسخ<i class="ic">{{icon:layers}}</i></div><div>إضافة إلى قائمة القراءة<i class="ic">{{icon:receipt}}</i></div><div class="on" id="iosAdd">إضافة إلى الشاشة الرئيسية<i class="ic">{{icon:smartphone}}</i></div><div>طباعة<i class="ic">{{icon:printer}}</i></div></div></div></div>
+            <div class="ov" id="ov-home"><div class="hgrid"></div><img id="homeW" src="logo.png" alt="" /><div id="homeL">وزن</div></div>
+            <div id="hls"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="panel">
+      <div id="chipTag"><span class="n ltr" id="tagN">1/13</span><span id="tagT">مقدمة</span></div>
+      <div id="title">وزن على الجوال</div>
+      <div id="uline"></div>
+      <div id="subs"></div>
+    </div>
+    <div id="chips" style="right:80px;top:640px"></div>
+    <div class="side" id="sd-chat" style="right:80px;top:600px"><div id="chat"><div class="hd"><img src="logo.png" alt="" /><div>دعم وزن<small>متصل الآن</small></div></div><div class="body"><div class="bub me" id="bub1"><small>بصمة جهازي:</small><code id="fpTxt">XXXX</code></div><div class="bub you" id="bub2"><small>هاد كود الترخيص تبعك:</small><code>MZN2-eyJ2IjoyLCJpZCI6…</code></div></div></div></div>
+    <div class="side" id="sd-key" style="right:80px;top:640px"><div class="sc"><i class="big ic">{{icon:key-round}}</i><div><h3>مفتاح الاسترجاع</h3><p>صوّرو أو اكتبو بمكان أمين. هو اللي بيرجعلك الشركة إذا نسيت كلمة السر.</p></div></div></div>
+    <div class="side" id="sd-tip" style="right:80px;top:640px"><div class="sc"><i class="big ic">{{icon:calendar-clock}}</i><div><h3>نصيحة</h3><p>اعمل نسخة احتياطية كل يوم بآخر الشغل، وخلّيها برا الجوال.</p></div></div></div>
+    <div class="side" id="sd-safe" style="right:80px;top:640px"><div class="sc"><i class="big ic">{{icon:shield-check}}</i><div><h3>بدون ترخيص إضافي</h3><p>الجوال البعيد بيشتغل بترخيص المحل، وكل شي بيمرق مشفّر.</p></div></div></div>
+    <div class="side" id="sd-warn" style="right:80px;top:640px"><div class="sc warn"><i class="big ic">{{icon:monitor}}</i><div><h3>انتبه</h3><p>جهاز المحل لازم يضل مفتوح ومتصل بالإنترنت.</p></div></div></div>
+    <div class="side" id="sd-flow" style="right:80px;top:600px"><div id="flow"><div class="node" id="nShop"><i class="ic">{{icon:store}}</i>جهاز المحل</div><div id="nCloud"><i class="ic">{{icon:lock}}</i>مشفّر</div><div class="node" id="nHome"><i class="ic">{{icon:smartphone}}</i>جوالك بالبيت</div><div class="wire" style="right:230px;left:230px"></div><i class="pk" id="pk1"></i><i class="pk" id="pk2"></i></div></div>
+    <div id="progL"></div>
+    <div id="prog"></div>
+  </div>
+
+  <div class="full" id="intro">
+    <i class="ring" id="r1"></i><i class="ring" id="r2"></i><i class="ring" id="r3"></i>
+    <img id="introLogo" src="logo.png" alt="" />
+    <div id="introT">وزن على <em>الجوال</em></div>
+    <div id="introS">الشرح الكامل… خطوة بخطوة</div>
+    <div id="introTiles">
+      <div class="tile" id="it1"><i class="ic">{{icon:chart-column}}</i>محاسبة</div>
+      <div class="tile" id="it2"><i class="ic">{{icon:store}}</i>إدارة محلات</div>
+      <div class="tile" id="it3"><i class="ic">{{icon:monitor}}</i>نفس ميزات الكمبيوتر</div>
+    </div>
+  </div>
+
+  <div class="full" id="outro">
+    <img id="outLogo" src="logo.png" alt="" />
+    <div id="outT">وهيك شرحنا كل شي</div>
+    <div id="outT2"><i class="ic">{{icon:message-circle}}</i>تواصل معنا عالواتساب</div>
+    <div class="num" id="num1"><span class="cc">+963</span><span class="g">0968</span><span class="g">037</span><span class="g">609</span></div>
+    <div class="num" id="num2"><span class="cc">+963</span><span class="g">0980</span><span class="g">072</span><span class="g">891</span></div>
+    <div id="slogan">وزن… حساباتك صارت <em>بوزنها</em></div>
+    <div id="link">الرابط تحت الفيديو<i id="arrow" class="ic">{{icon:arrow-left}}</i></div>
+  </div>
+
+  <div id="chap"><div id="chapBg"></div><div id="chapIn"><div id="chapNum">01</div><i id="chapIc" class="ic"></i><div id="chapT">التحميل</div><div id="chapS">الفصل الأول</div></div></div>
+  <div id="vig"></div>
+  <div id="fade"></div>
+</div>
+
+<script>
+const A = __ALIGN__;
+const ST = __STATES__;
+const ICONS = __ICONS__;
+document.getElementById('fpTxt').textContent = __FP__;
+const $ = (s) => document.querySelector(s);
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const ease = (x) => { x = clamp(x); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+const out = (x) => 1 - Math.pow(1 - clamp(x), 3);
+const back = (x) => { x = clamp(x); const c = 1.7; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+// نافذة ظهور: بتطلع بـ fi وبتختفي بـ fo
+const win = (t, a, b, fi = 0.3, fo = 0.3) => Math.min(clamp((t - a) / fi), clamp((b - t) / fo));
+
+// وقت كلمة جوا جملة (تقريبي حسب موقع الحروف)
+function W(i, k) {
+  const s = A[i];
+  if (k === undefined) return s.start;
+  if (typeof k === 'number') return s.start + k * (s.end - s.start);
+  const idx = s.text.indexOf(k);
+  if (idx < 0) { console.log('MISSING WORD', i, k); return s.start; }
+  return s.start + (idx / s.text.length) * (s.end - s.start) - 0.15;
+}
+const E = (i) => A[i].end;
+
+// ───── المحتوى ─────
+const CH = [
+  [4, 'التحميل والتثبيت', 'download'], [9, 'التفعيل', 'key-round'], [14, 'إنشاء الشركة', 'store'], [22, 'التعرف عالشاشة', 'smartphone'],
+  [26, 'المواد', 'layers'], [32, 'البيع', 'scan-barcode'], [40, 'الفواتير', 'receipt'], [45, 'الديون', 'hand-coins'],
+  [49, 'العملات وسعر الصرف', 'wallet'], [53, 'التقارير والمستخدمين', 'chart-column'], [58, 'النسخة الاحتياطية', 'database'],
+  [62, 'الاتصال عن بعد', 'network'], [70, 'التحديثات', 'refresh-cw'],
+];
+const ORD = ['الأول', 'التاني', 'التالت', 'الرابع', 'الخامس', 'السادس', 'السابع', 'التامن', 'التاسع', 'العاشر', 'الحادي عشر', 'التاني عشر', 'التالت عشر'];
+const T_INTRO = W(2) - 0.5;
+const T_OUT = W(72) - 0.4;
+window.DURATION = E(77) + 2.6;
+
+const SH = [], TAP = [], ZM = [], OV = [], SD = [], CP = [], PH = [];
+const shot = (t, n) => SH.push([t, n]);
+const tap = (t, ref, d = 1.4) => TAP.push({ t, ref, d });
+const zoom = (a, b, ref, s = 1.45) => ZM.push({ a, b, ref, s });
+const ov = (a, b, id) => OV.push({ a, b, id });
+const side = (a, b, id) => SD.push({ a, b, id });
+const chips = (a, b, list) => CP.push({ a, b, list });
+const phone = (t, k) => PH.push([t, k]);
+
+// مقدمة
+shot(0, 'dash'); phone(0, 'android');
+chips(W(2) - 0.2, W(4) - 0.4, [['بياناتك مشفّرة على جوالك', 'shield-check', W(2, 'ومشفّرة')], ['بيشتغل بدون إنترنت', 'wifi-off', W(2, 'بدون')]]);
+// 1 التحميل
+shot(W(4, 0.4), 'site');
+tap(W(5, 'تطبيق'), 'site.apk', 2.2); zoom(W(5, 'تطبيق') - 0.4, W(5, 'فبينزل') + 0.2, 'site.apk', 1.5);
+ov(W(5, 'فبينزل'), E(6) + 0.2, 'notif'); tap(W(6, 'الإشعارات'), { x: 10, y: 8, w: 370, h: 76 }, 1.6);
+ov(W(7) - 0.1, W(7, 'وفعّل') - 0.1, 'block'); tap(W(7, 'الإعدادات'), { x: 230, y: 482, w: 120, h: 40 }, 1.2);
+ov(W(7, 'وفعّل') - 0.1, W(7, 'وارجع'), 'allow'); tap(W(7, 'السماح'), { x: 20, y: 214, w: 70, h: 50 }, 1.4);
+ov(W(7, 'وارجع'), W(8) + 0.4, 'install'); tap(W(7, 'تثبيت'), { x: 230, y: 758, w: 130, h: 46 }, 1.1);
+shot(W(8, 'افتح'), 'intro');
+// 2 التفعيل
+shot(W(9, 0.4), 'lock');
+tap(W(10, 'بصمة'), 'lock.fp', 3.4); zoom(W(10, 'بصمة') - 0.4, E(10) + 0.1, 'lock.fp', 1.6);
+tap(W(11, 'نسخ'), 'lock.copy', 1.4);
+side(W(11, 'وابعتلنا') - 0.2, E(13) + 0.2, 'chat');
+shot(W(12, 'بتنسخو'), 'lock_key'); tap(W(12, 'وبتلصقو'), 'lock_key.key', 1.6); tap(W(12, 'تفعيل'), 'lock_key.activate', 1.2);
+ov(W(13) - 0.1, E(13) + 0.3, 'big:تم التفعيل');
+// 3 الشركة
+shot(W(14, 0.4), 'welcome');
+tap(W(15, 'شركة'), 'welcome.tab', 1.3); shot(W(15, 'واختار'), 'acts');
+[['سوبرماركت', 'a1', 'store'], ['مطعم', 'a2', 'utensils'], ['ألبسة', 'a3', 'shirt'], ['موبايلات', 'a4', 'smartphone'], ['صيدلية', 'a5', 'pill']].forEach(([w, k]) => tap(W(15, w), 'acts.' + k, 0.9));
+chips(W(15, 'سوبرماركت') - 0.2, E(16) + 0.2, [['سوبرماركت', 'store', W(15, 'سوبرماركت')], ['مطعم', 'utensils', W(15, 'مطعم')], ['ألبسة', 'shirt', W(15, 'ألبسة')], ['موبايلات', 'smartphone', W(15, 'موبايلات')], ['صيدلية', 'pill', W(15, 'صيدلية')], ['وغيرهن…', 'sparkles', W(15, 'غيرهن')]]);
+shot(W(17) - 0.2, 'form'); tap(W(17, 'اسم'), 'form.name', 1.1); tap(W(17, 'واسمك'), 'form.owner', 1.0); tap(W(17, 'وكلمة'), 'form.pass', 1.4);
+shot(W(18) - 0.2, 'form_demo'); tap(W(18, 'علّم'), 'form_demo.demo', 3); zoom(W(18, 'علّم') - 0.4, E(18) + 0.1, 'form_demo.demo', 1.45);
+shot(W(19) - 0.2, 'recovery'); tap(W(19, 'مفتاح'), 'recovery.key', 9); zoom(W(19, 'مفتاح') - 0.4, E(20) + 0.2, 'recovery.key', 1.55);
+side(W(20) - 0.1, E(21) + 0.2, 'key');
+tap(W(21, 'حفظته'), 'recovery.ok', 1.6);
+// 4 الشاشة
+shot(W(22, 0.4), 'dash');
+zoom(W(23, 'شريط') - 0.3, E(23) + 0.2, 'dash.nav', 1.5); tap(W(23, 'شريط'), 'dash.nav', 1.2);
+const NB = [['الرئيسية', 'n1', 'store'], ['البيع', 'n2', 'scan-barcode'], ['الفواتير', 'n3', 'receipt'], ['الديون', 'n4', 'hand-coins'], ['والمزيد', 'n5', 'menu']];
+NB.forEach(([w, k]) => tap(W(23, w), 'dash.' + k, 0.9));
+chips(W(23, 'الرئيسية') - 0.2, E(23) + 0.3, NB.map(([w, , ic]) => [w.replace(/^و/, ''), ic, W(23, w)]));
+tap(W(24, 'البحث'), 'dash.search', 1.6); tap(W(24, 'القائمة'), 'dash.menu', 1.8);
+shot(W(25, 'مبيعات') - 0.3, 'dash2'); tap(W(25, 'مبيعات'), 'dash2.stats', 3);
+chips(W(25, 'مبيعات') - 0.2, E(25) + 0.2, [['مبيعات اليوم', 'chart-column', W(25, 'مبيعات')], ['ربح اليوم', 'trending-up', W(25, 'وربح')], ['الصندوق', 'wallet', W(25, 'والصندوق')]]);
+shot(W(25, 'وأزرار') - 0.3, 'dash'); tap(W(25, 'وأزرار'), 'dash.quick', 2.6);
+// 5 المواد
+shot(W(26, 0.4), 'drawer');
+tap(W(27, 'المواد'), 'drawer.items', 1.1); shot(W(27, 'واكبس') - 0.2, 'items'); tap(W(27, 'إضافة'), 'items.add', 1.3);
+shot(W(28) - 0.2, 'item_new'); tap(W(28, 'اسم'), 'item_new.name', 1.4);
+shot(W(28, 'وسعر') - 0.3, 'item_price'); tap(W(28, 'وسعر'), 'item_price.sale', 2.2); tap(W(28, 'والوحدة'), 'item_price.unit', 2.2);
+chips(W(28, 'والوحدة') - 0.2, E(28) + 0.3, [['قطعة', 'layers', W(28, 'قطعة')], ['كيلو', 'layers', W(28, 'كيلو')], ['كرتونة', 'layers', W(28, 'كرتونة')]]);
+shot(W(29) - 0.2, 'item_new'); tap(W(29, 'والباركود'), 'item_new.barcode', 1.3); tap(W(29, 'الكاميرا'), 'item_new.cam', 1.0);
+ov(W(29, 'ووجّه') - 0.2, E(29) + 0.25, 'scan');
+shot(W(30) - 0.2, 'item_price'); tap(W(30, 'عملة'), 'item_price.cur', 3.4);
+chips(W(30, 'بالليرة') - 0.2, E(30) + 0.3, [['ليرة', 'wallet', W(30, 'بالليرة')], ['دولار', 'wallet', W(30, 'بالدولار')], ['أي عملة بتضيفها', 'sparkles', W(30, 'بأي')]]);
+shot(W(31) - 0.2, 'items'); tap(W(31, 'إكسل'), 'items.imp', 2.6);
+chips(W(31, 'إكسل') - 0.2, E(31) + 0.3, [['استيراد من إكسل', 'file-spreadsheet', W(31, 'إكسل')]]);
+// 6 البيع
+shot(W(32, 0.4), 'dash');
+tap(W(33, 'البيع'), 'dash.n2', 1.1); shot(W(33, 'فبتفتح') - 0.2, 'pos');
+tap(W(34, 'تبويبين'), 'pos.tabs', 2.8); zoom(W(34, 'تبويبين') - 0.3, E(34) + 0.1, 'pos.tabs', 1.5);
+tap(W(35, 'كبسة'), 'pos.item', 0.9); shot(W(35, 'بتنضاف') - 0.1, 'pos_added'); tap(W(35, 'للسلة'), 'pos_added.bar', 1.2);
+shot(W(35, 'وفيك') - 0.2, 'pos'); tap(W(35, 'تبحث'), 'pos.search', 1.1); tap(W(35, 'تمسح'), 'pos.cam', 0.8);
+ov(W(35, 'بالكاميرا') - 0.1, E(35) + 0.35, 'scan');
+shot(W(36) - 0.2, 'cart'); tap(W(36, 'المواد'), 'cart.lines', 1.6); tap(W(36, 'الكمية'), 'cart.qty', 1.1); tap(W(36, 'تحذف'), 'cart.del', 1.1);
+shot(W(36, 'حسم') - 0.5, 'cart2'); tap(W(36, 'حسم'), { x: 368 - 290, y: 166, w: 290, h: 40 }, 1.6);
+shot(W(37) - 0.2, 'cart_usd'); tap(W(37, 'عملة'), 'cart_usd.cur', 2); tap(W(37, 'بيحسبها'), 'cart_usd.totals', 2.4);
+shot(W(38) - 0.2, 'cart2'); tap(W(38, 'دفع'), 'cart2.pay', 1.2);
+ov(W(38, 'وخلصت') - 0.2, E(38) + 0.35, 'big:تم البيع'); shot(W(38, 'وخلصت'), 'sold');
+shot(W(39) - 0.2, 'invoice'); tap(W(39, 'تطبعها'), 'invoice.print', 1.8); tap(W(39, 'PDF'), 'invoice.share', 1.8);
+chips(W(39, 'تطبعها') - 0.2, E(39) + 0.3, [['طابعة بلوتوث', 'printer', W(39, 'تطبعها')], ['PDF عالواتساب', 'message-circle', W(39, 'PDF')]]);
+// 7 الفواتير
+shot(W(40, 0.4), 'invoices');
+tap(W(41, 'الفواتير'), 'invoices.nav', 1.2); tap(W(41, 'وفيك'), 'invoices.first', 1.0); shot(W(41, 'تفتح'), 'invoice'); tap(W(41, 'وتطبعها'), 'invoice.print', 1.6);
+shot(W(42) - 0.2, 'sale0'); tap(W(42, 'الزبون'), 'sale0.party', 1.8); tap(W(42, 'وتضيف'), 'sale0.lines', 1.8);
+chips(W(43) - 0.2, E(43) + 0.3, [['الباقي ← الديون لحالو', 'hand-coins', W(43, 'الباقي')]]);
+shot(W(43, 'الباقي'), 'debts'); tap(W(43, 'عالديون'), 'debts.owed', 1.6);
+shot(W(44) - 0.2, 'invoice'); tap(W(44, 'الإكس'), 'invoice.back', 2); zoom(W(44, 'الإكس') - 0.4, E(44) + 0.2, 'invoice.back', 1.7);
+// 8 الديون
+shot(W(45, 0.4), 'debts');
+tap(W(46, 'لنا'), 'debts.owed', 2.4); tap(W(46, 'لهم'), 'debts.owe', 2.4);
+chips(W(46, 'لنا') - 0.2, E(46) + 0.3, [['لنا عليهم: إلك عند الناس', 'trending-up', W(46, 'لنا')], ['لهم علينا: عليك للناس', 'hand-coins', W(46, 'لهم')]]);
+shot(W(47) - 0.1, 'debt_party'); shot(W(47, 'تسجيل') - 0.3, 'debt_pay'); tap(W(47, 'المبلغ'), 'debt_pay.amount', 1.8);
+shot(W(48) - 0.2, 'debt_new'); tap(W(48, 'دين'), { x: 12, y: 120, w: 236, h: 44 }, 1.4);
+shot(W(48, 'وتبعت') - 0.2, 'debt_party'); tap(W(48, 'تذكير'), 'debt_party.remind', 1.8);
+// 9 العملات
+shot(W(49, 0.4), 'drawer');
+tap(W(50, 'العملات'), 'drawer.rates', 1.4); shot(E(50) - 0.1, 'rates');
+tap(W(51, 'الليرة'), 'rates.current', 1.6); shot(W(51, 'وفيك') - 0.2, 'cur_new'); tap(W(51, 'التركي'), 'cur_new.quick', 2.6);
+chips(W(51, 'التركي') - 0.2, E(51) + 0.3, [['ليرة تركية', 'wallet', W(51, 'التركي')], ['يورو', 'wallet', W(51, 'اليورو')], ['ريال', 'wallet', W(51, 'الريال')]]);
+shot(W(52) - 0.2, 'rates'); tap(W(52, 'سعر'), 'rates.market', 2.2); tap(W(52, 'بكل'), 'rates.current', 1.6);
+// 10 التقارير
+shot(W(53, 0.4), 'reports');
+tap(W(54, 'الأرباح'), 'reports.tabs', 4.5);
+chips(W(54, 'الأرباح') - 0.2, E(54) + 0.3, [['الأرباح', 'trending-up', W(54, 'الأرباح')], ['المبيعات', 'chart-column', W(54, 'والمبيعات')], ['المخزون', 'layers', W(54, 'والمخزون')], ['كشف حساب', 'file-spreadsheet', W(54, 'وكشف')], ['إغلاق اليوم', 'calendar-clock', W(54, 'إغلاق')]]);
+shot(W(55) - 0.2, 'reports2'); tap(W(55, 'تطبعو'), 'reports2.print', 1.4); tap(W(55, 'إكسل'), 'reports2.exp', 1.6);
+shot(W(56) - 0.2, 'users'); tap(W(56, 'المستخدمين'), 'users.add', 1.3); shot(W(56, 'بتعطي') - 0.2, 'user_new'); tap(W(56, 'وصلاحيات'), 'user_new.role', 1.6);
+chips(W(57) - 0.2, E(57) + 0.3, [['الكاشير بيبيع ✓', 'scan-barcode', W(57, 'بيبيع')], ['ما بيشوف الأرباح', 'lock', W(57, 'الأرباح')], ['ما بيعدّل الأسعار', 'lock', W(57, 'الأسعار')]]);
+// 11 النسخة الاحتياطية
+shot(W(58, 0.4), 'backup');
+tap(W(59, 'الإعدادات'), 'backup.tab', 1.1); tap(W(59, 'نسخة'), 'backup.btn', 1.4);
+ov(W(59, 'ملف'), E(59) + 0.3, 'share');
+shot(W(60, 'بتنزّل') - 0.2, 'restore'); tap(W(60, 'استعادة'), 'restore.btn', 2.6); zoom(W(60, 'استعادة') - 0.4, E(60) + 0.2, 'restore.btn', 1.5);
+side(W(61) - 0.2, E(61) + 0.5, 'tip');
+// 12 الاتصال عن بعد
+shot(W(62, 0.4), 'cloud');
+side(W(63) - 0.1, E(63) + 0.2, 'flow');
+tap(W(64, 'الاتصال'), 'cloud.tab', 1.2); tap(W(64, 'وفعّلها'), 'cloud.check', 1.2); tap(W(64, 'رمز'), 'cloud.qr', 2.6); zoom(W(64, 'رمز') - 0.3, E(64) + 0.3, 'cloud.qr', 1.4);
+shot(W(65) - 0.2, 'remote_android'); tap(W(65, 'اتصال'), 'remote_android.tab', 1.2); tap(W(65, 'وامسح'), 'remote_android.cam', 1.0);
+ov(W(65, 'وامسح') + 0.3, W(65, 'واكتب') - 0.1, 'qrscan'); tap(W(65, 'المستخدم'), 'remote_android.user', 1.4); tap(W(65, 'السر'), 'remote_android.connect', 1.1);
+phone(W(66) - 0.35, 'iphone'); shot(W(66) - 0.35, 'iphone');
+ov(W(66, 'الكاميرا') - 0.1, W(66, 'فبتنفتح'), 'qrscan'); tap(W(66, 'جاهز'), 'iphone.code', 2);
+ov(W(67) - 0.1, W(67, 'فبتصير'), 'iosshare'); tap(W(67, 'إضافة'), { x: 16, y: 552, w: 358, h: 52 }, 1.6);
+ov(W(67, 'فبتصير'), E(67) + 0.4, 'home');
+phone(W(68) - 0.2, 'android'); shot(W(68) - 0.2, 'dash');
+side(W(68) - 0.1, E(68) + 0.2, 'safe');
+side(W(69) - 0.1, E(69) + 0.5, 'warn');
+// 13 التحديثات
+shot(W(70, 0.4), 'update');
+tap(W(71, 'تنبيه'), 'update.notice', 3.2); zoom(W(71, 'تنبيه') - 0.3, E(71) + 0.2, 'update.notice', 1.3);
+
+SH.sort((a, b) => a[0] - b[0]);
+// أوقات المؤثرات الصوتية (music.py بيقراها)
+window.EVENTS = {
+  click: TAP.map((c) => c.t),
+  whoosh: [T_INTRO, T_OUT, ...CH.map(([i]) => W(i) - 0.5)],
+  swish: SH.filter(([t], k) => k > 0 && SH[k - 1][1] !== SH[k][1]).map(([t]) => t),
+  pop: CP.flatMap((c) => c.list.map((x) => x[2])).concat(SD.map((x) => x.a)),
+  chime: OV.filter((o) => o.id.startsWith('big')).map((o) => o.a + 0.1),
+  beep: OV.filter((o) => o.id === 'scan' || o.id === 'qrscan').map((o) => o.a + 0.68 * (o.b - o.a)),
+  sections: [0, ...CH.map(([i]) => W(i) - 0.5), T_OUT],
+  duration: window.DURATION,
+};
+PH.sort((a, b) => a[0] - b[0]);
+
+// ───── بناء العناصر ─────
+const shotsEl = $('#shots');
+const IMG = {};
+for (const n of Object.keys(ST)) {
+  const im = document.createElement('img');
+  im.className = 'sh'; im.src = 'shots/' + ST[n].file; im.style.opacity = 0;
+  shotsEl.append(im); IMG[n] = im;
+}
+const hlsEl = $('#hls');
+const HL = TAP.map(() => {
+  const h = document.createElement('div'); h.className = 'hl';
+  const d = document.createElement('div'); d.className = 'tapdot';
+  const r = document.createElement('div'); r.className = 'tapring';
+  hlsEl.append(h, d, r);
+  return { h, d, r };
+});
+const chipsEl = $('#chips');
+const CPE = CP.map((c) => c.list.map(([txt, ic]) => {
+  const e = document.createElement('div'); e.className = 'chip';
+  e.innerHTML = `<i class="ic">${ICONS[ic] ?? ''}</i><span>${txt}</span>`;
+  chipsEl.append(e); return e;
+}));
+const prog = $('#prog');
+CH.forEach(() => { const i = document.createElement('i'); i.innerHTML = '<b></b>'; prog.append(i); });
+const hg = $('.hgrid');
+for (let k = 0; k < 19; k++) hg.insertAdjacentHTML('beforeend', `<div><i style="background:hsla(${(k * 47) % 360},55%,${55 + (k % 3) * 8}%,.9)"></i><span>تطبيق</span></div>`);
+// صورة QR من لقطة الإعدادات
+{
+  const q = ST.cloud.targets.qr, img = $('#qrsrc'), s = 220 / q.w;
+  img.src = 'shots/' + ST.cloud.file; img.style.width = 390 * s + 'px'; img.style.left = -q.x * s + 'px'; img.style.top = -q.y * s + 'px';
+}
+// الجمل كلمة كلمة
+const subsEl = $('#subs');
+const SUB = A.map((s, i) => {
+  const d = document.createElement('div'); d.className = 'sub'; d.style.opacity = 0;
+  const words = s.text.split(' ');
+  let pos = 0;
+  const spans = words.map((w) => {
+    const sp = document.createElement('span'); sp.textContent = w + ' '; d.append(sp);
+    const at = s.start + (pos / s.text.length) * (s.end - s.start) - 0.1; pos += w.length + 1;
+    return { sp, at };
+  });
+  subsEl.append(d);
+  return { d, spans };
+});
+
+function boxOf(ref) {
+  if (typeof ref === 'object') return ref;
+  const [n, k] = ref.split('.');
+  const b = ST[n]?.targets?.[k];
+  if (!b) console.log('MISSING BOX', ref);
+  return b ?? { x: 0, y: 0, w: 0, h: 0 };
+}
+const shotAt = (t) => { let k = 0; for (let i = 0; i < SH.length; i++) if (SH[i][0] <= t) k = i; return k; };
+let lastPhone = '';
+
+window.render = function (t) {
+  // الخلفية
+  $('#b1').style.transform = `translate(${-120 + Math.sin(t * 0.11) * 160}px, ${180 + Math.cos(t * 0.09) * 120}px)`;
+  $('#b2').style.transform = `translate(${1300 + Math.cos(t * 0.07) * 200}px, ${-160 + Math.sin(t * 0.13) * 140}px)`;
+
+  // المقدمة
+  const intro = $('#intro');
+  const io = 1 - clamp((t - (T_INTRO - 0.6)) / 0.7);
+  intro.style.opacity = io; intro.style.display = io > 0 ? '' : 'none';
+  if (io > 0) {
+    const lp = back((t - 0.3) / 0.8);
+    $('#introLogo').style.transform = `scale(${lp}) rotate(${(1 - lp) * -12}deg)`;
+    $('#introLogo').style.opacity = clamp((t - 0.3) / 0.3);
+    ['#r1', '#r2', '#r3'].forEach((r, k) => { const p = clamp((t - 0.6 - k * 0.35) / 1.6); $(r).style.opacity = p > 0 && p < 1 ? (1 - p) * 0.8 : 0; $(r).style.transform = `scale(${1 + p * 2.2})`; });
+    const tp = out((t - 1.1) / 0.7);
+    $('#introT').style.opacity = tp; $('#introT').style.transform = `translateY(${(1 - tp) * 40}px)`;
+    const sp = out((t - 1.7) / 0.7);
+    $('#introS').style.opacity = sp; $('#introS').style.transform = `translateY(${(1 - sp) * 30}px)`;
+    [[1, 'محاسبة'], [1, 'وإدارة'], [1, 'ميزات']].forEach(([i, w], k) => { const p = back((t - W(i, w)) / 0.5); const e = $('#it' + (k + 1)); e.style.opacity = clamp((t - W(i, w)) / 0.25); e.style.transform = `scale(${0.6 + 0.4 * p})`; });
+    const ex = clamp((t - (T_INTRO - 0.6)) / 0.7);
+    intro.style.transform = `scale(${1 + ex * 0.08})`;
+  }
+  // الخاتمة
+  const outro = $('#outro');
+  const oo = clamp((t - T_OUT) / 0.7);
+  outro.style.opacity = oo; outro.style.display = oo > 0 ? '' : 'none';
+  if (oo > 0) {
+    const lp = back((t - T_OUT - 0.1) / 0.8);
+    $('#outLogo').style.transform = `scale(${lp})`;
+    const a = win(t, T_OUT + 0.2, W(73) - 0.1, 0.4, 0.3), b = clamp((t - W(73) + 0.1) / 0.4);
+    $('#outT').style.opacity = a; $('#outT').style.transform = `translateY(${(1 - a) * 20}px)`;
+    $('#outT2').style.opacity = b; $('#outT2').style.transform = `translateY(${(1 - out(b)) * 30}px)`;
+    [['#num1', 74], ['#num2', 75]].forEach(([id, i]) => {
+      const e = $(id), p = out((t - W(i) + 0.2) / 0.5);
+      e.style.opacity = p; e.style.transform = `translateY(${(1 - p) * 40}px)`;
+      const g = e.querySelectorAll('.g'); const s = W(i, 'صفر'), d = E(i) - s;
+      [0, 0.38, 0.7].forEach((f, k) => { g[k].style.opacity = 0.25 + 0.75 * clamp((t - (s + f * d)) / 0.25); });
+      e.style.borderColor = t > W(i) && t < E(i) + 0.3 ? 'rgba(95,224,191,.7)' : 'rgba(255,255,255,.16)';
+    });
+    const sl = out((t - W(76)) / 0.6);
+    $('#slogan').style.opacity = sl; $('#slogan').style.transform = `scale(${0.9 + 0.1 * sl})`;
+    const lk = clamp((t - W(77)) / 0.4);
+    $('#link').style.opacity = lk; $('#arrow').style.transform = `rotate(-90deg) translateX(${-Math.abs(Math.sin(t * 4)) * 14}px)`;
+  }
+  $('#fade').style.opacity = clamp((t - (window.DURATION - 1.2)) / 1.1);
+
+  // الواجهة الأساسية
+  const mo = clamp((t - (T_INTRO - 0.3)) / 0.7) * (1 - oo);
+  const main = $('#main');
+  main.style.opacity = mo; main.style.display = mo > 0 ? '' : 'none';
+  if (mo <= 0 && !(t >= T_INTRO - 1)) { $('#chap').style.display = 'none'; return; }
+  const fly = out((t - (T_INTRO - 0.3)) / 1.0);
+
+  // نوع الجوال
+  let kind = 'android'; for (const [pt, k] of PH) if (pt <= t) kind = k;
+  if (kind !== lastPhone) {
+    lastPhone = kind;
+    $('#hole').style.display = kind === 'android' ? '' : 'none';
+    $('#island').style.display = kind === 'iphone' ? '' : 'none';
+    $('#phone').style.background = kind === 'iphone' ? 'linear-gradient(160deg,#c9ccd1,#6c7076 50%,#b5b9bf)' : 'linear-gradient(160deg,#3c4a47,#111a18 55%,#2a3533)';
+    $('#sbar').style.background = kind === 'iphone' ? '#0c2d26' : '#0c2d26';
+  }
+
+  // اللقطات
+  const k = shotAt(t), cur = SH[k], prev = SH[k - 1];
+  const tp = clamp((t - cur[0]) / 0.35);
+  for (const [n, im] of Object.entries(IMG)) { im.style.opacity = 0; im.style.transform = ''; }
+  if (prev && tp < 1 && prev[1] !== cur[1]) { IMG[prev[1]].style.opacity = 1; }
+  IMG[cur[1]].style.opacity = prev && prev[1] !== cur[1] ? ease(tp) : 1;
+  IMG[cur[1]].style.transform = prev && prev[1] !== cur[1] ? `translateX(${(1 - ease(tp)) * -26}px)` : '';
+  // شريط الحالة بلون الشاشة
+  $('#sbar').style.background = cur[1] === 'site' ? '#071a17' : cur[1] === 'intro' ? '#0b2d27' : '#0c2d26';
+
+  // التأشير
+  TAP.forEach((c, i) => {
+    const { h, d, r } = HL[i];
+    const a = win(t, c.t - 0.15, c.t + c.d, 0.2, 0.3);
+    if (a <= 0) { h.style.opacity = d.style.opacity = r.style.opacity = 0; return; }
+    const b = boxOf(c.ref), pad = 4;
+    Object.assign(h.style, { left: b.x - pad + 'px', top: b.y - pad + 'px', width: b.w + pad * 2 + 'px', height: b.h + pad * 2 + 'px', opacity: a });
+    h.style.transform = `scale(${1 + (1 - out((t - c.t + 0.15) / 0.35)) * 0.12})`;
+    const cx = b.x + b.w / 2, cy = b.y + b.h / 2, tt = t - c.t;
+    const dp = win(t, c.t, c.t + 0.55, 0.12, 0.25);
+    Object.assign(d.style, { left: cx + 'px', top: cy + 'px', opacity: dp * 0.95, transform: `scale(${tt < 0.12 ? 1.25 : 0.85})` });
+    const rp = clamp((tt - 0.1) / 0.6);
+    Object.assign(r.style, { left: cx + 'px', top: cy + 'px', opacity: rp > 0 && rp < 1 ? (1 - rp) : 0, transform: `scale(${1 + rp * 1.8})` });
+  });
+
+  // الطبقات فوق الشاشة
+  const ovs = {};
+  for (const c of OV) { const a = win(t, c.a, c.b, 0.25, 0.25); if (a > 0) { const [id, arg] = c.id.split(':'); ovs[id] = { a, p: clamp((t - c.a) / (c.b - c.a)), arg, c }; } }
+  for (const id of ['notif', 'block', 'allow', 'install', 'scan', 'qrscan', 'big', 'share', 'iosshare', 'home']) {
+    const e = $('#ov-' + id), o = ovs[id];
+    e.style.opacity = o ? o.a : 0;
+    if (!o) continue;
+    const ap = out((t - o.c.a) / 0.4);
+    if (id === 'notif') e.querySelector('.card').style.transform = `translateY(${(1 - ap) * -100}px)`;
+    if (id === 'block') e.querySelector('.card').style.transform = `scale(${0.9 + 0.1 * ap})`;
+    if (id === 'install') {
+      e.querySelector('.card').style.transform = `translateY(${(1 - ap) * 300}px)`;
+      const ip = clamp((t - (W(7, 'تثبيت') + 0.3)) / 1.2);
+      e.querySelector('.bar').style.opacity = ip > 0 ? 1 : 0; e.querySelector('.bar i').style.width = ip * 100 + '%';
+    }
+    if (id === 'allow') { const on = clamp((t - W(7, 'السماح') - 0.2) / 0.25); const sw = e.querySelector('.sw'); sw.style.background = on > 0.5 ? '#0f6e5c' : '#b9c1bf'; sw.querySelector('i').style.right = 3 + on * 22 + 'px'; }
+    if (id === 'scan' || id === 'qrscan') {
+      const lz = e.querySelector('.laser'); if (lz) lz.style.top = 330 + (Math.sin((t - o.c.a) * 4) * 0.5 + 0.5) * 130 + 'px';
+      const ok = e.querySelector('.scan-ok'); const okp = clamp((o.p - 0.62) / 0.12); ok.style.opacity = okp; ok.style.transform = `translateY(${(1 - okp) * 20}px)`;
+      e.querySelector('.vf').style.transform = `scale(${1 - 0.04 * Math.sin((t - o.c.a) * 5)})`;
+      e.querySelectorAll('.vf i').forEach((i) => (i.style.borderColor = okp > 0.5 ? '#5fe0bf' : '#fff'));
+    }
+    if (id === 'big') { $('#bigT').textContent = o.arg; e.querySelector('.bigok').style.transform = `scale(${back((t - o.c.a) / 0.45)})`; }
+    if (id === 'share' || id === 'iosshare') e.querySelector('.card').style.transform = `translateY(${(1 - ap) * 480}px)`;
+    if (id === 'home') {
+      const hp = back((t - o.c.a - 0.35) / 0.5);
+      Object.assign($('#homeW').style, { left: 26 + 3 * 87 + 8 + 'px', top: 70 + 5 * 104 + 'px', transform: `scale(${Math.max(0, hp)})` });
+      Object.assign($('#homeL').style, { left: 26 + 3 * 87 - 1 + 'px', top: 70 + 5 * 104 + 66 + 'px', opacity: clamp((t - o.c.a - 0.6) / 0.3) });
+    }
+  }
+
+  // الكاميرا (تكبير على عنصر)
+  let s = 1, tx = 0, ty = 0;
+  for (const z of ZM) {
+    const a = ease(win(t, z.a, z.b, 0.6, 0.6));
+    if (a <= 0) continue;
+    const b = boxOf(z.ref), K = 1.076923;
+    const px = 338 + 12 + (b.x + b.w / 2) * K, py = 56 + 12 + 36 + (b.y + b.h / 2) * K;
+    const S = 1 + (z.s - 1) * a, Dx = 560, Dy = 540;
+    s = S; tx = (Dx - S * px) * a + 0 * (1 - a); ty = (Dy - S * py) * a;
+    // ما منخلي الجوال يطلع برا الشاشة كتير
+    tx = px * (1 - S) + (Dx - px) * a; ty = py * (1 - S) + (Dy - py) * a * 0.6;
+  }
+  const flyY = (1 - fly) * 700;
+  $('#cam').style.transform = `translate(${tx}px, ${ty + flyY}px) scale(${s})`;
+  $('#phone').style.transform = `rotate(${(1 - fly) * -8}deg)`;
+
+  // اللوحة: الفصل والجملة
+  let ci = -1; CH.forEach(([i], k) => { if (W(i) - 0.5 <= t) ci = k; });
+  const tag = ci < 0 ? ['مقدمة', ''] : [CH[ci][1], `${ci + 1}/${CH.length}`];
+  const titleTxt = ci < 0 ? 'وزن على الجوال' : CH[ci][1];
+  if ($('#title').textContent !== titleTxt) $('#title').textContent = titleTxt;
+  $('#tagT').textContent = tag[0]; $('#tagN').textContent = tag[1]; $('#tagN').style.display = tag[1] ? '' : 'none';
+  const cs = ci < 0 ? T_INTRO : W(CH[ci][0]);
+  const tin = out((t - cs - 0.2) / 0.6);
+  $('#title').style.transform = `translateX(${(1 - tin) * -40}px)`; $('#title').style.opacity = 0.2 + 0.8 * tin;
+  $('#uline').style.transform = `scaleX(${tin})`;
+  // الجملة الحالية
+  let si = 0; A.forEach((s, i) => { if (s.start - 0.3 <= t) si = i; });
+  SUB.forEach((o, i) => {
+    const vis = i === si ? clamp((t - (A[i].start - 0.3)) / 0.3) : (i === si - 1 ? 1 - clamp((t - (A[si].start - 0.3)) / 0.25) : 0);
+    o.d.style.opacity = vis; o.d.style.display = vis > 0 ? '' : 'none';
+    if (vis <= 0) return;
+    o.d.style.transform = `translateY(${(1 - out(vis)) * 16}px)`;
+    o.spans.forEach(({ sp, at }) => { const p = clamp((t - at) / 0.18); sp.style.opacity = 0.28 + 0.72 * p; sp.style.color = t > at && t < at + 0.5 ? '#ffe29a' : ''; });
+  });
+
+  // الشرائح
+  CP.forEach((c, i) => {
+    const a = win(t, c.a, c.b, 0.25, 0.35);
+    c.list.forEach(([, , at], j) => {
+      const e = CPE[i][j];
+      if (a <= 0) { e.style.display = 'none'; return; }
+      e.style.display = '';
+      const p = back((t - at) / 0.45);
+      e.style.opacity = Math.min(a, clamp((t - at) / 0.2));
+      e.style.transform = `translateY(${(1 - p) * 30}px) scale(${0.85 + 0.15 * p})`;
+      e.style.borderColor = t > at && t < at + 0.8 ? 'rgba(231,183,90,.8)' : '';
+    });
+  });
+  // البطاقات الجانبية
+  for (const id of ['chat', 'key', 'tip', 'safe', 'warn', 'flow']) {
+    const c = SD.find((x) => x.id === id && t > x.a - 0.5 && t < x.b + 0.5);
+    const e = $('#sd-' + id);
+    const a = c ? win(t, c.a, c.b, 0.35, 0.35) : 0;
+    e.style.opacity = a; e.style.display = a > 0 ? '' : 'none';
+    if (!c || a <= 0) continue;
+    e.style.transform = `translateY(${(1 - out(clamp((t - c.a) / 0.5))) * 40}px)`;
+    if (id === 'chat') {
+      [['#bub1', W(11, 'وابعتلنا') + 0.3], ['#bub2', W(12, 'منبعتلك')]].forEach(([b, at]) => { const p = back((t - at) / 0.45); $(b).style.opacity = clamp((t - at) / 0.2); $(b).style.transform = `scale(${0.7 + 0.3 * p})`; });
+    }
+    if (id === 'flow') {
+      const L = 230, R = 860 - 230, w = R - L;
+      $('#pk1').style.left = 860 - (L + ((t * 0.55) % 1) * w) + 'px';
+      $('#pk2').style.left = L + ((t * 0.55 + 0.5) % 1) * w + 'px';
+      $('#nCloud .ic').style.transform = `scale(${1 + Math.sin(t * 3) * 0.05})`;
+    }
+  }
+
+  // شريط التقدم
+  [...prog.children].forEach((e, k) => {
+    const a = W(CH[k][0]) - 0.5, b = k + 1 < CH.length ? W(CH[k + 1][0]) - 0.5 : T_OUT;
+    e.querySelector('b').style.width = clamp((t - a) / (b - a)) * 100 + '%';
+  });
+
+  // بطاقة الفصل
+  let cv = 0, cc = null;
+  CH.forEach(([i, name, ic], k) => {
+    const a = W(i) - 0.55, b = Math.max(E(i) + 0.35, a + 2.3);
+    const v = win(t, a, b, 0.45, 0.45);
+    if (v > cv) { cv = v; cc = { k, name, ic, a, b }; }
+  });
+  const chap = $('#chap');
+  chap.style.display = cv > 0 ? '' : 'none';
+  if (cc) {
+    const inP = ease(clamp((t - cc.a) / 0.45)), outP = ease(clamp((t - (cc.b - 0.45)) / 0.45));
+    $('#chapBg').style.clipPath = `polygon(${100 - inP * 130}% 0, 100% 0, 100% 100%, ${100 - inP * 130 - 30}% 100%)`;
+    if (outP > 0) $('#chapBg').style.clipPath = `polygon(0 0, ${100 - outP * 130 + 30}% 0, ${100 - outP * 130}% 100%, 0 100%)`;
+    $('#chapNum').textContent = String(cc.k + 1).padStart(2, '0');
+    if ($('#chapT').textContent !== cc.name) { $('#chapT').textContent = cc.name; $('#chapIc').innerHTML = ICONS[cc.ic] ?? ''; }
+    $('#chapS').textContent = 'الفصل ' + ORD[cc.k];
+    const ti = back((t - cc.a - 0.2) / 0.55);
+    $('#chapIn').style.opacity = Math.min(clamp((t - cc.a - 0.15) / 0.25), 1 - outP);
+    $('#chapIn').style.transform = `translateX(${(1 - ti) * -80 + outP * 120}px)`;
+    $('#chapNum').style.transform = `translateY(${(1 - out((t - cc.a) / 0.8)) * 40}px)`;
+  }
+};
+
+(async () => {
+  await document.fonts.ready;
+  await Promise.all([...document.images].map((i) => i.decode().catch(() => undefined)));
+  window.render(0);
+  window.READY = true;
+})();
+</script>
+</body>
+</html>
