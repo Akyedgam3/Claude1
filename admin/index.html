@@ -171,7 +171,8 @@ function render() {
   $('#rows').innerHTML = list.map((c) => {
     const exp = c.expiresAt ? c.expiresAt.slice(0, 10) : 'دائم';
     const expired = c.expiresAt && new Date(c.expiresAt) < new Date();
-    const planOpts = Object.entries(state.plans).map(([k, v]) => `<option value="${k}">${esc(v.nameAr)}</option>`).join('');
+    // القائمة بتبيّن الاشتراك الحالي (كانت دايماً على «شهري» فبيبيّن كأنو رجع، وكبسة «تمديد» بالغلط بترجّعه شهري)
+    const planOpts = Object.entries(state.plans).map(([k, v]) => `<option value="${k}"${k === c.plan ? ' selected' : ''}>${esc(v.nameAr)}</option>`).join('');
     return `<tr>
       <td><b>${esc(c.name)}</b><div class="muted">${esc(c.phone)}</div><div class="mono muted">${esc(c.machineId)}</div><div class="muted">${esc(c.notes)}</div></td>
       <td>${c.agentId ? esc(agentName(c.agentId)) : '<span class="muted">مباشر</span>'}</td>
@@ -343,7 +344,15 @@ function add(e) {
   const body = Object.fromEntries(new FormData(e.target));
   run(async () => { const c = await api('/api/customers', body); await navigator.clipboard?.writeText(c.key).catch(() => {}); e.target.reset(); }, 'تم إصدار المفتاح ونسخه. لا تنسَ نشر قائمة الحالة.');
 }
-function extend(id) { run(() => api(`/api/customers/${id}/extend`, { plan: $(`#plan-${id}`).value }), 'تم التمديد. انشر القائمة، أو أرسل المفتاح الجديد للعميل بدون إنترنت.'); }
+function extend(id) {
+  const c = state.customers.find((x) => x.id === id);
+  const plan = $(`#plan-${id}`).value;
+  const name = state.plans[plan]?.nameAr ?? plan;
+  if (c.agentId && plan !== 'annual') return toast('زبائن الوكلاء بيتجددوا سنوي بس', true);
+  const msg = plan === 'lifetime' ? `تحويل ${c.name} لـ «${name}»؟` : c.plan === 'lifetime' ? `${c.name} اشتراكه دائم! متأكد بدك تحوّله لـ «${name}» وينتهي؟` : `تمديد ${c.name} «${name}»؟`;
+  if (!confirm(msg)) return;
+  run(() => api(`/api/customers/${id}/extend`, { plan }), plan === 'lifetime' ? 'صار دائم. اضغط "نشر قائمة الحالة" وارفع feed.txt.' : 'تم التمديد. انشر القائمة، أو أرسل المفتاح الجديد للعميل بدون إنترنت.');
+}
 function setStatus(id, status) {
   const message = status === 'active' ? '' : prompt(status === 'revoked' ? 'سبب الإلغاء (يظهر للعميل):' : 'رسالة تظهر للعميل:', status === 'suspended' ? 'تم إيقاف البرنامج لعدم تسديد الاشتراك. يرجى التواصل مع البائع.' : '');
   if (message === null) return;
