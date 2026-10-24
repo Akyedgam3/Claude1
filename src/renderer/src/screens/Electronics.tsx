@@ -3,7 +3,7 @@ import { installmentState, serialHistory, serialsInStock, type InstallmentPlan, 
 import { addDays, dateText, money, parseAmount, toInput, today, useCompany } from '../api';
 import { Icon } from '../components/icons';
 import { DocHeader, usePrinter } from '../components/print';
-import { CameraScanButton, ConfirmButton, Empty, Field, itemOptions, matches, Modal, PageHeader, partyOptions, Picker, SearchBox } from '../components/ui';
+import { CameraScanButton, ConfirmButton, Empty, Field, ItemName, itemOptions, matches, Modal, PageHeader, partyOptions, Picker, SearchBox } from '../components/ui';
 import { cashAccounts, itemPrice } from './InvoiceEditor';
 import { PartyForm } from './Parties';
 
@@ -125,7 +125,9 @@ export function DeviceLookup({ serial: initial }: { serial?: string }) {
                   <td className="mono" dir="ltr">
                     {x.serial}
                   </td>
-                  <td>{x.item.name}</td>
+                  <td>
+                    <ItemName item={x.item} />
+                  </td>
                   <td className="muted">{x.item.category}</td>
                   <td className="num">{money(state, x.item.price, x.item.priceCurrency)}</td>
                 </tr>

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { attributesFor, generateVariants, type Item, type ItemKind, type ItemUnit, type RecipeLine } from '../../../core';
 import { api, major, money, parseAmount, qtyText, toInput, today, uid, useCompany } from '../api';
 import { Barcode, ExportButtons, usePrinter } from '../components/print';
-import { CameraScanButton, CurrencySelect, Empty, Field, itemMatches, itemOptions, Modal, PageHeader, Picker, SearchBox, Tabs } from '../components/ui';
+import { CameraScanButton, ColorPicker, CurrencySelect, ItemName, Empty, Field, itemMatches, itemOptions, Modal, PageHeader, Picker, SearchBox, Tabs } from '../components/ui';
 import { Icon } from '../components/icons';
 
 export function Items({ initialQuery }: { initialQuery?: string } = {}) {
@@ -186,7 +186,7 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
                 <tr key={i.id} className={canEdit ? 'clickable' : ''} onClick={() => canEdit && setEditing(i)}>
                   <td className="mono">{i.code}</td>
                   <td>
-                    {i.name}
+                    <ItemName item={i} />
                     {i.kind === 'service' && <span className="tag">خدمة</span>}
                     {i.kind === 'composite' && <span className="tag">مركّب</span>}
                     {i.trackExpiry && <span className="tag">صلاحية</span>}
@@ -371,8 +371,8 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
               <input value={f.location} onChange={set('location')} />
             </Field>
             {attributeNames.map((a) => (
-              <Field key={a} label={a}>
-                <input value={attrs[a] ?? ''} onChange={(e) => setAttrs({ ...attrs, [a]: e.target.value })} />
+              <Field key={a} label={a} wide={a === 'اللون'}>
+                {a === 'اللون' ? <ColorPicker value={attrs[a] ?? ''} onChange={(v) => setAttrs({ ...attrs, [a]: v })} /> : <input value={attrs[a] ?? ''} onChange={(e) => setAttrs({ ...attrs, [a]: e.target.value })} />}
               </Field>
             ))}
             <Field label="حقل إضافي خاص بهذه المادة">

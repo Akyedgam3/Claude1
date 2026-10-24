@@ -1,5 +1,5 @@
 import { useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import type { CompanyState, Item, Party } from '../../../core';
+import { itemColor, itemTitle, type CompanyState, type Item, type Party } from '../../../core';
 import { api, Company, IS_MOBILE, shownCurrencies, useCompany, type CompanyCtx } from '../api';
 import { Icon } from './icons';
 
@@ -191,12 +191,82 @@ export function partyOptions(state: CompanyState, side?: 'customer' | 'supplier'
     .map((p) => ({ id: p.id, label: p.name, ...(p.phone ? { hint: p.phone } : {}) }));
 }
 
+/** ألوان الموبايلات الشائعة: الاسم ← لون العرض. */
+export const ITEM_COLORS: Record<string, string> = {
+  أسود: '#1b1b1d',
+  أبيض: '#f6f6f4',
+  رمادي: '#8a8f98',
+  فضي: '#c3c7cc',
+  ذهبي: '#d4af37',
+  تيتانيوم: '#9b9486',
+  أزرق: '#2f6fde',
+  سماوي: '#7ec8f0',
+  كحلي: '#1f2f5c',
+  أخضر: '#2e9b57',
+  نعناعي: '#9fe0c3',
+  فيروزي: '#2bb5b0',
+  بنفسجي: '#8e5cc9',
+  ليلكي: '#c3a6e8',
+  زهري: '#f2a7c3',
+  أحمر: '#d63b3b',
+  برتقالي: '#f08a24',
+  أصفر: '#f4d03f',
+  بني: '#8b5a2b',
+  كريمي: '#efe4cc',
+};
+
+/** لون العرض من اسم اللون (حتى لو مكتوب «أزرق فاتح» أو «Blue»). */
+export function colorValue(name: string): string | null {
+  const n = name.trim();
+  const en: Record<string, string> = { black: 'أسود', white: 'أبيض', gray: 'رمادي', grey: 'رمادي', silver: 'فضي', gold: 'ذهبي', titanium: 'تيتانيوم', blue: 'أزرق', navy: 'كحلي', green: 'أخضر', mint: 'نعناعي', purple: 'بنفسجي', violet: 'بنفسجي', lavender: 'ليلكي', pink: 'زهري', red: 'أحمر', orange: 'برتقالي', yellow: 'أصفر', brown: 'بني', cream: 'كريمي' };
+  const key = Object.keys(ITEM_COLORS).find((k) => n.startsWith(k)) ?? en[n.toLowerCase().split(/\s+/)[0] ?? ''];
+  return key ? ITEM_COLORS[key]! : null;
+}
+
+/** نقطة اللون واسمه (بتنعرض جنب اسم الموبايل). */
+export function ColorTag({ color }: { color: string }) {
+  if (!color) return null;
+  const v = colorValue(color);
+  return (
+    <span className="color-tag" title={`اللون: ${color}`}>
+      <i style={v ? { background: v } : undefined} className={v ? '' : 'unknown'} />
+      {color}
+    </span>
+  );
+}
+
+/** اسم المادة ومعه لونها إذا إلها لون. */
+export function ItemName({ item, strong }: { item: Item | undefined; strong?: boolean }) {
+  if (!item) return null;
+  const c = itemColor(item);
+  return (
+    <span className="item-name">
+      {strong ? <strong>{item.name}</strong> : item.name}
+      {c && !item.name.includes(c) && <ColorTag color={c} />}
+    </span>
+  );
+}
+
+/** اختيار اللون: كبسة على لون جاهز أو كتابة لون تاني. */
+export function ColorPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="color-picker">
+      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder="اختار أو اكتب اللون" />
+      <div className="swatches">
+        {Object.entries(ITEM_COLORS).map(([name, v]) => (
+          <button key={name} type="button" title={name} className={value.trim() === name ? 'on' : ''} style={{ background: v }} onClick={() => onChange(name)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function itemOptions(state: CompanyState, filter?: (i: Item) => boolean): (Option & { item: Item })[] {
   return Object.values(state.items)
     .filter((i) => !i.archived && (!filter || filter(i)))
     .map((item) => ({
       id: item.id,
-      label: `${item.name}`,
+      label: itemTitle(item),
       hint: [
         item.code,
         item.partNumber,

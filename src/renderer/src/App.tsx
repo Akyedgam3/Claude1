@@ -427,7 +427,7 @@ function Screen({ screen }: { screen: { key: string; param?: string } }) {
     case 'purchase':
     case 'sale_return':
     case 'purchase_return':
-      return <InvoiceEditor key={`${screen.key}-${p ?? ''}`} kind={screen.key} />;
+      return <InvoiceEditor key={`${screen.key}-${p ?? ''}`} kind={screen.key} {...(p ? { editId: p } : {})} />;
     case 'invoices':
       return <Invoices />;
     case 'invoice':

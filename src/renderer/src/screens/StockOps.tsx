@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { ADJUSTMENT_NAMES, expiringBatches, type Item } from '../../../core';
 import { dateText, major, money, parseAmount, qtyText, today, uid, useCompany } from '../api';
 import { ExportButtons, PrintButtons, DocHeader } from '../components/print';
-import { CurrencySelect, Empty, Field, itemMatches, itemOptions, PageHeader, partyOptions, Picker, SearchBox, Tabs } from '../components/ui';
+import { CurrencySelect, Empty, Field, ItemName, itemMatches, itemOptions, PageHeader, partyOptions, Picker, SearchBox, Tabs } from '../components/ui';
 import { Icon } from '../components/icons';
 
 type Tab = 'opening' | 'count' | 'damage' | 'transfer' | 'expiry' | 'history';
@@ -85,7 +85,7 @@ function ItemRows({ rows, setRows, withCost, withBatch }: { rows: StockRow[]; se
               <tr key={r.key}>
                 <td>
                   <div className="line-item">
-                    <strong>{item.name}</strong>
+                    <ItemName item={item} strong />
                     <small>
                       {item.code} · الرصيد: {qtyText(state.stock[item.id]?.totalQty ?? 0)} {item.unit}
                     </small>
@@ -331,7 +331,9 @@ function Count() {
               return (
                 <tr key={i.id}>
                   <td className="mono">{i.code}</td>
-                  <td>{i.name}</td>
+                  <td>
+                    <ItemName item={i} />
+                  </td>
                   <td>{i.location}</td>
                   <td className="num">{qtyText(book)}</td>
                   <td className="num">

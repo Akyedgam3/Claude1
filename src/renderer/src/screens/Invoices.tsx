@@ -1,8 +1,15 @@
 import { useMemo, useState } from 'react';
-import { INVOICE_KIND_NAMES, type InvoiceKind } from '../../../core';
+import { INVOICE_KIND_NAMES, type Invoice, type InvoiceKind } from '../../../core';
 import { dateText, major, money, useCompany } from '../api';
 import { ExportButtons } from '../components/print';
 import { Empty, Field, matches, PageHeader, SearchBox } from '../components/ui';
+import { Icon } from '../components/icons';
+
+/** صلاحية تعديل الفاتورة: إلغاء + إنشاء من نفس النوع، ومش طالعة من طلب أو مشروع. */
+export function canEditInvoice(inv: Invoice, can: (p: never) => boolean): boolean {
+  const create = inv.kind === 'purchase' || inv.kind === 'purchase_return' ? 'purchases.create' : inv.kind === 'sale_return' ? 'returns.create' : 'sales.create';
+  return !inv.voidEntryId && !inv.source && can('sales.void' as never) && can(create as never);
+}
 
 export function Invoices() {
   const { state, navigate, can } = useCompany();
@@ -11,6 +18,8 @@ export function Invoices() {
   const [kind, setKind] = useState<InvoiceKind | 'all'>('all');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  // قائمة الكبسة اليمين على الفاتورة
+  const [menu, setMenu] = useState<{ inv: Invoice; x: number; y: number } | null>(null);
 
   const rows = useMemo(
     () =>
@@ -102,7 +111,15 @@ export function Invoices() {
           </thead>
           <tbody>
             {rows.map((i) => (
-              <tr key={i.id} className={`clickable ${i.voidEntryId ? 'voided' : ''}`} onClick={() => navigate('invoice', i.id)}>
+              <tr
+                key={i.id}
+                className={`clickable ${i.voidEntryId ? 'voided' : ''}`}
+                onClick={() => navigate('invoice', i.id)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setMenu({ inv: i, x: e.clientX, y: e.clientY });
+                }}
+              >
                 <td>{INVOICE_KIND_NAMES[i.kind]}</td>
                 <td className="mono">{i.number}</td>
                 <td>{dateText(i.date)}</td>
@@ -110,11 +127,33 @@ export function Invoices() {
                 <td className="num">{money(state, i.total, i.currency)}</td>
                 <td className="num">{money(state, i.paid, i.currency)}</td>
                 <td className="muted">{users[i.createdBy]?.displayName}</td>
-                <td>{i.voidEntryId && <span className="tag bad">ملغاة</span>}</td>
+                <td>
+                  {i.voidEntryId && <span className="tag bad">ملغاة{state.invoices.some((x) => x.replaces === i.id) ? ' (معدّلة)' : ''}</span>}
+                  {i.replaces && <span className="tag">معدّلة</span>}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
+      )}
+      {menu && (
+        <div className="ctx-backdrop" onClick={() => setMenu(null)} onContextMenu={(e) => (e.preventDefault(), setMenu(null))}>
+          <div className="ctx-menu" style={{ left: Math.min(menu.x, window.innerWidth - 220), top: Math.min(menu.y, window.innerHeight - 160) }} onClick={(e) => e.stopPropagation()}>
+            <b>
+              {INVOICE_KIND_NAMES[menu.inv.kind]} رقم {menu.inv.number}
+            </b>
+            <button onClick={() => (setMenu(null), navigate('invoice', menu.inv.id))}>
+              <Icon name="file" size={16} /> فتح الفاتورة
+            </button>
+            {canEditInvoice(menu.inv, can as never) ? (
+              <button onClick={() => (setMenu(null), navigate(menu.inv.kind, menu.inv.id))}>
+                <Icon name="customize" size={16} /> تعديل الفاتورة
+              </button>
+            ) : (
+              <span className="muted">{menu.inv.voidEntryId ? 'الفاتورة ملغاة' : menu.inv.source ? 'بتتعدّل من الطلب أو المشروع تبعها' : 'ما عندك صلاحية التعديل'}</span>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

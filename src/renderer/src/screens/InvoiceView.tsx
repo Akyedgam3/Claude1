@@ -5,6 +5,7 @@ import { CommercialDoc, type DocModel } from '../components/CommercialDoc';
 import { ThermalReceipt, type ReceiptData } from '../components/ThermalReceipt';
 import { PrintButtons } from '../components/print';
 import { ConfirmButton, Empty, PageHeader } from '../components/ui';
+import { canEditInvoice } from './Invoices';
 
 export function InvoiceView({ id }: { id: string }) {
   const { state, call, notify, navigate, can } = useCompany();
@@ -15,6 +16,7 @@ export function InvoiceView({ id }: { id: string }) {
     <div className="page">
       <PageHeader title={`${INVOICE_KIND_NAMES[inv.kind]} رقم ${inv.number}`}>
         <PrintButtons kind={inv.kind === 'sale' || inv.kind === 'sale_return' ? 'invoice' : 'report'} name={`${INVOICE_KIND_NAMES[inv.kind]} ${inv.number}`} />
+        {canEditInvoice(inv, can as never) && <button onClick={() => navigate(inv.kind, inv.id)}>تعديل</button>}
         {!inv.voidEntryId && can('sales.void') && (
           <ConfirmButton
             label="إلغاء الفاتورة"
@@ -33,7 +35,30 @@ export function InvoiceView({ id }: { id: string }) {
           </button>
         )}
       </PageHeader>
-      {inv.voidEntryId && <div className="banner bad">هذه الفاتورة ملغاة</div>}
+      {inv.voidEntryId && (() => {
+        const next = state.invoices.find((x) => x.replaces === inv.id);
+        return (
+          <div className="banner bad">
+            هذه الفاتورة ملغاة
+            {next && (
+              <>
+                {' '}— انعدّلت، والنسخة الجديدة{' '}
+                <button className="link" onClick={() => navigate('invoice', next.id)}>
+                  من هون
+                </button>
+              </>
+            )}
+          </div>
+        );
+      })()}
+      {inv.replaces && (
+        <div className="banner info">
+          فاتورة معدّلة.{' '}
+          <button className="link" onClick={() => navigate('invoice', inv.replaces!)}>
+            شوف النسخة القديمة
+          </button>
+        </div>
+      )}
       <div className="paper-preview">
         <InvoiceDocument inv={inv} />
       </div>

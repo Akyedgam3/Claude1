@@ -74,6 +74,14 @@ export function execute(store: CompanyStore, actor: User, method: string, args: 
     const src = (args[0] as { source?: { type?: string } } | undefined)?.source;
     if (src && src.type !== 'manual') fail('نوع القيد غير مسموح');
   }
+  // الرقم والربط بفاتورة قديمة داخليين (تعديل الفاتورة بس)
+  if (method === 'postInvoice') args = args.slice(0, 1);
+  if (method === 'replaceInvoice') {
+    // التعديل = إلغاء + فاتورة جديدة: بدو صلاحية النوع كمان
+    requirePermission(user, permissionFor('postInvoice', [args[1]])!);
+    const d = args[1] as Partial<InvoiceDraft> | undefined;
+    if (d?.discount || d?.lines?.some((l) => !!l.discount)) requirePermission(user, 'discount.give');
+  }
   if (['postInvoice', 'saveQuote', 'closeOrder', 'invoiceRepair', 'deliverTailorOrder', 'deliverSiteJob', 'invoiceAppointment'].includes(method)) {
     const d = args[method === 'postInvoice' || method === 'saveQuote' ? 0 : 1] as Partial<InvoiceDraft> | undefined;
     const discounted = !!d?.discount || !!d?.lines?.some((l) => !!l.discount);

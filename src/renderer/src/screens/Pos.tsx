@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { resolveScan, type Invoice, type Item } from '../../../core';
+import { itemTitle, resolveScan, type Invoice, type Item } from '../../../core';
 import { convertPrice, fxRates, money, parseAmount, qtyText, shownCurrencies, today, toInput, uid, useCompany } from '../api';
 import { usePrinter } from '../components/print';
-import { matches, partyOptions, Picker, ScanInput } from '../components/ui';
+import { ItemName, matches, partyOptions, Picker, ScanInput } from '../components/ui';
 import { InvoiceDocument } from './InvoiceView';
 import { itemPrice } from './InvoiceEditor';
 import { Icon } from '../components/icons';
@@ -273,7 +273,7 @@ export function Pos() {
       ? {
           lines: cart.map((l) => {
             const it = state.items[l.itemId];
-            return { name: `${it?.name ?? ''}${l.unit ? ` (${l.unit})` : ''}`, qty: qtyText(l.qty), total: money(state, Math.round(l.qty * l.price), cur), ...(l.note ? { note: l.note } : {}) };
+            return { name: `${it ? itemTitle(it) : ''}${l.unit ? ` (${l.unit})` : ''}`, qty: qtyText(l.qty), total: money(state, Math.round(l.qty * l.price), cur), ...(l.note ? { note: l.note } : {}) };
           }),
           totals: disc ? [{ label: 'المجموع', value: money(state, subtotal, cur) }, { label: 'الخصم', value: money(state, disc, cur) }] : [],
           grand: money(state, total, cur),
@@ -312,7 +312,7 @@ export function Pos() {
               <div key={i.id} className="pos-tile">
                 <button className={`pos-item ${inCart[i.id] ? 'in-cart' : ''}`} onClick={() => (i.price > 0 ? add(i) : i.units?.[0] && add(i, { unit: i.units[0].name }))}>
                   {inCart[i.id] ? <span className="badge">{inCart[i.id]}</span> : null}
-                  <strong>{i.name}</strong>
+                  <ItemName item={i} strong />
                   <span>{i.price > 0 ? (p === null ? 'لا يوجد سعر صرف' : `${money(state, p, cur)} / ${i.unit}`) : ''}</span>
                   {i.kind === 'stock' && (
                     <small>
@@ -382,7 +382,7 @@ export function Pos() {
               <div key={l.key} className="pos-line-wrap">
                 <div className="pos-line">
                   <div>
-                    <strong>{item.name}</strong>
+                    <ItemName item={item} strong />
                     <small>
                       {money(state, l.price, cur)} / {l.unit || item.unit}
                       {l.note ? <em className="line-note"> · {l.note}</em> : null}

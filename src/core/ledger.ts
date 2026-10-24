@@ -658,7 +658,7 @@ export class Ledger {
     return b;
   }
 
-  postInvoice(draft: InvoiceDraft): Invoice {
+  postInvoice(draft: InvoiceDraft, opts: { number?: number; replaces?: string } = {}): Invoice {
     const { invoice, entry } = buildInvoice(
       {
         state: this.state,
@@ -668,9 +668,30 @@ export class Ledger {
         partyBalance: (id) => this.partyBaseBalance(id),
       },
       { ...draft, createdBy: draft.createdBy ?? this.actor },
+      opts,
     );
     this.emit({ type: 'invoice.posted', invoice, entry });
     return invoice;
+  }
+
+  /**
+   * تعديل فاتورة: بتنلغى القديمة (بتاريخها) وبتنسجّل الجديدة بنفس الرقم. السجل بيضل محفوظ (القديمة ملغاة ومربوطة بالجديدة).
+   * منجرّب العملية كاملة على نسخة أول، فإذا في شي غلط ما بيتغيّر شي.
+   */
+  replaceInvoice(invoiceId: string, draft: InvoiceDraft): Invoice {
+    const old = this.state.invoices.find((i) => i.id === invoiceId) ?? fail('الفاتورة غير موجودة');
+    if (old.voidEntryId) fail('الفاتورة ملغاة؛ ما بتتعدّل');
+    if (old.source) fail('هالفاتورة طالعة من طلب أو مشروع أو أمر صيانة؛ عدّلها من هناك (ألغِ الفاتورة وعدّل المستند)');
+    if (draft.kind !== old.kind) fail('ما بيصير تغيّر نوع الفاتورة');
+    if (this.state.invoices.some((i) => i.replaces === old.id)) fail('هالفاتورة معدّلة من قبل');
+    const next: InvoiceDraft = { ...draft };
+    delete next.source;
+    const trial = new Ledger(() => {}, structuredClone(this.state));
+    trial.actor = this.actor;
+    trial.voidInvoice(old.id, old.date);
+    trial.postInvoice(next, { number: old.number, replaces: old.id });
+    this.voidInvoice(old.id, old.date);
+    return this.postInvoice(next, { number: old.number, replaces: old.id });
   }
 
   /** إلغاء الفاتورة: قيد عكسي وإرجاع حركة المخزون كما كانت. */

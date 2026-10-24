@@ -360,6 +360,17 @@ export function effectiveProfile(info: Pick<CompanyInfo, 'activity' | 'customize
   };
 }
 
+/** لون المادة (خاصية «اللون»)، متل لون الموبايل. */
+export function itemColor(item: { attributes?: Record<string, string> } | undefined | null): string {
+  return item?.attributes?.['اللون']?.trim() ?? '';
+}
+
+/** اسم المادة مع لونها (Redmi A5 3/64 — أزرق)، إلا إذا الاسم فيه اللون أصلاً. */
+export function itemTitle(item: { name: string; attributes?: Record<string, string> }): string {
+  const c = itemColor(item);
+  return c && !item.name.includes(c) ? `${item.name} — ${c}` : item.name;
+}
+
 /** خصائص المادة المقترحة حسب تصنيفها ضمن النشاط. */
 export function attributesFor(profile: ActivityProfile, category?: string): string[] {
   const set = category ? profile.attributeSets?.find((x) => x.match.test(category)) : undefined;

@@ -309,6 +309,8 @@ export interface Invoice {
   salesman?: string;
   notes?: string;
   source?: { type: string; id: string };
+  /** فاتورة معدّلة: رقم (id) الفاتورة الملغاة اللي حلّت محلها (بنفس الرقم). */
+  replaces?: string;
   entryId: string;
   voidEntryId?: string;
   createdAt: string;

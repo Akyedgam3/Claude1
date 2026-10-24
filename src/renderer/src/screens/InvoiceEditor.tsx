@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { computeTaxes, findRate, INVOICE_KIND_NAMES, resolveScan, type CompanyState, type Invoice, type InvoiceKind, type Item, type Party } from '../../../core';
+import { computeTaxes, findRate, INVOICE_KIND_NAMES, itemTitle, resolveScan, type CompanyState, type Invoice, type InvoiceKind, type Item, type Party } from '../../../core';
 import { convertPrice, fxRates, money, parseAmount, rateInverted, toInput, today, uid, useCompany } from '../api';
 import { CurrencySelect, Field, itemMatches, itemOptions, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
 import { ItemForm } from './Items';
@@ -18,6 +18,7 @@ interface LineState {
   expiry: string;
   serials: string;
   manualPrice?: boolean; // كتب المستخدم السعر بيده (لا نعيد تسعيره)
+  note?: string; // ملاحظة السطر (بتنحفظ متل ما هي عند تعديل فاتورة)
 }
 
 const emptyLine = (): LineState => ({ key: uid(), itemId: null, description: '', unit: '', qty: '1', price: '', discount: '', batch: '', expiry: '', serials: '' });
@@ -46,24 +47,48 @@ export function itemPrice(state: CompanyState, item: Item, opts: { party?: Party
   return v === null ? '' : toInput(state, v, opts.currency);
 }
 
-export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
+export function InvoiceEditor({ kind: kindProp, editId }: { kind: string; editId?: string }) {
   const kind = kindProp as InvoiceKind;
   const { state, call, notify, navigate, feature, can } = useCompany();
   const base = state.info!.baseCurrency;
   const isSale = kind === 'sale' || kind === 'sale_return';
   const stockIn = kind === 'purchase' || kind === 'sale_return';
-  const [partyId, setPartyId] = useState<string | null>(null);
-  const [date, setDate] = useState(today());
-  const [currency, setCurrency] = useState(base);
-  const [rateText, setRateText] = useState('');
-  const [warehouseId, setWarehouseId] = useState(Object.keys(state.warehouses)[0] ?? 'main');
-  const [lines, setLines] = useState<LineState[]>([emptyLine()]);
-  const [discount, setDiscount] = useState('');
-  const [taxIds, setTaxIds] = useState<string[]>(() => (isSale ? Object.values(state.taxes).filter((t) => t.active && t.percent > 0).map((t) => t.id) : []));
-  const [paidText, setPaidText] = useState<string | null>(null);
+  // تعديل فاتورة: منعبّي كل شي من الفاتورة القديمة، وعند الحفظ بتنلغى وبتنسجّل الجديدة بنفس الرقم
+  const editing = editId ? state.invoices.find((i) => i.id === editId && i.kind === kind && !i.voidEntryId) : undefined;
+  const editInput = (v: number) => (editing ? toInput(state, v, editing.currency) : '');
+  const [partyId, setPartyId] = useState<string | null>(editing?.partyId ?? null);
+  const [date, setDate] = useState(editing?.date ?? today());
+  const [currency, setCurrency] = useState(editing?.currency ?? base);
+  const [rateText, setRateText] = useState(() => (editing && editing.currency !== base ? String(rateInverted(state, editing.currency) ? Math.round(10000 / editing.rate) / 10000 : editing.rate) : ''));
+  const [warehouseId, setWarehouseId] = useState(editing?.warehouseId ?? Object.keys(state.warehouses)[0] ?? 'main');
+  const [lines, setLines] = useState<LineState[]>(() =>
+    editing
+      ? [
+          ...editing.lines.map((l) => ({
+            ...emptyLine(),
+            itemId: l.itemId,
+            description: l.description,
+            unit: l.unit ?? '',
+            qty: String(l.qty),
+            price: editInput(l.price),
+            discount: l.discount ? editInput(l.discount) : '',
+            batch: l.batches?.[0]?.batch ?? '',
+            expiry: l.batches?.[0]?.expiry ?? '',
+            serials: (l.serials ?? []).join(' '),
+            manualPrice: true,
+            ...(l.note ? { note: l.note } : {}),
+          })),
+          emptyLine(),
+        ]
+      : [emptyLine()],
+  );
+  const [discount, setDiscount] = useState(editing?.discount ? editInput(editing.discount) : '');
+  const [taxIds, setTaxIds] = useState<string[]>(() => (editing ? editing.taxIds : isSale ? Object.values(state.taxes).filter((t) => t.active && t.percent > 0).map((t) => t.id) : []));
+  const [paidText, setPaidText] = useState<string | null>(editing && editing.paid !== editing.total && editing.paid > 0 ? editInput(editing.paid) : null);
   // الخصم من الصندوق: كامل، لا (دين)، أو جزء. البرنامج بيتذكّر آخر اختيار لكل نوع فاتورة
   const payKey = `mizan.payMode.${kind}`;
   const [payMode, setPayModeState] = useState<'cash' | 'credit' | 'partial'>(() => {
+    if (editing) return editing.paid >= editing.total ? 'cash' : editing.paid === 0 ? 'credit' : 'partial';
     try {
       const v = localStorage.getItem(payKey);
       return v === 'credit' || v === 'partial' ? v : 'cash';
@@ -73,15 +98,16 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
   });
   const setPayMode = (m: 'cash' | 'credit' | 'partial') => {
     setPayModeState(m);
+    if (editing) return; // تعديل فاتورة قديمة ما بيغيّر الاختيار المحفوظ
     try {
       localStorage.setItem(payKey, m);
     } catch {
       // ما في تخزين: بيضل الاختيار لهالفاتورة بس
     }
   };
-  const [cashAccountId, setCashAccountId] = useState('');
-  const [salesman, setSalesman] = useState('');
-  const [notes, setNotes] = useState('');
+  const [cashAccountId, setCashAccountId] = useState(editing?.cashAccountId ?? '');
+  const [salesman, setSalesman] = useState(editing?.salesman ?? '');
+  const [notes, setNotes] = useState(editing?.notes ?? '');
   const [newItem, setNewItem] = useState<string | null>(null);
   const [newParty, setNewParty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -118,7 +144,7 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
 
   const chooseItem = (key: string, itemId: string | null, unit = '', qty = '1', price?: string) => {
     const item = itemId ? state.items[itemId] : null;
-    setLines((ls) => withEmpty(ls.map((l) => (l.key === key ? { ...l, itemId, unit, qty, description: item?.name ?? '', price: price ?? (item ? priceFor(item, unit) : l.price), manualPrice: price !== undefined } : l))));
+    setLines((ls) => withEmpty(ls.map((l) => (l.key === key ? { ...l, itemId, unit, qty, description: item ? itemTitle(item) : '', price: price ?? (item ? priceFor(item, unit) : l.price), manualPrice: price !== undefined } : l))));
   };
 
   const scan = (code: string) => {
@@ -135,14 +161,14 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
         const filled = ls.filter((l) => l.itemId || l.description);
         const same = filled.find((l) => l.itemId === r.item.id);
         if (same) return [...filled.map((l) => (l === same ? { ...l, qty: String(Number(l.qty || 0) + 1), serials: `${l.serials} ${r.serial}`.trim() } : l)), emptyLine()];
-        return [...filled, { ...emptyLine(), itemId: r.item.id, description: r.item.name, unit, qty: '1', price: priceFor(r.item, unit), serials: r.serial }, emptyLine()];
+        return [...filled, { ...emptyLine(), itemId: r.item.id, description: itemTitle(r.item), unit, qty: '1', price: priceFor(r.item, unit), serials: r.serial }, emptyLine()];
       }
       const same = !r.qty && ls.find((l) => l.itemId === r.item.id && l.unit === unit && !r.item.trackSerial);
       if (same) return ls.map((l) => (l === same ? { ...l, qty: String(Number(l.qty || 0) + 1) } : l));
       const filled = ls.filter((l) => l.itemId || l.description);
       return [
         ...filled,
-        { ...emptyLine(), itemId: r.item.id, description: r.item.name, unit, qty: String(r.qty ?? 1), price: priceOverride ?? priceFor(r.item, unit) },
+        { ...emptyLine(), itemId: r.item.id, description: itemTitle(r.item), unit, qty: String(r.qty ?? 1), price: priceOverride ?? priceFor(r.item, unit) },
         emptyLine(),
       ];
     });
@@ -196,6 +222,7 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
           ...(l.batch.trim() ? { batch: l.batch.trim() } : {}),
           ...(l.expiry ? { expiry: l.expiry } : {}),
           ...(l.serials.trim() ? { serials: l.serials.split(/[\s,،]+/).map((s) => s.trim()).filter(Boolean) } : {}),
+          ...(l.note ? { note: l.note } : {}),
         })),
         discount: preview.disc,
         taxIds,
@@ -204,9 +231,9 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
         ...(salesman.trim() ? { salesman: salesman.trim() } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
       };
-      const res = await call<Invoice>('postInvoice', draft);
+      const res = editing ? await call<Invoice>('replaceInvoice', editing.id, draft) : await call<Invoice>('postInvoice', draft);
       if (res) {
-        notify(`تم حفظ ${INVOICE_KIND_NAMES[kind]} رقم ${res.value.number}`);
+        notify(editing ? `تم تعديل ${INVOICE_KIND_NAMES[kind]} رقم ${res.value.number}` : `تم حفظ ${INVOICE_KIND_NAMES[kind]} رقم ${res.value.number}`);
         navigate('invoice', res.value.id);
       }
     } catch (e) {
@@ -223,9 +250,11 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
 
   return (
     <div className="page invoice-editor" onKeyDown={(e) => e.key === 'Enter' && e.ctrlKey && void save()}>
-      <PageHeader title={INVOICE_KIND_NAMES[kind]}>
-        {returnKind && can(returnKind === 'sale_return' ? 'returns.create' : 'purchases.create') && <button onClick={() => navigate(returnKind)}>{INVOICE_KIND_NAMES[returnKind]}</button>}
+      <PageHeader title={editing ? `تعديل ${INVOICE_KIND_NAMES[kind]} رقم ${editing.number}` : INVOICE_KIND_NAMES[kind]}>
+        {editing && <button onClick={() => navigate('invoice', editing.id)}>إلغاء التعديل</button>}
+        {!editing && returnKind && can(returnKind === 'sale_return' ? 'returns.create' : 'purchases.create') && <button onClick={() => navigate(returnKind)}>{INVOICE_KIND_NAMES[returnKind]}</button>}
       </PageHeader>
+      {editing && <div className="banner">عم تعدّل الفاتورة رقم {editing.number}. لما تحفظ، القديمة بتنلغى وبتنسجّل هي بنفس الرقم، والمخزون والحسابات بيتصلّحوا لحالهن (والقديمة بتضل بالسجل ملغاة).</div>}
 
       <section className="card form-grid four">
         <Field label={isSale ? 'العميل' : 'المورد'}>
@@ -297,7 +326,9 @@ export function InvoiceEditor({ kind: kindProp }: { kind: string }) {
           <tbody>
             {lines.map((l) => {
               const item = l.itemId ? state.items[l.itemId] : null;
-              const stock = item?.kind === 'stock' ? (state.stock[item.id]?.qty[warehouseId] ?? 0) : null;
+              // عند التعديل: الكمية اللي بالفاتورة القديمة بترجع للمستودع قبل الجديدة
+              const back = editing && editing.warehouseId === warehouseId && item ? editing.lines.filter((x) => x.itemId === item.id).reduce((s, x) => s + x.qty * (x.factor ?? 1), 0) * (stockIn ? -1 : 1) : 0;
+              const stock = item?.kind === 'stock' ? (state.stock[item.id]?.qty[warehouseId] ?? 0) + back : null;
               const factor = item?.units?.find((u) => u.name === l.unit)?.factor ?? 1;
               const short = !stockIn && stock !== null && Number(l.qty) * factor > stock;
               const idx = used.indexOf(l);

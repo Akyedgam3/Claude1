@@ -1,3 +1,4 @@
+import { itemTitle } from './activities';
 import { cashAccountFor, SYSTEM_ACCOUNTS } from './chart-templates';
 import type { EntryDraft, LineDraft } from './ledger';
 import { convertMinor } from './money';
@@ -296,6 +297,11 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
     case 'invoice.posted': {
       const inv = event.invoice;
       checkDate(state, inv.date);
+      if (inv.replaces) {
+        // فاتورة معدّلة: بتاخد رقم الفاتورة اللي بدّلتها، واللي لازم تكون ملغاة ومن نفس النوع
+        const old = state.invoices.find((i) => i.id === inv.replaces);
+        if (!old || !old.voidEntryId || old.kind !== inv.kind || old.number !== inv.number) fail('الفاتورة الأصلية للتعديل غير صالحة');
+      }
       if (state.invoices.some((i) => i.id === inv.id)) fail('الفاتورة مسجّلة مسبقاً');
       if (!state.warehouses[inv.warehouseId]) fail('المستودع غير موجود');
       if (inv.partyId && !state.parties[inv.partyId]) fail('العميل/المورد غير موجود');
@@ -484,7 +490,7 @@ export function lineAmount(l: Pick<InvoiceLine, 'qty' | 'price' | 'discount'>): 
   return Math.round(l.qty * l.price) - l.discount;
 }
 
-export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft): { invoice: Invoice; entry: JournalEntry } {
+export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft, opts: { number?: number; replaces?: string } = {}): { invoice: Invoice; entry: JournalEntry } {
   const { state, baseCode } = ctx;
   const kind = draft.kind;
   checkDate(state, draft.date);
@@ -511,7 +517,7 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft): { invoic
     if (!Number.isSafeInteger(d.price) || d.price < 0) fail(`السطر ${n}: سعر غير صالح`);
     const discount = d.discount ?? 0;
     if (!Number.isSafeInteger(discount) || discount < 0 || discount > Math.round(d.qty * d.price)) fail(`السطر ${n}: خصم غير صالح`);
-    const description = d.description?.trim() || item?.name || fail(`السطر ${n}: البيان مطلوب`);
+    const description = d.description?.trim() || (item ? itemTitle(item) : '') || fail(`السطر ${n}: البيان مطلوب`);
     let factor = 1;
     if (d.unit && item && d.unit !== item.unit) {
       const u = item.units?.find((x) => x.name === d.unit) ?? fail(`السطر ${n}: الوحدة "${d.unit}" غير معرّفة لـ"${item.name}"`);
@@ -598,7 +604,7 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft): { invoic
   });
 
   const id = crypto.randomUUID();
-  const number = (state.counters[kind] ?? 0) + 1;
+  const number = opts.number ?? (state.counters[kind] ?? 0) + 1;
   const partySide = isSaleSide ? SYSTEM_ACCOUNTS.customers : SYSTEM_ACCOUNTS.suppliers;
   // الجهة التي يدخل فيها المال للشركة (مدين في المبيع)
   const moneyIn = kind === 'sale' || kind === 'purchase_return';
@@ -668,6 +674,7 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft): { invoic
     ...(draft.salesman ? { salesman: draft.salesman } : {}),
     ...(draft.notes ? { notes: draft.notes } : {}),
     ...(draft.source ? { source: draft.source } : {}),
+    ...(opts.replaces ? { replaces: opts.replaces } : {}),
     entryId: entry.id,
     createdAt: entry.createdAt,
     createdBy: entry.createdBy,

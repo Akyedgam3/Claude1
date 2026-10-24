@@ -3635,3 +3635,21 @@ button.danger-soft {
 .banner.info { background: var(--primary-soft); border-color: transparent; display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
 .site-sheet .doc-lines { margin-bottom: 10px; }
 .site-sheet .room-sum td { border-top: 2px solid #333; }
+
+/* قائمة الكبسة اليمين (سجل الفواتير) */
+.ctx-backdrop { position: fixed; inset: 0; z-index: 900; }
+.ctx-menu { position: fixed; min-width: 210px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 14px 40px rgba(0, 0, 0, 0.18); padding: 6px; display: flex; flex-direction: column; gap: 2px; }
+.ctx-menu b { font-size: 13px; color: var(--muted); padding: 6px 10px 4px; }
+.ctx-menu button { display: flex; align-items: center; gap: 8px; justify-content: flex-start; border: 0; background: transparent; padding: 9px 10px; border-radius: 8px; text-align: start; }
+.ctx-menu button:hover { background: var(--primary-soft); }
+.ctx-menu .muted { padding: 8px 10px; font-size: 13px; }
+
+/* لون المادة (الموبايلات): نقطة ملونة واسم اللون جنب الاسم */
+.item-name { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+.color-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--muted); background: var(--bg); border: 1px solid var(--border); border-radius: 20px; padding: 1px 8px 1px 6px; white-space: nowrap; }
+.color-tag i { width: 11px; height: 11px; border-radius: 50%; border: 1px solid rgba(0, 0, 0, 0.25); flex: none; }
+.color-tag i.unknown { background: conic-gradient(#e74c3c, #f1c40f, #2ecc71, #3498db, #9b59b6, #e74c3c); }
+.color-picker { display: flex; flex-direction: column; gap: 8px; }
+.color-picker .swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.color-picker .swatches button { width: 26px; height: 26px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid rgba(0, 0, 0, 0.15); }
+.color-picker .swatches button.on { outline: 3px solid var(--primary); outline-offset: 2px; }

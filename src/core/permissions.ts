@@ -94,6 +94,7 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
     return 'sales.create';
   },
   voidInvoice: 'sales.void',
+  replaceInvoice: 'sales.void',
   postVoucher: 'vouchers.create',
   postDebt: 'vouchers.create',
   settleDebt: 'vouchers.create',

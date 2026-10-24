@@ -91,3 +91,30 @@ describe('site jobs (gypsum)', () => {
     expect(tb.totalDebit).toBe(tb.totalCredit);
   });
 });
+
+describe('editing invoices', () => {
+  it('replaces an invoice under the same number, atomically', () => {
+    const l = shop();
+    l.saveItem({ id: 'b', code: 'B1', name: 'لوح جبس', kind: 'stock', unit: 'لوح', price: 1000, priceCurrency: 'SYP' });
+    l.adjustStock({ kind: 'opening', date: '2026-01-01', lines: [{ itemId: 'b', qty: 10, unitCost: 600 }] });
+    const inv = l.postInvoice({ kind: 'sale', date: '2026-02-01', partyId: 'c', lines: [{ itemId: 'b', description: 'لوح جبس', qty: 2, price: 1000 }], paid: 0 });
+    expect(l.state.stock['b']!.totalQty).toBe(8);
+    const fixed = l.replaceInvoice(inv.id, { kind: 'sale', date: '2026-02-01', partyId: 'c', lines: [{ itemId: 'b', description: 'لوح جبس', qty: 3, price: 1000 }], paid: 0 });
+    expect(fixed.number).toBe(inv.number);
+    expect(fixed.replaces).toBe(inv.id);
+    expect(l.state.invoices.find((i) => i.id === inv.id)!.voidEntryId).toBeTruthy();
+    expect(l.state.stock['b']!.totalQty).toBe(7);
+    expect(partyBalance(l.state, 'c').base).toBe(3000);
+    // تعديل بيفشل (كمية أكتر من الموجود): ولا شي بيتغيّر
+    const before = l.state.invoices.length;
+    expect(() => l.replaceInvoice(fixed.id, { kind: 'sale', date: '2026-02-01', partyId: 'c', lines: [{ itemId: 'b', description: 'لوح جبس', qty: 50, price: 1000 }], paid: 0 })).toThrow();
+    expect(l.state.invoices.length).toBe(before);
+    expect(l.state.invoices.find((i) => i.id === fixed.id)!.voidEntryId).toBeUndefined();
+    expect(l.state.stock['b']!.totalQty).toBe(7);
+    // الفاتورة الملغاة ما بتتعدّل، والجديدة بتاخد الرقم الجاي
+    expect(() => l.replaceInvoice(inv.id, { kind: 'sale', date: '2026-02-01', lines: [] })).toThrow(/ملغاة/);
+    expect(l.postInvoice({ kind: 'sale', date: '2026-02-02', lines: [{ itemId: null, description: 'خدمة', qty: 1, price: 500 }] }).number).toBe(inv.number + 1);
+    const tb = trialBalance(l.state);
+    expect(tb.totalDebit).toBe(tb.totalCredit);
+  });
+});
