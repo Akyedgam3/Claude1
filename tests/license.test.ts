@@ -109,6 +109,26 @@ describe('LicenseManager', () => {
       },
     });
 
+  it('takes the newest feed when a mirror serves a stale copy', async () => {
+    const key = issueLicense({ id: 'up-1', customer: 'ز', machineId: MACHINE, plan: 'annual', issuedAt }, priv);
+    const fresh = feed({ 'up-1': { status: 'active', devices: 4 } }, '2026-01-05T00:00:00Z');
+    const stale = feed({}, '2026-01-02T00:00:00Z');
+    const m = new LicenseManager({
+      dataDir: dir,
+      publicKey: pub,
+      feedUrls: ['https://stale.example/feed.txt', 'https://fresh.example/feed.txt', 'https://down.example/feed.txt'],
+      machineId: MACHINE,
+      now: () => at('2026-01-05T01:00:00Z'),
+      fetcher: async (url) => {
+        if (url.includes('down')) throw new Error('offline');
+        return url.includes('stale') ? stale : fresh;
+      },
+    });
+    m.activate(key);
+    expect(await m.refresh()).toBe(true);
+    expect(m.status().devices).toBe(4);
+  });
+
   it('takes the device count from the feed without a new key', async () => {
     const key = issueLicense({ id: 'dev-1', customer: 'ز', machineId: MACHINE, plan: 'annual', devices: 1, issuedAt }, priv);
     const m = manager();

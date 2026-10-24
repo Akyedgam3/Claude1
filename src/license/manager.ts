@@ -160,27 +160,29 @@ export class LicenseManager {
     return s;
   }
 
-  /** التحقق من الإنترنت. يعيد true إن وصلت قائمة صالحة. */
+  /**
+   * التحقق من الإنترنت. يعيد true إن وصلت قائمة صالحة.
+   * منسأل كل الروابط مع بعض ومناخد الأحدث: إذا الرابط الأول محجوب والاحتياطي مخزّن نسخة قديمة، ما منعلق عليها.
+   */
   async refresh(): Promise<boolean> {
     if (!this.onlineEnabled) return false;
-    for (const url of this.o.feedUrls) {
-      try {
-        const text = await this.fetcher(url);
-        const feed = parseFeed(text, this.o.publicKey);
-        if (!feed) continue;
-        const data = this.read();
-        const cached = this.feedOf(data);
-        // نرفض قائمة أقدم من المحفوظة (حتى لا تُستخدم نسخة قديمة لإعادة تفعيل ترخيص موقوف)
-        if (cached && feed.issuedAt < cached.issuedAt) continue;
-        const now = this.now();
-        // القائمة الموقّعة وقت موثوق: إن لم تكن ساعة الجهاز متأخرة عنها نصحّح آخر وقت محفوظ
-        const clockOk = now.getTime() >= new Date(feed.issuedAt).getTime() - DAY;
-        this.write({ ...data, feed: text.trim(), lastOnline: now.toISOString(), ...(clockOk ? { lastSeen: now.toISOString() } : {}) });
-        return true;
-      } catch {
-        // نجرب الرابط التالي
-      }
-    }
-    return false;
+    const got = await Promise.allSettled(this.o.feedUrls.map(async (url) => {
+      const text = await this.fetcher(url);
+      const feed = parseFeed(text, this.o.publicKey);
+      if (!feed) throw new Error('قائمة غير صالحة');
+      return { text, feed };
+    }));
+    const valid = got.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
+    if (!valid.length) return false;
+    const best = valid.reduce((a, b) => (b.feed.issuedAt > a.feed.issuedAt ? b : a));
+    const data = this.read();
+    const cached = this.feedOf(data);
+    // نرفض قائمة أقدم من المحفوظة (حتى لا تُستخدم نسخة قديمة لإعادة تفعيل ترخيص موقوف)
+    if (cached && best.feed.issuedAt < cached.issuedAt) return false;
+    const now = this.now();
+    // القائمة الموقّعة وقت موثوق: إن لم تكن ساعة الجهاز متأخرة عنها نصحّح آخر وقت محفوظ
+    const clockOk = now.getTime() >= new Date(best.feed.issuedAt).getTime() - DAY;
+    this.write({ ...data, feed: best.text.trim(), lastOnline: now.toISOString(), ...(clockOk ? { lastSeen: now.toISOString() } : {}) });
+    return true;
   }
 }
