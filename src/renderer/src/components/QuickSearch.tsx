@@ -55,6 +55,13 @@ export function QuickSearch({ screens, onClose }: { screens: { key: string; labe
         out.push({ key: `t:${o.id}`, icon: 'scissors', label: `طلب تفصيل رقم ${o.number}`, hint: state.parties[o.partyId]?.name ?? '', go: go('tailor-order', o.id) });
       }
     }
+    if (feature('sitejobs') && can('sitejobs.manage')) {
+      for (const j of Object.values(state.siteJobs)) {
+        const p = state.parties[j.partyId];
+        if (num !== null ? j.number !== num : !matches(text, p?.name, p?.phone, j.title, j.address)) continue;
+        out.push({ key: `j:${j.id}`, icon: 'roller', label: `${j.title || 'مشروع'} رقم ${j.number}`, hint: `${p?.name ?? ''} · ${dateText(j.date)}`, go: go('sitejob', j.id) });
+      }
+    }
     if (feature('serials') && /^[\w-]{6,}$/.test(text.trim())) {
       // رقم IMEI: بيفتح سجل الجهاز
       const t = text.trim();

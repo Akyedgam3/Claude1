@@ -583,13 +583,13 @@ export function TailorEditor({ id }: { id?: string }) {
   );
 }
 
-function DepositDialog({ currency, suggested, onClose, onConfirm }: { currency: string; suggested: number; onClose: () => void; onConfirm: (amount: number, cash: string) => Promise<void> }) {
+export function DepositDialog({ currency, suggested, onClose, onConfirm, title = 'قبض عربون', hint = 'يُسجَّل سند قبض باسم الزبون، ويُخصم تلقائياً من المطلوب عند التسليم.' }: { currency: string; suggested: number; onClose: () => void; onConfirm: (amount: number, cash: string) => Promise<void>; title?: string; hint?: string }) {
   const { state, notify } = useCompany();
   const [amount, setAmount] = useState(suggested > 0 ? toInput(state, suggested, currency) : '');
   const cashes = cashAccounts(state).filter((a) => !a.currency || a.currency === currency);
   const [cash, setCash] = useState(cashes[0]?.id ?? '1101');
   return (
-    <Modal title="قبض عربون" onClose={onClose}>
+    <Modal title={title} onClose={onClose}>
       <form
         className="form-grid"
         onSubmit={async (e) => {
@@ -615,7 +615,7 @@ function DepositDialog({ currency, suggested, onClose, onConfirm }: { currency: 
             ))}
           </select>
         </Field>
-        <p className="muted wide">يُسجَّل سند قبض باسم الزبون، ويُخصم تلقائياً من المطلوب عند التسليم.</p>
+        <p className="muted wide">{hint}</p>
         <div className="form-actions wide">
           <button type="button" onClick={onClose}>
             إلغاء
@@ -627,16 +627,22 @@ function DepositDialog({ currency, suggested, onClose, onConfirm }: { currency: 
   );
 }
 
-function DeliverDialog({
+export function DeliverDialog({
   subtotal,
   deposits,
   currency,
   onClose,
   onConfirm,
+  title = 'تسليم الطلب وإصدار الفاتورة',
+  totalLabel = 'قيمة الطلب',
+  depositsLabel = 'العربون المقبوض',
 }: {
   subtotal: number;
   deposits: number;
   currency: string;
+  title?: string;
+  totalLabel?: string;
+  depositsLabel?: string;
   onClose: () => void;
   onConfirm: (opts: { paid?: number; cashAccountId: string; taxIds: string[] }) => Promise<void>;
 }) {
@@ -648,7 +654,7 @@ function DeliverDialog({
   const [paid, setPaid] = useState(toInput(state, Math.max(0, subtotal - deposits), currency));
   const [auto, setAuto] = useState(true);
   return (
-    <Modal title="تسليم الطلب وإصدار الفاتورة" onClose={onClose}>
+    <Modal title={title} onClose={onClose}>
       <form
         className="form-grid"
         onSubmit={async (e) => {
@@ -661,9 +667,9 @@ function DeliverDialog({
         }}
       >
         <div className="kv wide">
-          <span>قيمة الطلب</span>
+          <span>{totalLabel}</span>
           <strong>{money(state, subtotal, currency)}</strong>
-          <span>العربون المقبوض</span>
+          <span>{depositsLabel}</span>
           <strong>{money(state, deposits, currency)}</strong>
         </div>
         <label className="check wide">
@@ -696,7 +702,7 @@ function DeliverDialog({
           <button type="button" onClick={onClose}>
             إلغاء
           </button>
-          <button className="primary">تسليم وإصدار الفاتورة</button>
+          <button className="primary">{title}</button>
         </div>
       </form>
     </Modal>

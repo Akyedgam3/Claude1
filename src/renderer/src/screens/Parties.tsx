@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { partyBalance, partyStatement, type Party } from '../../../core';
+import { partyBalance, partyStatement, siteJobRooms, siteJobTotals, type Party } from '../../../core';
 import { major, money, parseAmount, toInput, uid, useCompany, dateText } from '../api';
 import { ExportButtons, PrintButtons, DocHeader } from '../components/print';
 import { Icon } from '../components/icons';
 import { Empty, Field, matches, Modal, PageHeader, SearchBox } from '../components/ui';
 import { MeasurementsEditor, TAILOR_STATUS } from './Tailor';
+import { meters, SITE_JOB_STATUS } from './SiteJobs';
 
 const KIND_NAMES: Record<Party['kind'], string> = { customer: 'عميل', supplier: 'مورد', both: 'عميل ومورد' };
 
@@ -111,6 +112,7 @@ export function BalanceText({ value, currency }: { value: number; currency?: str
 export function PartyPanel({ party, onEdit }: { party: Party; onEdit?: () => void }) {
   const { state, navigate, feature, can, notify } = useCompany();
   const [currency, setCurrency] = useState<string>('');
+  const jobs = feature('sitejobs') ? Object.values(state.siteJobs).filter((j) => j.partyId === party.id).sort((a, b) => b.date.localeCompare(a.date)) : [];
   const orders = feature('tailoring') ? Object.values(state.tailorOrders).filter((o) => o.partyId === party.id).sort((a, b) => b.number - a.number) : [];
   const measures = Object.entries(party.measurements ?? {});
   const balance = partyBalance(state, party.id);
@@ -163,6 +165,36 @@ export function PartyPanel({ party, onEdit }: { party: Party; onEdit?: () => voi
               </li>
             ))}
           </ul>
+        </>
+      )}
+      {feature('sitejobs') && (
+        <>
+          <h4 className="row-title">
+            <span>
+              <Icon name="roller" size={16} /> المشاريع ({jobs.length})
+            </span>
+            <button onClick={() => navigate('sitejob')}>كشف جديد</button>
+          </h4>
+          {jobs.length === 0 ? (
+            <p className="muted">ما اشتغلنالو شي لسا.</p>
+          ) : (
+            <table className="table compact">
+              <tbody>
+                {jobs.map((j) => (
+                  <tr key={j.id} className="clickable" onClick={() => navigate('sitejob', j.id)}>
+                    <td>{dateText(j.date)}</td>
+                    <td>
+                      {j.title || `مشروع ${j.number}`}
+                      <div className="muted">{siteJobRooms(j).map((r) => `${r.room} ${meters(r.meters)} م`).join(' · ')}</div>
+                    </td>
+                    <td className="num">{meters(siteJobTotals(j).meters)} م</td>
+                    <td className="num">{money(state, siteJobTotals(j).total, j.currency)}</td>
+                    <td>{SITE_JOB_STATUS[j.status]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </>
       )}
       {feature('tailoring') && (

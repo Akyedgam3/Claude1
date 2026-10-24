@@ -3619,3 +3619,19 @@ button.danger-soft {
 .page-header .back-x + h2 {
   flex: 1;
 }
+
+/* مشاريع التنفيذ (جبسين وديكور): كل غرفة بطاقة متل الكشف الورقي */
+.site-job .room-card .panel-header { display: flex; align-items: center; gap: 12px; }
+.site-job .room-name { display: flex; align-items: center; gap: 10px; flex: 1; margin: 0; }
+.site-job .room-name input { font-size: 18px; font-weight: 700; max-width: 260px; }
+.site-job .room-no { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--primary); color: #fff; font-size: 15px; flex: none; }
+.site-job .room-total { font-size: 20px; font-weight: 800; color: var(--primary); border: 2px solid currentColor; border-radius: 10px; padding: 2px 12px; white-space: nowrap; }
+.site-job .room-total small { font-size: 14px; font-weight: 600; color: var(--muted); }
+.site-job .room-card .quick-cur { margin-top: 10px; }
+.site-job .add-room { margin: 4px 0 16px; }
+.site-job .num-input.factor { width: 70px; margin-top: 4px; }
+.site-job .lines select { min-width: 110px; }
+.site-job .totals-bar .num-input { max-width: 120px; }
+.banner.info { background: var(--primary-soft); border-color: transparent; display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+.site-sheet .doc-lines { margin-bottom: 10px; }
+.site-sheet .room-sum td { border-top: 2px solid #333; }

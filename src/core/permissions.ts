@@ -22,6 +22,7 @@ export const PERMISSIONS = {
   'restaurant.use': 'الطاولات والطلبات',
   'appointments.manage': 'المواعيد',
   'tailoring.manage': 'طلبات التفصيل والقياسات',
+  'sitejobs.manage': 'مشاريع التنفيذ والكشوفات',
   'reports.financial': 'التقارير المالية',
   'reports.stock': 'تقارير المخزون',
   'accounts.manage': 'دليل الحسابات',
@@ -55,7 +56,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ],
   cashier: ['sales.create', 'returns.create', 'pos.use', 'restaurant.use', 'appointments.manage', 'tailoring.manage', 'vouchers.create', 'parties.manage'],
   storekeeper: ['items.manage', 'stock.adjust', 'stock.transfer', 'production.manage', 'purchases.create', 'reports.stock'],
-  technician: ['repairs.manage', 'appointments.manage', 'tailoring.manage', 'parties.manage'],
+  technician: ['repairs.manage', 'appointments.manage', 'tailoring.manage', 'sitejobs.manage', 'parties.manage'],
   viewer: ['reports.stock'],
 };
 
@@ -118,6 +119,9 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
   saveQuote: 'sales.create',
   convertQuote: 'sales.create',
   saveTailorOrder: 'tailoring.manage',
+  saveSiteJob: 'sitejobs.manage',
+  addSiteJobDeposit: 'vouchers.create',
+  deliverSiteJob: 'sales.create',
   addTailorDeposit: 'vouchers.create',
   deliverTailorOrder: 'sales.create',
   loadDemoData: 'settings.manage',

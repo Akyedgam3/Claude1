@@ -110,6 +110,16 @@ export function Dashboard() {
             <Icon name="utensils" size={20} /> الطاولات
           </button>
         )}
+        {feature('sitejobs') && can('sitejobs.manage') && (
+          <button className="primary big accent" onClick={() => navigate('sitejob')}>
+            <Icon name="roller" size={20} /> كشف جديد
+          </button>
+        )}
+        {feature('sitejobs') && can('sitejobs.manage') && (
+          <button className="primary big" onClick={() => navigate('sitejobs')}>
+            <Icon name="ruler" size={20} /> المشاريع
+          </button>
+        )}
         {feature('tailoring') && can('tailoring.manage') && (
           <button className="primary big accent" onClick={() => navigate('tailor-order')}>
             <Icon name="scissors" size={20} /> طلب تفصيل جديد

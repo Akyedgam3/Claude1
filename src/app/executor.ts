@@ -74,10 +74,16 @@ export function execute(store: CompanyStore, actor: User, method: string, args: 
     const src = (args[0] as { source?: { type?: string } } | undefined)?.source;
     if (src && src.type !== 'manual') fail('نوع القيد غير مسموح');
   }
-  if (['postInvoice', 'saveQuote', 'closeOrder', 'invoiceRepair', 'deliverTailorOrder', 'invoiceAppointment'].includes(method)) {
+  if (['postInvoice', 'saveQuote', 'closeOrder', 'invoiceRepair', 'deliverTailorOrder', 'deliverSiteJob', 'invoiceAppointment'].includes(method)) {
     const d = args[method === 'postInvoice' || method === 'saveQuote' ? 0 : 1] as Partial<InvoiceDraft> | undefined;
     const discounted = !!d?.discount || !!d?.lines?.some((l) => !!l.discount);
     if (discounted) requirePermission(user, 'discount.give');
+  }
+  if (method === 'saveSiteJob') {
+    // خصم المشروع بيحتاج صلاحية الخصم (إذا تغيّر)
+    const j = args[0] as { id?: string; discount?: number } | undefined;
+    const before = j?.id ? store.ledger.state.siteJobs[j.id]?.discount : undefined;
+    if (j?.discount && j.discount !== before) requirePermission(user, 'discount.give');
   }
   // الاستبدال فيه شراء كمان
   if (method === 'tradeIn') requirePermission(user, 'purchases.create');

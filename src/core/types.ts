@@ -71,7 +71,8 @@ export type Activity =
   | 'sweets'
   | 'wholesale'
   | 'clinic'
-  | 'tailor';
+  | 'tailor'
+  | 'gypsum';
 
 export type Paper = 'a4' | 'a5' | '80mm' | '58mm';
 
@@ -492,6 +493,50 @@ export interface TailorOrder {
   invoiceId?: string;
 }
 
+// ───────────── مشاريع التنفيذ (جبسين وديكور وما شابه): كشف بالمتر عند الزبون ─────────────
+
+/** طريقة القياس: مساحة (طول × عرض)، طول (متر جر)، أو عدد. */
+export type MeasureKind = 'area' | 'length' | 'count';
+
+/** بند بالكشف: سقف الصالون، مرد جالس، مرد لف... */
+export interface SiteJobLine {
+  id: string;
+  room: string; // الصالون، غرفة الضيوف، المطبخ...
+  name: string; // سقف، مرد جالس، مرد لف، اسرب...
+  kind: MeasureKind;
+  length: number; // متر (أو العدد إذا kind = count)
+  width?: number; // متر (للمساحة بس)
+  /** معامل الحساب: المرد الجالس بينحسب نص (0.5)، العادي 1. */
+  factor: number;
+  /** سعر خاص لهالبند بأصغر وحدة (وإلا سعر المتر العام للمشروع). */
+  price?: number;
+  note?: string;
+}
+
+export type SiteJobStatus = 'survey' | 'quoted' | 'working' | 'done' | 'invoiced' | 'cancelled';
+
+export interface SiteJob {
+  id: string;
+  number: number;
+  partyId: string;
+  date: string; // تاريخ الكشف
+  title?: string; // اسم المشروع: بيت أبو محمد، محل...
+  address?: string; // عنوان الشغل
+  status: SiteJobStatus;
+  currency: string;
+  rate: number; // سعر المتر بأصغر وحدة من عملة المشروع
+  lines: SiteJobLine[];
+  extras: { description: string; amount: number }[]; // إضافات مقطوعة (إنارة، نقل، فك قديم...)
+  discount?: number;
+  /** تكاليف المشروع (مواد، عمال، نقل) لحساب الربح بس، ما بتنقيد بالحسابات. */
+  costs: { description: string; amount: number }[];
+  startDate?: string;
+  endDate?: string;
+  notes?: string;
+  deposits: { entryId: string; amount: number; date: string }[]; // دفعات قبل الفوترة (سندات قبض)
+  invoiceId?: string;
+}
+
 // ───────────── ورشة الإنتاج (قص وخياطة بالجملة لقماش الزبون) ─────────────
 
 /** وحدة طول القماش: ياردة أو متر. الأطوال مخزنة بأجزاء المئة من الوحدة (أعداد صحيحة). */
@@ -657,6 +702,7 @@ export interface CompanyState {
   orders: Record<string, Order>;
   appointments: Record<string, Appointment>;
   tailorOrders: Record<string, TailorOrder>;
+  siteJobs: Record<string, SiteJob>;
   quotes: Record<string, Quote>;
   rolls: Record<string, FabricRoll>;
   workOrders: Record<string, WorkOrder>;
@@ -689,6 +735,7 @@ export type CompanyEvent =
   | { type: 'order.saved'; order: Order }
   | { type: 'appointment.saved'; appointment: Appointment }
   | { type: 'tailor.saved'; order: TailorOrder }
+  | { type: 'sitejob.saved'; job: SiteJob }
   | { type: 'quote.saved'; quote: Quote }
   | { type: 'rolls.saved'; rolls: FabricRoll[] }
   | { type: 'workorder.saved'; order: WorkOrder }

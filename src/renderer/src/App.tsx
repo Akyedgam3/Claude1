@@ -28,6 +28,7 @@ import { Reports } from './screens/Reports';
 import { KitchenDisplay, Restaurant, RestaurantLive } from './screens/Restaurant';
 import { Settings } from './screens/Settings';
 import { TailorEditor, TailorOrders } from './screens/Tailor';
+import { SiteJobEditor, SiteJobs } from './screens/SiteJobs';
 import { QuoteEditor, Quotes } from './screens/Quotes';
 import { StockOps } from './screens/StockOps';
 import { Users } from './screens/Users';
@@ -61,6 +62,8 @@ const NAV: (NavItem | string)[] = [
   'الخياطة',
   { key: 'workshop', label: 'ورشة الخياطة (الجملة)', icon: 'factory', feature: 'workshop', perm: 'tailoring.manage' },
   { key: 'tailor', label: 'طلبات التفصيل', icon: 'scissors', feature: 'tailoring', perm: 'tailoring.manage' },
+  'الورشة',
+  { key: 'sitejobs', label: 'المشاريع والكشوفات', icon: 'roller', feature: 'sitejobs', perm: 'sitejobs.manage' },
   'العمليات',
   { key: 'pos', label: 'نقطة البيع', icon: 'pos', feature: 'pos', perm: 'pos.use' },
   { key: 'restaurant', label: 'الطاولات والطلبات', icon: 'utensils', feature: 'tables', perm: 'restaurant.use' },
@@ -105,7 +108,7 @@ function refreshRefs(s: CompanyState): CompanyState {
 }
 
 /** الشاشات التفصيلية وقائمة كل وحدة منها (لزر الرجوع إذا ما في سجل). */
-const DETAIL_PARENT: Record<string, string> = { invoice: 'invoices', repair: 'repairs', quote: 'quotes', 'tailor-order': 'tailor', 'work-order': 'workshop' };
+const DETAIL_PARENT: Record<string, string> = { invoice: 'invoices', repair: 'repairs', quote: 'quotes', 'tailor-order': 'tailor', 'work-order': 'workshop', sitejob: 'sitejobs' };
 
 export function App() {
   const [info, setInfo] = useState<AppInfo | null>(null);
@@ -374,7 +377,7 @@ export function App() {
           <nav className="bottom-nav" aria-label="القائمة السريعة">
             {[
               screens.find((n) => n.key === 'dashboard'),
-              screens.find((n) => n.key === 'pos') ?? screens.find((n) => n.key === 'restaurant') ?? screens.find((n) => n.key === 'sale'),
+              screens.find((n) => n.key === 'sitejobs') ?? screens.find((n) => n.key === 'pos') ?? screens.find((n) => n.key === 'restaurant') ?? screens.find((n) => n.key === 'sale'),
               screens.find((n) => n.key === 'invoices'),
               screens.find((n) => n.key === 'debts') ?? screens.find((n) => n.key === 'items'),
             ]
@@ -382,7 +385,7 @@ export function App() {
               .map((n) => (
                 <button key={n.key} className={screen.key === n.key ? 'active' : ''} onClick={() => navigate(n.key)}>
                   <Icon name={n.icon} size={22} />
-                  <span>{n.key === 'dashboard' ? 'الرئيسية' : n.key === 'pos' || n.key === 'restaurant' || n.key === 'sale' ? 'البيع' : n.key === 'invoices' ? 'الفواتير' : n.label}</span>
+                  <span>{n.key === 'dashboard' ? 'الرئيسية' : n.key === 'sitejobs' ? 'المشاريع' : n.key === 'pos' || n.key === 'restaurant' || n.key === 'sale' ? 'البيع' : n.key === 'invoices' ? 'الفواتير' : n.label}</span>
                 </button>
               ))}
             <button className={navOpen ? 'active' : ''} onClick={() => setNavOpen(true)}>
@@ -443,6 +446,10 @@ function Screen({ screen }: { screen: { key: string; param?: string } }) {
       return <TailorOrders />;
     case 'tailor-order':
       return <TailorEditor key={p ?? 'new'} {...(p ? { id: p } : {})} />;
+    case 'sitejobs':
+      return <SiteJobs />;
+    case 'sitejob':
+      return <SiteJobEditor key={p ?? 'new'} {...(p ? { id: p } : {})} />;
     case 'devices':
       return <DeviceLookup key={p ?? ''} {...(p ? { serial: p } : {})} />;
     case 'installments':

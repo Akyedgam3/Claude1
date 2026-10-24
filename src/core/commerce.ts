@@ -3,7 +3,7 @@ import type { EntryDraft, LineDraft } from './ledger';
 import { convertMinor } from './money';
 import { adjustmentMoves, applyMove, assertMovesPossible, invoiceMoves, negate, productionMoves, roundQty, StockPlanner, transferMoves } from './stock';
 import { computeTaxes } from './tax';
-import type { CompanyEvent, CompanyState, FabricRoll, Invoice, InvoiceKind, InvoiceLine, JournalEntry, LengthUnit, Order, Quote, RepairOrder, TailorOrder, WorkOrder, WorkStage } from './types';
+import type { CompanyEvent, CompanyState, FabricRoll, Invoice, InvoiceKind, InvoiceLine, JournalEntry, LengthUnit, Order, Quote, RepairOrder, SiteJob, SiteJobLine, TailorOrder, WorkOrder, WorkStage } from './types';
 
 function fail(message: string): never {
   throw new Error(message);
@@ -158,6 +158,32 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       const prev = state.tailorOrders[o.id];
       if (prev && prev.number !== o.number) fail('لا يمكن تغيير رقم الطلب');
       if (prev?.invoiceId && !invoiceVoided(state, prev.invoiceId) && (o.status !== 'delivered' || o.invoiceId !== prev.invoiceId)) fail('الطلب مسلّم ومفوتر؛ ألغِ الفاتورة أولاً لتعديله');
+      return;
+    }
+    case 'sitejob.saved': {
+      const j = event.job;
+      if (!state.parties[j.partyId]) fail('الزبون غير موجود');
+      if (!DATE_RE.test(j.date) || (j.startDate && !DATE_RE.test(j.startDate)) || (j.endDate && !DATE_RE.test(j.endDate))) fail('تاريخ غير صالح');
+      if (!state.currencies[j.currency]) fail('عملة غير معروفة');
+      if (!Number.isSafeInteger(j.rate) || j.rate < 0) fail('سعر المتر غير صالح');
+      if (j.lines.length + j.extras.length === 0) fail('أضف بند واحد على الأقل');
+      for (const l of j.lines) {
+        const where = `${l.room} — ${l.name}`;
+        if (!l.room?.trim() || !l.name?.trim()) fail('اكتب اسم الغرفة والبند');
+        if (!['area', 'length', 'count'].includes(l.kind)) fail(`طريقة قياس غير معروفة: ${where}`);
+        if (!(Number.isFinite(l.length) && l.length > 0 && l.length < 100000)) fail(`الطول غير صالح: ${where}`);
+        if (l.kind === 'area' && !(Number.isFinite(l.width) && l.width! > 0 && l.width! < 100000)) fail(`العرض غير صالح: ${where}`);
+        if (!(Number.isFinite(l.factor) && l.factor > 0 && l.factor <= 100)) fail(`المعامل غير صالح: ${where}`);
+        if (l.price !== undefined && (!Number.isSafeInteger(l.price) || l.price < 0)) fail(`السعر غير صالح: ${where}`);
+      }
+      for (const x of [...j.extras, ...j.costs]) {
+        if (!x.description.trim()) fail('اكتب وصف الإضافة أو التكلفة');
+        if (!Number.isSafeInteger(x.amount) || x.amount < 0) fail(`مبلغ غير صالح: ${x.description}`);
+      }
+      if (j.discount !== undefined && (!Number.isSafeInteger(j.discount) || j.discount < 0)) fail('خصم غير صالح');
+      const prev = state.siteJobs[j.id];
+      if (prev && prev.number !== j.number) fail('لا يمكن تغيير رقم المشروع');
+      if (prev?.invoiceId && !invoiceVoided(state, prev.invoiceId) && (j.status !== 'invoiced' || j.invoiceId !== prev.invoiceId)) fail('المشروع مفوتر؛ ألغِ الفاتورة أولاً لتعديله');
       return;
     }
     case 'rolls.saved': {
@@ -351,6 +377,10 @@ export function applyCommerceEvent(state: CompanyState, event: CompanyEvent): vo
     case 'tailor.saved':
       state.tailorOrders[event.order.id] = { ...event.order };
       bump(state, 'tailor', event.order.number);
+      return;
+    case 'sitejob.saved':
+      state.siteJobs[event.job.id] = { ...event.job };
+      bump(state, 'sitejob', event.job.number);
       return;
     case 'rolls.saved':
       for (const r of event.rolls) state.rolls[r.id] = normalizeRoll(r);
@@ -669,6 +699,59 @@ export function tailorDeposits(state: CompanyState, order: TailorOrder): number 
 /** مجموع الطلب قبل الخصم والضريبة. */
 export function tailorSubtotal(order: Pick<TailorOrder, 'garments' | 'fabrics'>): number {
   return order.garments.reduce((s, g) => s + Math.round(g.qty * g.price), 0) + order.fabrics.reduce((s, f) => s + Math.round(f.qty * f.price), 0);
+}
+
+// ───────────── مشاريع التنفيذ (جبسين وديكور) ─────────────
+
+const r2 = (x: number) => Math.round(x * 100) / 100;
+
+/** أمتار البند بعد المعامل: (طول × عرض) أو طول أو عدد، × المعامل (المرد الجالس ÷ 2). */
+export function siteLineMeters(l: Pick<SiteJobLine, 'kind' | 'length' | 'width' | 'factor'>): number {
+  const raw = l.kind === 'area' ? r2(l.length * (l.width ?? 0)) : r2(l.length);
+  return r2(raw * l.factor);
+}
+
+/** قيمة البند: الأمتار × سعر البند (أو سعر المتر العام). */
+export function siteLineAmount(job: Pick<SiteJob, 'rate'>, l: SiteJobLine): number {
+  return Math.round(siteLineMeters(l) * (l.price ?? job.rate));
+}
+
+/** الغرف بالترتيب مع أمتارها وقيمتها (متل الكشف الورقي). */
+export function siteJobRooms(job: Pick<SiteJob, 'rate' | 'lines'>): { room: string; meters: number; amount: number; lines: SiteJobLine[] }[] {
+  const out: { room: string; meters: number; amount: number; lines: SiteJobLine[] }[] = [];
+  for (const l of job.lines) {
+    let r = out.find((x) => x.room === l.room);
+    if (!r) out.push((r = { room: l.room, meters: 0, amount: 0, lines: [] }));
+    r.lines.push(l);
+    r.meters = r2(r.meters + siteLineMeters(l));
+    r.amount += siteLineAmount(job, l);
+  }
+  return out;
+}
+
+/** مجاميع المشروع قبل الضريبة. */
+export function siteJobTotals(job: Pick<SiteJob, 'rate' | 'lines' | 'extras' | 'discount' | 'costs'>) {
+  const meters = r2(job.lines.reduce((s, l) => s + siteLineMeters(l), 0));
+  const work = job.lines.reduce((s, l) => s + siteLineAmount(job, l), 0);
+  const extras = job.extras.reduce((s, x) => s + x.amount, 0);
+  const discount = Math.min(job.discount ?? 0, work + extras);
+  const total = work + extras - discount;
+  const costs = job.costs.reduce((s, x) => s + x.amount, 0);
+  return { meters, work, extras, discount, total, costs, profit: total - costs };
+}
+
+/** مجموع الدفعات الفعّالة (السندات غير الملغاة). */
+export function siteJobDeposits(state: CompanyState, job: SiteJob): number {
+  return job.deposits.filter((d) => !state.voided[d.entryId]).reduce((s, d) => s + d.amount, 0);
+}
+
+/** سطور الفاتورة: كل بند بأمتاره وسعره، والإضافات مقطوعة. */
+export function siteJobToInvoiceLines(job: SiteJob): InvoiceLineDraft[] {
+  const dims = (l: SiteJobLine) => (l.kind === 'area' ? `${l.length} × ${l.width}` : `${l.length}${l.kind === 'length' ? ' م' : ''}`) + (l.factor !== 1 ? ` × ${l.factor}` : '');
+  return [
+    ...job.lines.filter((l) => siteLineMeters(l) > 0).map((l) => ({ itemId: null, description: `${l.room}: ${l.name} (${dims(l)})`, qty: siteLineMeters(l), price: l.price ?? job.rate, ...(l.note ? { note: l.note } : {}) })),
+    ...job.extras.filter((x) => x.amount > 0).map((x) => ({ itemId: null, description: x.description, qty: 1, price: x.amount })),
+  ];
 }
 
 /** مجاميع عرض السعر (للعرض والطباعة). */

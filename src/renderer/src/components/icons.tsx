@@ -1,4 +1,5 @@
 import {
+  PaintRoller,
   Camera,
   Menu,
   HandCoins,
@@ -71,6 +72,7 @@ const ICONS: Record<string, LucideIcon> = {
   laptop: Laptop,
   cpu: Cpu,
   'brick-wall': BrickWall,
+  roller: PaintRoller,
   beef: Beef,
   croissant: Croissant,
   'ice-cream': IceCreamCone,

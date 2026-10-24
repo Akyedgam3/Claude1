@@ -1,4 +1,4 @@
-import { applyCommerceEvent, buildInvoice, convertOrder, orderTotals, piecesTotal, repairToInvoiceLines, rollRemaining, UNIT_NAMES, tailorDeposits, tailorToInvoiceLines, validateCommerceEvent, workOrderProgress, type InvoiceDraft, type InvoiceLineDraft } from './commerce';
+import { applyCommerceEvent, buildInvoice, convertOrder, orderTotals, piecesTotal, repairToInvoiceLines, rollRemaining, siteJobDeposits, siteJobToInvoiceLines, siteJobTotals, UNIT_NAMES, tailorDeposits, tailorToInvoiceLines, validateCommerceEvent, workOrderProgress, type InvoiceDraft, type InvoiceLineDraft } from './commerce';
 import { ACTIVITIES } from './activities';
 import { loadDemo } from './demo';
 import { buildSchedule, installmentState } from './electronics';
@@ -39,6 +39,7 @@ import type {
   StockAdjustment,
   StockTransfer,
   Quote,
+  SiteJob,
   TailorOrder,
   Tax,
   User,
@@ -76,6 +77,7 @@ export function emptyState(): CompanyState {
     orders: {},
     appointments: {},
     tailorOrders: {},
+    siteJobs: {},
     quotes: {},
     rolls: {},
     workOrders: {},
@@ -690,6 +692,9 @@ export class Ledger {
     } else if (src?.type === 'tailor') {
       const o = this.state.tailorOrders[src.id];
       if (o?.invoiceId === invoice.id) this.emit({ type: 'tailor.saved', order: { ...withoutInvoice(o), status: 'ready' } });
+    } else if (src?.type === 'sitejob') {
+      const j = this.state.siteJobs[src.id];
+      if (j?.invoiceId === invoice.id) this.emit({ type: 'sitejob.saved', job: { ...withoutInvoice(j), status: 'done' } });
     } else if (src?.type === 'workorder') {
       // إلغاء فاتورة دفعة التسليم بيرجّع القطع جاهزة للتسليم
       const o = this.state.workOrders[src.id];
@@ -1104,6 +1109,81 @@ export class Ledger {
     return invoice;
   }
 
+  // ───────────── مشاريع التنفيذ (جبسين وديكور) ─────────────
+
+  /** حفظ مشروع (كشف) جديد أو تعديله. الدفعات والفاتورة ما بتتعدّل من هون. */
+  saveSiteJob(draft: SiteJobDraft): SiteJob {
+    const existing = this.state.siteJobs[draft.id];
+    if (existing?.invoiceId) fail('المشروع مفوتر؛ ألغِ الفاتورة أولاً لتعديله');
+    if (draft.status === 'invoiced') fail('استخدم "فوترة" لإصدار فاتورة المشروع');
+    const paid = existing ? siteJobDeposits(this.state, existing) : 0;
+    if (existing && existing.status !== 'cancelled' && draft.status === 'cancelled' && paid > 0) fail('على المشروع دفعات؛ أرجعها (ألغِ سندات القبض) قبل إلغاء المشروع');
+    if (paid > 0 && (draft.currency !== existing!.currency || draft.partyId !== existing!.partyId)) fail('على المشروع دفعات؛ ما بيصير تغيّر الزبون أو العملة');
+    const job: SiteJob = {
+      ...draft,
+      costs: draft.costs ?? [],
+      number: existing?.number ?? (this.state.counters['sitejob'] ?? 0) + 1,
+      deposits: existing?.deposits ?? [],
+    };
+    this.emit({ type: 'sitejob.saved', job });
+    return job;
+  }
+
+  /** دفعة على المشروع (عربون أو دفعة أثناء الشغل): سند قبض على حساب الزبون. */
+  addSiteJobDeposit(jobId: string, d: { date: string; amount: number; cashAccountId?: string; rate?: number }): SiteJob {
+    const j = this.state.siteJobs[jobId] ?? fail('المشروع غير موجود');
+    if (j.invoiceId || j.status === 'cancelled') fail('ما بيصير دفعة على مشروع مفوتر أو ملغى');
+    const entry = this.postVoucher({
+      kind: 'receipt',
+      date: d.date,
+      amount: d.amount,
+      currency: j.currency,
+      partyId: j.partyId,
+      memo: `دفعة على المشروع رقم ${j.number}${j.title ? ` (${j.title})` : ''}`,
+      ...(d.cashAccountId ? { cashAccountId: d.cashAccountId } : {}),
+      ...(d.rate ? { rate: d.rate } : {}),
+      createdBy: this.actor,
+    });
+    const job: SiteJob = { ...j, deposits: [...j.deposits, { entryId: entry.id, amount: d.amount, date: d.date }] };
+    this.emit({ type: 'sitejob.saved', job });
+    return job;
+  }
+
+  /** فوترة المشروع: فاتورة مبيع ببنود الكشف، والدفعات بتنخصم من المطلوب. */
+  deliverSiteJob(jobId: string, opts: TailorDeliverOptions): Invoice {
+    const j = this.state.siteJobs[jobId] ?? fail('المشروع غير موجود');
+    if (j.invoiceId) fail('المشروع مفوتر من قبل');
+    if (j.status === 'cancelled') fail('المشروع ملغى');
+    const lines = siteJobToInvoiceLines(j);
+    if (!lines.length) fail('المشروع فاضي');
+    const t = siteJobTotals(j);
+    const discount = (opts.discount ?? 0) + t.discount;
+    const draft: InvoiceDraft = {
+      kind: 'sale',
+      date: opts.date,
+      partyId: j.partyId,
+      currency: j.currency,
+      lines,
+      ...(opts.rate ? { rate: opts.rate } : {}),
+      ...(discount ? { discount } : {}),
+      ...(opts.taxIds ? { taxIds: opts.taxIds } : {}),
+      ...(opts.cashAccountId ? { cashAccountId: opts.cashAccountId } : {}),
+      notes: `مشروع رقم ${j.number}${j.title ? ` — ${j.title}` : ''}${j.address ? ` — ${j.address}` : ''}`,
+      source: { type: 'sitejob', id: j.id },
+    };
+    let paid = opts.paid;
+    if (paid === undefined) {
+      const { invoice: preview } = buildInvoice(
+        { state: this.state, baseCode: this.base.code, resolveRate: (c, dt) => this.rateFor(c, dt), buildEntry: (e) => this.buildEntry(e), partyBalance: () => -Infinity },
+        { ...draft, paid: 0 },
+      );
+      paid = Math.max(0, preview.total - siteJobDeposits(this.state, j));
+    }
+    const invoice = this.postInvoice({ ...draft, paid });
+    this.emit({ type: 'sitejob.saved', job: { ...j, status: 'invoiced', invoiceId: invoice.id } });
+    return invoice;
+  }
+
   /** تعبئة شركة فاضية ببيانات تجريبية للعرض. */
   loadDemoData(): void {
     loadDemo(this);
@@ -1464,6 +1544,8 @@ export interface WorkDeliverOptions {
 export type QuoteDraft = Omit<Quote, 'number' | 'invoiceId' | 'createdBy'> & { number?: number };
 
 export type TailorOrderDraft = Omit<TailorOrder, 'number' | 'deposits' | 'invoiceId'> & { number?: number };
+
+export type SiteJobDraft = Omit<SiteJob, 'number' | 'deposits' | 'invoiceId' | 'costs'> & { number?: number; costs?: SiteJob['costs'] };
 
 export interface TailorDeliverOptions {
   date: string;

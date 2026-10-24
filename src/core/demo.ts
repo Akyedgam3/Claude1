@@ -470,6 +470,68 @@ function supermarket(l: Ledger): void {
   sale(null, 1, [{ itemId: 'g-biscuit', qty: 3, price: 300 }, { itemId: 'g-water', qty: 2, price: 400 }, { itemId: 'w-cucumber', qty: 1, price: 800 }]);
 }
 
+function gypsum(l: Ledger): void {
+  if (!l.state.rates.some((r) => r.currency === 'USD' && r.date <= day(-200))) l.setRate({ date: day(-200), currency: 'USD', rate: 118, kind: 'market' });
+  l.saveParty({ id: 'c-abuhasan', kind: 'customer', name: 'أبو حسن العاص', phone: '0944 210 330', notes: 'حماة — حي البعث، بناية الصيدلية، الطابق التاني' });
+  l.saveParty({ id: 'c-umkhaled', kind: 'customer', name: 'أم خالد', phone: '0933 450 812', notes: 'حماة — الحاضر' });
+  l.saveParty({ id: 'c-shop', kind: 'customer', name: 'محل الأمانة للألبسة', phone: '0988 711 205' });
+  l.saveParty({ id: 's-gyps', kind: 'supplier', name: 'مستودع مواد الجبس', phone: '0955 100 220' });
+  item(l, { id: 'g-board', code: 'G1', name: 'لوح جبس بورد 12مم', kind: 'stock', unit: 'لوح', price: P(6), priceCurrency: 'USD', category: 'ألواح جبس بورد', minStock: 20 });
+  item(l, { id: 'g-profile', code: 'G2', name: 'بروفيل سقف 3م', kind: 'stock', unit: 'قطعة', price: P(1.5), priceCurrency: 'USD', category: 'بروفيلات', minStock: 50 });
+  item(l, { id: 'g-paste', code: 'G3', name: 'معجونة جبس 20كغ', kind: 'stock', unit: 'كيس', price: P(4), priceCurrency: 'USD', category: 'معجونة وشريط', minStock: 10 });
+  l.adjustStock({ kind: 'opening', date: day(-200), lines: [{ itemId: 'g-board', qty: 120, unitCost: P(560) }, { itemId: 'g-profile', qty: 300, unitCost: P(140) }, { itemId: 'g-paste', qty: 40, unitCost: P(380) }] });
+  const L = (room: string, name: string, kind: 'area' | 'length' | 'count', length: number, width?: number, factor = 1) => ({ id: `${room}-${name}-${length}`, room, name, kind, length, ...(width ? { width } : {}), factor });
+  // الكشف الورقي تبع أبو حسن (من 4 أشهر): مفوتر ومدفوع
+  l.saveSiteJob({
+    id: 'sj-1',
+    partyId: 'c-abuhasan',
+    date: day(-125),
+    title: 'بيت أبو حسن — سقف وديكور',
+    address: 'حي البعث، بناية الصيدلية، الطابق التاني',
+    status: 'done',
+    currency: 'USD',
+    rate: P(6),
+    startDate: day(-122),
+    endDate: day(-110),
+    lines: [
+      L('صالون', 'سقف', 'area', 5.5, 3.94),
+      L('صالون', 'سقف', 'area', 6.2, 3.99),
+      L('صالون', 'مرد جالس', 'length', 68, undefined, 0.5),
+      L('صالون', 'مرد لف', 'length', 29),
+      L('غرفة الضيوف', 'سقف', 'area', 7.73, 3.98),
+      L('غرفة الضيوف', 'مرد جالس', 'length', 41, undefined, 0.5),
+      L('غرفة الضيوف', 'مرد لف', 'length', 23.5),
+      L('غرفة نوم', 'سقف', 'area', 4.9, 4.78),
+      L('غرفة نوم', 'مرد جالس', 'length', 21.3, undefined, 0.5),
+      L('غرفة نوم', 'اسرب', 'length', 14.9, undefined, 0.5),
+      L('مطبخ', 'سقف', 'area', 5.32, 3.73),
+    ],
+    extras: [{ description: 'إنارة مخفية (تركيب شريط LED)', amount: P(60) }],
+    costs: [{ description: 'مواد (ألواح وبروفيلات ومعجونة)', amount: P(520) }, { description: 'أجور عمال 12 يوم', amount: P(360) }],
+    notes: 'الزبون بدو نفس لون الدهان بالممر',
+  });
+  l.addSiteJobDeposit('sj-1', { date: day(-124), amount: P(500) });
+  l.deliverSiteJob('sj-1', { date: day(-110) });
+  // مشروع شغّال هلق بدفعة
+  l.saveSiteJob({
+    id: 'sj-2',
+    partyId: 'c-umkhaled',
+    date: day(-6),
+    title: 'شقة أم خالد',
+    address: 'الحاضر، جانب الجامع',
+    status: 'working',
+    currency: 'USD',
+    rate: P(6.5),
+    startDate: day(-3),
+    lines: [L('صالون', 'سقف', 'area', 6, 4.2), L('صالون', 'مرد جالس', 'length', 40.4, undefined, 0.5), L('صالون', 'إنارة مخفية', 'length', 20.4), L('مدخل', 'سقف', 'area', 2.5, 1.6)],
+    extras: [],
+    costs: [{ description: 'مواد الدفعة الأولى', amount: P(180) }],
+  });
+  l.addSiteJobDeposit('sj-2', { date: day(-5), amount: P(150) });
+  // كشف جديد لسا ما انعطى سعر
+  l.saveSiteJob({ id: 'sj-3', partyId: 'c-shop', date: day(), title: 'محل الأمانة — سقف ثانوي', status: 'survey', currency: 'USD', rate: P(6), lines: [L('محل', 'سقف', 'area', 8, 5), L('محل', 'كرنيش', 'length', 26)], extras: [], costs: [] });
+}
+
 export function loadDemo(l: Ledger): void {
   const s = l.state;
   if (s.invoices.length > 0 || Object.keys(s.items).length > 0 || Object.keys(s.parties).length > 0) throw new Error('البيانات التجريبية بتنضاف لشركة فاضية بس');
@@ -478,6 +540,7 @@ export function loadDemo(l: Ledger): void {
   if (!s.rates.some((r) => r.currency === 'USD') && s.info?.baseCurrency === 'SYP') l.setRate({ date: today, currency: 'USD', rate: 121, kind: 'market' });
   if (activity === 'restaurant') restaurant(l);
   else if (activity === 'tailor') tailor(l);
+  else if (activity === 'gypsum') gypsum(l);
   else if (activity === 'mobile') mobile(l);
   else if (activity === 'sweets') sweets(l);
   else if (activity === 'supermarket') supermarket(l);
