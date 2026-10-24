@@ -40,7 +40,7 @@ git push -q origin "+upload-tmp:refs/heads/upload/$VERSION"
 git checkout -q main 2>/dev/null || git checkout -q -B main FETCH_HEAD
 git branch -D -q upload-tmp
 # رقم النسخة بالموقع ("النسخة X متوفرة الآن"): الموقع بينتشر لحالو مع الدفع (workflow: Deploy site)
-git pull -q origin main
+git fetch -q --depth 50 origin main && git merge -q --ff-only FETCH_HEAD
 echo "$VERSION" > tools/version.txt
 python3 tools/build_site.py >/dev/null
 # نسخة الويب للآيفون (الاتصال عن بعد) بنفس واجهة هالنسخة ← app/
