@@ -33,7 +33,7 @@ export function formatCloudCode(clean: string): string {
 }
 
 /** نسخة الويب (للآيفون): الموقع الرسمي ← app/. */
-export const CLOUD_WEB_APP = 'https://akyedgam3.github.io/mizan-updates/app/';
+export const CLOUD_WEB_APP = 'https://waznsy.com/app/';
 
 /** رابط QR: كاميرا الآيفون بتفتحه بسفاري على نسخة الويب والرمز معبّى، وتطبيق أندرويد بيقرأ الرمز منه. */
 export function cloudCodeLink(code: string): string {

@@ -562,6 +562,7 @@ export function SiteJobEditor({ id }: { id?: string }) {
           title="فوترة المشروع"
           totalLabel="قيمة المشروع"
           depositsLabel="الدفعات المقبوضة"
+          submitLabel="فوترة المشروع"
           subtotal={totals.total}
           deposits={deposits}
           currency={currency}

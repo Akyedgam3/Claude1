@@ -636,6 +636,7 @@ export function DeliverDialog({
   title = 'تسليم الطلب وإصدار الفاتورة',
   totalLabel = 'قيمة الطلب',
   depositsLabel = 'العربون المقبوض',
+  submitLabel = 'تسليم وإصدار الفاتورة',
 }: {
   subtotal: number;
   deposits: number;
@@ -643,6 +644,7 @@ export function DeliverDialog({
   title?: string;
   totalLabel?: string;
   depositsLabel?: string;
+  submitLabel?: string;
   onClose: () => void;
   onConfirm: (opts: { paid?: number; cashAccountId: string; taxIds: string[] }) => Promise<void>;
 }) {
@@ -702,7 +704,7 @@ export function DeliverDialog({
           <button type="button" onClick={onClose}>
             إلغاء
           </button>
-          <button className="primary">{title}</button>
+          <button className="primary">{submitLabel}</button>
         </div>
       </form>
     </Modal>

@@ -15,7 +15,7 @@
 ## المستودعات
 - `Akyedgam3/Claude1` (خاص): كود البرنامج. فرع التطوير: `claude/syria-accounting-system-pj25xg`. لا تفتح PR إلا إذا طُلب.
 - `Akyedgam3/mizan-updates` (عام): الموقع الرسمي + `feed.txt` + ملفات التنصيب (Releases).
-  - الموقع: https://akyedgam3.github.io/mizan-updates/
+  - الموقع: https://waznsy.com (الدومين من هوستنجر، والقديم https://akyedgam3.github.io/mizan-updates/ بيحوّل عليه). إيميل التواصل بالموقع: info@waznsy.com
   - التحميل: https://github.com/Akyedgam3/mizan-updates/releases/latest/download/Wazn-Setup.exe
   - صفحات الموقع تُعدَّل في `tools/pages/` ثم `python3 tools/build_site.py`.
   - التقييمات (`reviews.html` وقسم بالرئيسية): تسجيل دخول بغوغل عبر Firebase. الإعدادات بـ `assets/js/firebase-config.js` (عامة مش سرية)، والحماية بـ `firestore.rules` اللي بتنلصق بـ Firebase Console. الفيديوهات انشالت من الموقع بانتظار فيديوهات جديدة.
@@ -62,7 +62,7 @@
 - Firestore بمشروع `wazn-5d0f2` (نفس مشروع التقييمات) كصندوق بريد: `rooms/{room}/{events|meta|req|res|snap}/{id}`. رمز الاتصال (20 بايت) بيطلع منه اسم الغرفة ومفتاح AES-GCM؛ كل شي مشفّر ومضغوط (`src/cloud/seal.ts`) والسحابة ما بتشوف شي. كلمات السر بتتحقق على الجهاز الرئيسي، والتنفيذ بنفس `execute` والصلاحيات (`src/app/cloud-sessions.ts`).
 - الكود: `src/cloud/` (host, client, transport, firestore)، بالكمبيوتر الاتصال بيشتغل بالواجهة (`renderer/src/cloud/useCloudHost.ts`) والتنفيذ بالعملية الرئيسية عبر `cloud:host*`. الجوال البعيد بـ `src/mobile/host.ts` (`cloud:connect`).
 - قواعد Firestore بـ `mizan-updates/firestore.rules` (التقييمات + rooms) — أي تعديل لازم ينلصق بـ Firebase Console ← Firestore ← Rules.
-- **نسخة الويب للآيفون** (اتصال عن بعد بس، بدون بيانات محلية ولا ترخيص): نفس بناء الموبايل بـ `WAZN_WEB=1` (`npm run build:web` ← `web-dist/`، والواجهة بتعرفها بـ `IS_WEB`: شاشة `cloud/WebConnect.tsx` بدل البداية/القفل). بتنرفع نسخ `web-dist/*` لـ `mizan-updates/app/` (https://akyedgam3.github.io/mizan-updates/app/). رابط QR (`cloudCodeLink`) = `.../app/#c=<الرمز>`: كاميرا الآيفون بتفتحه بسفاري والرمز معبّى، وتطبيق أندرويد بيقبله (والقديم `wazn://connect/` كمان). إذا تغيّر الدومين غيّر `CLOUD_WEB_APP` بـ `src/cloud/code.ts`. بعد أي تعديل بالواجهة أعد بناء الويب وارفعه مع النسخة.
+- **نسخة الويب للآيفون** (اتصال عن بعد بس، بدون بيانات محلية ولا ترخيص): نفس بناء الموبايل بـ `WAZN_WEB=1` (`npm run build:web` ← `web-dist/`، والواجهة بتعرفها بـ `IS_WEB`: شاشة `cloud/WebConnect.tsx` بدل البداية/القفل). بتنرفع نسخ `web-dist/*` لـ `mizan-updates/app/` (https://waznsy.com/app/ — الدومين `waznsy.com` مربوط بـ GitHub Pages من هوستنجر، والرابط القديم github.io بيحوّل عليه). رابط QR (`cloudCodeLink`) = `https://waznsy.com/app/#c=<الرمز>` من 1.2.16: كاميرا الآيفون بتفتحه بسفاري والرمز معبّى، وتطبيق أندرويد بيقبله (والقديم `wazn://connect/` كمان). إذا تغيّر الدومين غيّر `CLOUD_WEB_APP` بـ `src/cloud/code.ts`. بعد أي تعديل بالواجهة أعد بناء الويب وارفعه مع النسخة.
 - الاختبارات: `tests/cloud.test.ts` (بالذاكرة). مع المحاكي (`npx firebase emulators:start --only firestore` بمجلد فيه firebase.json والقواعد، بورت 8085): `FIRESTORE_EMULATOR=127.0.0.1:8085` لـ `tests/cloud-firestore.test.ts` و`tests/e2e/cloud.e2e.ts`، و`tests/mobile/cloud.mts` (جوالين بالمتصفح)، و`tests/mobile/cloud-web.mts` (آيفون بنسخة الويب: www على 8790 وweb-dist على 8791).
 
 ## الفيديوهات
