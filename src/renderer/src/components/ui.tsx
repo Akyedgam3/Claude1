@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { CompanyState, Item, Party } from '../../../core';
-import { api, Company, IS_MOBILE, IS_WEB, shownCurrencies, useCompany, type CompanyCtx } from '../api';
+import { api, Company, IS_MOBILE, shownCurrencies, useCompany, type CompanyCtx } from '../api';
 import { Icon } from './icons';
 
 export function Field({ label, children, wide }: { label: string; children: ReactNode; wide?: boolean }) {
@@ -275,7 +275,7 @@ export function ConfirmButton({ label, confirmLabel, onConfirm, className }: { l
 /** زر الكاميرا (الجوال بس): بيقرأ الباركود وبيرجّع الرقم. على الكمبيوتر ما بيظهر. */
 export function CameraScanButton({ onCode, title = 'قراءة الباركود بالكاميرا' }: { onCode: (code: string) => void; title?: string }) {
   const { notify } = useCompany();
-  if (!IS_MOBILE || IS_WEB) return null;
+  if (!IS_MOBILE) return null;
   return (
     <button
       type="button"

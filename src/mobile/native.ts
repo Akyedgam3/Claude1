@@ -77,7 +77,8 @@ export const native = {
    * null إذا سكّر المستخدم القارئ.
    */
   async scanBarcode(): Promise<string | null> {
-    if (!isNative()) throw new Error('قراءة الباركود بالكاميرا على الجوال بس');
+    // بالمتصفح (نسخة الويب على الآيفون): كاميرا المتصفح
+    if (!isNative()) return (await import('./webscan')).scanWithCamera();
     const { supported } = await BarcodeScanner.isSupported();
     if (!supported) throw new Error('هالجوال ما بيدعم قراءة الباركود بالكاميرا');
     const { available } = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();

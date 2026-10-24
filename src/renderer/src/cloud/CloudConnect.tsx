@@ -46,11 +46,9 @@ export function CloudConnectForm({ notify, onConnected }: { notify: (m: string, 
       <Field label="رمز الاتصال" wide>
         <div className="scan-wrap">
           <input dir="ltr" className="mono" value={f.code} onChange={set('code')} placeholder="XXXX-XXXX-..." autoComplete="off" />
-          {!IS_WEB && (
-            <button type="button" className="camera-scan" onClick={scan} aria-label="مسح رمز QR">
-              <Icon name="camera" size={20} />
-            </button>
-          )}
+          <button type="button" className="camera-scan" onClick={scan} aria-label="مسح رمز QR">
+            <Icon name="camera" size={20} />
+          </button>
         </div>
       </Field>
       <Field label="اسم المستخدم">
