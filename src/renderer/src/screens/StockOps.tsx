@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { ADJUSTMENT_NAMES, expiringBatches, type Item } from '../../../core';
 import { dateText, major, money, parseAmount, qtyText, today, uid, useCompany } from '../api';
 import { ExportButtons, PrintButtons, DocHeader } from '../components/print';
-import { CurrencySelect, Empty, Field, ItemName, itemMatches, itemOptions, PageHeader, partyOptions, Picker, SearchBox, Tabs } from '../components/ui';
+import { CurrencySelect, Empty, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, SearchBox, Tabs } from '../components/ui';
 import { Icon } from '../components/icons';
 
 type Tab = 'opening' | 'count' | 'damage' | 'transfer' | 'expiry' | 'history';
@@ -548,39 +548,110 @@ function Expiry() {
   );
 }
 
+type HistLine = { itemId: string; qty: number; cost?: number; serials?: string[] };
+type HistRow = { id: string; kind: 'adjust' | 'transfer' | 'production'; number: number; date: string; type: string; place: string; memo: string; lines: HistLine[]; value: number; by: string };
+
 function History() {
   const { state, can } = useCompany();
   const showCost = can('costs.view');
-  const rows = [
-    ...state.adjustments.map((a) => ({ id: a.id, date: a.date, type: ADJUSTMENT_NAMES[a.kind], memo: a.memo, count: a.lines.length, value: a.lines.reduce((s, l) => s + l.cost, 0), by: a.createdBy })),
-    ...state.transfers.map((t) => ({ id: t.id, date: t.date, type: `تحويل: ${state.warehouses[t.from]?.name} ← ${state.warehouses[t.to]?.name}`, memo: t.memo, count: t.lines.length, value: 0, by: t.createdBy })),
-    ...state.productions.map((p) => ({ id: p.id, date: p.date, type: 'إنتاج', memo: p.memo, count: p.outputs.length, value: p.outputs.reduce((s, o) => s + o.cost, 0), by: p.createdBy })),
-  ].sort((a, b) => b.date.localeCompare(a.date));
-  if (!rows.length) return <Empty>لا توجد عمليات</Empty>;
+  const [kind, setKind] = useState<'' | HistRow['kind']>('');
+  const [open, setOpen] = useState<HistRow | null>(null);
+  const wh = (id: string) => state.warehouses[id]?.name ?? '';
+  const rows: HistRow[] = [
+    ...state.adjustments.map((a) => ({ id: a.id, kind: 'adjust' as const, number: a.number, date: a.date, type: ADJUSTMENT_NAMES[a.kind], place: wh(a.warehouseId), memo: a.memo, lines: a.lines, value: a.lines.reduce((s, l) => s + l.cost, 0), by: a.createdBy })),
+    ...state.transfers.map((t) => ({ id: t.id, kind: 'transfer' as const, number: t.number, date: t.date, type: 'تحويل', place: `${wh(t.from)} ← ${wh(t.to)}`, memo: t.memo, lines: t.lines, value: 0, by: t.createdBy })),
+    ...state.productions.map((p) => ({ id: p.id, kind: 'production' as const, number: p.number, date: p.date, type: 'إنتاج', place: '', memo: p.memo, lines: p.outputs, value: p.outputs.reduce((s, o) => s + o.cost, 0), by: p.createdBy })),
+  ]
+    .filter((r) => !kind || r.kind === kind)
+    .sort((a, b) => b.date.localeCompare(a.date) || b.number - a.number);
   return (
-    <table className="table">
-      <thead>
-        <tr>
-          <th>التاريخ</th>
-          <th>العملية</th>
-          <th>البيان</th>
-          <th className="num">عدد المواد</th>
-          {showCost && <th className="num">القيمة</th>}
-          <th>المستخدم</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r) => (
-          <tr key={r.id}>
-            <td>{dateText(r.date)}</td>
-            <td>{r.type}</td>
-            <td>{r.memo}</td>
-            <td className="num">{r.count}</td>
-            {showCost && <td className="num">{r.value ? money(state, r.value) : ''}</td>}
-            <td className="muted">{state.users[r.by]?.displayName}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <section className="card">
+      <div className="toolbar">
+        <select value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
+          <option value="">كل العمليات</option>
+          <option value="transfer">التحويلات بين المستودعات</option>
+          <option value="adjust">الجرد والتالف والأرصدة</option>
+          {state.productions.length > 0 && <option value="production">الإنتاج</option>}
+        </select>
+        <span className="muted">اكبس على أي عملية لتشوف المواد وتطبعها</span>
+      </div>
+      {!rows.length ? (
+        <Empty>لا توجد عمليات</Empty>
+      ) : (
+        <table className="table">
+          <thead>
+            <tr>
+              <th>التاريخ</th>
+              <th>العملية</th>
+              <th>المستودع</th>
+              <th>البيان</th>
+              <th className="num">عدد المواد</th>
+              {showCost && <th className="num">القيمة</th>}
+              <th>المستخدم</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id} className="clickable" onClick={() => setOpen(r)}>
+                <td>{dateText(r.date)}</td>
+                <td>
+                  {r.type} <span className="muted">#{r.number}</span>
+                </td>
+                <td>{r.place}</td>
+                <td>{r.memo}</td>
+                <td className="num">{r.lines.length}</td>
+                {showCost && <td className="num">{r.value ? money(state, r.value) : ''}</td>}
+                <td className="muted">{state.users[r.by]?.displayName}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {open && (
+        <Modal title={`${open.type} رقم ${open.number}`} onClose={() => setOpen(null)} width={760}>
+          <div className="toolbar no-print">
+            <PrintButtons kind="report" name={`${open.type} ${open.number}`} papers={['a4', 'a5', '80mm']} />
+          </div>
+          <div className="print-area">
+            <DocHeader title={`${open.type} رقم ${open.number}`}>
+              <div className="ltr">{dateText(open.date)}</div>
+              {open.place && <div>{open.place}</div>}
+            </DocHeader>
+            {open.memo && <p>{open.memo}</p>}
+            <table className="table compact">
+              <thead>
+                <tr>
+                  <th>الرمز</th>
+                  <th>المادة</th>
+                  <th className="num">الكمية</th>
+                  {showCost && open.kind !== 'transfer' && <th className="num">القيمة</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {open.lines.map((l, i) => {
+                  const item = state.items[l.itemId];
+                  return (
+                    <tr key={i}>
+                      <td className="mono">{item?.code}</td>
+                      <td>
+                        <ItemName item={item} />
+                        {l.serials?.length ? <div className="muted mono">{l.serials.join(' · ')}</div> : null}
+                      </td>
+                      <td className="num">
+                        {qtyText(l.qty)} {item?.unit}
+                      </td>
+                      {showCost && open.kind !== 'transfer' && <td className="num">{l.cost !== undefined ? money(state, l.cost) : ''}</td>}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <p className="muted">
+              عدد المواد: {open.lines.length} · بواسطة {state.users[open.by]?.displayName ?? ''}
+            </p>
+          </div>
+        </Modal>
+      )}
+    </section>
   );
 }
