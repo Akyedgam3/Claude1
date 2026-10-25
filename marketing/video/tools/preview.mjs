@@ -6,6 +6,7 @@ const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1920, height: 1080 } });
 p.on('pageerror', (e) => console.log('PAGEERR', e.message));
 p.on('console', (m) => m.type() === 'error' && console.log('CONSOLE', m.text()));
+p.on('console', (m) => m.text().startsWith('MISSING') && console.log(m.text()));
 await p.goto('file://' + dir + '/index.html');
 await p.waitForFunction(() => window.READY === true);
 for (const t of times) {
