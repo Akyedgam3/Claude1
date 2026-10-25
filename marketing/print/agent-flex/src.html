@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<title>فلكسات وكلاء وزن</title>
+<style>
+@font-face { font-family: Cairo; font-weight: 400; src: url(fonts/cairo-arabic-400-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 700; src: url(fonts/cairo-arabic-700-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 900; src: url(fonts/cairo-arabic-900-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 400; src: url(fonts/cairo-latin-400-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F, U+20AC; }
+@font-face { font-family: Cairo; font-weight: 700; src: url(fonts/cairo-latin-700-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F, U+20AC; }
+@font-face { font-family: Cairo; font-weight: 900; src: url(fonts/cairo-latin-900-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F, U+20AC; }
+/* المقاس: 1px = 1مم، الصفحة 1200×1200مم (120×120 سم). هامش أمان 30مم من كل طرف. */
+:root { --g: #0f6e5c; --g2: #14957c; --g3: #0a4a3e; --deep: #052a22; --mint: #5fe0bf; --gold: #e7b75a; --gold2: #ffe29a; --gold3: #c9952f; --paper: #f4f7f6; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #888; }
+body { font-family: Cairo, sans-serif; }
+.flex { position: relative; width: 1200px; height: 1200px; overflow: hidden; color: #fff; margin: 0 auto 40px; page-break-after: always; }
+.ic svg { width: 100%; height: 100%; display: block; }
+.ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+.gold { background: linear-gradient(180deg, var(--gold2), var(--gold) 55%, var(--gold3)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.abs { position: absolute; }
+
+/* إطار الجهاز */
+.laptop { position: absolute; }
+.laptop .lid { background: #0d1513; border-radius: 22px 22px 8px 8px; padding: 14px; box-shadow: 0 30px 70px rgba(0, 0, 0, 0.45), 0 0 0 2px rgba(255, 255, 255, 0.08); }
+.laptop .lid img { width: 100%; display: block; border-radius: 6px; }
+.laptop .base { height: 22px; margin: 0 -40px; background: linear-gradient(180deg, #dfe4e8, #8c959c); border-radius: 0 0 30px 30px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4); }
+.laptop .base::before { content: ''; display: block; width: 120px; height: 8px; margin: 0 auto; background: #9aa3aa; border-radius: 0 0 10px 10px; }
+.phone { position: absolute; background: #0a1210; border-radius: 46px; padding: 10px; box-shadow: 0 30px 70px rgba(0, 0, 0, 0.5), 0 0 0 2px rgba(255, 255, 255, 0.12); }
+.phone img { width: 100%; display: block; border-radius: 37px; }
+.phone::before { content: ''; position: absolute; top: 20px; left: 50%; width: 70px; height: 18px; margin-left: -35px; background: #000; border-radius: 12px; z-index: 2; }
+
+/* شريط الوكيل تحت */
+.agentbar { position: absolute; left: 30px; right: 30px; bottom: 30px; height: 165px; border-radius: 34px; display: flex; align-items: center; gap: 34px; padding: 0 40px; }
+.agentbar .who { flex: 1; min-width: 0; }
+.agentbar .who b { display: block; font: 900 60px/1 Cairo; letter-spacing: 2px; direction: ltr; text-align: right; }
+.agentbar .who small { display: block; font: 700 24px Cairo; margin-top: 12px; opacity: 0.9; white-space: nowrap; }
+.agentbar .call { display: flex; align-items: center; gap: 18px; padding: 16px 30px; border-radius: 26px; flex: none; white-space: nowrap; }
+.agentbar .call .ic { width: 56px; height: 56px; }
+.agentbar .call span { font: 900 56px Cairo; direction: ltr; letter-spacing: 1px; }
+.agentbar .site { font: 700 26px Cairo; direction: ltr; opacity: 0.85; text-align: center; }
+
+.brand { display: flex; align-items: center; gap: 22px; }
+.brand img { width: 120px; height: 120px; border-radius: 32px; box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35); }
+.brand b { font: 900 108px/1 Cairo; }
+.brand small { display: block; font: 700 30px Cairo; margin-top: 8px; }
+.badge { display: inline-flex; align-items: center; gap: 14px; padding: 12px 30px; border-radius: 999px; font: 900 34px Cairo; }
+.badge .ic { width: 40px; height: 40px; }
+.chip { display: flex; align-items: center; gap: 16px; padding: 18px 26px; border-radius: 26px; font: 900 32px Cairo; }
+.chip .ic { width: 50px; height: 50px; flex: none; }
+
+/* ── التصميم 1: البطل ── */
+#f1 { background: radial-gradient(ellipse 90% 70% at 60% 35%, #12705d 0%, #0a4a3e 45%, #041d17 100%); }
+#f1 .dots { position: absolute; inset: 0; background-image: radial-gradient(rgba(255, 255, 255, 0.07) 2px, transparent 2.2px); background-size: 40px 40px; }
+#f1 .rays { position: absolute; left: 50%; top: 600px; width: 1800px; height: 1800px; margin: -900px 0 0 -900px; background: repeating-conic-gradient(from 0deg, rgba(255, 230, 160, 0.06) 0deg 5deg, transparent 5deg 15deg); -webkit-mask: radial-gradient(circle, #000 0%, transparent 60%); }
+#f1 .top { position: absolute; top: 50px; right: 50px; left: 50px; display: flex; justify-content: space-between; align-items: center; }
+#f1 .badge { background: rgba(231, 183, 90, 0.16); border: 3px solid var(--gold); color: var(--gold2); }
+#f1 h1 { position: absolute; top: 205px; left: 0; right: 0; text-align: center; font: 900 68px/1.25 Cairo; }
+#f1 h1 em { font-style: normal; color: var(--mint); }
+#f1 .chips { position: absolute; left: 50px; right: 50px; top: 912px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+#f1 .chip { background: rgba(255, 255, 255, 0.08); border: 2px solid rgba(255, 255, 255, 0.18); justify-content: center; font-size: 26px; padding: 12px 10px; white-space: nowrap; }
+#f1 .chip .ic { color: var(--gold); width: 44px; height: 44px; }
+#f1 .agentbar { background: linear-gradient(135deg, #fff8e6, #ffe9b8); color: var(--deep); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35); }
+#f1 .agentbar .call { background: var(--g); color: #fff; }
+
+/* ── التصميم 2: الميزات ── */
+#f2 { background: var(--paper); color: #10211d; }
+#f2 .head { position: absolute; top: 0; left: 0; right: 0; height: 330px; background: linear-gradient(135deg, var(--g2), var(--g) 55%, var(--g3)); color: #fff; padding: 46px 50px 0; }
+#f2 .head::after { content: ''; position: absolute; left: 0; right: 0; bottom: -60px; height: 120px; background: var(--paper); border-radius: 50% 50% 0 0 / 100% 100% 0 0; }
+#f2 .head .brand b { font-size: 80px; }
+#f2 .head .brand img { width: 96px; height: 96px; border-radius: 26px; }
+#f2 h2 { position: absolute; top: 60px; left: 50px; text-align: left; font: 900 60px/1.15 Cairo; }
+#f2 h2 small { display: block; font: 700 30px Cairo; color: var(--gold2); margin-top: 6px; }
+#f2 .grid { position: absolute; top: 325px; left: 40px; right: 40px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; }
+#f2 .card { background: #fff; border-radius: 30px; overflow: hidden; box-shadow: 0 14px 34px rgba(15, 60, 50, 0.14); border: 2px solid #e2ebe8; }
+#f2 .card .shot { height: 200px; overflow: hidden; background: #eef3f1; position: relative; }
+#f2 .card .shot img { position: absolute; }
+#f2 .card .cap { padding: 16px 22px 20px; display: flex; gap: 16px; align-items: center; }
+#f2 .card .cap .ic { width: 58px; height: 58px; padding: 12px; border-radius: 18px; background: linear-gradient(135deg, var(--g2), var(--g)); color: #fff; flex: none; }
+#f2 .card .cap b { display: block; font: 900 30px/1.2 Cairo; white-space: nowrap; }
+#f2 .card .cap small { display: block; font: 700 21px/1.3 Cairo; color: #50605c; margin-top: 2px; }
+#f2 .agentbar { background: linear-gradient(135deg, var(--g), var(--g3)); color: #fff; }
+#f2 .agentbar .call { background: #fff; color: var(--g3); }
+
+/* ── التصميم 3: المجالات ── */
+#f3 { background: linear-gradient(160deg, #0b3d33 0%, #052a22 60%, #031510 100%); }
+#f3 .glow { position: absolute; left: -200px; top: 250px; width: 900px; height: 900px; border-radius: 50%; background: radial-gradient(circle, rgba(20, 149, 124, 0.55), transparent 65%); }
+#f3 .top { position: absolute; top: 50px; right: 50px; left: 50px; display: flex; justify-content: space-between; align-items: center; }
+#f3 .top .badge { background: var(--gold); color: var(--deep); }
+#f3 h2 { position: absolute; top: 210px; right: 50px; font: 900 92px/1.12 Cairo; }
+#f3 h2 small { display: block; width: 620px; font: 700 32px/1.4 Cairo; color: rgba(255, 255, 255, 0.82); margin-top: 14px; }
+#f3 .acts { position: absolute; right: 50px; top: 520px; width: 620px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+#f3 .act { height: 120px; border-radius: 28px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; font: 900 27px Cairo; box-shadow: 0 12px 26px rgba(0, 0, 0, 0.3); }
+#f3 .act .ic { width: 62px; height: 62px; }
+#f3 .more { position: absolute; right: 50px; top: 930px; width: 620px; text-align: center; font: 900 34px Cairo; color: var(--gold2); }
+#f3 .agentbar { background: rgba(255, 255, 255, 0.08); border: 3px solid rgba(231, 183, 90, 0.7); }
+#f3 .agentbar .call { background: var(--gold); color: var(--deep); }
+</style>
+</head>
+<body>
+
+<!-- 1: الوكيل المعتمد -->
+<section class="flex" id="f1">
+  <div class="dots"></div><div class="rays"></div>
+  <div class="top">
+    <div class="brand"><img src="logo.png" alt="" /><div><b>وزن</b><small style="color:var(--mint)">برنامج محاسبة وإدارة محلات</small></div></div>
+    <div class="badge"><span class="ic">{{icon:shield-check}}</span>الوكيل المعتمد</div>
+  </div>
+  <h1>حسابات محلك صارت <span class="gold">بوزنها</span><br /><em>بيع · مخزون · ديون · أرباح</em> بكبسة</h1>
+  <div class="laptop" style="left:90px;top:405px;width:720px"><div class="lid"><img src="shots/d-pos.png" alt="" /></div><div class="base"></div></div>
+  <div class="phone" style="left:850px;top:385px;width:225px;transform:rotate(4deg)"><img src="shots/m-dashboard.png" alt="" /></div>
+  <div class="chips">
+    <div class="chip"><span class="ic">{{icon:wifi-off}}</span>بدون إنترنت</div>
+    <div class="chip"><span class="ic">{{icon:smartphone}}</span>كمبيوتر وجوال</div>
+    <div class="chip"><span class="ic">{{icon:scan-barcode}}</span>باركود وفواتير</div>
+    <div class="chip"><span class="ic">{{icon:shield-check}}</span>بياناتك مشفّرة</div>
+  </div>
+  <div class="agentbar">
+    <div class="who"><b>LAPTOP HOME</b><small>وكيل وزن المعتمد · حماة – ساحة العاصي</small></div>
+    <div class="call"><span class="ic">{{icon:message-circle}}</span><span>0967 454 764</span></div>
+  </div>
+</section>
+
+<!-- 2: الميزات -->
+<section class="flex" id="f2">
+  <div class="head">
+    <div class="brand"><img src="logo.png" alt="" /><div><b>وزن</b><small style="color:var(--gold2)">عند LAPTOP HOME</small></div></div>
+    <h2>كل شغل محلك<br />بمكان واحد<small>سهل… وبالعربي… وبيشتغل بدون إنترنت</small></h2>
+  </div>
+  <div class="grid">
+    <div class="card"><div class="shot" data-src="d-pos" data-crop="0,0,1700,1150"></div><div class="cap"><span class="ic">{{icon:scan-barcode}}</span><div><b>نقطة بيع سريعة</b><small>باركود، سلة، دولار وليرة</small></div></div></div>
+    <div class="card"><div class="shot" data-src="d-invoice" data-crop="560,40,1500,1000"></div><div class="cap"><span class="ic">{{icon:receipt}}</span><div><b>فواتير مطبوعة</b><small>بشعارك وختمك وQR</small></div></div></div>
+    <div class="card"><div class="shot" data-src="d-debts" data-crop="0,0,1700,1150"></div><div class="cap"><span class="ic">{{icon:hand-coins}}</span><div><b>الديون بوقتها</b><small>لنا وعلينا وتذكير واتساب</small></div></div></div>
+    <div class="card"><div class="shot" data-src="d-items" data-crop="0,0,1700,1150"></div><div class="cap"><span class="ic">{{icon:layers}}</span><div><b>المخزون والجرد</b><small>تنبيه لما تقرب المادة تخلص</small></div></div></div>
+    <div class="card"><div class="shot" data-src="d-reports" data-crop="0,0,1700,1150"></div><div class="cap"><span class="ic">{{icon:chart-column}}</span><div><b>الأرباح والتقارير</b><small>شو بعت وشو ربحت باللحظة</small></div></div></div>
+    <div class="card"><div class="shot" data-src="m-pos" data-crop="0,180,1170,1300"></div><div class="cap"><span class="ic">{{icon:smartphone}}</span><div><b>محلك بجيبتك</b><small>تطبيق للجوال ومتابعة عن بعد</small></div></div></div>
+  </div>
+  <div class="agentbar">
+    <div class="who"><b>LAPTOP HOME</b><small>وكيل وزن المعتمد · حماة – ساحة العاصي</small></div>
+    <div class="call"><span class="ic">{{icon:message-circle}}</span><span>0967 454 764</span></div>
+  </div>
+</section>
+
+<!-- 3: لكل مصلحة -->
+<section class="flex" id="f3">
+  <div class="glow"></div>
+  <div class="top">
+    <div class="brand"><img src="logo.png" alt="" /><div><b>وزن</b><small style="color:var(--mint)">برنامج محاسبة عربي</small></div></div>
+    <div class="badge"><span class="ic">{{icon:check}}</span>جرّبو عنا بالمحل</div>
+  </div>
+  <h2>مفصّل على<br /><span class="gold">قد شغلك</span><small>كل مصلحة إلها شاشاتها وميزاتها الجاهزة</small></h2>
+  <div class="acts">
+    <div class="act" style="background:linear-gradient(135deg,#27c08f,#0f6e5c)"><span class="ic">{{icon:shopping-cart}}</span>سوبرماركت</div>
+    <div class="act" style="background:linear-gradient(135deg,#4cb7ff,#1f63c9)"><span class="ic">{{icon:smartphone}}</span>موبايلات</div>
+    <div class="act" style="background:linear-gradient(135deg,#7d8bff,#3b46c4)"><span class="ic">{{icon:laptop}}</span>كمبيوتر</div>
+    <div class="act" style="background:linear-gradient(135deg,#ff8a4c,#c9452a)"><span class="ic">{{icon:utensils}}</span>مطاعم</div>
+    <div class="act" style="background:linear-gradient(135deg,#a77bff,#5b3bc4)"><span class="ic">{{icon:shirt}}</span>ألبسة</div>
+    <div class="act" style="background:linear-gradient(135deg,#ff6f91,#c2185b)"><span class="ic">{{icon:pill}}</span>صيدليات</div>
+    <div class="act" style="background:linear-gradient(135deg,#9aa6b2,#4d5a66)"><span class="ic">{{icon:car}}</span>قطع سيارات</div>
+    <div class="act" style="background:linear-gradient(135deg,#f6c445,#c98a12)"><span class="ic">{{icon:croissant}}</span>حلويات وأفران</div>
+    <div class="act" style="background:linear-gradient(135deg,#26c6da,#00838f)"><span class="ic">{{icon:scissors}}</span>خياطة</div>
+  </div>
+  <div class="more">… وأكتر من 14 مجال</div>
+  <div class="phone" style="left:40px;top:300px;width:250px;transform:rotate(-5deg)"><img src="shots/m-pos.png" alt="" /></div>
+  <div class="phone" style="left:240px;top:370px;width:250px;transform:rotate(4deg)"><img src="shots/m-dashboard.png" alt="" /></div>
+  <div class="agentbar">
+    <div class="who"><b>LAPTOP HOME</b><small>وكيل وزن المعتمد · حماة – ساحة العاصي</small></div>
+    <div class="call"><span class="ic">{{icon:message-circle}}</span><span>0967 454 764</span></div>
+  </div>
+</section>
+
+<script>
+// لقطات الكروت: قص من الصورة الأصلية (بكسل) على قد الكرت
+document.querySelectorAll('.shot').forEach((box) => {
+  const [x, y, w, h] = box.dataset.crop.split(',').map(Number);
+  const img = new Image();
+  img.src = `shots/${box.dataset.src}.png`;
+  img.onload = () => {
+    const bw = box.clientWidth, bh = box.clientHeight;
+    const s = Math.max(bw / w, bh / h);
+    Object.assign(img.style, { width: img.naturalWidth * s + 'px', left: -x * s + 'px', top: -y * s + 'px' });
+  };
+  box.append(img);
+});
+</script>
+</body>
+</html>
