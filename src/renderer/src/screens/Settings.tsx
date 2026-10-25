@@ -33,7 +33,7 @@ export function Settings({ tab: initial }: { tab?: string }) {
           { key: 'taxes', label: 'الضرائب والمخزون', hidden: !can('settings.manage') },
           { key: 'lan', label: 'الشبكة المحلية', hidden: IS_MOBILE || !local || !can('settings.manage') },
           { key: 'cloud', label: 'الاتصال عن بعد', hidden: !local || !can('settings.manage') },
-          { key: 'backup', label: 'النسخ الاحتياطي', hidden: !local || !can('backup.manage') },
+          { key: 'backup', label: 'النسخ الاحتياطي', hidden: (!local && !IS_MOBILE) || !can('backup.manage') },
           { key: 'period', label: 'إقفال الفترات', hidden: !can('period.close') },
           { key: 'account', label: 'حسابي' },
           { key: 'license', label: 'الترخيص', hidden: !local || user.role !== 'owner' },
@@ -644,7 +644,7 @@ function LanTab() {
 }
 
 function BackupTab() {
-  const { notify } = useCompany();
+  const { notify, session } = useCompany();
   const run = async (fn: () => Promise<string | null | void>) => {
     try {
       const p = await fn();
@@ -653,6 +653,21 @@ function BackupTab() {
       notify((e as Error).message, 'error');
     }
   };
+  if (session.kind === 'remote') {
+    return (
+      <section className="card">
+        <h3>النسخ الاحتياطي</h3>
+        <p className="muted">
+          بتاخد نسخة كاملة من بيانات الجهاز الرئيسي على هالجوال، وبتحفظها أو بتبعتها (واتساب، درايف…). الملف مشفّر وبينفتح بنفس كلمات السر على أي جهاز: شاشة البداية ← فتح شركة ← استعادة نسخة احتياطية. لازم يكون الجهاز الرئيسي شغّال.
+        </p>
+        <div className="button-row">
+          <button className="primary" onClick={() => run(() => api.backup(true))}>
+            نسخة احتياطية من الجهاز الرئيسي...
+          </button>
+        </div>
+      </section>
+    );
+  }
   return (
     <section className="card">
       <h3>النسخ الاحتياطي</h3>

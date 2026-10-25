@@ -2,6 +2,8 @@ import type { User } from '../core/types';
 import type { CompanyStore } from '../storage/company-store';
 import { SESSION_EXPIRED } from '../cloud/host';
 import { execute } from './executor';
+import { can } from '../core/permissions';
+import { BACKUP_FILES, packBackup } from './backup-pack';
 
 // جلسات الأجهزة البعيدة (الاتصال عن بعد) على الجهاز الرئيسي.
 // كلمة السر بتتحقق هون، وكل عملية بتتنفذ باسم صاحب الجلسة وبصلاحياته متل الشبكة المحلية تماماً.
@@ -64,6 +66,40 @@ export class CloudSessions {
     } finally {
       store.ledger.actor = local; // عمليات الجهاز نفسه بتضل باسم مستخدمه
     }
+  }
+
+  /** عملية مأجّلة من جوال كان شغّال والجهاز الرئيسي مطفي: منتحقق من كلمة السر وبتتنفّذ بصلاحيات صاحبها. */
+  runQueued(username: string, password: string, method: string, args: unknown[]) {
+    const store = this.store();
+    const user = store.verify(username, password);
+    if (!user) throw new Error('اسم المستخدم أو كلمة السر غير صحيحة');
+    const local = store.ledger.actor;
+    try {
+      return execute(store, user, method, args);
+    } finally {
+      store.ledger.actor = local;
+    }
+  }
+
+  /** ملف نسخة احتياطية للجوال البعيد (بصلاحية النسخ الاحتياطي). readFile من نظام ملفات الجهاز. */
+  backup(token: string, readFile: (name: string) => Uint8Array | null): string {
+    const s = this.session(token);
+    if (!can(s.user, 'backup.manage')) throw new Error('لا تملك صلاحية النسخ الاحتياطي');
+    const files: Record<string, Uint8Array> = {};
+    for (const f of BACKUP_FILES) {
+      const b = readFile(f);
+      if (b) files[f] = b;
+    }
+    const bytes = packBackup(files);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return btoa(bin);
+  }
+
+  /** حالة الشركة كاملة (للنسخة المحفوظة بالسحابة). */
+  fullState() {
+    const store = this.store();
+    return { state: store.ledger.state, seq: store.lastSeq };
   }
 
   logout(token: string): void {

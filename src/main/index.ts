@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ACTIVITIES, can, chartFor, DEFAULT_CURRENCIES, defaultTaxes, PERMISSIONS, type Activity, type Permission } from '../core';
 import { CloudSessions, CLOUD_MIN_DEVICES } from '../app/cloud-sessions';
+import { BACKUP_FILES, unpackBackup } from '../app/backup-pack';
 import { hostCompanyFor } from '../app/host-company';
 import { DEFAULT_LAN_PORT, LanClient, LanHost, newPairingCode } from '../app/lan';
 import { newCloudCode } from '../cloud/code';
@@ -362,13 +363,33 @@ function registerIpc(): void {
 
   /** استعادة نسخة احتياطية: تُنسخ إلى مجلد جديد ثم تُفتح بتسجيل الدخول. */
   handle('company:restore', async () => {
-    const res = await dialog.showOpenDialog(win!, { title: 'اختر مجلد النسخة الاحتياطية', properties: ['openDirectory'] });
+    // ملف .wazn (من الجوال أو من الاتصال عن بعد)، أو company.json جوا مجلد نسخة الكمبيوتر
+    const res = await dialog.showOpenDialog(win!, {
+      title: 'اختر ملف النسخة (.wazn) أو ملف company.json من مجلد النسخة',
+      properties: ['openFile'],
+      filters: [{ name: 'نسخة وزن', extensions: ['wazn', 'json'] }],
+    });
     if (res.canceled || !res.filePaths[0]) return null;
-    const src = res.filePaths[0];
+    const picked = res.filePaths[0];
+    if (picked.toLowerCase().endsWith('.wazn')) {
+      const files = unpackBackup(new Uint8Array(fs.readFileSync(picked)));
+      const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wazn-restore-'));
+      try {
+        for (const [f, data] of Object.entries(files)) fs.writeFileSync(path.join(tmp, f), data);
+        const { meta, usernames } = peekCompany(tmp);
+        const dir = uniqueDir(`${meta.name} (مستعادة)`);
+        fs.mkdirSync(dir, { recursive: true });
+        for (const f of Object.keys(files)) fs.copyFileSync(path.join(tmp, f), path.join(dir, f));
+        return { dir, name: meta.name, usernames };
+      } finally {
+        fs.rmSync(tmp, { recursive: true, force: true });
+      }
+    }
+    const src = path.dirname(picked);
     const { meta, usernames } = peekCompany(src);
     const dir = uniqueDir(`${meta.name} (مستعادة)`);
     fs.mkdirSync(dir, { recursive: true });
-    for (const f of ['company.json', 'keyring.json', 'journal.mzl', 'head.json']) {
+    for (const f of BACKUP_FILES) {
       if (fs.existsSync(path.join(src, f))) fs.copyFileSync(path.join(src, f), path.join(dir, f));
     }
     return { dir, name: meta.name, usernames };
@@ -502,6 +523,19 @@ function registerIpc(): void {
     return cloudSessions.call(String(token), method, args);
   });
   handle('cloud:hostLogout', (token: string) => cloudSessions.logout(String(token)));
+  handle('cloud:hostBackup', (token: string) => {
+    requireCloud();
+    const dir = localStore().dir;
+    return cloudSessions.backup(String(token), (f) => (fs.existsSync(path.join(dir, f)) ? new Uint8Array(fs.readFileSync(path.join(dir, f)) as Uint8Array) : null));
+  });
+  handle('cloud:hostState', () => {
+    requireCloud();
+    return cloudSessions.fullState();
+  });
+  handle('cloud:hostQueued', (username: string, password: string, method: string, args: unknown[]) => {
+    requireCloud();
+    return cloudSessions.runQueued(String(username), String(password), String(method), Array.isArray(args) ? args : []);
+  });
 
   // ── الطباعة والتصدير ──
   handle('print:printers', async () => (await win!.webContents.getPrintersAsync()).map((p) => ({ name: p.name, label: p.displayName || p.name })));

@@ -15,6 +15,8 @@ export interface SessionInfo {
   address?: string;
   viaRecovery?: boolean;
   recoveredTail?: boolean;
+  /** جوال عن بعد: هل الجهاز الرئيسي مطفي، وآخر نسخة وصلت، وكم عملية بالانتظار. */
+  cloud?: { offline: boolean; syncedAt: number; pending: number };
 }
 
 export interface AppInfo {
@@ -96,6 +98,9 @@ export const api = {
   cloudHostSnapshot: (token: string) => inv<{ state: CompanyState; seq: number }>('cloud:hostSnapshot', token),
   cloudHostCall: (token: string, method: string, args: unknown[]) => inv<{ value: unknown; seq: number }>('cloud:hostCall', token, method, args),
   cloudHostLogout: (token: string) => inv<void>('cloud:hostLogout', token),
+  cloudHostBackup: (token: string) => inv<string>('cloud:hostBackup', token),
+  cloudHostState: () => inv<{ state: CompanyState; seq: number }>('cloud:hostState'),
+  cloudHostQueued: (username: string, password: string, method: string, args: unknown[]) => inv<{ value: unknown; seq: number }>('cloud:hostQueued', username, password, method, args),
   /** الجوال بس: الاتصال بجهاز رئيسي عن بعد. */
   cloudConnect: (o: { code: string; username: string; password: string }) => inv<SessionInfo>('cloud:connect', o),
   cloudLast: () => inv<{ code: string; username: string } | null>('cloud:last'),

@@ -10,6 +10,7 @@ import { cloudCodeFromHash, cloudCodeLink, cloudRoom, newCloudCode, normalizeClo
 import { CloudHost, type CloudCompany } from '../src/cloud/host';
 import { seal, unseal } from '../src/cloud/seal';
 import { MemoryTransport } from '../src/cloud/transport';
+import { unpackBackup } from '../src/app/backup-pack';
 import { DEFAULT_CURRENCIES, chartFor, type User } from '../src/core';
 import { CompanyStore } from '../src/storage/company-store';
 
@@ -17,6 +18,7 @@ let dir: string;
 let store: CompanyStore;
 const cashier: User = { id: 'u2', username: 'kasher', displayName: 'كاشير', role: 'cashier', active: true };
 const sale = { kind: 'sale', date: '2026-01-02', lines: [{ itemId: 'i', qty: 1, price: 1000 }] };
+const readCompanyFile = (f: string) => (fs.existsSync(path.join(dir, f)) ? new Uint8Array(fs.readFileSync(path.join(dir, f))) : null);
 const wait = (ms = 20) => new Promise((r) => setTimeout(r, ms));
 async function until(fn: () => boolean, ms = 3000) {
   for (let t = 0; t < ms && !fn(); t += 10) await wait(10);
@@ -86,6 +88,9 @@ describe('cloud host and client', () => {
       snapshot: async (tok) => sessions.snapshot(tok),
       call: async (tok, m, a) => sessions.call(tok, m, a),
       logout: async (tok) => sessions.logout(tok),
+      fullState: async () => sessions.fullState(),
+      runQueued: async (u, pw, m, a) => sessions.runQueued(u, pw, m, a),
+      backup: async (tok) => sessions.backup(tok, readCompanyFile),
     };
     host = new CloudHost(t, await cloudRoom(code), company);
     off = store.onEvent((event, seq) => host.push([{ event, seq }]));
@@ -169,6 +174,9 @@ describe('cloud host and client', () => {
       snapshot: async (tok) => sessions.snapshot(tok),
       call: async (tok, m, a) => sessions.call(tok, m, a),
       logout: async (tok) => sessions.logout(tok),
+      fullState: async () => sessions.fullState(),
+      runQueued: async (u, pw, m, a) => sessions.runQueued(u, pw, m, a),
+      backup: async (tok) => sessions.backup(tok, readCompanyFile),
     };
     off();
     host = new CloudHost(t, await cloudRoom(code), company);
@@ -193,6 +201,81 @@ describe('cloud host and client', () => {
     expect(await t.get(room.room, 'res', 'x')).toBeNull();
   });
 
+  it('keeps working on the phone while the main device is off and syncs when it is back', async () => {
+    // أول دخول والجهاز شغّال: منحفظ بصمة كلمة السر عالجوال
+    const c1 = await client();
+    await c1.login();
+    const verifier = await c1.verifier();
+    await c1.close();
+
+    execute(store, store.user, 'postInvoice', [sale]); // فاتورة قبل ما ينطفي
+    await wait(30);
+    await host.flush();
+    host.stop(); // انطفى الجهاز الرئيسي
+
+    // بدون البصمة أو بكلمة سر غلط ما بيفتح
+    const stranger = await client('kasher', 'wrong', 'phone9');
+    await expect(stranger.openOffline(verifier)).rejects.toThrow(/مطفي/);
+    await expect((await client()).openOffline(undefined)).rejects.toThrow(/مطفي/);
+
+    const c = await client();
+    const opened = await c.openOffline(verifier);
+    expect(c.offline).toBe(true);
+    expect(Object.keys(opened.state.invoices)).toHaveLength(1); // آخر نسخة مع العمليات اللي بعدها
+    let resets = 0;
+    const got: EventItem[] = [];
+    const reports: unknown[] = [];
+    c.onQueueReport = (r) => reports.push(r);
+    c.listen((items) => got.push(...items), () => resets++, () => undefined);
+
+    // عملية والجهاز مطفي: بتبيّن فوراً وبتستنى
+    const r = await c.call('postInvoice', [sale]);
+    expect(r.value).toMatchObject({ createdBy: 'u2' });
+    expect(Object.keys(c.snapshot().state.invoices)).toHaveLength(2);
+    expect(got.length).toBeGreaterThan(0);
+    expect(c.pending).toHaveLength(1);
+    // اللي ما بتصير (صلاحية، أو بدها الجهاز نفسه) ما بتتسجّل
+    await expect(c.call('postInvoice', [{ ...sale, kind: 'purchase' }])).rejects.toThrow(/صلاحية/);
+    await expect(c.call('changeMyPassword', ['cashier1', 'newpass1'])).rejects.toThrow(/الجهاز الرئيسي/);
+    expect(c.pending).toHaveLength(1);
+    expect(Object.keys(store.ledger.state.invoices)).toHaveLength(1);
+
+    // رجع الجهاز الرئيسي: بينفّذ العملية المأجّلة والجوال بيرجع يتزامن
+    sessions.clear();
+    off();
+    host = new CloudHost(t, await cloudRoom(code), {
+      name: () => 'محل السحابة',
+      login: async (u, p, d, n) => sessions.login(u, p, d, n),
+      snapshot: async (tok) => sessions.snapshot(tok),
+      call: async (tok, m, a) => sessions.call(tok, m, a),
+      logout: async (tok) => sessions.logout(tok),
+      fullState: async () => sessions.fullState(),
+      runQueued: async (u, pw, m, a) => sessions.runQueued(u, pw, m, a),
+      backup: async (tok) => sessions.backup(tok, readCompanyFile),
+    });
+    off = store.onEvent((event, seq) => host.push([{ event, seq }]));
+    await host.start();
+    await until(() => Object.keys(store.ledger.state.invoices).length === 2);
+    expect(store.ledger.state.invoices[1]!.createdBy).toBe('u2');
+    await until(() => !c.offline && c.pending.length === 0 && reports.length === 1);
+    expect(reports[0]).toEqual({ done: 1, failed: [] });
+    await until(() => c.snapshot().seq === store.lastSeq);
+    expect(Object.keys(c.snapshot().state.invoices)).toHaveLength(2);
+    expect(resets).toBeGreaterThan(0);
+  });
+
+  it('sends a full backup file to the phone for users allowed to back up', async () => {
+    const owner = await client('admin', 'secret123');
+    await owner.login();
+    const files = unpackBackup(await owner.backup());
+    expect(Object.keys(files).sort()).toEqual(expect.arrayContaining(['company.json', 'journal.mzl']));
+    expect(Buffer.from(files['journal.mzl']!).equals(fs.readFileSync(path.join(dir, 'journal.mzl')))).toBe(true);
+    await owner.close();
+    const c = await client();
+    await c.login();
+    await expect(c.backup()).rejects.toThrow(/صلاحية/);
+  });
+
   it('splits large snapshots into parts', async () => {
     const items = Array.from({ length: 3000 }, (_, n) => ({ id: `x${n}`, code: `c${n}`, name: `مادة ${crypto.randomUUID()}`, description: Array.from({ length: 10 }, () => crypto.randomUUID()).join(' '), kind: 'stock', unit: 'قطعة', price: n, priceCurrency: 'SYP' }));
     execute(store, store.user, 'saveItems', [items]);
@@ -206,6 +289,6 @@ describe('cloud host and client', () => {
     const r = await c.login();
     expect(Object.keys(r.state.items)).toHaveLength(3001);
     expect(parts.size).toBeGreaterThan(1);
-    expect(await t.list((await cloudRoom(code)).room, 'snap')).toEqual([]);
+    expect((await t.list((await cloudRoom(code)).room, 'snap')).filter((id) => !id.startsWith('L'))).toEqual([]); // بس النسخة الدائمة
   }, 60_000);
 });

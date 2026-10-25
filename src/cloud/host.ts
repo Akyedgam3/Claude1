@@ -14,14 +14,45 @@ export interface CloudCompany {
   snapshot(token: string): Promise<{ state: CompanyState; seq: number }>;
   call(token: string, method: string, args: unknown[]): Promise<{ value: unknown; seq: number }>;
   logout(token: string): Promise<void>;
+  /** حالة الشركة كاملة (للنسخة المحفوظة بالسحابة اللي بيفتحها الجوال لما الجهاز الرئيسي يكون مطفي). */
+  fullState(): Promise<{ state: CompanyState; seq: number }>;
+  /** عملية انعملت عالجوال والجهاز الرئيسي مطفي: كلمة السر بتتحقق هون وبتتنفّذ بصلاحيات صاحبها. */
+  runQueued(username: string, password: string, method: string, args: unknown[]): Promise<{ value: unknown; seq: number }>;
+  /** ملف نسخة احتياطية (.wazn) بالـ base64، للجوال البعيد (بصلاحية النسخ الاحتياطي). */
+  backup(token: string): Promise<string>;
 }
+
+/** عملية مأجّلة من جوال بعيد (معرّفها بيبلّش بـ q_ وما بينحذف إذا الجهاز الرئيسي مطفي). */
+export interface QueuedOp {
+  op: 'queued';
+  username: string;
+  password: string;
+  method: string;
+  args: unknown[];
+  at: number;
+}
+
+/** وصف آخر نسخة كاملة محفوظة بالسحابة (meta/latest). */
+export interface LatestInfo {
+  epoch: number;
+  seq: number;
+  iv: string;
+  parts: number;
+  prefix: string;
+  at: number;
+}
+export const QUEUE_PREFIX = 'q_';
+const LATEST_EVERY_EVENTS = 150;
+const LATEST_EVERY_MS = 10 * 60_000;
 
 export type CloudRequest =
   | { op: 'ping' }
   | { op: 'login'; username: string; password: string; deviceId: string; deviceName: string }
   | { op: 'state'; token: string }
   | { op: 'call'; token: string; method: string; args: unknown[] }
-  | { op: 'logout'; token: string };
+  | { op: 'logout'; token: string }
+  | { op: 'backup'; token: string }
+  | QueuedOp;
 
 export const SESSION_EXPIRED = 'انتهت الجلسة على الجهاز الرئيسي';
 export const PART_CHARS = 700_000; // أقل من حد Firestore (1MB للوثيقة)
@@ -45,6 +76,11 @@ export class CloudHost {
   private offReq: (() => void) | null = null;
   private beat: ReturnType<typeof setInterval> | null = null;
   private stopped = false;
+  private latestPrefix = '';
+  private sinceLatest = 0;
+  private latestAt = 0;
+  private latestTimer: ReturnType<typeof setInterval> | null = null;
+  private latestChain: Promise<void> = Promise.resolve();
   onError: (message: string) => void = () => undefined;
 
   constructor(
@@ -55,10 +91,15 @@ export class CloudHost {
 
   async start(): Promise<void> {
     // بقايا التشغيلة الماضية: الأجهزة البعيدة بتاخد الحالة من جديد
+    // (العمليات المأجّلة من الجوال ونتايجها منخليها: بتتنفّذ هلق)
     for (const coll of ['events', 'req', 'res', 'snap'] as const) {
-      for (const id of await this.t.list(this.room.room, coll)) await this.t.del(this.room.room, coll, id);
+      for (const id of await this.t.list(this.room.room, coll)) if (!((coll === 'req' || coll === 'res') && id.startsWith(QUEUE_PREFIX))) await this.t.del(this.room.room, coll, id);
     }
     await this.newEpoch();
+    await this.saveLatest();
+    this.latestTimer = setInterval(() => {
+      if (this.sinceLatest > 0 && Date.now() - this.latestAt > LATEST_EVERY_MS) void this.saveLatest();
+    }, 60_000);
     this.offReq = this.t.watch(this.room.room, 'req', null, (docs) => {
       for (const d of docs) this.chain = this.chain.then(() => this.handle(d.id, d.data)).catch((e: Error) => this.onError(e.message));
     });
@@ -69,7 +110,32 @@ export class CloudHost {
     this.stopped = true;
     this.offReq?.();
     if (this.beat) clearInterval(this.beat);
+    if (this.latestTimer) clearInterval(this.latestTimer);
     if (this.timer) clearTimeout(this.timer);
+  }
+
+  /**
+   * نسخة كاملة مشفّرة من الشركة بالسحابة، بتتجدّد كل شوي. الجوال البعيد بيفتحها (مع العمليات اللي بعدها)
+   * إذا الجهاز الرئيسي مطفي، فبيشوف البيانات لآخر لحظة كان فيها الجهاز شغّال.
+   */
+  saveLatest(): Promise<void> {
+    this.latestChain = this.latestChain.then(async () => {
+      if (this.stopped) return;
+      await this.flushing;
+      const snap = await this.company.fullState();
+      const sealed = await seal(this.room.key, 'snap/latest', snap.state);
+      const parts = Math.max(1, Math.ceil(sealed.ct.length / PART_CHARS));
+      const prefix = `L${pad(this.epoch, 13)}_${pad(snap.seq)}_`;
+      for (let i = 0; i < parts; i++) await this.t.set(this.room.room, 'snap', `${prefix}${i}`, { ct: sealed.ct.slice(i * PART_CHARS, (i + 1) * PART_CHARS), at: Date.now() });
+      const info: LatestInfo = { epoch: this.epoch, seq: snap.seq, iv: sealed.iv, parts, prefix, at: Date.now() };
+      await this.t.set(this.room.room, 'meta', 'latest', { ...(await seal(this.room.key, 'meta/latest', info)), at: info.at });
+      const old = this.latestPrefix;
+      this.latestPrefix = prefix;
+      this.sinceLatest = 0;
+      this.latestAt = Date.now();
+      if (old && old !== prefix) for (const id of await this.t.list(this.room.room, 'snap')) if (id.startsWith(old)) await this.t.del(this.room.room, 'snap', id).catch(() => undefined);
+    }).catch((e: Error) => this.onError(e.message));
+    return this.latestChain;
   }
 
   /** العمليات الجديدة على الجهاز الرئيسي (من أي جهاز). */
@@ -90,6 +156,7 @@ export class CloudHost {
     const old = this.written;
     this.written = [];
     await this.newEpoch();
+    await this.saveLatest();
     for (const id of old) await this.t.del(this.room.room, 'events', id).catch(() => undefined);
   }
 
@@ -105,6 +172,8 @@ export class CloudHost {
   private async upload(items: EventItem[]): Promise<void> {
     if (this.stopped) return;
     for (let i = 0; i < items.length; i += BATCH_ITEMS) await this.uploadBatch(items.slice(i, i + BATCH_ITEMS));
+    this.sinceLatest += items.length;
+    if (this.sinceLatest >= LATEST_EVERY_EVENTS) void this.saveLatest();
     if (this.written.length > KEEP_BATCHES) {
       const old = this.written.splice(0, this.written.length - KEEP_BATCHES / 2);
       for (const id of old) await this.t.del(this.room.room, 'events', id).catch(() => undefined);
@@ -139,7 +208,8 @@ export class CloudHost {
   private async handle(id: string, doc: { iv?: string; ct?: string; at?: number }): Promise<void> {
     if (this.stopped) return;
     await this.t.del(this.room.room, 'req', id);
-    if (!doc.at || Math.abs(Date.now() - doc.at) > STALE_MS) return;
+    const queued = id.startsWith(QUEUE_PREFIX);
+    if (!doc.at || (!queued && Math.abs(Date.now() - doc.at) > STALE_MS)) return;
     let req: CloudRequest;
     try {
       req = await unseal<CloudRequest>(this.room.key, `req/${id}`, doc);
@@ -175,6 +245,19 @@ export class CloudHost {
       case 'logout':
         await this.company.logout(String(req.token));
         return {};
+      case 'backup': {
+        // ملف كبير: منقسمه بقطع متل الحالة
+        const sealed = await seal(this.room.key, `backup/${id}`, await this.company.backup(String(req.token)));
+        const parts = Math.max(1, Math.ceil(sealed.ct.length / PART_CHARS));
+        for (let i = 0; i < parts; i++) await this.t.set(this.room.room, 'snap', `B${id}_${i}`, { ct: sealed.ct.slice(i * PART_CHARS, (i + 1) * PART_CHARS), at: Date.now() });
+        return { backupIv: sealed.iv, backupParts: parts };
+      }
+      case 'queued': {
+        if (!id.startsWith(QUEUE_PREFIX)) throw new Error('طلب غير معروف');
+        const { value, seq } = await this.company.runQueued(String(req.username ?? ''), String(req.password ?? ''), String(req.method), Array.isArray(req.args) ? req.args : []);
+        await this.flush();
+        return { value: value ?? null, seq };
+      }
       default:
         throw new Error('طلب غير معروف');
     }

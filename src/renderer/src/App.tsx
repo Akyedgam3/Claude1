@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { applyEvent, ROLE_NAMES, type CompanyState, type Feature, type Permission } from '../../core';
 import type { EventItem } from '../../app/lan';
 import type { LicenseStatus } from '../../license/manager';
-import { api, Company, IS_MOBILE, IS_WEB, makeCtxHelpers, type AppInfo, type CompanyCtx } from './api';
+import { api, Company, IS_MOBILE, IS_WEB, makeCtxHelpers, type AppInfo, type CompanyCtx, type SessionInfo } from './api';
 import logoSmall from './assets/logo-64.png';
 import logo from './assets/logo.png';
 import { Icon } from './components/icons';
@@ -162,6 +162,8 @@ export function App() {
       }),
       api.on('license:changed', (lic) => setInfo((i) => (i ? { ...i, license: lic as LicenseStatus } : i))),
       api.on('lan:error', (message) => notify(String(message), 'error')),
+      api.on('cloud:notice', (message) => notify(String(message))),
+      api.on('cloud:mode', (m) => setInfo((i) => (i?.session ? { ...i, session: { ...i.session, cloud: m as SessionInfo['cloud'] } } : i))),
     ];
     return () => offs.forEach((off) => off());
   }, [loadInfo, loadState, notify]);
@@ -400,6 +402,13 @@ export function App() {
           {ctx.session.kind === 'local' && lic.onlineEnabled && lic.offlineDaysLeft !== undefined && lic.offlineDaysLeft <= 2 && (
             <div className="banner bad">اتصل بالإنترنت للتحقق من الاشتراك خلال {lic.offlineDaysLeft} يوم وإلا سيتوقف البرنامج.</div>
           )}
+          {ctx.session.cloud?.offline && (
+            <div className="banner">
+              الجهاز الرئيسي مطفي حالياً. عم تشتغل على آخر نسخة وصلت{ctx.session.cloud.syncedAt ? ` (${new Date(ctx.session.cloud.syncedAt).toLocaleString('ar-SY', { dateStyle: 'short', timeStyle: 'short' })})` : ''}. العمليات الجديدة بتنحفظ وبتتنفّذ عليه لما يرجع
+              {ctx.session.cloud.pending > 0 ? ` (${ctx.session.cloud.pending} بالانتظار)` : ''}.
+            </div>
+          )}
+          {!ctx.session.cloud?.offline && (ctx.session.cloud?.pending ?? 0) > 0 && <div className="banner">رجع الجهاز الرئيسي، وعم تتنفّذ عليه العمليات اللي انعملت وهو مطفي ({ctx.session.cloud!.pending})…</div>}
           {ctx.session.viaRecovery && <div className="banner bad">دخلت برمز الاسترداد. غيّر كلمة السر الآن من الإعدادات ← حسابي.</div>}
           <OpenInvoices />
           <ErrorBoundary resetKey={`${screen.key}:${screen.param ?? ''}`}>

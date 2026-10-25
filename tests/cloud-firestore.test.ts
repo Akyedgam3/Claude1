@@ -43,6 +43,9 @@ describe.skipIf(!EMU)('cloud over the Firestore emulator', () => {
       snapshot: async (t) => sessions.snapshot(t),
       call: async (t, m, a) => sessions.call(t, m, a),
       logout: async (t) => sessions.logout(t),
+      fullState: async () => sessions.fullState(),
+      runQueued: async (u, p, m, a) => sessions.runQueued(u, p, m, a),
+      backup: async () => '',
     });
     host.onError = (m) => console.error('host error', m);
     off = store.onEvent((event, seq) => host.push([{ event, seq }]));

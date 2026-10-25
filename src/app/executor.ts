@@ -55,6 +55,9 @@ const SPECIAL: Record<string, Special> = {
   },
 };
 
+/** عمليات بتحتاج الجهاز الرئيسي نفسه (كلمات السر): ما بتنعمل عالجوال وهو مطفي. */
+export const isSpecialMethod = (method: string): boolean => Object.prototype.hasOwnProperty.call(SPECIAL, method);
+
 export const EXECUTOR_METHODS = new Set(Object.keys(SPECIAL));
 
 /** ينفذ عملية باسم مستخدم. يعيد نتيجة العملية ورقم آخر حدث بعدها. */

@@ -6,7 +6,7 @@ import path from 'path-browserify';
 import { ACTIVITIES, can, chartFor, DEFAULT_CURRENCIES, defaultTaxes, PERMISSIONS, type Activity, type CompanyEvent, type Permission, type User } from '../core';
 import { CloudSessions, CLOUD_MIN_DEVICES } from '../app/cloud-sessions';
 import { execute } from '../app/executor';
-import type { CloudClient } from '../cloud/client';
+import { OFFLINE, type CloudClient } from '../cloud/client';
 import { newCloudCode, normalizeCloudCode } from '../cloud/code';
 import { FEED_CHECK_HOURS, LICENSE_FEED_URLS } from '../license/config';
 import { LicenseManager, type LicenseStatus } from '../license/manager';
@@ -30,6 +30,8 @@ interface Settings {
   cloud?: Record<string, string>;
   /** آخر رمز اتصلنا فيه بجهاز رئيسي عن بعد (حتى ما ينكتب كل مرة). */
   lastCloud?: { code: string; username: string };
+  /** للعمل والجهاز الرئيسي مطفي: بصمة كلمة السر لكل (رمز + حساب) دخل قبل، والعمليات المأجّلة. */
+  cloudOffline?: Record<string, { verifier: string; pending?: { id: string; method: string; at: number }[] }>;
 }
 
 type Listener = (payload: unknown) => void;
@@ -153,7 +155,7 @@ function closeStore(): void {
 }
 
 function sessionInfo() {
-  if (remote) return { kind: 'remote' as const, user: remote.user!, company: remote.companyName, address: 'عن بعد' };
+  if (remote) return { kind: 'remote' as const, user: remote.user!, company: remote.companyName, address: 'عن بعد', cloud: { offline: remote.offline, syncedAt: remote.syncedAt, pending: remote.pending.length } };
   if (!store) return null;
   return {
     kind: 'local' as const,
@@ -298,6 +300,12 @@ function registerHandlers(): void {
 
   // نسخة احتياطية: داخلية، أو ملف بينبعت (واتساب، درايف، فلاشة...)
   handle('company:backup', async (toExternal: boolean) => {
+    if (remote) {
+      // جوال بعيد: النسخة من الجهاز الرئيسي عبر السحابة
+      const bytes = await remote.backup();
+      const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+      return native.shareFile(`Wazn-${safeFolderName(remote.companyName)}-${stamp}.wazn`, bytes, 'application/octet-stream');
+    }
     requirePermission('backup.manage');
     const s = activeStore();
     const dest = s.backup(path.join(s.dir, 'backups'), 5);
@@ -374,6 +382,19 @@ function registerHandlers(): void {
     return cloudSessions.call(String(token), method, args);
   });
   handle('cloud:hostLogout', (token: string) => cloudSessions.logout(String(token)));
+  handle('cloud:hostBackup', (token: string) => {
+    requireCloud();
+    const dir = activeStore().dir;
+    return cloudSessions.backup(String(token), (f) => (fs.existsSync(path.join(dir, f)) ? new Uint8Array(fs.readFileSync(path.join(dir, f)) as Uint8Array) : null));
+  });
+  handle('cloud:hostState', () => {
+    requireCloud();
+    return cloudSessions.fullState();
+  });
+  handle('cloud:hostQueued', (username: string, password: string, method: string, args: unknown[]) => {
+    requireCloud();
+    return cloudSessions.runQueued(String(username), String(password), String(method), Array.isArray(args) ? args : []);
+  });
 
   // جوال بعيد: بيشتغل على بيانات الجهاز الرئيسي وبترخيصه (متل الأجهزة الفرعية على الشبكة)
   handle('cloud:last', () => readSettings().lastCloud ?? null, { allowLocked: true });
@@ -383,17 +404,53 @@ function registerHandlers(): void {
     closeStore();
     const [{ CloudClient }, { FirestoreTransport }, { cloudRoom }] = await Promise.all([import('../cloud/client'), import('../cloud/firestore'), import('../cloud/code')]);
     const s = readSettings();
-    const client = new CloudClient(new FirestoreTransport(), await cloudRoom(code), { username: String(o.username ?? ''), password: String(o.password ?? ''), deviceId: s.deviceId, deviceName: 'جوال' });
-    await client.ping();
-    await client.login();
+    const room = await cloudRoom(code);
+    const client = new CloudClient(new FirestoreTransport(), room, { username: String(o.username ?? ''), password: String(o.password ?? ''), deviceId: s.deviceId, deviceName: 'جوال' });
+    const key = `${room.room}|${String(o.username ?? '').trim().toLowerCase()}`;
+    const saved = s.cloudOffline?.[key];
+    let online = true;
+    try {
+      await client.ping();
+    } catch (e) {
+      if ((e as Error).message !== OFFLINE) throw e;
+      online = false;
+    }
+    if (online) {
+      await client.login();
+      client.pending = saved?.pending ?? [];
+    } else {
+      // الجهاز الرئيسي مطفي: منفتح آخر نسخة محفوظة، والعمليات الجديدة بتستنى ليرجع
+      await client.openOffline(saved?.verifier, saved?.pending ?? []);
+    }
     remote = client;
+    const persist = () => {
+      const cur = readSettings();
+      cur.cloudOffline = { ...cur.cloudOffline, [key]: { verifier: cur.cloudOffline?.[key]?.verifier ?? saved?.verifier ?? '', pending: client.pending } };
+      writeSettings(cur);
+    };
+    client.onMode = () => {
+      persist();
+      send('cloud:mode', { offline: client.offline, syncedAt: client.syncedAt, pending: client.pending.length });
+    };
+    client.onQueueReport = (r) => {
+      const fails = r.failed.map((f) => `• ${f.error}`).join('\n');
+      send(r.failed.length ? 'lan:error' : 'cloud:notice', r.failed.length ? `رجع الجهاز الرئيسي: تنفّذت ${r.done} عملية، وما تنفّذت ${r.failed.length}:\n${fails}` : `رجع الجهاز الرئيسي وتنفّذت كل العمليات اللي انعملت وهو مطفي (${r.done}).`);
+    };
     client.listen(
       (items) => send('company:events', structuredClone(items)),
       () => send('company:reset'),
       (message) => send('lan:error', message),
     );
-    s.lastCloud = { code, username: String(o.username ?? '') };
-    writeSettings(s);
+    if (online) {
+      const v = await client.verifier();
+      const cur = readSettings();
+      cur.cloudOffline = { ...cur.cloudOffline, [key]: { verifier: v, pending: client.pending } };
+      writeSettings(cur);
+      client.collectQueued();
+    }
+    const latest = readSettings();
+    latest.lastCloud = { code, username: String(o.username ?? '') };
+    writeSettings(latest);
     return sessionInfo();
   }, { allowLocked: true });
 
@@ -426,7 +483,7 @@ async function invoke(channel: string, ...args: unknown[]): Promise<unknown> {
   return value === undefined ? undefined : structuredClone(value);
 }
 
-const EVENTS = ['company:events', 'company:reset', 'company:closed', 'license:changed', 'lan:error', 'display:update'];
+const EVENTS = ['company:events', 'company:reset', 'company:closed', 'license:changed', 'lan:error', 'display:update', 'cloud:mode', 'cloud:notice'];
 
 export async function startHost(): Promise<void> {
   const machineId = await native.machineId();

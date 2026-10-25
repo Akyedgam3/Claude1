@@ -30,6 +30,9 @@ export function useCloudHost(active: boolean, companyName: string, notify: (m: s
         snapshot: (t) => api.cloudHostSnapshot(t),
         call: (t, m, a) => api.cloudHostCall(t, m, a),
         logout: (t) => api.cloudHostLogout(t),
+        fullState: () => api.cloudHostState(),
+        backup: (t) => api.cloudHostBackup(t),
+        runQueued: (u, p, m, a) => api.cloudHostQueued(u, p, m, a),
       });
       let warned = false;
       host.onError = (m) => {
