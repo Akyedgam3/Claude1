@@ -40,7 +40,7 @@ export async function scanWithCamera(): Promise<string | null> {
       })
       .catch((e: Error) => {
         const denied = e?.name === 'NotAllowedError' || e?.name === 'SecurityError';
-        finish(null, new Error(denied ? 'اسمح لوزن يستعمل الكاميرا: إعدادات الجوال ← سفاري ← الكاميرا ← سماح، وبعدين جرّب مرة تانية.' : 'ما قدرنا نفتح الكاميرا: ' + (e?.message ?? e)));
+        finish(null, new Error(denied ? (/android/i.test(navigator.userAgent) ? 'اسمح لوزن يستعمل الكاميرا: إعدادات الجوال ← التطبيقات ← وزن ← الأذونات ← الكاميرا ← سماح، وبعدين جرّب مرة تانية.' : 'اسمح لوزن يستعمل الكاميرا: إعدادات الجوال ← سفاري ← الكاميرا ← سماح، وبعدين جرّب مرة تانية.') : 'ما قدرنا نفتح الكاميرا: ' + (e?.message ?? e)));
       });
   });
 }

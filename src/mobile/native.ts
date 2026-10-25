@@ -1,7 +1,7 @@
 // كل شي بيحتاج أندرويد نفسه (معرّف الجهاز، الطباعة، المشاركة، فتح الروابط) بمكان واحد.
 // بالمتصفح (التجارب الآلية) في بدائل بسيطة لكل وحدة.
 import { App } from '@capacitor/app';
-import { BarcodeScanner, GoogleBarcodeScannerModuleInstallState } from '@capacitor-mlkit/barcode-scanning';
+import { BarcodeScanner } from '@capacitor-mlkit/barcode-scanning';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { Device } from '@capacitor/device';
 import { Directory, Filesystem } from '@capacitor/filesystem';
@@ -77,36 +77,25 @@ export const native = {
    * null إذا سكّر المستخدم القارئ.
    */
   async scanBarcode(): Promise<string | null> {
+    const camera = async () => (await import('./webscan')).scanWithCamera();
     // بالمتصفح (نسخة الويب على الآيفون): كاميرا المتصفح
-    if (!isNative()) return (await import('./webscan')).scanWithCamera();
-    const { supported } = await BarcodeScanner.isSupported();
-    if (!supported) throw new Error('هالجوال ما بيدعم قراءة الباركود بالكاميرا');
-    const { available } = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
-    if (!available) {
-      // أول مرة: قارئ غوغل بينزل من خدمات Google Play (بدو إنترنت)
-      await new Promise<void>((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error('تنزيل قارئ الباركود طوّل، تأكد من الإنترنت وجرّب مرة تانية')), 120_000);
-        void BarcodeScanner.addListener('googleBarcodeScannerModuleInstallProgress', (e) => {
-          if (e.state === GoogleBarcodeScannerModuleInstallState.COMPLETED) {
-            clearTimeout(timer);
-            resolve();
-          } else if (e.state === GoogleBarcodeScannerModuleInstallState.FAILED || e.state === GoogleBarcodeScannerModuleInstallState.CANCELED) {
-            clearTimeout(timer);
-            reject(new Error('ما قدرنا ننزّل قارئ الباركود من خدمات غوغل'));
-          }
-        });
-        BarcodeScanner.installGoogleBarcodeScannerModule().catch((e: Error) => {
-          clearTimeout(timer);
-          reject(e);
-        });
-      });
+    if (!isNative()) return camera();
+    // قارئ غوغل (أسرع وأدق) إذا موجود. إذا مش موجود (خدمات غوغل محجوبة أو ناقصة، متل كتير جوالات بسوريا)
+    // منفتح القارئ تبعنا بكاميرا الجوال مباشرة، ومنجرّب ننزّل قارئ غوغل بالخلفية للمرة الجاية.
+    let google = false;
+    try {
+      google = (await BarcodeScanner.isSupported()).supported && (await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable()).available;
+      if (!google) BarcodeScanner.installGoogleBarcodeScannerModule().catch(() => undefined);
+    } catch {
+      google = false;
     }
+    if (!google) return camera();
     try {
       const { barcodes } = await BarcodeScanner.scan();
       return barcodes[0]?.rawValue ?? null;
     } catch (e) {
       if (/cancel/i.test((e as Error).message)) return null;
-      throw e;
+      return camera();
     }
   },
 
