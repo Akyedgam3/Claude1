@@ -77,6 +77,7 @@ const server = http.createServer(async (req, res) => {
         ...(num(body['devices']) ? { devices: num(body['devices'])! } : {}),
         ...(num(body['offlineDays']) ? { offlineDays: num(body['offlineDays'])! } : {}),
         ...(str(body['agentId']) ? { agentId: str(body['agentId'])! } : {}),
+        ...(body['force'] ? { force: true } : {}),
       });
       return send(200, c);
     }
@@ -153,7 +154,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && url.pathname === '/api/publish') return send(200, registry.publish(feedFile));
     send(404, { error: 'غير موجود' });
   } catch (e) {
-    send(400, { error: e instanceof Error ? e.message : String(e) });
+    send(400, { error: e instanceof Error ? e.message : String(e), ...((e as { duplicate?: string }).duplicate ? { duplicate: (e as { duplicate?: string }).duplicate } : {}) });
   }
 });
 

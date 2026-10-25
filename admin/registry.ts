@@ -116,8 +116,11 @@ export class Registry {
     );
   }
 
-  add(input: { name: string; phone?: string; notes?: string; machineId: string; plan: Plan; devices?: number; offlineDays?: number; agentId?: string }): Customer {
+  add(input: { name: string; phone?: string; notes?: string; machineId: string; plan: Plan; devices?: number; offlineDays?: number; agentId?: string; force?: boolean }): Customer {
     if (!input.name?.trim()) throw new Error('اسم العميل مطلوب');
+    // نفس البصمة عند زبون تاني: غالباً ويندوز منسوخ من نفس الملف، أو نفس الزبون عم يتسجّل مرتين
+    const same = this.data.customers.find((x) => x.machineId.toUpperCase() === input.machineId?.trim().toUpperCase() && x.status !== 'revoked');
+    if (same && !input.force && !input.agentId) throw Object.assign(new Error(`هالبصمة مسجّلة أصلاً للزبون «${same.name}». إذا جهاز تاني فعلاً، خلّيه يحدّث وزن لآخر نسخة ويبعتلك البصمة الجديدة.`), { duplicate: same.name });
     const agent = input.agentId ? this.agent(input.agentId) : null;
     if (agent) {
       if (!agent.active) throw new Error('هذا الوكيل موقوف');
@@ -149,7 +152,7 @@ export class Registry {
       history: [{ at: payload.issuedAt, action: `إصدار ${PLANS[payload.plan].nameAr}` + (agent ? ` عن طريق الوكيل ${agent.name}` : '') }],
       ...(agent ? { agentId: agent.id } : {}),
     };
-    if (this.data.customers.some((x) => x.machineId === c.machineId && x.status !== 'revoked')) {
+    if (!input.force && this.data.customers.some((x) => x.machineId === c.machineId && x.status !== 'revoked')) {
       throw new Error('هالجهاز إله ترخيص من قبل. استعمل التمديد بدل إصدار ترخيص جديد.');
     }
     c.key = this.sign(c);

@@ -1,7 +1,7 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { checkLicense, machineId as readMachineId, parseFeed, parseLicense, PLANS, updateFor, type LicenseCheck, type LicenseFeed, type UpdateInfo } from './license';
+import { checkLicense, machineIds as readMachineIds, parseFeed, parseLicense, PLANS, updateFor, type LicenseCheck, type LicenseFeed, type UpdateInfo } from './license';
 
 // يحفظ مفتاح الترخيص وآخر قائمة حالة ووقت آخر تحقق في ملف مشفّر على الجهاز.
 // التلاعب بالملف يجعله غير صالح فيُعامل كأنه لم يتم أي تحقق.
@@ -43,6 +43,8 @@ export interface ManagerOptions {
   fetcher?: (url: string) => Promise<string>;
   now?: () => Date;
   machineId?: string;
+  /** البصمة القديمة لنفس الجهاز (تراخيص قبل 1.2.19). */
+  legacyMachineId?: string;
   /** نسخة البرنامج الحالية، لمعرفة إذا في تحديث. */
   appVersion?: string;
 }
@@ -58,15 +60,19 @@ async function defaultFetch(url: string): Promise<string> {
 
 export class LicenseManager {
   readonly machineId: string;
+  private readonly legacyId: string;
   private readonly file: string;
   private readonly secret: Buffer;
   private readonly fetcher: (url: string) => Promise<string>;
   private readonly now: () => Date;
 
   constructor(private readonly o: ManagerOptions) {
-    this.machineId = o.machineId ?? readMachineId();
+    const ids = o.machineId ? { id: o.machineId, legacy: o.legacyMachineId ?? o.machineId } : readMachineIds();
+    this.machineId = ids.id;
+    this.legacyId = ids.legacy;
     this.file = path.join(o.dataDir, 'license.dat');
-    this.secret = createHash('sha256').update(`mizan-local|${this.machineId}`).digest();
+    // مفتاح تشفير ملف الترخيص من البصمة القديمة حتى يضل الملف المحفوظ ينقرا بعد التحديث
+    this.secret = createHash('sha256').update(`mizan-local|${this.legacyId}`).digest();
     this.fetcher = o.fetcher ?? defaultFetch;
     this.now = o.now ?? (() => new Date());
   }
@@ -105,7 +111,7 @@ export class LicenseManager {
     const data = this.read();
     const now = this.now();
     const check = checkLicense(data.key, this.o.publicKey, {
-      machineId: this.machineId,
+      machineId: [this.machineId, this.legacyId],
       now,
       ...(data.lastSeen ? { lastSeen: new Date(data.lastSeen) } : {}),
       feed: this.feedOf(data),
@@ -118,7 +124,8 @@ export class LicenseManager {
     const payload = check.payload;
     const update = this.o.appVersion ? updateFor(this.feedOf(data), this.o.appVersion) : null;
     const base: LicenseStatus = {
-      machineId: this.machineId,
+      // جهاز مفعّل بالبصمة القديمة بيضل يعرضها (هي اللي مسجّلة عندنا)
+      machineId: payload && payload.machineId === this.legacyId ? this.legacyId : this.machineId,
       locked: check.status === 'locked',
       devices: check.status === 'valid' ? check.devices : (payload?.devices ?? 1),
       cloud: check.status === 'valid' && check.cloud,
@@ -146,7 +153,7 @@ export class LicenseManager {
     const clean = key.trim().replace(/\s+/g, '');
     const payload = parseLicense(clean, this.o.publicKey);
     if (!payload) throw new Error('مفتاح الترخيص غير صالح');
-    if (payload.machineId !== this.machineId) throw new Error('هذا المفتاح صادر لجهاز آخر');
+    if (payload.machineId !== this.machineId && payload.machineId !== this.legacyId) throw new Error('هذا المفتاح صادر لجهاز آخر');
     const data = this.read();
     // لا نعيد ضبط وقت آخر تحقق عند التفعيل؛ مهلة العمل بدون إنترنت تُحسب من تاريخ إصدار المفتاح
     // أو من آخر تحقق فعلي، حتى لا يكفي إعادة إدخال المفتاح لتجاوز التحقق

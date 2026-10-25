@@ -140,7 +140,7 @@ function toast(msg, err) { const t = $('#toast'); t.textContent = msg; t.classNa
 async function api(path, body) {
   const res = await fetch(path, { method: body ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json', 'X-Admin-Token': TOKEN }, body: body ? JSON.stringify(body) : undefined });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'خطأ');
+  if (!res.ok) throw Object.assign(new Error(data.error || 'خطأ'), { duplicate: data.duplicate });
   return data;
 }
 async function load() {
@@ -342,7 +342,17 @@ async function run(fn, ok) { try { await fn(); await load(); if (ok) toast(ok); 
 function add(e) {
   e.preventDefault();
   const body = Object.fromEntries(new FormData(e.target));
-  run(async () => { const c = await api('/api/customers', body); await navigator.clipboard?.writeText(c.key).catch(() => {}); e.target.reset(); }, 'تم إصدار المفتاح ونسخه. لا تنسَ نشر قائمة الحالة.');
+  run(async () => {
+    let c;
+    try {
+      c = await api('/api/customers', body);
+    } catch (err) {
+      if (!err.duplicate || !confirm(err.message + '\n\nبدك تصدر المفتاح هيك هيك؟')) throw err;
+      c = await api('/api/customers', { ...body, force: true });
+    }
+    await navigator.clipboard?.writeText(c.key).catch(() => {});
+    e.target.reset();
+  }, 'تم إصدار المفتاح ونسخه. لا تنسَ نشر قائمة الحالة.');
 }
 function extend(id) {
   const c = state.customers.find((x) => x.id === id);

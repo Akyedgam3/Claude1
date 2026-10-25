@@ -109,6 +109,19 @@ describe('LicenseManager', () => {
       },
     });
 
+  it('keeps licenses issued on the old fingerprint working after the fingerprint changes', () => {
+    const OLD = 'OLDD-1111-2222-3333', NEW = 'NEWW-4444-5555-6666';
+    const mk = () => new LicenseManager({ dataDir: dir, publicKey: pub, feedUrls: [], machineId: NEW, legacyMachineId: OLD, now: () => at('2026-01-02T00:00:00Z') });
+    // تفعيل قديم محفوظ قبل التحديث (الملف مشفّر بالبصمة القديمة)
+    new LicenseManager({ dataDir: dir, publicKey: pub, feedUrls: [], machineId: OLD, now: () => at('2026-01-02T00:00:00Z') }).activate(issueLicense({ customer: 'قديم', machineId: OLD, plan: 'annual', issuedAt }, priv));
+    expect(mk().status()).toMatchObject({ locked: false, machineId: OLD });
+    // الجديد بيتفعّل بالبصمة الجديدة، وغير هيك مرفوض
+    const m = mk();
+    m.activate(issueLicense({ customer: 'جديد', machineId: NEW, plan: 'annual', issuedAt }, priv));
+    expect(m.status()).toMatchObject({ locked: false, machineId: NEW });
+    expect(() => m.activate(issueLicense({ customer: 'غريب', machineId: 'AAAA-0000-0000-0000', plan: 'annual', issuedAt }, priv))).toThrow(/جهاز آخر/);
+  });
+
   it('takes the newest feed when a mirror serves a stale copy', async () => {
     const key = issueLicense({ id: 'up-1', customer: 'ز', machineId: MACHINE, plan: 'annual', issuedAt }, priv);
     const fresh = feed({ 'up-1': { status: 'active', devices: 4 } }, '2026-01-05T00:00:00Z');

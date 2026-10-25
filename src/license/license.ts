@@ -123,17 +123,47 @@ function readPlatformId(): string | null {
   return null;
 }
 
+/** رقم اللوحة الأم (SMBIOS UUID): ثابت مع الفورمات وتحديثات ويندوز، ومختلف بين جهاز وجهاز. */
+function readHardwareUuid(): string | null {
+  if (process.platform !== 'win32') return null;
+  const clean = (v: string | undefined) => {
+    const u = v?.replace(/[{}]/g, '').trim().toUpperCase();
+    // بعض اللوحات الرخيصة بتعطي رقم وهمي واحد لكل الأجهزة
+    return u && /^[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}$/.test(u) && !/^(0{8}-0{4}|F{8}-F{4}|03000200-0400-0500-0006-000700080009)/.test(u) ? u : null;
+  };
+  try {
+    const out = execFileSync('reg', ['query', 'HKLM\\SYSTEM\\HardwareConfig', '/v', 'LastConfig'], { encoding: 'utf8', windowsHide: true });
+    const u = clean(/LastConfig\s+REG_SZ\s+(\S+)/i.exec(out)?.[1]);
+    if (u) return u;
+  } catch {
+    // نجرّب PowerShell
+  }
+  try {
+    const out = execFileSync('powershell', ['-NoProfile', '-NonInteractive', '-Command', '(Get-CimInstance Win32_ComputerSystemProduct).UUID'], { encoding: 'utf8', windowsHide: true, timeout: 8000 });
+    return clean(out);
+  } catch {
+    return null;
+  }
+}
+
+const fmtId = (raw: string) => createHash('sha256').update(raw).digest('hex').slice(0, 16).toUpperCase().match(/.{4}/g)!.join('-');
+
 /**
  * بصمة ثابتة للجهاز تُرسل لنا لإصدار الترخيص.
- * على ويندوز نستخدم MachineGuid الذي لا يتغير بتغيير الشبكة أو اسم الجهاز.
+ * - `legacy`: من MachineGuid بس (لحتى 1.2.18). نسخ ويندوز المعدّلة المنسوخة من نفس الملف بتطلع بنفس
+ *   MachineGuid على كل الأجهزة، فصار في أجهزة بمدن مختلفة بنفس البصمة.
+ * - `id`: MachineGuid + رقم اللوحة الأم، فبتختلف حتى لو نفس نسخة ويندوز. هي اللي بتنعرض للتفعيل الجديد.
+ * التراخيص القديمة الصادرة على `legacy` بتضل شغالة.
  */
-export function machineId(): string {
+export function machineIds(): { id: string; legacy: string } {
   const platformId = readPlatformId();
-  const raw = platformId
-    ? `mizan|${platformId}`
-    : [os.platform(), os.arch(), os.cpus()[0]?.model ?? '', os.totalmem(), os.hostname()].join('|');
-  const hex = createHash('sha256').update(raw).digest('hex').slice(0, 16).toUpperCase();
-  return hex.match(/.{4}/g)!.join('-');
+  const legacy = fmtId(platformId ? `mizan|${platformId}` : [os.platform(), os.arch(), os.cpus()[0]?.model ?? '', os.totalmem(), os.hostname()].join('|'));
+  const hw = platformId ? readHardwareUuid() : null;
+  return { id: hw ? fmtId(`wazn2|${platformId}|${hw}`) : legacy, legacy };
+}
+
+export function machineId(): string {
+  return machineIds().id;
 }
 
 // ───────────── إصدار المفاتيح والقائمة (أداة البائع فقط) ─────────────
@@ -196,7 +226,8 @@ export type LicenseCheck =
   | { status: 'locked'; reason: 'none' | 'invalid' | 'machine' | 'expired' | 'suspended' | 'revoked' | 'offline' | 'clock'; message: string; payload?: LicensePayload };
 
 export interface VerifyOptions {
-  machineId: string;
+  /** بصمة الجهاز (أو كذا بصمة: الجديدة والقديمة). */
+  machineId: string | string[];
   now?: Date;
   /** آخر وقت شوهد فيه البرنامج يعمل؛ لكشف إرجاع ساعة الجهاز للخلف. */
   lastSeen?: Date;
@@ -212,7 +243,7 @@ export function checkLicense(key: string | undefined, publicKeyPem: string, opts
   if (!key) return { status: 'locked', reason: 'none', message: 'البرنامج غير مفعّل. أدخل مفتاح الترخيص.' };
   const payload = parseLicense(key, publicKeyPem);
   if (!payload) return { status: 'locked', reason: 'invalid', message: 'مفتاح الترخيص غير صالح' };
-  if (payload.machineId !== opts.machineId) return { status: 'locked', reason: 'machine', message: 'الترخيص صادر لجهاز آخر', payload };
+  if (![opts.machineId].flat().includes(payload.machineId)) return { status: 'locked', reason: 'machine', message: 'الترخيص صادر لجهاز آخر', payload };
 
   const now = opts.now ?? new Date();
   const clockWrong = { status: 'locked' as const, reason: 'clock' as const, message: 'تاريخ الجهاز غير صحيح، يرجى ضبط الساعة والتاريخ', payload };

@@ -58,6 +58,13 @@ describe('agents', () => {
     expect(r.add({ name: 'زبون 2', machineId: M2, plan: 'annual', agentId: a.id }).devices).toBe(2);
   });
 
+  it('warns when a fingerprint already belongs to another customer', () => {
+    const r = new Registry(path.join(dir, 'registry.json'), PRIV);
+    r.add({ name: 'زبون الرقة', machineId: M1, plan: 'annual' });
+    expect(() => r.add({ name: 'زبون حماة', machineId: M1.toLowerCase(), plan: 'annual' })).toThrow(/زبون الرقة/);
+    expect(r.add({ name: 'زبون حماة', machineId: M1, plan: 'annual', force: true }).name).toBe('زبون حماة');
+  });
+
   it('validates packages and names', () => {
     const r = new Registry(path.join(dir, 'registry.json'), PRIV);
     expect(() => r.addAgent({ name: ' ' })).toThrow();
