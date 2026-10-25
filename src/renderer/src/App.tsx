@@ -13,6 +13,7 @@ import { Accounts } from './screens/Accounts';
 import { Appointments } from './screens/Appointments';
 import { Dashboard } from './screens/Dashboard';
 import { InvoiceEditor, OpenInvoices } from './screens/InvoiceEditor';
+import { Partners } from './screens/Partners';
 import { InvoiceView } from './screens/InvoiceView';
 import { Invoices } from './screens/Invoices';
 import { Items } from './screens/Items';
@@ -87,6 +88,7 @@ const NAV: (NavItem | string)[] = [
   { key: 'reports', label: 'التقارير', icon: 'reports', perms: ['reports.financial', 'reports.stock', 'sales.create'] },
   { key: 'journal', label: 'القيود اليومية', icon: 'journal', perm: 'journal.create' },
   { key: 'rates', label: 'العملات وسعر الصرف', icon: 'dollar', perm: 'rates.manage' },
+  { key: 'partners', label: 'الشركاء والمساهمين', icon: 'users', perm: 'partners.manage' },
   { key: 'accounts', label: 'دليل الحسابات', icon: 'accounts', perm: 'accounts.manage' },
   'الإدارة',
   { key: 'users', label: 'المستخدمون', icon: 'user-cog', perm: 'users.manage' },
@@ -484,6 +486,8 @@ function Screen({ screen }: { screen: { key: string; param?: string } }) {
       return <Parties {...(p ? { focus: p } : {})} />;
     case 'debts':
       return <Debts />;
+    case 'partners':
+      return <Partners />;
     case 'vouchers':
       return <Vouchers />;
     case 'rates':

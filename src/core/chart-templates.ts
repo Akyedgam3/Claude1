@@ -129,6 +129,8 @@ export const SYSTEM_ACCOUNTS = {
   fxLoss: '5301',
   openingBalances: '3104',
   retainedEarnings: '3103',
+  capital: '3101',
+  partnersCurrent: '3102',
   countDifferences: '5402',
   damaged: '5403',
   consumption: '5404',

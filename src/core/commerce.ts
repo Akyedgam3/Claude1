@@ -161,6 +161,14 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       if (prev?.invoiceId && !invoiceVoided(state, prev.invoiceId) && (o.status !== 'delivered' || o.invoiceId !== prev.invoiceId)) fail('الطلب مسلّم ومفوتر؛ ألغِ الفاتورة أولاً لتعديله');
       return;
     }
+    case 'partner.saved': {
+      const p = event.partner;
+      if (!p.id || !p.name?.trim()) fail('اسم الشريك مطلوب');
+      if (p.profitPercent !== undefined && (!Number.isFinite(p.profitPercent) || p.profitPercent < 0 || p.profitPercent > 100)) fail('نسبة الأرباح لازم تكون بين 0 و 100');
+      const others = Object.values(state.partners ?? {}).filter((x) => x.id !== p.id && x.active && x.profitPercent !== undefined);
+      if (p.active && p.profitPercent !== undefined && others.reduce((s, x) => s + x.profitPercent!, p.profitPercent) > 100.0001) fail('مجموع نسب الأرباح للشركاء أكتر من 100٪');
+      return;
+    }
     case 'sitejob.saved': {
       const j = event.job;
       if (!state.parties[j.partyId]) fail('الزبون غير موجود');
@@ -383,6 +391,9 @@ export function applyCommerceEvent(state: CompanyState, event: CompanyEvent): vo
     case 'tailor.saved':
       state.tailorOrders[event.order.id] = { ...event.order };
       bump(state, 'tailor', event.order.number);
+      return;
+    case 'partner.saved':
+      (state.partners ??= {})[event.partner.id] = { ...event.partner };
       return;
     case 'sitejob.saved':
       state.siteJobs[event.job.id] = { ...event.job };

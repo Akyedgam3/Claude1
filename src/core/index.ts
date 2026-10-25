@@ -12,3 +12,4 @@ export * from './operations';
 export * from './words';
 export * from './barcode';
 export * from './electronics';
+export * from './partners';

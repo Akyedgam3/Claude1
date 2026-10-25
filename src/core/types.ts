@@ -517,6 +517,18 @@ export interface SiteJobLine {
 
 export type SiteJobStatus = 'survey' | 'quoted' | 'working' | 'done' | 'invoiced' | 'cancelled';
 
+/** شريك / مساهم برأس مال الشركة. حركاته (إيداع وسحب وتوزيع أرباح) قيود محاسبية مصدرها partner. */
+export interface Partner {
+  id: string;
+  name: string;
+  phone?: string;
+  notes?: string;
+  /** نسبة الأرباح المتفق عليها (٪). إذا فاضية بتنحسب من نسبة رأس ماله. */
+  profitPercent?: number;
+  active: boolean;
+  createdAt: string;
+}
+
 export interface SiteJob {
   id: string;
   number: number;
@@ -705,6 +717,7 @@ export interface CompanyState {
   appointments: Record<string, Appointment>;
   tailorOrders: Record<string, TailorOrder>;
   siteJobs: Record<string, SiteJob>;
+  partners: Record<string, Partner>;
   quotes: Record<string, Quote>;
   rolls: Record<string, FabricRoll>;
   workOrders: Record<string, WorkOrder>;
@@ -738,6 +751,7 @@ export type CompanyEvent =
   | { type: 'appointment.saved'; appointment: Appointment }
   | { type: 'tailor.saved'; order: TailorOrder }
   | { type: 'sitejob.saved'; job: SiteJob }
+  | { type: 'partner.saved'; partner: Partner }
   | { type: 'quote.saved'; quote: Quote }
   | { type: 'rolls.saved'; rolls: FabricRoll[] }
   | { type: 'workorder.saved'; order: WorkOrder }

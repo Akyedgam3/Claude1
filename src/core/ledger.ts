@@ -1,5 +1,6 @@
 import { applyCommerceEvent, buildInvoice, convertOrder, orderTotals, piecesTotal, repairToInvoiceLines, rollRemaining, siteJobDeposits, siteJobToInvoiceLines, siteJobTotals, UNIT_NAMES, tailorDeposits, tailorToInvoiceLines, validateCommerceEvent, workOrderProgress, type InvoiceDraft, type InvoiceLineDraft } from './commerce';
 import { ACTIVITIES } from './activities';
+import { PARTNER_MOVE_NAMES, partnerSourceId, type PartnerMoveKind } from './partners';
 import { loadDemo } from './demo';
 import { buildSchedule, installmentState } from './electronics';
 import { cashAccountFor, SYSTEM_ACCOUNTS } from './chart-templates';
@@ -16,6 +17,7 @@ import {
   type TransferDraft,
 } from './operations';
 import type {
+  Partner,
   Account,
   Appointment,
   CompanyEvent,
@@ -78,6 +80,7 @@ export function emptyState(): CompanyState {
     appointments: {},
     tailorOrders: {},
     siteJobs: {},
+    partners: {},
     quotes: {},
     rolls: {},
     workOrders: {},
@@ -1133,6 +1136,59 @@ export class Ledger {
   // ───────────── مشاريع التنفيذ (جبسين وديكور) ─────────────
 
   /** حفظ مشروع (كشف) جديد أو تعديله. الدفعات والفاتورة ما بتتعدّل من هون. */
+  // ───────────── الشركاء والمساهمين ─────────────
+
+  savePartner(p: Omit<Partner, 'createdAt' | 'active'> & { active?: boolean }): Partner {
+    const prev = this.state.partners?.[p.id];
+    const partner: Partner = {
+      id: p.id || crypto.randomUUID(),
+      name: String(p.name ?? '').trim(),
+      ...(p.phone?.trim() ? { phone: p.phone.trim() } : {}),
+      ...(p.notes?.trim() ? { notes: p.notes.trim() } : {}),
+      ...(p.profitPercent !== undefined && p.profitPercent !== null && String(p.profitPercent) !== '' ? { profitPercent: Number(p.profitPercent) } : {}),
+      active: p.active ?? prev?.active ?? true,
+      createdAt: prev?.createdAt ?? new Date().toISOString(),
+    };
+    this.emit({ type: 'partner.saved', partner });
+    return partner;
+  }
+
+  /**
+   * حركة شريك: إيداع رأس مال (صندوق ← رأس المال)، سحب من رأس المال (العكس)،
+   * سحب أرباح (جاري الشركاء ← صندوق)، أو توزيع أرباح (الأرباح المدوّرة ← جاري الشريك).
+   */
+  partnerMove(d: { partnerId: string; kind: PartnerMoveKind; amount: number; date: string; memo?: string; cashAccountId?: string }): JournalEntry {
+    const partner = this.state.partners?.[d.partnerId] ?? fail('الشريك غير موجود');
+    if (!(d.kind in PARTNER_MOVE_NAMES)) fail('نوع الحركة غير معروف');
+    if (!(d.amount > 0) || !Number.isSafeInteger(d.amount)) fail('المبلغ يجب أن يكون أكبر من صفر');
+    const need = (id: string) => (this.state.accounts[id] ? id : fail('حسابات رأس المال وجاري الشركاء غير موجودة بدليل الحسابات'));
+    const cash = d.cashAccountId ?? cashAccountFor(this.state, this.base.code);
+    const [debit, credit] =
+      d.kind === 'capital_in' ? [cash, need(SYSTEM_ACCOUNTS.capital)]
+      : d.kind === 'capital_out' ? [need(SYSTEM_ACCOUNTS.capital), cash]
+      : d.kind === 'profit_out' ? [need(SYSTEM_ACCOUNTS.partnersCurrent), cash]
+      : [need(SYSTEM_ACCOUNTS.retainedEarnings), need(SYSTEM_ACCOUNTS.partnersCurrent)];
+    return this.postEntry({
+      date: d.date,
+      memo: `${PARTNER_MOVE_NAMES[d.kind]} — ${partner.name}${d.memo?.trim() ? `: ${d.memo.trim()}` : ''}`,
+      lines: [
+        { accountId: debit, debit: d.amount },
+        { accountId: credit, credit: d.amount },
+      ],
+      source: { type: 'partner', id: partnerSourceId(partner.id, d.kind) },
+    });
+  }
+
+  /** إلغاء حركة شريك (قيد عكسي بتاريخ الإلغاء). */
+  voidPartnerMove(entryId: string, date: string): JournalEntry {
+    const e = this.state.entries.find((x) => x.id === entryId) ?? fail('الحركة غير موجودة');
+    if (e.source?.type !== 'partner') fail('هذا القيد مش حركة شريك');
+    if (this.state.entries.some((x) => x.voidOf === e.id)) fail('الحركة ملغاة من قبل');
+    const entry = this.reversal(e, date);
+    this.emit({ type: 'entry.posted', entry });
+    return entry;
+  }
+
   saveSiteJob(draft: SiteJobDraft): SiteJob {
     const existing = this.state.siteJobs[draft.id];
     if (existing?.invoiceId) fail('المشروع مفوتر؛ ألغِ الفاتورة أولاً لتعديله');

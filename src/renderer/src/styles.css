@@ -3668,3 +3668,8 @@ button.danger-soft {
 .open-invoice button.close:hover { opacity: 1; color: var(--danger); }
 .open-invoice.active { border-color: var(--primary); background: var(--primary); }
 .open-invoice.active button { color: #fff; }
+
+/* الشركاء والمساهمين */
+.partners .row-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.partners .row-actions button { padding: 4px 10px; font-size: 13px; }
+.partner-kv { grid-template-columns: repeat(3, auto auto); margin-bottom: 12px; }
