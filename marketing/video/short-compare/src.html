@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<title>وزن — ليش وزن؟</title>
+<style>
+@font-face { font-family: Cairo; font-weight: 400; src: url(fonts/cairo-arabic-400-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 700; src: url(fonts/cairo-arabic-700-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 900; src: url(fonts/cairo-arabic-900-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 400; src: url(fonts/cairo-latin-400-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F, U+20AC, U+20BA; }
+@font-face { font-family: Cairo; font-weight: 700; src: url(fonts/cairo-latin-700-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F, U+20AC, U+20BA; }
+@font-face { font-family: Cairo; font-weight: 900; src: url(fonts/cairo-latin-900-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F, U+20AC, U+20BA; }
+:root { --g: #0f6e5c; --g2: #14957c; --mint: #5fe0bf; --gold: #e7b75a; --gold2: #ffe29a; --gold3: #c9952f; --deep: #04140f; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; }
+body { font-family: Cairo, sans-serif; color: #fff; }
+#stage { position: relative; width: 1080px; height: 1920px; overflow: hidden; background: #020807; }
+canvas { position: absolute; inset: 0; }
+#cam { position: absolute; inset: 0; transform-origin: 50% 50%; }
+.sc { position: absolute; inset: 0; display: none; transform-origin: 50% 50%; will-change: transform, opacity, filter; }
+.abs { position: absolute; }
+.center { position: absolute; left: 0; right: 0; text-align: center; }
+.ic svg { width: 100%; height: 100%; display: block; }
+.ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+.kt { position: absolute; left: 0; right: 0; text-align: center; font-weight: 900; line-height: 1.15; text-shadow: 0 6px 30px rgba(0, 0, 0, 0.55); opacity: 0; }
+.gold { background: linear-gradient(180deg, var(--gold2), var(--gold) 55%, var(--gold3)); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; filter: drop-shadow(0 6px 22px rgba(231, 183, 90, 0.45)); }
+.mint { color: var(--mint); }
+#flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+#grain { position: absolute; inset: -100px; opacity: 0.07; mix-blend-mode: overlay; pointer-events: none; }
+#vig { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0, 0, 0, 0.65) 100%); }
+.ring { position: absolute; left: 50%; top: 50%; width: 200px; height: 200px; margin: -100px 0 0 -100px; border-radius: 50%; border: 6px solid var(--mint); opacity: 0; }
+
+/* الهوية الصغيرة فوق */
+#brand { position: absolute; top: 70px; left: 0; right: 0; display: flex; justify-content: center; align-items: center; gap: 18px; opacity: 0; }
+#brand img { width: 74px; height: 74px; border-radius: 20px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); }
+#brand b { font-size: 54px; font-weight: 900; }
+
+/* المشهد 1: الفوضى */
+#A { background: radial-gradient(ellipse at 50% 40%, #1c2633 0%, #0b1017 60%, #05070a 100%); }
+.note { position: absolute; width: 640px; height: 820px; left: 250px; top: 470px; background: repeating-linear-gradient(180deg, #f3efe2 0 58px, #b8c7d9 58px 60px); border-radius: 10px; box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6); filter: saturate(0.4) brightness(0.8); padding: 70px 70px 0 40px; color: #29408a; font-weight: 700; font-size: 44px; line-height: 60px; }
+.note::before { content: ''; position: absolute; top: 0; bottom: 0; right: 90px; width: 4px; background: #d27a7a; opacity: 0.7; }
+.note p { position: relative; }
+.note s { text-decoration-color: #c0392b; text-decoration-thickness: 5px; }
+.calc { position: absolute; width: 330px; height: 480px; left: 70px; top: 1000px; background: linear-gradient(160deg, #3a414b, #20252c); border-radius: 36px; box-shadow: 0 40px 80px rgba(0, 0, 0, 0.7), inset 0 2px 0 rgba(255, 255, 255, 0.08); padding: 34px; }
+.calc .lcd { height: 110px; border-radius: 14px; background: #9fb59a; color: #24331f; font: 900 66px/110px Cairo; text-align: left; padding: 0 20px; direction: ltr; letter-spacing: 4px; opacity: 0.85; }
+.calc .keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 28px; }
+.calc .keys i { height: 62px; border-radius: 14px; background: #4b535e; box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.3); }
+.calc .keys i:nth-child(4n) { background: #b8742b; }
+.clock { position: absolute; top: 290px; left: 0; right: 0; text-align: center; font: 900 104px Cairo; color: #ff5148; letter-spacing: 8px; direction: ltr; text-shadow: 0 0 30px rgba(255, 60, 50, 0.7); }
+.paper { position: absolute; width: 170px; height: 230px; background: #ece6d6; border-radius: 6px; box-shadow: 0 16px 30px rgba(0, 0, 0, 0.5); filter: saturate(0.3) brightness(0.75); }
+.paper::after { content: ''; position: absolute; inset: 24px 18px; background: repeating-linear-gradient(180deg, rgba(60, 60, 60, 0.35) 0 4px, transparent 4px 22px); }
+
+/* مشهد الشعار */
+.bigword { font-size: 300px; }
+#logoB { position: absolute; left: 50%; top: 640px; width: 460px; height: 460px; margin-left: -230px; border-radius: 120px; box-shadow: 0 40px 120px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(255, 255, 255, 0.15), 0 0 160px rgba(95, 224, 191, 0.35); }
+
+/* الأجهزة */
+.persp { position: absolute; inset: 0; perspective: 1800px; perspective-origin: 50% 40%; }
+.laptop { position: absolute; width: 960px; left: 60px; transform-style: preserve-3d; }
+.laptop .lid { background: #0b1210; border-radius: 34px 34px 10px 10px; padding: 20px; box-shadow: 0 50px 120px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(255, 255, 255, 0.08); }
+.laptop .lid img { width: 100%; display: block; border-radius: 12px; aspect-ratio: 16/10; object-fit: cover; object-position: top right; }
+.laptop .base { height: 34px; margin: 0 -50px; background: linear-gradient(180deg, #d7dde2, #8c959c); border-radius: 0 0 40px 40px; box-shadow: 0 30px 50px rgba(0, 0, 0, 0.5); }
+.laptop .base::before { content: ''; display: block; width: 180px; height: 12px; margin: 0 auto; background: #9aa3aa; border-radius: 0 0 14px 14px; }
+.phone { position: absolute; width: 470px; background: #0a1210; border-radius: 74px; padding: 16px; box-shadow: 0 50px 120px rgba(0, 0, 0, 0.65), 0 0 0 3px rgba(255, 255, 255, 0.1); }
+.phone img { width: 100%; display: block; border-radius: 60px; }
+.phone::before { content: ''; position: absolute; top: 34px; left: 50%; width: 120px; height: 30px; margin-left: -60px; background: #000; border-radius: 20px; z-index: 2; }
+
+/* المجالات */
+.tile { position: absolute; width: 440px; height: 440px; border-radius: 70px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px; box-shadow: 0 40px 90px rgba(0, 0, 0, 0.5), inset 0 2px 0 rgba(255, 255, 255, 0.25); opacity: 0; }
+.tile .ic { width: 190px; height: 190px; color: #fff; }
+.tile b { font-size: 70px; font-weight: 900; }
+.mini { position: absolute; width: 190px; height: 190px; border-radius: 46px; background: rgba(255, 255, 255, 0.08); border: 2px solid rgba(255, 255, 255, 0.14); display: grid; place-items: center; opacity: 0; }
+.mini .ic { width: 96px; height: 96px; color: var(--mint); }
+.counter { font-size: 360px; font-weight: 900; line-height: 1; }
+
+/* باركود وإيصال */
+.prod { position: absolute; width: 400px; height: 300px; border-radius: 40px; background: #fff; color: #111; box-shadow: 0 40px 90px rgba(0, 0, 0, 0.55); padding: 34px 40px; opacity: 0; }
+.prod h4 { font-size: 46px; font-weight: 900; }
+.bars { display: flex; height: 120px; margin-top: 18px; gap: 0; direction: ltr; }
+.bars i { display: block; height: 100%; background: #111; }
+.laser { position: absolute; left: -20px; right: -20px; height: 8px; background: #ff2b2b; box-shadow: 0 0 30px 10px rgba(255, 40, 40, 0.65); border-radius: 4px; }
+.printer { position: absolute; width: 560px; height: 150px; border-radius: 36px; background: linear-gradient(180deg, #2a3431, #141b19); box-shadow: 0 30px 70px rgba(0, 0, 0, 0.6); opacity: 0; }
+.printer::after { content: ''; position: absolute; left: 70px; right: 70px; bottom: 26px; height: 14px; border-radius: 7px; background: #050807; }
+.rclip { position: absolute; width: 420px; overflow: hidden; }
+.receipt { width: 420px; background: #fbfbf7; color: #1a1a1a; padding: 34px 34px 40px; font-size: 26px; font-weight: 700; line-height: 1.6; box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4); -webkit-mask: linear-gradient(#000, #000) top / 100% calc(100% - 16px) no-repeat, radial-gradient(circle at 10px 100%, transparent 9px, #000 10px) bottom / 20px 17px repeat-x; }
+.receipt .rh { text-align: center; font-weight: 900; font-size: 34px; }
+.receipt .row { display: flex; justify-content: space-between; border-bottom: 2px dashed #cfcfcf; padding: 6px 0; }
+.receipt .tot { display: flex; justify-content: space-between; font-weight: 900; font-size: 36px; margin-top: 10px; }
+.receipt img { width: 140px; display: block; margin: 16px auto 0; }
+.chip { position: absolute; padding: 20px 40px; border-radius: 999px; font-size: 54px; font-weight: 900; display: flex; align-items: center; gap: 18px; opacity: 0; }
+.chip .ic { width: 60px; height: 60px; }
+
+/* أرقام وأعمدة */
+.card { position: absolute; left: 90px; right: 90px; height: 250px; border-radius: 54px; background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04)); border: 2px solid rgba(255, 255, 255, 0.14); box-shadow: 0 30px 70px rgba(0, 0, 0, 0.35); padding: 40px 56px; opacity: 0; }
+.card span { font-size: 46px; font-weight: 700; color: rgba(255, 255, 255, 0.75); }
+.card strong { display: block; font-size: 110px; font-weight: 900; line-height: 1.2; direction: ltr; text-align: right; }
+.card .ic { position: absolute; left: 50px; top: 50px; width: 120px; height: 120px; color: var(--mint); }
+.chart { position: absolute; left: 140px; right: 140px; height: 460px; display: flex; align-items: flex-end; gap: 34px; }
+.chart i { flex: 1; border-radius: 22px 22px 8px 8px; background: linear-gradient(180deg, var(--mint), var(--g)); box-shadow: 0 0 40px rgba(95, 224, 191, 0.35); }
+
+/* إشعارات الديون */
+.notif { position: absolute; left: 80px; right: 80px; height: 190px; border-radius: 46px; background: rgba(255, 255, 255, 0.95); color: #10211d; display: flex; align-items: center; gap: 30px; padding: 0 40px; box-shadow: 0 30px 70px rgba(0, 0, 0, 0.45); opacity: 0; }
+.notif .ic { width: 110px; height: 110px; padding: 22px; border-radius: 30px; color: #fff; background: linear-gradient(135deg, var(--g2), var(--g)); flex: none; }
+.notif b { display: block; font-size: 50px; font-weight: 900; line-height: 1.25; }
+.notif span { font-size: 38px; color: #4e5d59; font-weight: 700; }
+.stamp { position: absolute; left: 50%; width: 360px; height: 360px; margin-left: -180px; border-radius: 50%; border: 14px solid var(--mint); display: grid; place-items: center; color: var(--mint); opacity: 0; box-shadow: 0 0 80px rgba(95, 224, 191, 0.5), inset 0 0 60px rgba(95, 224, 191, 0.3); }
+.stamp .ic { width: 210px; height: 210px; }
+
+/* العملات */
+.coin { position: absolute; width: 330px; height: 330px; border-radius: 50%; display: grid; place-items: center; font-size: 140px; font-weight: 900; color: #6b4708; background: radial-gradient(circle at 35% 28%, #fff7d6 0%, #f2cf76 30%, #e2a93c 62%, #a46d16 100%); box-shadow: inset 0 0 0 16px rgba(120, 80, 10, 0.18), inset 0 -10px 30px rgba(90, 50, 0, 0.35), 0 40px 80px rgba(0, 0, 0, 0.5), 0 0 80px rgba(231, 183, 90, 0.35); text-shadow: 0 3px 0 rgba(255, 255, 255, 0.45); opacity: 0; }
+.coin.sm { width: 170px; height: 170px; font-size: 76px; }
+
+/* بدون إنترنت ومشفّر */
+.rain { position: absolute; inset: 0; font: 700 34px/40px monospace; color: rgba(95, 224, 191, 0.22); white-space: pre; overflow: hidden; direction: ltr; opacity: 0; }
+
+/* البطل */
+.rays { position: absolute; left: 50%; top: 820px; width: 2600px; height: 2600px; margin: -1300px 0 0 -1300px; border-radius: 50%; background: repeating-conic-gradient(from 0deg, rgba(255, 230, 160, 0.16) 0deg 6deg, transparent 6deg 18deg); -webkit-mask: radial-gradient(circle, #000 0%, transparent 62%); opacity: 0; }
+
+/* السعر */
+.cta { position: absolute; left: 50%; top: 520px; transform: translateX(-50%); padding: 40px 90px; border-radius: 999px; font-size: 96px; font-weight: 900; background: linear-gradient(135deg, var(--g2), var(--g)); box-shadow: 0 30px 80px rgba(20, 149, 124, 0.55), inset 0 3px 0 rgba(255, 255, 255, 0.25); white-space: nowrap; opacity: 0; }
+.tap { position: absolute; width: 140px; height: 140px; border-radius: 50%; border: 8px solid #fff; opacity: 0; }
+.price { position: absolute; left: 0; right: 0; text-align: center; font-weight: 900; direction: ltr; }
+
+/* التواصل */
+.wa { position: absolute; left: 50%; top: 360px; width: 240px; height: 240px; margin-left: -120px; border-radius: 70px; background: linear-gradient(135deg, #2fe07a, #13a956); display: grid; place-items: center; box-shadow: 0 30px 90px rgba(37, 211, 102, 0.5); opacity: 0; }
+.wa .ic { width: 150px; height: 150px; color: #fff; }
+.num { position: absolute; left: 70px; right: 70px; height: 210px; border-radius: 60px; background: rgba(255, 255, 255, 0.07); border: 2px solid rgba(255, 255, 255, 0.14); display: flex; justify-content: center; align-items: center; gap: 34px; direction: ltr; opacity: 0; }
+.num span { font-size: 116px; font-weight: 900; letter-spacing: 2px; color: rgba(255, 255, 255, 0.55); display: inline-block; }
+.num span.on { color: #fff; }
+
+/* مشاكل البرامج التانية */
+.bad { position: absolute; left: 90px; right: 90px; height: 230px; border-radius: 56px; background: rgba(255, 255, 255, 0.06); border: 3px solid rgba(255, 90, 80, 0.45); display: flex; align-items: center; gap: 40px; padding: 0 50px; opacity: 0; box-shadow: 0 30px 70px rgba(0, 0, 0, 0.45); }
+.bad .ic { width: 130px; height: 130px; padding: 26px; border-radius: 36px; background: rgba(255, 90, 80, 0.16); color: #ff7a6e; flex: none; }
+.bad b { font-size: 84px; font-weight: 900; }
+.bad .x { position: absolute; left: 30px; top: 50%; width: 96px; height: 96px; margin-top: -48px; padding: 0; background: none; color: #ff4d4d; opacity: 0; }
+.ok { position: absolute; left: 140px; right: 140px; height: 170px; border-radius: 999px; background: rgba(95, 224, 191, 0.12); border: 3px solid var(--mint); display: flex; align-items: center; justify-content: center; gap: 26px; font-size: 76px; font-weight: 900; opacity: 0; box-shadow: 0 0 60px rgba(95, 224, 191, 0.25); }
+.ok .ic { width: 84px; height: 84px; padding: 14px; border-radius: 50%; background: var(--mint); color: #04140f; }
+.dev { position: absolute; width: 330px; height: 330px; border-radius: 90px; display: grid; place-items: center; background: linear-gradient(135deg, var(--g2), var(--g)); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5); opacity: 0; }
+.dev .ic { width: 180px; height: 180px; color: #fff; }
+.bub { position: absolute; max-width: 760px; padding: 34px 46px; border-radius: 54px; font-size: 56px; font-weight: 700; line-height: 1.4; opacity: 0; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4); }
+.bub.me { right: 80px; background: #f3f6f5; color: #17231f; border-top-right-radius: 14px; }
+.bub.you { left: 80px; background: #1f8f5a; color: #fff; border-top-left-radius: 14px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="bg" width="1080" height="1920"></canvas>
+  <div id="cam">
+
+    <!-- 1. برامج معقّدة -->
+    <section class="sc" id="A">
+      <div id="Awrap" class="abs" style="inset:0">
+        <div class="note" id="note">
+          <p>القيد المزدوج ؟؟</p>
+          <p><s>مدين / دائن</s> ؟</p>
+          <p>مراكز الكلفة ؟؟</p>
+          <p>الدرس 14 من 40…</p>
+          <p class="ltr" style="display:block;text-align:right">ERROR 0x80045</p>
+          <p>وين زر البيع ؟؟؟</p>
+        </div>
+        <div class="calc" id="calc"><div class="lcd" id="lcd">0.</div><div class="keys"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+        <div id="papers"></div>
+        <div class="kt" id="a1" style="top:150px;font-size:92px">جرّبت برامج محاسبة…</div>
+        <div class="kt" id="a2" style="top:1520px;font-size:130px;color:#ff6a5e">معقّدة؟</div>
+        <div class="kt" id="a3" style="top:1690px;font-size:96px">وبدها دورة؟</div>
+      </div>
+    </section>
+
+    <!-- 2. غالية وإنترنت واشتراك -->
+    <section class="sc" id="A2">
+      <div class="bad" id="x1" style="top:460px"><span class="ic">{{icon:hand-coins}}</span><b>غالية؟</b><span class="x ic">{{icon:x}}</span></div>
+      <div class="bad" id="x2" style="top:760px"><span class="ic">{{icon:network}}</span><b>بدها إنترنت؟</b><span class="x ic">{{icon:x}}</span></div>
+      <div class="bad" id="x3" style="top:1060px"><span class="ic">{{icon:calendar-clock}}</span><b style="font-size:64px">كل شوي اشتراك؟</b><span class="x ic">{{icon:x}}</span></div>
+    </section>
+
+    <!-- 3. وزن غير -->
+    <section class="sc" id="B">
+      <img id="logoB" src="logo.png" alt="" />
+      <div class="kt" id="b3" style="top:1150px;font-size:210px"><span class="gold">وزن</span> غير.</div>
+      <div class="ring" id="rB1"></div><div class="ring" id="rB2"></div><div class="ring" id="rB3"></div>
+    </section>
+
+    <!-- 4. بتبلّش تبيع من أول يوم -->
+    <section class="sc" id="C">
+      <div class="kt" id="c1" style="top:260px;font-size:110px">بتفتحو…</div>
+      <div class="kt" id="c1b" style="top:400px;font-size:88px">وبتبلّش تبيع <span class="gold">من أول يوم</span></div>
+      <div class="persp"><div class="laptop" id="lapC" style="top:680px"><div class="lid"><img src="shots/d-pos.png" alt="" /></div><div class="base"></div></div></div>
+      <div class="ok" id="okC" style="top:1440px"><span class="ic">{{icon:check}}</span>بدون دورات</div>
+    </section>
+
+    <!-- 5. بالعربي وبلهجتنا -->
+    <section class="sc" id="E">
+      <div class="phone" id="phE" style="left:305px;top:170px"><img src="shots/m-dashboard.png" alt="" /></div>
+      <div class="ok" id="ok1" style="top:1260px"><span class="ic">{{icon:check}}</span>بالعربي</div>
+      <div class="ok" id="ok2" style="top:1460px"><span class="ic">{{icon:check}}</span>بلهجتنا</div>
+      <div class="ok" id="ok3" style="top:1660px"><span class="ic">{{icon:check}}</span>وواضح</div>
+    </section>
+
+    <!-- 6. بدون إنترنت ومشفّر -->
+    <section class="sc" id="I">
+      <div class="rain" id="rain"></div>
+      <svg id="wifi" class="abs" style="left:290px;top:520px" width="500" height="420" viewBox="0 0 120 100" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round">
+        <path d="M10 40 a72 72 0 0 1 100 0" /><path d="M27 57 a48 48 0 0 1 66 0" /><path d="M44 74 a24 24 0 0 1 32 0" /><circle cx="60" cy="88" r="6" fill="#fff" stroke="none" />
+        <line id="slash" x1="18" y1="8" x2="102" y2="96" stroke="#ff4d4d" stroke-width="11" />
+      </svg>
+      <svg id="lock" class="abs" style="left:340px;top:480px" width="400" height="500" viewBox="0 0 100 125" fill="none">
+        <path id="shackle" d="M28 58 V36 a22 22 0 0 1 44 0 V58" stroke="#5fe0bf" stroke-width="11" stroke-linecap="round" />
+        <rect x="12" y="56" width="76" height="62" rx="14" fill="url(#lg)" />
+        <circle cx="50" cy="82" r="8" fill="#04140f" /><rect x="46" y="84" width="8" height="18" rx="4" fill="#04140f" />
+        <defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7ff0d0" /><stop offset="1" stop-color="#14957c" /></linearGradient></defs>
+      </svg>
+      <div class="ring" id="rI1" style="top:760px"></div>
+      <div class="kt" id="i1" style="top:1150px;font-size:116px">بدون <span class="gold">إنترنت</span>…</div>
+      <div class="kt" id="i2" style="top:1150px;font-size:100px">وبياناتك <span class="gold">مشفّرة</span> عندك</div>
+    </section>
+
+    <!-- 7. كمبيوتر وجوال -->
+    <section class="sc" id="J">
+      <div class="persp"><div class="laptop" id="lapJ" style="top:560px"><div class="lid"><img src="shots/d-dashboard.png" alt="" /></div><div class="base"></div></div></div>
+      <div class="phone" id="phJ" style="left:560px;top:760px;width:420px"><img src="shots/m-pos.png" alt="" /></div>
+      <div class="kt" id="j1" style="top:240px;font-size:120px">عالكمبيوتر…</div>
+      <div class="kt gold" id="j2" style="top:1580px;font-size:140px">وعالجوال</div>
+    </section>
+
+    <!-- 8. المجالات -->
+    <section class="sc" id="D">
+      <div class="kt" id="d0" style="top:200px;font-size:96px">بيناسب <span class="gold">شغلك</span></div>
+      <div class="tile" id="t1" style="left:560px;top:420px;background:linear-gradient(135deg,#27c08f,#0f6e5c)"><span class="ic">{{icon:shopping-cart}}</span><b>سوبرماركت</b></div>
+      <div class="tile" id="t2" style="left:80px;top:420px;background:linear-gradient(135deg,#4cb7ff,#1f63c9)"><span class="ic">{{icon:smartphone}}</span><b>موبايلات</b></div>
+      <div class="tile" id="t3" style="left:560px;top:920px;background:linear-gradient(135deg,#ff8a4c,#c9452a)"><span class="ic">{{icon:utensils}}</span><b>مطعم</b></div>
+      <div class="tile" id="t4" style="left:80px;top:920px;background:linear-gradient(135deg,#a77bff,#5b3bc4)"><span class="ic">{{icon:shirt}}</span><b>ألبسة</b></div>
+      <div id="minis"></div>
+      <div class="kt" id="d1" style="top:1140px"><span class="counter gold ltr" id="cnt">+0</span></div>
+      <div class="kt" id="d2" style="top:1540px;font-size:92px">مجال عمل</div>
+    </section>
+
+    <!-- 9. السعر -->
+    <section class="sc" id="L">
+      <div class="kt" id="l0" style="top:300px;font-size:120px">والسعر؟</div>
+      <div class="kt" id="l1" style="top:520px;font-size:84px;color:rgba(255,255,255,.85)">بأقل من</div>
+      <div class="price gold" id="pr" style="top:600px;font-size:400px;line-height:1.1;opacity:0">$5</div>
+      <div class="kt" id="l2" style="top:1060px;font-size:96px">بالشهر</div>
+      <div class="ring" id="rL1" style="top:830px;border-color:var(--gold)"></div>
+      <div class="dev" id="dv1" style="left:570px;top:1260px"><span class="ic">{{icon:monitor}}</span></div>
+      <div class="dev" id="dv2" style="left:180px;top:1260px"><span class="ic">{{icon:smartphone}}</span></div>
+      <div class="kt" id="l3" style="top:1640px;font-size:84px">والرخصة على <span class="gold">جهازين</span></div>
+    </section>
+
+    <!-- 10. معك عالواتساب -->
+    <section class="sc" id="W">
+      <div class="bub me" id="bw1" style="top:420px">علقت بشغلة بالفواتير…</div>
+      <div class="wa" id="wa" style="top:760px"><span class="ic">{{icon:message-circle}}</span></div>
+      <div class="ring" id="rW1" style="top:880px;border-color:#2fe07a"></div>
+      <div class="kt" id="w1" style="top:1060px;font-size:120px"><span class="gold">نحنا معك</span></div>
+      <div class="bub you" id="bw2" style="top:1300px">أكيد، هلق منساعدك ✓</div>
+      <div class="kt" id="w2" style="top:1640px;font-size:80px;color:#3ce68a">عالواتساب</div>
+    </section>
+
+    <!-- 11. الشعار -->
+    <section class="sc" id="K">
+      <div class="rays" id="rays"></div>
+      <img id="logoK" class="abs" src="logo.png" style="left:310px;top:590px;width:460px;height:460px;border-radius:120px;box-shadow:0 40px 120px rgba(0,0,0,.55),0 0 160px rgba(231,183,90,.4)" alt="" />
+      <div class="kt" id="k1t" style="top:1110px;font-size:230px">وزن</div>
+      <div class="kt" id="k2t" style="top:1420px;font-size:96px">حساباتك صارت <span class="gold" id="shine">بوزنها</span></div>
+      <div class="ring" id="rK1" style="top:820px;border-color:var(--gold)"></div><div class="ring" id="rK2" style="top:820px;border-color:var(--gold)"></div>
+    </section>
+
+    <!-- 12. التواصل -->
+    <section class="sc" id="M">
+      <div class="wa" id="waM"><span class="ic">{{icon:message-circle}}</span></div>
+      <div class="ring" id="rM1" style="top:480px;border-color:#2fe07a"></div>
+      <div class="kt" id="m1" style="top:660px;font-size:96px">للتواصل <span style="color:#3ce68a">واتساب</span></div>
+      <div class="num" id="nm1" style="top:880px"><span id="g11">0968</span><span id="g12">037</span><span id="g13">609</span></div>
+      <div class="num" id="nm2" style="top:1130px"><span id="g21">0980</span><span id="g22">072</span><span id="g23">891</span></div>
+      <div id="endc" class="abs" style="left:0;right:0;top:1420px;text-align:center;opacity:0">
+        <div style="display:inline-flex;align-items:center;gap:22px"><img src="logo.png" style="width:110px;height:110px;border-radius:30px" alt="" /><b style="font-size:100px;font-weight:900">وزن</b></div>
+        <div style="font-size:52px;font-weight:700;margin-top:10px">حساباتك صارت <span class="gold">بوزنها</span></div>
+        <div class="ltr" style="font-size:52px;font-weight:900;color:var(--mint);margin-top:26px">waznsy.com</div>
+      </div>
+    </section>
+
+  </div>
+  <div id="brand"><img src="logo.png" alt="" /><b>وزن</b></div>
+  <canvas id="fx" width="1080" height="1920"></canvas>
+  <div id="flash"></div>
+  <div id="grain"></div>
+  <div id="vig"></div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const P = (t, a, b) => clamp((t - a) / (b - a));
+const eo = (x) => 1 - Math.pow(1 - x, 3);
+const ei = (x) => x * x * x;
+const eio = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const back = (x) => { const c1 = 1.9, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+const spring = (x) => (x <= 0 ? 0 : 1 - Math.exp(-7 * x) * Math.cos(11 * x));
+const lerp = (a, b, x) => a + (b - a) * x;
+function rnd(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+
+const ICONS = __ICONS__;
+window.DURATION = 51.6;
+
+// ── مواعيد الكلام (من align.json) ──
+const T = {
+  a1: 0.15, a2: 2.02, a3: 2.6,
+  x: [4.82, 5.75, 7.08],
+  b: 8.09,
+  c1: 8.95, c1b: 9.69, c2: 10.99, ok: 12.18,
+  e: [14.32, 15.04, 15.85],
+  i1: 17.36, i2: 18.3,
+  j1: 20.18, j2: 21.12,
+  d0: 22.4, d: [23.41, 24.32, 25.14, 25.64], d5: 26.22,
+  l0: 28.51, l1: 29.15, pr: 29.6, l2: 30.75, l3: 31.39, dev: 32.35,
+  w0: 33.34, w1: 34.8, w2: 35.67,
+  k1: 37.11, k2: 37.4,
+  m1: 39.06,
+  nums: [[40.2, 42.0], [42.08, 43.45], [43.52, 44.68], [45.29, 46.95], [47.04, 48.25], [48.31, 49.66]],
+  end: 49.8,
+};
+const IMPACTS = [[4.82, 12], [5.75, 12], [7.08, 12], [8.09, 26], [10.99, 8], [12.18, 10], [14.32, 7], [15.04, 7], [15.85, 7], [18.5, 9], [21.12, 9], [23.41, 9], [24.32, 9], [25.14, 9], [25.64, 9], [26.22, 12], [29.6, 18], [32.35, 12], [34.8, 14], [37.11, 22]];
+
+(function init() {
+  const pp = rnd(5); let ph = '';
+  for (let i = 0; i < 9; i++) ph += `<div class="paper" id="pp${i}"></div>`;
+  $('papers').innerHTML = ph;
+  window.PAP = Array.from({ length: 9 }, () => ({ x: 80 + pp() * 900, y: 250 + pp() * 1500, r: pp() * 360, s: 0.6 + pp() * 0.6, vx: (pp() - 0.5) * 60, vr: (pp() - 0.5) * 50 }));
+  const icons = ['pill', 'shirt', 'car', 'brick-wall', 'beef', 'croissant', 'truck', 'stethoscope', 'store', 'ice-cream', 'shopping-cart', 'utensils', 'scissors', 'smartphone'];
+  let mh = '';
+  icons.forEach((n, i) => { const c = i % 4, row = Math.floor(i / 4); mh += `<div class="mini" id="mi${i}" style="left:${70 + c * 240}px;top:${300 + row * 225}px"><span class="ic">${ICONS[n]}</span></div>`; });
+  $('minis').innerHTML = mh;
+  const rr = rnd(9); const chars = '0123456789ABCDEFابتثجحخدذرزسشصضطظعغفقكلمنهوي#*%';
+  let rain = '';
+  for (let l = 0; l < 52; l++) { let s = ''; for (let c = 0; c < 48; c++) s += chars[Math.floor(rr() * chars.length)]; rain += s + '\n'; }
+  $('rain').textContent = rain;
+  const g = document.createElement('canvas'); g.width = g.height = 320; const gx = g.getContext('2d'); const id = gx.createImageData(320, 320); const gr = rnd(3);
+  for (let i = 0; i < id.data.length; i += 4) { const v = gr() * 255; id.data[i] = id.data[i + 1] = id.data[i + 2] = v; id.data[i + 3] = 255; }
+  gx.putImageData(id, 0, 0); $('grain').style.backgroundImage = `url(${g.toDataURL()})`;
+  const dr = rnd(21); window.DUST = Array.from({ length: 70 }, () => ({ x: dr() * 1080, y: dr() * 1920, s: 1 + dr() * 3.5, v: 8 + dr() * 30, a: 0.15 + dr() * 0.45, ph: dr() * 6.28 }));
+  const mk = (t0, x, y, n, sp, cols, seed, g = 900) => { const q = rnd(seed); return { t0, x, y, g, parts: Array.from({ length: n }, () => { const a = q() * Math.PI * 2, v = sp * (0.35 + q() * 0.75); return { vx: Math.cos(a) * v, vy: Math.sin(a) * v - sp * 0.25, s: 3 + q() * 9, life: 0.9 + q() * 1.2, c: cols[Math.floor(q() * cols.length)] }; }) }; };
+  const GOLD = ['#ffe29a', '#e7b75a', '#fff6d8'], MINT = ['#5fe0bf', '#9ff5df', '#ffffff'];
+  window.BURSTS = [mk(8.09, 540, 870, 260, 1700, GOLD.concat(MINT), 1), mk(12.18, 540, 1520, 90, 900, MINT, 2), mk(26.22, 540, 1300, 120, 1100, GOLD, 3), mk(29.6, 540, 820, 170, 1400, GOLD, 4), mk(34.8, 540, 880, 110, 1000, MINT, 5), mk(37.11, 540, 820, 280, 1800, GOLD, 6), mk(18.5, 540, 760, 70, 800, MINT, 7)];
+})();
+
+function vis(el, t, a, b, inD = 0.3, outD = 0.25) {
+  if (t < a || t > b) { el.style.display = 'none'; return false; }
+  el.style.display = 'block';
+  const i = eo(P(t, a, a + inD)), o = 1 - ei(P(t, b - outD, b));
+  const sc = (1.1 - 0.1 * i) * (1 - 0.07 * (1 - o));
+  el.style.opacity = Math.min(i, o).toFixed(3);
+  el.style.transform = `scale(${sc.toFixed(4)})`;
+  const bl = (1 - i) * 16 + (1 - o) * 12;
+  el.style.filter = bl > 0.05 ? `blur(${bl.toFixed(2)}px)` : 'none';
+  return true;
+}
+function word(el, t, at, out = 1e9, dur = 0.38, dy = 70) {
+  const x = P(t, at, at + dur);
+  const o = 1 - P(t, out, out + 0.22);
+  if (x <= 0 || o <= 0) { el.style.opacity = 0; return; }
+  const b = back(x);
+  el.style.opacity = (Math.min(1, x * 1.6) * o).toFixed(3);
+  el.style.transform = `translateY(${((1 - b) * dy - (1 - o) * 40).toFixed(1)}px) scale(${(1.18 - 0.18 * Math.min(1, b)).toFixed(4)})`;
+  const bl = (1 - x) * 14 + (1 - o) * 10;
+  el.style.filter = bl > 0.05 ? `blur(${bl.toFixed(1)}px)` : 'none';
+}
+function slam(el, t, at, from = 2.2, dur = 0.55, rot = 0) {
+  const x = P(t, at, at + dur);
+  if (t < at) { el.style.opacity = 0; return; }
+  const s = spring(x * 1.2);
+  el.style.opacity = Math.min(1, x * 5).toFixed(3);
+  el.style.transform = `scale(${(from - (from - 1) * s).toFixed(4)}) rotate(${(rot * (1 - s)).toFixed(2)}deg)`;
+}
+function ring(el, t, at, max = 9, dur = 0.9) {
+  const x = P(t, at, at + dur);
+  if (x <= 0 || x >= 1) { el.style.opacity = 0; return; }
+  el.style.opacity = ((1 - x) * 0.9).toFixed(3);
+  el.style.transform = `scale(${(0.4 + eo(x) * max).toFixed(3)})`;
+  el.style.borderWidth = `${(10 * (1 - x) + 1).toFixed(1)}px`;
+}
+const count = (t, a, b, to) => to * eo(P(t, a, b));
+
+const bg = $('bg').getContext('2d');
+const fx = $('fx').getContext('2d');
+function drawBg(t) {
+  const green = P(t, 8.0, 8.4);
+  const W = 1080, H = 1920;
+  const c0 = [Math.round(lerp(8, 3, green)), Math.round(lerp(11, 22, green)), Math.round(lerp(16, 18, green))];
+  bg.fillStyle = `rgb(${c0})`; bg.fillRect(0, 0, W, H);
+  const blob = (x, y, r, col, a) => { const g = bg.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, col.replace('A', a)); g.addColorStop(1, col.replace('A', 0)); bg.fillStyle = g; bg.fillRect(0, 0, W, H); };
+  if (green > 0) {
+    blob(300 + Math.sin(t * 0.4) * 160, 500 + Math.cos(t * 0.3) * 200, 900, 'rgba(20,149,124,A)', 0.55 * green);
+    blob(820 + Math.cos(t * 0.35) * 150, 1400 + Math.sin(t * 0.5) * 220, 850, 'rgba(15,110,92,A)', 0.5 * green);
+    blob(560 + Math.sin(t * 0.25) * 260, 1000 + Math.sin(t * 0.33) * 300, 700, 'rgba(201,149,47,A)', 0.16 * green);
+  }
+  if (green < 1) {
+    blob(540, 700, 900, 'rgba(110,50,50,A)', 0.3 * (1 - green) * P(t, 4.4, 5.0));
+    blob(540, 700, 900, 'rgba(60,80,110,A)', 0.35 * (1 - green));
+    const fl = 0.08 * (Math.sin(t * 37) > 0.7 ? 1 : 0) * (1 - green);
+    if (fl) { bg.fillStyle = `rgba(0,0,0,${fl})`; bg.fillRect(0, 0, W, H); }
+  }
+  for (const d of DUST) {
+    const y = ((d.y - t * d.v) % H + H) % H;
+    const x = d.x + Math.sin(t * 0.6 + d.ph) * 18;
+    bg.fillStyle = green > 0.5 ? `rgba(255,226,154,${d.a * 0.6})` : `rgba(200,210,230,${d.a * 0.4})`;
+    bg.beginPath(); bg.arc(x, y, d.s, 0, 6.283); bg.fill();
+  }
+}
+function drawFx(t) {
+  fx.clearRect(0, 0, 1080, 1920);
+  fx.globalCompositeOperation = 'lighter';
+  for (const b of BURSTS) {
+    const dt = t - b.t0;
+    if (dt < 0 || dt > 2.4) continue;
+    for (const p of b.parts) {
+      if (dt > p.life) continue;
+      const k = dt / p.life;
+      fx.fillStyle = p.c; fx.globalAlpha = (1 - k) * (1 - k);
+      fx.beginPath(); fx.arc(b.x + p.vx * dt * (1 - k * 0.45), b.y + p.vy * dt * (1 - k * 0.45) + 0.5 * b.g * dt * dt, p.s * (1 - k * 0.5), 0, 6.283); fx.fill();
+    }
+  }
+  fx.globalAlpha = 1; fx.globalCompositeOperation = 'source-over';
+}
+function camera(t) {
+  let sx = 0, sy = 0, rz = 0;
+  for (const [ti, amp] of IMPACTS) {
+    const dt = t - ti; if (dt < 0 || dt > 0.6) continue;
+    const e = amp * Math.exp(-dt * 9);
+    sx += Math.sin(dt * 90) * e; sy += Math.cos(dt * 77) * e * 0.8; rz += Math.sin(dt * 60) * e * 0.02;
+  }
+  const z = 1 + 0.012 * Math.sin(t * 0.7);
+  $('cam').style.transform = `translate(${sx.toFixed(1)}px,${sy.toFixed(1)}px) rotate(${rz.toFixed(3)}deg) scale(${z.toFixed(4)})`;
+}
+function flashes(t) {
+  let f = 0;
+  for (const [at, s, d] of [[8.09, 1, 0.45], [37.11, 0.85, 0.5], [29.6, 0.5, 0.35], [26.22, 0.35, 0.3], [12.18, 0.25, 0.25], [34.8, 0.3, 0.3]]) {
+    const x = P(t, at, at + d); if (x > 0 && x < 1) f = Math.max(f, s * (1 - eo(x)));
+  }
+  $('flash').style.opacity = f.toFixed(3);
+}
+
+// ── المشاهد ──
+function sceneA(t) {
+  const el = $('A');
+  if (t > 4.6) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  el.style.opacity = eo(P(t, 0, 0.8)).toFixed(3);
+  const imp = ei(P(t, 4.15, 4.6));
+  $('Awrap').style.transform = `scale(${(1 - imp * 0.97).toFixed(4)}) rotate(${(imp * 38).toFixed(2)}deg)`;
+  $('Awrap').style.filter = imp > 0 ? `blur(${(imp * 16).toFixed(1)}px)` : 'none';
+  $('Awrap').style.opacity = (1 - imp).toFixed(3);
+  $('note').style.transform = `rotate(${(-7 + Math.sin(t * 1.3) * 1.2).toFixed(2)}deg) translateY(${(Math.sin(t * 0.9) * 10).toFixed(1)}px)`;
+  const sh = t > 2.0 && t < 4.1 ? Math.sin(t * 60) * 4 : 0;
+  $('calc').style.transform = `rotate(${(9 + sh).toFixed(2)}deg)`;
+  const vals = ['0.', '12500', 'ERR', '???', 'E 0.'];
+  $('lcd').textContent = vals[Math.min(vals.length - 1, Math.floor(Math.max(0, t - 1.5) * 2.5))];
+  PAP.forEach((p, i) => {
+    const tt = Math.max(0, t - 0.4);
+    $('pp' + i).style.transform = `translate(${(p.x + p.vx * tt + Math.sin(tt * 2 + i) * 30).toFixed(1)}px,${(p.y + Math.cos(tt * 1.6 + i) * 40).toFixed(1)}px) rotate(${(p.r + p.vr * tt).toFixed(1)}deg) scale(${p.s})`;
+  });
+  word($('a1'), t, T.a1); slam($('a2'), t, T.a2, 2.2, 0.5, -8); word($('a3'), t, T.a3);
+}
+function sceneA2(t) {
+  if (!vis($('A2'), t, 4.55, 8.1, 0.1, 0.3)) return;
+  const imp = ei(P(t, 7.75, 8.1));
+  ['x1', 'x2', 'x3'].forEach((id, i) => {
+    const el = $(id), at = T.x[i];
+    const x = P(t, at, at + 0.45);
+    el.style.opacity = (Math.min(1, x * 3) * (1 - imp)).toFixed(3);
+    el.style.transform = `translateX(${((1 - back(x)) * (i % 2 ? -600 : 600)).toFixed(1)}px) rotate(${((1 - eo(x)) * (i % 2 ? -6 : 6)).toFixed(2)}deg) scale(${(1 - imp * 0.6).toFixed(3)})`;
+    const xx = el.querySelector('.x');
+    slam(xx, t, at + 0.4, 2.6, 0.45, -30);
+  });
+}
+function sceneB(t) {
+  if (!vis($('B'), t, 8.0, 9.05, 0.05, 0.25)) return;
+  slam($('logoB'), t, T.b, 3.2, 0.7, -14);
+  slam($('b3'), t, T.b + 0.12, 1.8, 0.6);
+  ring($('rB1'), t, T.b, 10, 1.0); ring($('rB2'), t, T.b + 0.12, 8, 1.0); ring($('rB3'), t, T.b + 0.26, 6, 1.0);
+}
+function sceneC(t) {
+  if (!vis($('C'), t, 8.9, 13.75)) return;
+  word($('c1'), t, T.c1); word($('c1b'), t, T.c1b);
+  const x = eo(P(t, 8.95, 9.9));
+  const rx = lerp(42, 8, x) + Math.sin(t * 0.9) * 2, ry = Math.sin(t * 0.7) * 6;
+  $('lapC').style.transform = `translateY(${lerp(700, 0, x).toFixed(1)}px) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) scale(${lerp(0.8, 1.02, x).toFixed(3)})`;
+  slam($('okC'), t, T.ok, 2.2, 0.5, -6);
+}
+function sceneE(t) {
+  if (!vis($('E'), t, 13.7, 16.95)) return;
+  const x = eo(P(t, 13.75, 14.4));
+  $('phE').style.transform = `translateY(${lerp(700, 0, x).toFixed(1)}px) rotate(${(lerp(-8, 0, x) + Math.sin(t) * 1.5).toFixed(2)}deg) scale(0.72)`;
+  $('phE').style.opacity = Math.min(1, x * 2).toFixed(3);
+  ['ok1', 'ok2', 'ok3'].forEach((id, i) => slam($(id), t, T.e[i], 2.0, 0.5, i % 2 ? 6 : -6));
+}
+function sceneI(t) {
+  if (!vis($('I'), t, 16.85, 20.15)) return;
+  word($('i1'), t, T.i1, T.i2 - 0.12);
+  const wx = eo(P(t, 16.95, 17.35)), wo = P(t, 18.1, 18.35);
+  $('wifi').style.opacity = (wx * (1 - wo)).toFixed(3);
+  $('wifi').style.transform = `scale(${(0.7 + 0.3 * wx - wo * 0.4).toFixed(3)})`;
+  const sl = $('slash'); const L = 125;
+  sl.style.strokeDasharray = L; sl.style.strokeDashoffset = (L * (1 - eo(P(t, 17.45, 17.75)))).toFixed(1);
+  const lx = P(t, 18.2, 18.55);
+  $('lock').style.opacity = Math.min(1, lx * 3).toFixed(3);
+  $('lock').style.transform = `scale(${(0.5 + 0.5 * back(lx)).toFixed(3)})`;
+  $('shackle').setAttribute('transform', `translate(0 ${(-16 * (1 - eo(P(t, 18.4, 18.5)))).toFixed(1)})`);
+  ring($('rI1'), t, 18.5, 7, 0.9);
+  const rn = $('rain');
+  rn.style.opacity = (0.9 * P(t, 18.2, 18.7)).toFixed(3);
+  rn.style.transform = `translateY(${(-((t - 18.2) * 220) % 40).toFixed(1)}px)`;
+  word($('i2'), t, T.i2);
+}
+function sceneJ(t) {
+  if (!vis($('J'), t, 20.1, 22.4)) return;
+  word($('j1'), t, T.j1);
+  const x = eo(P(t, 20.15, 20.9));
+  $('lapJ').style.transform = `translateX(${lerp(-1100, -60, x).toFixed(1)}px) rotateY(${lerp(-40, -16, x).toFixed(1)}deg) rotateX(6deg) scale(0.88)`;
+  const y = back(P(t, T.j2 - 0.05, T.j2 + 0.5));
+  $('phJ').style.transform = `translateX(${lerp(900, 0, y).toFixed(1)}px) rotate(${lerp(18, 6, y).toFixed(2)}deg)`;
+  $('phJ').style.opacity = P(t, T.j2 - 0.05, T.j2 + 0.1).toFixed(3);
+  slam($('j2'), t, T.j2 + 0.05, 2, 0.5);
+}
+function sceneD(t) {
+  if (!vis($('D'), t, 22.3, 28.45)) return;
+  const out = eo(P(t, T.d5 - 0.05, T.d5 + 0.35));
+  word($('d0'), t, T.d0, T.d5 - 0.1);
+  ['t1', 't2', 't3', 't4'].forEach((id, i) => {
+    const el = $(id);
+    slam(el, t, T.d[i], 2.4, 0.55, i % 2 ? 10 : -10);
+    if (out > 0 && t >= T.d[i]) {
+      el.style.opacity = (1 - out).toFixed(3);
+      el.style.transform = `scale(${(1 - out * 0.6).toFixed(3)}) translateY(${(-out * 200).toFixed(1)}px)`;
+    }
+  });
+  for (let i = 0; i < 14; i++) {
+    const m = $('mi' + i), at = T.d5 + 0.15 + i * 0.055;
+    const x = P(t, at, at + 0.4);
+    m.style.opacity = Math.min(1, x * 3).toFixed(3);
+    m.style.transform = `scale(${(0.3 + 0.7 * back(x)).toFixed(3)}) translateY(${(Math.sin(t * 2 + i) * 6).toFixed(1)}px)`;
+  }
+  $('cnt').textContent = '+' + Math.round(count(t, T.d5 + 0.1, T.d5 + 0.9, 14));
+  word($('d1'), t, T.d5 + 0.05, 1e9, 0.45, 120);
+  word($('d2'), t, T.d5 + 0.7);
+}
+function sceneL(t) {
+  if (!vis($('L'), t, 28.4, 33.3)) return;
+  word($('l0'), t, T.l0);
+  word($('l1'), t, T.l1);
+  const p = $('pr');
+  const px = P(t, T.pr - 0.15, T.pr + 0.4);
+  p.style.opacity = Math.min(1, px * 3).toFixed(3);
+  p.style.transform = `scale(${(2.2 - 1.2 * spring(px * 1.2)).toFixed(4)})`;
+  ring($('rL1'), t, T.pr, 9, 1.0);
+  word($('l2'), t, T.l2);
+  word($('l3'), t, T.l3);
+  slam($('dv1'), t, T.dev - 0.15, 2.4, 0.5, -10); slam($('dv2'), t, T.dev + 0.05, 2.4, 0.5, 10);
+}
+function sceneW(t) {
+  if (!vis($('W'), t, 33.2, 37.05)) return;
+  [['bw1', T.w0 + 0.1, -1], ['bw2', T.w2, 1]].forEach(([id, at, dir]) => {
+    const x = P(t, at, at + 0.45), el = $(id);
+    el.style.opacity = Math.min(1, x * 3).toFixed(3);
+    el.style.transform = `translateX(${((1 - back(x)) * 300 * dir).toFixed(1)}px) scale(${(0.7 + 0.3 * back(x)).toFixed(3)})`;
+  });
+  const w = P(t, T.w1 - 0.2, T.w1 + 0.4);
+  $('wa').style.opacity = Math.min(1, w * 3).toFixed(3);
+  $('wa').style.transform = `scale(${(0.3 + 0.7 * back(w) + 0.03 * Math.sin(t * 4)).toFixed(4)})`;
+  ring($('rW1'), t, T.w1, 6, 1.0);
+  slam($('w1'), t, T.w1, 1.9, 0.5);
+  word($('w2'), t, T.w2 + 0.2);
+}
+function sceneK(t) {
+  if (!vis($('K'), t, 37.0, 39.1)) return;
+  const r = $('rays');
+  r.style.opacity = eo(P(t, 37.05, 37.6)).toFixed(3);
+  r.style.transform = `rotate(${((t - 37.0) * 14).toFixed(2)}deg)`;
+  slam($('logoK'), t, T.k1, 2.8, 0.7, 12);
+  if (t > T.k1 + 0.7) $('logoK').style.transform = `scale(${(1 + 0.03 * Math.sin((t - T.k1) * 4)).toFixed(4)})`;
+  ring($('rK1'), t, T.k1, 10, 1.1); ring($('rK2'), t, T.k1 + 0.15, 7, 1.1);
+  slam($('k1t'), t, T.k1 + 0.1, 1.7, 0.55);
+  word($('k2t'), t, T.k2, 1e9, 0.45);
+  const sh = $('shine');
+  sh.style.backgroundImage = 'linear-gradient(100deg, #c9952f 0%, #e7b75a 35%, #fff8e1 50%, #e7b75a 65%, #c9952f 100%)';
+  sh.style.backgroundSize = '300% 100%';
+  sh.style.backgroundPosition = `${(100 - ((t - T.k2) * 70) % 300).toFixed(1)}% 0`;
+}
+function sceneM(t) {
+  if (!vis($('M'), t, 39.0, 51.6, 0.3, 1.0)) return;
+  const w = P(t, T.m1, T.m1 + 0.6);
+  $('waM').style.opacity = Math.min(1, w * 3).toFixed(3);
+  $('waM').style.transform = `scale(${(0.3 + 0.7 * back(w) + 0.03 * Math.sin(t * 4)).toFixed(4)})`;
+  ring($('rM1'), t, T.m1 + 0.1 + Math.max(0, Math.floor((t - T.m1 - 0.1) / 2.2)) * 2.2, 5, 1.0);
+  word($('m1'), t, T.m1 + 0.1);
+  [['nm1', T.nums[0][0] - 0.3], ['nm2', T.nums[3][0] - 0.3]].forEach(([id, at]) => {
+    const x = P(t, at, at + 0.5), el = $(id);
+    el.style.opacity = Math.min(1, x * 2).toFixed(3);
+    el.style.transform = `translateY(${((1 - back(x)) * 160).toFixed(1)}px)`;
+  });
+  ['g11', 'g12', 'g13', 'g21', 'g22', 'g23'].forEach((id, i) => {
+    const [a, b] = T.nums[i];
+    const el = $(id);
+    const on = t >= a - 0.05, act = t >= a - 0.05 && t <= b + 0.15;
+    const k = act ? back(P(t, a - 0.05, a + 0.3)) : 0;
+    el.className = on ? 'on' : '';
+    el.style.color = act ? '#ffe29a' : '';
+    el.style.transform = `scale(${(1 + 0.16 * k * (1 - P(t, b, b + 0.2))).toFixed(3)})`;
+    el.style.textShadow = act ? '0 0 40px rgba(231,183,90,.7)' : 'none';
+  });
+  const e = P(t, T.end, T.end + 0.6);
+  $('endc').style.opacity = e.toFixed(3);
+  $('endc').style.transform = `translateY(${((1 - eo(e)) * 80).toFixed(1)}px)`;
+}
+function brand(t) {
+  const show = Math.min(eo(P(t, 9.0, 9.4)), 1 - P(t, 36.9, 37.1));
+  $('brand').style.opacity = clamp(show).toFixed(3);
+}
+
+window.EVENTS = {
+  impacts: IMPACTS.map((x) => x[0]),
+  click: [], swish: [], beep: [],
+  whoosh: [4.55, 8.0, 8.9, 13.7, 16.85, 20.1, 22.3, 28.4, 33.2, 37.0, 39.0],
+  pop: [T.a2, ...T.x, T.ok, ...T.e, ...T.d, T.dev, T.w0, T.w2],
+  chime: [8.09, 29.6, 37.11],
+  sections: [0, 8.0, 22.3, 37.0],
+  duration: window.DURATION,
+};
+
+window.render = function (t) {
+  drawBg(t);
+  camera(t);
+  sceneA(t); sceneA2(t); sceneB(t); sceneC(t); sceneE(t); sceneI(t); sceneJ(t); sceneD(t); sceneL(t); sceneW(t); sceneK(t); sceneM(t);
+  brand(t);
+  drawFx(t);
+  flashes(t);
+  const gr = rnd(Math.floor(t * 30) + 1);
+  $('grain').style.transform = `translate(${Math.floor(gr() * 100)}px,${Math.floor(gr() * 100)}px)`;
+  $('stage').style.opacity = (1 - P(t, 50.7, 51.6)).toFixed(3);
+};
+
+Promise.all([document.fonts.ready, ...[...document.images].map((im) => (im.complete ? 1 : new Promise((r) => { im.onload = im.onerror = r; })))]).then(() => {
+  window.render(0);
+  window.READY = true;
+});
+</script>
+</body>
+</html>
