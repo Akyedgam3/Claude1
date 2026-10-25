@@ -12,7 +12,7 @@ import { UpdateNotice } from './components/UpdateNotice';
 import { Accounts } from './screens/Accounts';
 import { Appointments } from './screens/Appointments';
 import { Dashboard } from './screens/Dashboard';
-import { InvoiceEditor } from './screens/InvoiceEditor';
+import { InvoiceEditor, OpenInvoices } from './screens/InvoiceEditor';
 import { InvoiceView } from './screens/InvoiceView';
 import { Invoices } from './screens/Invoices';
 import { Items } from './screens/Items';
@@ -401,6 +401,7 @@ export function App() {
             <div className="banner bad">اتصل بالإنترنت للتحقق من الاشتراك خلال {lic.offlineDaysLeft} يوم وإلا سيتوقف البرنامج.</div>
           )}
           {ctx.session.viaRecovery && <div className="banner bad">دخلت برمز الاسترداد. غيّر كلمة السر الآن من الإعدادات ← حسابي.</div>}
+          <OpenInvoices />
           <ErrorBoundary resetKey={`${screen.key}:${screen.param ?? ''}`}>
             <Screen screen={screen} />
           </ErrorBoundary>
@@ -427,7 +428,7 @@ function Screen({ screen }: { screen: { key: string; param?: string } }) {
     case 'purchase':
     case 'sale_return':
     case 'purchase_return':
-      return <InvoiceEditor key={`${screen.key}-${p ?? ''}`} kind={screen.key} {...(p ? { editId: p } : {})} />;
+      return <InvoiceEditor key={`${screen.key}-${p ?? ''}`} kind={screen.key} {...(p?.startsWith('draft:') ? { draftId: p.slice(6) } : p ? { editId: p } : {})} />;
     case 'invoices':
       return <Invoices />;
     case 'invoice':

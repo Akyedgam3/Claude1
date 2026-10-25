@@ -3653,3 +3653,18 @@ button.danger-soft {
 .color-picker .swatches { display: flex; flex-wrap: wrap; gap: 6px; }
 .color-picker .swatches button { width: 26px; height: 26px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid rgba(0, 0, 0, 0.15); }
 .color-picker .swatches button.on { outline: 3px solid var(--primary); outline-offset: 2px; }
+
+/* اختيار جهاز من آخر أرقام الـ IMEI */
+.serial-choices { display: grid; gap: 6px; max-height: 60vh; overflow: auto; }
+.serial-choices button { display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: start; padding: 10px 12px; }
+.serial-choices .mono b { color: var(--primary); background: var(--primary-soft, rgba(15, 110, 92, 0.12)); border-radius: 4px; padding: 0 2px; }
+
+/* الفواتير المفتوحة (بترجع لأي وحدة متل ما تركتها) */
+.open-invoices { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; padding: 6px 10px; background: var(--primary-soft); border-radius: 10px; font-size: 13px; }
+.open-invoices > .muted { display: inline-flex; align-items: center; gap: 4px; }
+.open-invoice { display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); overflow: hidden; }
+.open-invoice button { border: 0; background: none; padding: 4px 10px; font-size: 13px; min-height: 0; box-shadow: none; }
+.open-invoice button.close { padding: 4px 8px; opacity: 0.6; }
+.open-invoice button.close:hover { opacity: 1; color: var(--danger); }
+.open-invoice.active { border-color: var(--primary); background: var(--primary); }
+.open-invoice.active button { color: #fff; }

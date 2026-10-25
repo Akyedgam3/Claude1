@@ -45,7 +45,53 @@ export function resolveScan(state: CompanyState, code: string): ScanResult | nul
   if (byPart) return { item: byPart };
   // رقم IMEI أو تسلسلي لجهاز بالمخزون: بينزل الجهاز نفسه مع رقمه
   for (const item of items) if (item.trackSerial && state.stock[item.id]?.serials?.[c]) return { item, serial: c };
+  // آخر أرقام الـ IMEI (4 أو أكتر): إذا جهاز واحد بس رقمه بينتهي فيهن
+  if (c.length >= 4) {
+    const m = matchSerials(state, c).filter((x) => x.serial.endsWith(c));
+    if (m.length === 1) return { item: m[0]!.item, serial: m[0]!.serial };
+  }
   return null;
+}
+
+export interface SerialMatch {
+  item: Item;
+  serial: string;
+  sold?: boolean; // مبيوع (للمرتجعات)
+  price?: { amount: number; currency: string }; // سعر بيعه (للمرتجعات)
+  partyId?: string | null; // لمين انباع
+}
+
+/**
+ * الأجهزة اللي رقمها التسلسلي / IMEI بينتهي بالأرقام المكتوبة (أو فيه)، الأقرب أولاً.
+ * بالمرتجع (`sold`) منفتّش بالأجهزة المبيوعة بدل الموجودة بالمخزون.
+ */
+export function matchSerials(state: CompanyState, query: string, opts: { sold?: boolean; limit?: number } = {}): SerialMatch[] {
+  const q = query.trim().toLowerCase();
+  if (q.length < 3) return [];
+  const pool = new Map<string, SerialMatch>();
+  if (opts.sold) {
+    const inStock = new Set(Object.values(state.stock).flatMap((s) => Object.keys(s.serials ?? {})));
+    for (const inv of state.invoices) {
+      if (inv.kind !== 'sale' || inv.voidEntryId) continue;
+      for (const l of inv.lines) {
+        const item = l.itemId ? state.items[l.itemId] : undefined;
+        if (item) for (const serial of l.serials ?? []) if (!inStock.has(serial)) pool.set(serial, { item, serial, sold: true, price: { amount: Math.round(l.price - (l.discount ?? 0) / Math.max(1, l.qty)), currency: inv.currency }, partyId: inv.partyId ?? null });
+      }
+    }
+  } else {
+    for (const [itemId, lvl] of Object.entries(state.stock)) {
+      const item = state.items[itemId];
+      if (item && !item.archived) for (const serial of Object.keys(lvl.serials ?? {})) pool.set(serial, { item, serial });
+    }
+  }
+  const ends: SerialMatch[] = [];
+  const has: SerialMatch[] = [];
+  for (const m of pool.values()) {
+    const s = m.serial.toLowerCase();
+    if (s.endsWith(q)) ends.push(m);
+    else if (s.includes(q)) has.push(m);
+  }
+  return [...ends, ...has].slice(0, opts.limit ?? 30);
 }
 
 /** يولّد مواد المقاسات والألوان لموديل ألبسة/أحذية. */

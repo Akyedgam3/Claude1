@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_CURRENCIES, Ledger, chartFor, defaultTaxes, installmentState, partyBalance, permissionFor, resolveScan, serialHistory, serialsInStock, trialBalance } from '../src/core';
+import { DEFAULT_CURRENCIES, Ledger, chartFor, defaultTaxes, installmentState, matchSerials, partyBalance, permissionFor, resolveScan, serialHistory, serialsInStock, trialBalance } from '../src/core';
 
 function shop() {
   const l = new Ledger(() => {});
@@ -20,6 +20,20 @@ describe('electronics: IMEI, warranty, installments and trade-in', () => {
     expect(r?.serial).toBe('350000000000011');
     expect(resolveScan(l.state, '999')).toBeNull();
     expect(serialsInStock(l.state)).toHaveLength(2);
+  });
+
+  it('finds a device by the last digits of its IMEI', () => {
+    const l = shop();
+    // آخر 4 أرقام لجهاز واحد بس: بينزل مباشرة
+    expect(resolveScan(l.state, '0011')).toMatchObject({ serial: '350000000000011' });
+    // أرقام بتطابق الجهازين: ما منخمّن، الشاشة بتعرض اختيار
+    expect(resolveScan(l.state, '0000')).toBeNull();
+    expect(matchSerials(l.state, '0000').map((m) => m.serial).sort()).toEqual(['350000000000011', '350000000000029']);
+    expect(matchSerials(l.state, '29')).toEqual([]); // أقل من 3 أرقام
+    // المرتجع بيفتّش بالأجهزة المبيوعة ومعها سعر بيعها وزبونها
+    l.postInvoice({ kind: 'sale', date: '2026-02-01', partyId: 'c', lines: [{ itemId: 'a54', qty: 1, price: 3_600_000, serials: ['350000000000029'] }], paid: 3_600_000 });
+    expect(matchSerials(l.state, '0029')).toEqual([]);
+    expect(matchSerials(l.state, '0029', { sold: true })).toEqual([expect.objectContaining({ serial: '350000000000029', sold: true, partyId: 'c', price: { amount: 3_600_000, currency: 'SYP' } })]);
   });
 
   it('tells the full story of a device and its warranty', () => {

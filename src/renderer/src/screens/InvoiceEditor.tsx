@@ -1,7 +1,8 @@
-import { useMemo, useRef, useState } from 'react';
-import { computeTaxes, findRate, INVOICE_KIND_NAMES, itemTitle, resolveScan, type CompanyState, type Invoice, type InvoiceKind, type Item, type Party } from '../../../core';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { computeTaxes, findRate, INVOICE_KIND_NAMES, itemTitle, matchSerials, resolveScan, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party } from '../../../core';
 import { convertPrice, fxRates, money, parseAmount, rateInverted, toInput, today, uid, useCompany } from '../api';
-import { CurrencySelect, Field, itemMatches, itemOptions, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
+import { CurrencySelect, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
+import { invoiceDrafts } from '../drafts';
 import { ItemForm } from './Items';
 import { PartyForm } from './Parties';
 import { Icon } from '../components/icons';
@@ -18,7 +19,25 @@ interface LineState {
   expiry: string;
   serials: string;
   manualPrice?: boolean; // كتب المستخدم السعر بيده (لا نعيد تسعيره)
+  src?: { amount: number; currency: string }; // السعر اليدوي بالعملة اللي انكتب فيها، لنحوّله إذا تغيّرت عملة الفاتورة أو سعر الصرف
   note?: string; // ملاحظة السطر (بتنحفظ متل ما هي عند تعديل فاتورة)
+}
+
+/** حالة الفاتورة المفتوحة اللي بتنحفظ لما المستخدم يروح على شاشة تانية. */
+interface DraftData {
+  partyId: string | null;
+  date: string;
+  currency: string;
+  rateText: string;
+  warehouseId: string;
+  lines: LineState[];
+  discount: string;
+  taxIds: string[];
+  paidText: string | null;
+  payMode: 'cash' | 'credit' | 'partial';
+  cashAccountId: string;
+  salesman: string;
+  notes: string;
 }
 
 const emptyLine = (): LineState => ({ key: uid(), itemId: null, description: '', unit: '', qty: '1', price: '', discount: '', batch: '', expiry: '', serials: '' });
@@ -31,8 +50,8 @@ export function cashAccounts(state: CompanyState, currency?: string) {
 }
 
 /** سعر المادة حسب شريحة العميل والوحدة، محوّلاً لعملة الفاتورة. */
-export function itemPrice(state: CompanyState, item: Item, opts: { party?: Party | null; unit?: string; currency: string; date: string; purchase?: boolean }): string {
-  const rates = fxRates(state, opts.date);
+export function itemPrice(state: CompanyState, item: Item, opts: { party?: Party | null; unit?: string; currency: string; date: string; purchase?: boolean; rates?: Record<string, number> }): string {
+  const rates = opts.rates ?? fxRates(state, opts.date);
   if (opts.purchase) {
     const unitCost = state.stock[item.id]?.lastCost ?? 0;
     const factor = item.units?.find((u) => u.name === opts.unit)?.factor ?? 1;
@@ -47,7 +66,7 @@ export function itemPrice(state: CompanyState, item: Item, opts: { party?: Party
   return v === null ? '' : toInput(state, v, opts.currency);
 }
 
-export function InvoiceEditor({ kind: kindProp, editId }: { kind: string; editId?: string }) {
+export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { kind: string; editId?: string; draftId?: string }) {
   const kind = kindProp as InvoiceKind;
   const { state, call, notify, navigate, feature, can } = useCompany();
   const base = state.info!.baseCurrency;
@@ -56,11 +75,15 @@ export function InvoiceEditor({ kind: kindProp, editId }: { kind: string; editId
   // تعديل فاتورة: منعبّي كل شي من الفاتورة القديمة، وعند الحفظ بتنلغى وبتنسجّل الجديدة بنفس الرقم
   const editing = editId ? state.invoices.find((i) => i.id === editId && i.kind === kind && !i.voidEntryId) : undefined;
   const editInput = (v: number) => (editing ? toInput(state, v, editing.currency) : '');
-  const [partyId, setPartyId] = useState<string | null>(editing?.partyId ?? null);
-  const [date, setDate] = useState(editing?.date ?? today());
-  const [currency, setCurrency] = useState(editing?.currency ?? base);
-  const [rateText, setRateText] = useState(() => (editing && editing.currency !== base ? String(rateInverted(state, editing.currency) ? Math.round(10000 / editing.rate) / 10000 : editing.rate) : ''));
-  const [warehouseId, setWarehouseId] = useState(editing?.warehouseId ?? Object.keys(state.warehouses)[0] ?? 'main');
+  // الفاتورة المفتوحة (إذا راح على شاشة تانية ورجع، أو فاتح كذا فاتورة مع بعض)
+  const company = state.info?.name ?? '';
+  const [draftId] = useState(() => draftProp ?? invoiceDrafts.latest(company, kind)?.id ?? uid());
+  const [d] = useState(() => (editing ? undefined : (invoiceDrafts.get(company, draftId)?.data as DraftData | undefined)));
+  const [partyId, setPartyId] = useState<string | null>(editing?.partyId ?? d?.partyId ?? null);
+  const [date, setDate] = useState(editing?.date ?? d?.date ?? today());
+  const [currency, setCurrency] = useState(editing?.currency ?? (d && state.currencies[d.currency] ? d.currency : base));
+  const [rateText, setRateText] = useState(() => (editing && editing.currency !== base ? String(rateInverted(state, editing.currency) ? Math.round(10000 / editing.rate) / 10000 : editing.rate) : (d?.rateText ?? '')));
+  const [warehouseId, setWarehouseId] = useState(editing?.warehouseId ?? (d && state.warehouses[d.warehouseId] ? d.warehouseId : undefined) ?? Object.keys(state.warehouses)[0] ?? 'main');
   const [lines, setLines] = useState<LineState[]>(() =>
     editing
       ? [
@@ -76,19 +99,23 @@ export function InvoiceEditor({ kind: kindProp, editId }: { kind: string; editId
             expiry: l.batches?.[0]?.expiry ?? '',
             serials: (l.serials ?? []).join(' '),
             manualPrice: true,
+            src: { amount: l.price, currency: editing.currency },
             ...(l.note ? { note: l.note } : {}),
           })),
           emptyLine(),
         ]
-      : [emptyLine()],
+      : d?.lines.length
+        ? d.lines
+        : [emptyLine()],
   );
-  const [discount, setDiscount] = useState(editing?.discount ? editInput(editing.discount) : '');
-  const [taxIds, setTaxIds] = useState<string[]>(() => (editing ? editing.taxIds : isSale ? Object.values(state.taxes).filter((t) => t.active && t.percent > 0).map((t) => t.id) : []));
-  const [paidText, setPaidText] = useState<string | null>(editing && editing.paid !== editing.total && editing.paid > 0 ? editInput(editing.paid) : null);
+  const [discount, setDiscount] = useState(editing?.discount ? editInput(editing.discount) : (d?.discount ?? ''));
+  const [taxIds, setTaxIds] = useState<string[]>(() => (editing ? editing.taxIds : d ? d.taxIds.filter((id) => state.taxes[id]) : isSale ? Object.values(state.taxes).filter((t) => t.active && t.percent > 0).map((t) => t.id) : []));
+  const [paidText, setPaidText] = useState<string | null>(editing && editing.paid !== editing.total && editing.paid > 0 ? editInput(editing.paid) : (d?.paidText ?? null));
   // الخصم من الصندوق: كامل، لا (دين)، أو جزء. البرنامج بيتذكّر آخر اختيار لكل نوع فاتورة
   const payKey = `mizan.payMode.${kind}`;
   const [payMode, setPayModeState] = useState<'cash' | 'credit' | 'partial'>(() => {
     if (editing) return editing.paid >= editing.total ? 'cash' : editing.paid === 0 ? 'credit' : 'partial';
+    if (d) return d.payMode;
     try {
       const v = localStorage.getItem(payKey);
       return v === 'credit' || v === 'partial' ? v : 'cash';
@@ -105,11 +132,12 @@ export function InvoiceEditor({ kind: kindProp, editId }: { kind: string; editId
       // ما في تخزين: بيضل الاختيار لهالفاتورة بس
     }
   };
-  const [cashAccountId, setCashAccountId] = useState(editing?.cashAccountId ?? '');
-  const [salesman, setSalesman] = useState(editing?.salesman ?? '');
-  const [notes, setNotes] = useState(editing?.notes ?? '');
+  const [cashAccountId, setCashAccountId] = useState(editing?.cashAccountId ?? d?.cashAccountId ?? '');
+  const [salesman, setSalesman] = useState(editing?.salesman ?? d?.salesman ?? '');
+  const [notes, setNotes] = useState(editing?.notes ?? d?.notes ?? '');
   const [newItem, setNewItem] = useState<string | null>(null);
   const [newParty, setNewParty] = useState(false);
+  const [serialChoices, setSerialChoices] = useState<{ code: string; matches: SerialMatch[] } | null>(null);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
 
@@ -124,20 +152,69 @@ export function InvoiceEditor({ kind: kindProp, editId }: { kind: string; editId
   const cashId = boxes.some((b) => b.id === cashAccountId) ? cashAccountId : (boxes.find((b) => b.currency === currency) ?? boxes[0])?.id ?? '1101';
   const salesmen = useMemo(() => [...new Set(state.invoices.map((i) => i.salesman).filter(Boolean))] as string[], [state.invoices]);
 
-  const priceFor = (item: Item, unit = '', p: Party | null | undefined = party, cur = currency) =>
-    itemPrice(state, item, { party: p, unit, currency: cur, date, purchase: kind === 'purchase' || kind === 'purchase_return' });
-  /** عند تغيير الزبون أو العملة: نعيد تسعير الأسطر التلقائية، ونلغي المبلغ المدفوع المكتوب. */
-  const reprice = (p: Party | null | undefined, cur: string) => {
-    setPaidText(null);
-    setLines((ls) => ls.map((l) => (l.itemId && !l.manualPrice && state.items[l.itemId] ? { ...l, price: priceFor(state.items[l.itemId]!, l.unit, p, cur) } : l)));
+  /** أسعار الصرف للتحويل: المخزّنة، ومكانها السعر المكتوب بالفاتورة إذا انكتب. */
+  const ratesFor = (cur: string, typed: string) => {
+    const r = fxRates(state, date);
+    const t = Number(typed) || 0;
+    if (cur !== base && t) r[cur] = rateInverted(state, cur) ? 1 / t : t;
+    return r;
+  };
+  const priceFor = (item: Item, unit = '', p: Party | null | undefined = party, cur = currency, rates = ratesFor(currency, rateText)) =>
+    itemPrice(state, item, { party: p, unit, currency: cur, date, rates, purchase: kind === 'purchase' || kind === 'purchase_return' });
+  /** يحوّل مبلغ مكتوب من عملة لعملة (إذا ما في سعر صرف بيضل متل ما هو). */
+  const convertText = (text: string, from: string, to: string, rates: Record<string, number>) => {
+    if (!text.trim() || from === to) return text;
+    try {
+      const v = convertPrice(state, parseAmount(state, text, from), from, to, rates);
+      return v === null ? text : toInput(state, v, to);
+    } catch {
+      return text;
+    }
+  };
+  /**
+   * عند تغيير الزبون أو العملة أو سعر الصرف: الأسطر التلقائية بتتسعّر من جديد،
+   * والأسعار المكتوبة باليد بتتحوّل من العملة اللي انكتبت فيها (6$ بتصير 6×السعر بالليرة).
+   */
+  const reprice = (p: Party | null | undefined, cur: string, typed: string) => {
+    const rates = ratesFor(cur, typed);
+    if (currency !== cur && currency !== base && rate) rates[currency] = rate; // السعر المكتوب للعملة القديمة
+    setLines((ls) =>
+      ls.map((l) => {
+        const item = l.itemId ? state.items[l.itemId] : undefined;
+        const discount = convertText(l.discount, currency, cur, rates);
+        if (item && !l.manualPrice) return { ...l, discount, price: priceFor(item, l.unit, p, cur, rates) };
+        if (l.src) {
+          const v = l.src.currency === cur ? l.src.amount : convertPrice(state, l.src.amount, l.src.currency, cur, rates);
+          return v === null ? { ...l, discount } : { ...l, discount, price: toInput(state, v, cur) };
+        }
+        return { ...l, discount, price: convertText(l.price, currency, cur, rates) };
+      }),
+    );
+    return rates;
   };
   const changeParty = (id: string | null) => {
     setPartyId(id);
-    reprice(id ? (state.parties[id] ?? null) : null, currency);
+    setPaidText(null);
+    reprice(id ? (state.parties[id] ?? null) : null, currency, rateText);
   };
   const changeCurrency = (cur: string) => {
+    if (cur === currency) return;
+    const rates = reprice(party, cur, '');
+    setDiscount((d) => convertText(d, currency, cur, rates));
+    setPaidText(null);
     setCurrency(cur);
-    reprice(party, cur);
+    setRateText('');
+  };
+  const changeRate = (text: string) => {
+    setRateText(text);
+    reprice(party, currency, text);
+  };
+  const priceSrc = (text: string) => {
+    try {
+      return text.trim() ? { amount: parseAmount(state, text, currency), currency } : undefined;
+    } catch {
+      return undefined;
+    }
   };
   const setLine = (key: string, patch: Partial<LineState>) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   const withEmpty = (ls: LineState[]) => (ls.some((l) => !l.itemId && !l.description) ? ls : [...ls, emptyLine()]);
@@ -148,8 +225,28 @@ export function InvoiceEditor({ kind: kindProp, editId }: { kind: string; editId
   };
 
   const scan = (code: string) => {
-    const r = resolveScan(state, code);
-    if (!r) return notify(`لا توجد مادة بالرمز ${code}`, 'error');
+    const r = kind === 'sale_return' ? null : resolveScan(state, code);
+    if (r) return addScanned(r);
+    // آخر أرقام الـ IMEI / الرقم التسلسلي (بالمرتجع: من الأجهزة المبيوعة)
+    const m = matchSerials(state, code, { sold: kind === 'sale_return' });
+    const exact = m.filter((x) => x.serial.toLowerCase().endsWith(code.trim().toLowerCase()));
+    if (exact.length === 1) return addSerial(exact[0]!);
+    if (m.length === 1) return addSerial(m[0]!);
+    if (m.length > 1) return setSerialChoices({ code: code.trim(), matches: m });
+    const plain = kind === 'sale_return' ? resolveScan(state, code) : null;
+    if (plain) return addScanned(plain);
+    notify(`لا توجد مادة بالرمز ${code}`, 'error');
+  };
+
+  const addSerial = (m: SerialMatch) => {
+    setSerialChoices(null);
+    // بالمرتجع: الجهاز بيرجع بسعر ما انباع فيه، والزبون نفسه إذا لسا ما انختار
+    if (m.sold && m.partyId && !partyId) changeParty(m.partyId);
+    const v = m.price ? convertPrice(state, m.price.amount, m.price.currency, currency, ratesFor(currency, rateText)) : null;
+    addScanned({ item: m.item, serial: m.serial }, v !== null && m.price ? { price: toInput(state, v, currency), src: m.price } : undefined);
+  };
+
+  const addScanned = (r: ScanResult, sold?: { price: string; src: { amount: number; currency: string } }) => {
     const unit = r.unit ?? '';
     // سعر باركود الميزان مكتوب بعملة سعر المادة؛ نحوّله لعملة الفاتورة
     const scanned = r.price !== undefined ? convertPrice(state, r.price, r.item.priceCurrency, currency, fxRates(state, date)) : null;
@@ -161,20 +258,34 @@ export function InvoiceEditor({ kind: kindProp, editId }: { kind: string; editId
         const filled = ls.filter((l) => l.itemId || l.description);
         const same = filled.find((l) => l.itemId === r.item.id);
         if (same) return [...filled.map((l) => (l === same ? { ...l, qty: String(Number(l.qty || 0) + 1), serials: `${l.serials} ${r.serial}`.trim() } : l)), emptyLine()];
-        return [...filled, { ...emptyLine(), itemId: r.item.id, description: itemTitle(r.item), unit, qty: '1', price: priceFor(r.item, unit), serials: r.serial }, emptyLine()];
+        return [...filled, { ...emptyLine(), itemId: r.item.id, description: itemTitle(r.item), unit, qty: '1', price: sold?.price ?? priceFor(r.item, unit), ...(sold ? { manualPrice: true, src: sold.src } : {}), serials: r.serial }, emptyLine()];
       }
       const same = !r.qty && ls.find((l) => l.itemId === r.item.id && l.unit === unit && !r.item.trackSerial);
       if (same) return ls.map((l) => (l === same ? { ...l, qty: String(Number(l.qty || 0) + 1) } : l));
       const filled = ls.filter((l) => l.itemId || l.description);
       return [
         ...filled,
-        { ...emptyLine(), itemId: r.item.id, description: itemTitle(r.item), unit, qty: String(r.qty ?? 1), price: priceOverride ?? priceFor(r.item, unit) },
+        { ...emptyLine(), itemId: r.item.id, description: itemTitle(r.item), unit, qty: String(r.qty ?? 1), price: priceOverride ?? priceFor(r.item, unit), ...(priceOverride !== undefined ? { manualPrice: true, src: { amount: r.price!, currency: r.item.priceCurrency } } : {}) },
         emptyLine(),
       ];
     });
   };
 
   const used = useMemo(() => lines.filter((l) => l.itemId || l.description.trim()), [lines]);
+
+  // نحفظ الفاتورة المفتوحة مع كل تعديل (لتضل موجودة إذا راح على شاشة تانية)، والفاضية ما منحفظها
+  const savedRef = useRef(false);
+  useEffect(() => {
+    if (editing) return;
+    window.dispatchEvent(new CustomEvent('wazn:draft', { detail: draftId }));
+    return () => void window.dispatchEvent(new CustomEvent('wazn:draft', { detail: null }));
+  }, [editing, draftId]);
+  useEffect(() => {
+    if (editing || savedRef.current) return;
+    if (!used.length && !partyId && !notes.trim()) return invoiceDrafts.remove(company, draftId);
+    const data: DraftData = { partyId, date, currency, rateText, warehouseId, lines, discount, taxIds, paidText, payMode, cashAccountId, salesman, notes };
+    invoiceDrafts.save(company, { id: draftId, kind, title: (partyId && state.parties[partyId]?.name) || (isSale ? 'زبون نقدي' : 'مورد نقدي'), count: used.length, updated: Date.now(), data });
+  }, [editing, company, draftId, kind, isSale, state.parties, used, partyId, date, currency, rateText, warehouseId, lines, discount, taxIds, paidText, payMode, cashAccountId, salesman, notes]);
   const preview = useMemo(() => {
     try {
       const amounts = used.map((l) => Math.round(Number(l.qty || 0) * parseAmount(state, l.price, currency)) - parseAmount(state, l.discount, currency));
@@ -234,6 +345,10 @@ export function InvoiceEditor({ kind: kindProp, editId }: { kind: string; editId
       const res = editing ? await call<Invoice>('replaceInvoice', editing.id, draft) : await call<Invoice>('postInvoice', draft);
       if (res) {
         notify(editing ? `تم تعديل ${INVOICE_KIND_NAMES[kind]} رقم ${res.value.number}` : `تم حفظ ${INVOICE_KIND_NAMES[kind]} رقم ${res.value.number}`);
+        if (!editing) {
+          savedRef.current = true;
+          invoiceDrafts.remove(company, draftId);
+        }
         navigate('invoice', res.value.id);
       }
     } catch (e) {
@@ -252,6 +367,11 @@ export function InvoiceEditor({ kind: kindProp, editId }: { kind: string; editId
     <div className="page invoice-editor" onKeyDown={(e) => e.key === 'Enter' && e.ctrlKey && void save()}>
       <PageHeader title={editing ? `تعديل ${INVOICE_KIND_NAMES[kind]} رقم ${editing.number}` : INVOICE_KIND_NAMES[kind]}>
         {editing && <button onClick={() => navigate('invoice', editing.id)}>إلغاء التعديل</button>}
+        {!editing && (
+          <button onClick={() => navigate(kind, `draft:${uid()}`)} title="بتضل هالفاتورة مفتوحة وبترجعلها من الشريط فوق">
+            <Icon name="plus" size={16} /> فاتورة جديدة مع هي
+          </button>
+        )}
         {!editing && returnKind && can(returnKind === 'sale_return' ? 'returns.create' : 'purchases.create') && <button onClick={() => navigate(returnKind)}>{INVOICE_KIND_NAMES[returnKind]}</button>}
       </PageHeader>
       {editing && <div className="banner">عم تعدّل الفاتورة رقم {editing.number}. لما تحفظ، القديمة بتنلغى وبتنسجّل هي بنفس الرقم، والمخزون والحسابات بيتصلّحوا لحالهن (والقديمة بتضل بالسجل ملغاة).</div>}
@@ -281,7 +401,7 @@ export function InvoiceEditor({ kind: kindProp, editId }: { kind: string; editId
         </Field>
         {currency !== base && (
           <Field label={invertRate ? `سعر الصرف: 1 ${state.currencies[base]?.symbol} = ؟ ${state.currencies[currency]?.symbol}` : `سعر الصرف: 1 ${state.currencies[currency]?.symbol} = ؟ ${state.currencies[base]?.symbol}`}>
-            <input value={rateText} placeholder={storedRate ? String(invertRate ? Math.round(10000 / storedRate) / 10000 : storedRate) : 'أدخل السعر'} onChange={(e) => setRateText(e.target.value)} inputMode="decimal" />
+            <input value={rateText} placeholder={storedRate ? String(invertRate ? Math.round(10000 / storedRate) / 10000 : storedRate) : 'أدخل السعر'} onChange={(e) => changeRate(e.target.value)} inputMode="decimal" />
           </Field>
         )}
         {warehouses.length > 1 && (
@@ -309,7 +429,7 @@ export function InvoiceEditor({ kind: kindProp, editId }: { kind: string; editId
 
       <section className="card">
         <div className="scan-row">
-          <ScanInput onScan={scan} placeholder="امسح الباركود (أو باركود الميزان) أو اكتب الرمز / رقم القطعة ثم Enter" />
+          <ScanInput onScan={scan} placeholder={feature('serials') ? 'امسح الباركود أو اكتب الرمز / آخر أرقام الـ IMEI ثم Enter' : 'امسح الباركود (أو باركود الميزان) أو اكتب الرمز / رقم القطعة ثم Enter'} />
         </div>
         <table className="table lines">
           <thead>
@@ -408,7 +528,7 @@ export function InvoiceEditor({ kind: kindProp, editId }: { kind: string; editId
                     <input className="num-input" value={l.qty} onChange={(e) => setLine(l.key, { qty: e.target.value })} inputMode="decimal" />
                   </td>
                   <td>
-                    <input className="num-input" value={l.price} onChange={(e) => setLine(l.key, { price: e.target.value, manualPrice: true })} inputMode="decimal" />
+                    <input className="num-input" value={l.price} onChange={(e) => setLine(l.key, { price: e.target.value, manualPrice: true, src: priceSrc(e.target.value) })} inputMode="decimal" />
                   </td>
                   {allowDiscount && (
                     <td>
@@ -518,8 +638,83 @@ export function InvoiceEditor({ kind: kindProp, editId }: { kind: string; editId
           onSaved={(item) => setLines((ls) => withEmpty(ls.map((l) => (l.key === newItem ? { ...l, itemId: item.id, description: item.name, price: priceFor(item) } : l))))}
         />
       )}
+      {serialChoices && (
+        <Modal title={`أجهزة رقمها فيه ${serialChoices.code}`} onClose={() => setSerialChoices(null)} width={520}>
+          <p className="muted">في أكتر من جهاز، اختار الجهاز:</p>
+          <div className="serial-choices">
+            {serialChoices.matches.map((m) => (
+              <button key={m.serial} type="button" onClick={() => addSerial(m)}>
+                <ItemName item={m.item} strong />
+                <SerialHit serial={m.serial} q={serialChoices.code} />
+              </button>
+            ))}
+          </div>
+        </Modal>
+      )}
       {newParty && <PartyForm party={null} defaultKind={isSale ? 'customer' : 'supplier'} onClose={() => setNewParty(false)} onSaved={(p) => changeParty(p.id)} />}
     </div>
+  );
+}
+
+/**
+ * شريط الفواتير المفتوحة (فوق كل الشاشات): المستخدم بيقدر يشتغل شي تاني أو يفتح فاتورة تانية،
+ * وبيرجع لأي فاتورة متل ما تركها. ما بيطلع إلا إذا في فاتورة مفتوحة فيها شي.
+ */
+export function OpenInvoices() {
+  const { state, navigate, screenKey } = useCompany();
+  const company = state.info?.name ?? '';
+  const drafts = invoiceDrafts.use(company);
+  const [current, setCurrent] = useState<string | null>(null);
+  // منعرف أي فاتورة مفتوحة هلق من شاشة الفاتورة نفسها
+  useEffect(() => {
+    const on = (e: Event) => setCurrent((e as CustomEvent<string | null>).detail);
+    window.addEventListener('wazn:draft', on);
+    return () => window.removeEventListener('wazn:draft', on);
+  }, []);
+  const inEditor = screenKey in INVOICE_KIND_NAMES;
+  if (!drafts.length || (drafts.length === 1 && inEditor && current === drafts[0]!.id)) return null;
+  return (
+    <div className="open-invoices" role="tablist" aria-label="الفواتير المفتوحة">
+      <span className="muted">
+        <Icon name="receipt" size={14} /> فواتير مفتوحة:
+      </span>
+      {drafts.map((d) => (
+        <span key={d.id} className={`open-invoice ${inEditor && current === d.id ? 'active' : ''}`}>
+          <button type="button" role="tab" onClick={() => navigate(d.kind, `draft:${d.id}`)}>
+            {INVOICE_KIND_NAMES[d.kind as InvoiceKind] ?? d.kind} · {d.title}
+            {d.count > 0 && <small> ({d.count})</small>}
+          </button>
+          <button
+            type="button"
+            className="close"
+            title="تجاهل هالفاتورة"
+            onClick={() => {
+              if (!confirm('تتجاهل هالفاتورة؟ ما رح تنحفظ.')) return;
+              invoiceDrafts.remove(company, d.id);
+              if (inEditor && current === d.id) navigate(d.kind, `draft:${uid()}`);
+            }}
+          >
+            <Icon name="close" size={12} />
+          </button>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/** الرقم التسلسلي مع تعليم الأرقام اللي انكتبت. */
+function SerialHit({ serial, q }: { serial: string; q: string }) {
+  const i = serial.toLowerCase().lastIndexOf(q.toLowerCase());
+  return (
+    <span className="mono" dir="ltr">
+      {i < 0 ? serial : (
+        <>
+          {serial.slice(0, i)}
+          <b>{serial.slice(i, i + q.length)}</b>
+          {serial.slice(i + q.length)}
+        </>
+      )}
+    </span>
   );
 }
 
