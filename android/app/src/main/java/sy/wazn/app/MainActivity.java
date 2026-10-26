@@ -8,6 +8,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         // إضافة الطباعة تبع وزن (لازم تتسجل قبل ما يبلّش الـ Bridge)
         registerPlugin(WaznPrintPlugin.class);
+        registerPlugin(WaznUpdatePlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

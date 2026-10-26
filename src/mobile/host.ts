@@ -36,6 +36,9 @@ interface Settings {
 
 type Listener = (payload: unknown) => void;
 const listeners = new Map<string, Set<Listener>>();
+/** صفحة التحميل بالموقع (زر للجوال وزر للكمبيوتر)، ورابط تطبيق أندرويد الثابت. */
+const UPDATE_PAGE = 'https://waznsy.com/get.html';
+const APK_URL = 'https://github.com/Akyedgam3/mizan-updates/releases/latest/download/Wazn.apk';
 const send = (channel: string, payload?: unknown) => listeners.get(channel)?.forEach((fn) => fn(payload));
 
 let store: CompanyStore | null = null;
@@ -226,12 +229,42 @@ function registerHandlers(): void {
     return lastLicense;
   }, { allowLocked: true });
 
+  // تحديث أندرويد: التطبيق بينزّل الملف بحالو ويفحصه قبل التنصيب (ما في ملفات ناقصة أو مبعوتة على واتساب)
+  let updateReady: string | null = null;
+  const UPDATE_ERRORS: Record<string, (m: string) => string> = {
+    space: (m) => `المساحة الفاضية على الجوال ما بتكفي للتحديث. فضّي حوالي ${m} ميغا (صور أو فيديوهات أو تطبيقات ما بتلزم) وجرّب مرة تانية.`,
+    corrupt: () => 'ملف التحديث ما نزل كامل (النت ضعيف أو انقطع). جرّب مرة تانية على نت أقوى.',
+    network: () => 'ما قدرنا نوصل لملف التحديث. تأكد من النت وجرّب مرة تانية، أو نزّله من الموقع.',
+    old: (m) => `الملف اللي نزل نسخته ${m} ومش أحدث من نسختك. جرّب بعد شوي.`,
+    package: () => 'الملف اللي نزل مش تطبيق وزن. نزّله من الموقع الرسمي.',
+    signature: () => 'الملف اللي نزل مش من نسخة وزن الرسمية، فما رح ننصّبه. نزّله من الموقع الرسمي.',
+  };
   handle('app:openUpdate', async () => {
     const u = (lastLicense ?? licenseStatus()).update;
     if (!u) throw new Error('لا يوجد تحديث');
-    // رابط التحديث بالقائمة عادةً لملف الكمبيوتر (.exe): الجوال بياخد تطبيق أندرويد من نفس المكان
-    const url = /\.exe(\?|$)/i.test(u.url) ? u.url.replace(/[^/]+\.exe(\?.*)?$/i, 'Wazn.apk') : u.url;
-    await native.openUrl(url);
+    if (!native.canSelfUpdate()) {
+      await native.openUrl(UPDATE_PAGE);
+      return 'browser';
+    }
+    if (updateReady !== u.version) {
+      // رابط القائمة عادةً لملف الكمبيوتر أو صفحة التحميل: الجوال دايماً بياخد تطبيق أندرويد
+      const url = /\.apk(\?|$)/i.test(u.url) ? u.url : APK_URL;
+      try {
+        await native.downloadUpdate(url, (done, total) => send('update:progress', { done, total }));
+      } catch (e) {
+        const err = e as Error & { code?: string };
+        throw new Error((UPDATE_ERRORS[err.code ?? ''] ?? UPDATE_ERRORS.network!)(err.message));
+      } finally {
+        send('update:progress', null);
+      }
+      updateReady = u.version;
+    }
+    const r = await native.installUpdate();
+    return r.needPermission ? 'permission' : 'installing';
+  }, { allowLocked: true });
+
+  handle('app:openUpdatePage', async () => {
+    await native.openUrl(UPDATE_PAGE);
     return true;
   }, { allowLocked: true });
 
@@ -485,7 +518,7 @@ async function invoke(channel: string, ...args: unknown[]): Promise<unknown> {
   return value === undefined ? undefined : structuredClone(value);
 }
 
-const EVENTS = ['company:events', 'company:reset', 'company:closed', 'license:changed', 'lan:error', 'display:update', 'cloud:mode', 'cloud:notice'];
+const EVENTS = ['update:progress', 'company:events', 'company:reset', 'company:closed', 'license:changed', 'lan:error', 'display:update', 'cloud:mode', 'cloud:notice'];
 
 export async function startHost(): Promise<void> {
   const machineId = await native.machineId();

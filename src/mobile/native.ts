@@ -12,6 +12,13 @@ import { createHash } from './shims/crypto';
 /** إضافة الطباعة (android/app/src/main/java/.../WaznPrintPlugin.java): بتطبع محتوى الشاشة بنظام طباعة أندرويد. */
 const WaznPrint = registerPlugin<{ print(o: { name: string }): Promise<{ ok: boolean }> }>('WaznPrint');
 
+/** تحديث التطبيق من جوّاتو (WaznUpdatePlugin.java): تنزيل وفحص الملف ثم شاشة التنصيب. */
+const WaznUpdate = registerPlugin<{
+  download(o: { url: string }): Promise<{ version: string; size: number }>;
+  install(): Promise<{ needPermission: boolean }>;
+  addListener(e: 'progress', fn: (p: { done: number; total: number }) => void): Promise<{ remove(): Promise<void> }>;
+}>('WaznUpdate');
+
 const isNative = () => Capacitor.isNativePlatform();
 
 export const native = {
@@ -98,6 +105,22 @@ export const native = {
       return camera();
     }
   },
+
+  /** هل التطبيق بيقدر يحدّث حالو (أندرويد فقط، بالمتصفح لأ). */
+  canSelfUpdate: () => isNative() && Capacitor.getPlatform() === 'android',
+
+  /** بينزّل ملف التحديث ويفحصه. الخطأ فيه `code`: space, corrupt, package, old, signature, network. */
+  async downloadUpdate(url: string, onProgress: (done: number, total: number) => void): Promise<{ version: string; size: number }> {
+    const sub = await WaznUpdate.addListener('progress', (p) => onProgress(p.done, p.total));
+    try {
+      return await WaznUpdate.download({ url });
+    } finally {
+      void sub.remove();
+    }
+  },
+
+  /** بيفتح شاشة التنصيب. needPermission = انفتحت إعدادات «السماح بالتنصيب» بدالها. */
+  installUpdate: () => WaznUpdate.install(),
 
   async openUrl(url: string): Promise<void> {
     if (!/^https:\/\//.test(url)) throw new Error('رابط غير صالح');

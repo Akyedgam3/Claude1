@@ -322,6 +322,25 @@ button .icon-svg {
   padding-inline-start: 20px;
   line-height: 1.9;
 }
+.update-progress {
+  margin: 8px 0;
+}
+.update-progress .bar {
+  height: 10px;
+  border-radius: 6px;
+  background: var(--border, #e3e6ee);
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+.update-progress .bar i {
+  display: block;
+  height: 100%;
+  background: var(--primary, #2563eb);
+  transition: width 0.3s;
+}
+.update-progress small {
+  color: var(--muted, #6b7385);
+}
 .update-modal .actions {
   display: flex;
   gap: 8px;

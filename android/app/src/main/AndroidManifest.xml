@@ -41,4 +41,6 @@
     <!-- كاميرا لقراءة الباركود إذا قارئ غوغل مش موجود -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- تحديث التطبيق من جوّاتو (WaznUpdatePlugin) -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 </manifest>
