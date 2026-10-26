@@ -377,7 +377,7 @@ function ownerSettings(el) {
       <p class="muted">رابط القائمة من اللوحة: <span class="mono">${esc(LINK)}/feed.txt</span></p></div>`;
   const readFile = (input) => new Promise((res, rej) => { const f = input.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = rej; r.readAsText(f); });
   $('#pem').onchange = async (e) => { const pem = await readFile(e.target); await run(() => api('/api/settings/key', { pem }), 'انحفظ مفتاح التوقيع'); };
-  $('#ghs').onclick = () => run(() => api('/api/settings/github', { token: $('#gh').value }), 'انحفظ رمز GitHub');
+  $('#ghs').onclick = async () => { const r = await run(() => api('/api/settings/github', { token: $('#gh').value })); if (r) toast(r.publish?.ok ? 'انحفظ رمز GitHub وانتشرت القائمة ✓' : 'انحفظ الرمز، بس النشر ما زبط: ' + (r.publish?.message ?? ''), !r.publish?.ok); };
   $('#reg').onchange = async (e) => { const registry = await readFile(e.target); const r = await run(() => api('/api/import', { registry })); if (r) toast(`انتقل ${r.customers} زبون و${r.agents} وكيل`); };
   $('#pub').onclick = async () => { const r = await run(() => api('/api/publish', {})); if (r) toast(r.message, !r.ok); };
 }

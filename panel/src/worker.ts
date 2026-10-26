@@ -580,7 +580,8 @@ export class RegistryDO extends DurableObject<Env> {
       const perms = ((await r.json()) as { permissions?: { push?: boolean } }).permissions;
       if (perms && !perms.push) throw new HttpError(400, 'الرمز ما إلو صلاحية كتابة على المستودع');
       this.kvSet('secret:github', await seal(this.env.SECRET_KEY, token));
-      return json({ ok: true });
+      // منجرّب ننشر فوراً حتى ما تضل رسالة «ما في رمز» القديمة
+      return json({ ok: true, publish: await this.publish() });
     }
     if (path === '/api/import' && req.method === 'POST') {
       // نقل السجل من لوحة الإدارة القديمة (keys/registry.json) مرة وحدة
