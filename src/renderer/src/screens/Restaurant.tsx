@@ -609,7 +609,7 @@ function OrderPanel({ order, onBack, onSwitch }: { order: Order; onBack: () => v
               ))}
             </div>
           )}
-          <div className="kv pos-totals">
+          <div className="kv pos-totals pairs">
             <span>الأصناف</span>
             <strong>{money(state, t.items)}</strong>
             {draft.type === 'dine_in' && (

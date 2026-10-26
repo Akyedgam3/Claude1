@@ -351,6 +351,7 @@ export function Pos() {
             ))}
           </div>
         )}
+        <div className="pos-head">
         {currencies.length > 1 && (
           <div className="cur-switch">
             <div className="segmented">
@@ -371,6 +372,7 @@ export function Pos() {
             </button>
           )}
         </div>
+        </div>
         <div className="pos-lines">
           {cart.length === 0 && <p className="muted center">السلة فارغة</p>}
           {cart.map((l) => {
@@ -380,11 +382,15 @@ export function Pos() {
             const toggleNote = (n: string) => setLine(l.key, { note: (notes.includes(n) ? notes.filter((x) => x !== n) : [...notes, n]).join('، ') });
             return (
               <div key={l.key} className="pos-line-wrap">
-                <div className="pos-line">
+                <div className="pos-line cart-line">
                   <div>
                     <ItemName item={item} strong />
                     <small>
                       {money(state, l.price, cur)} / {l.unit || item.unit}
+                      <button className={`note-btn ${noteFor === l.key || l.note ? 'on' : ''}`} onClick={() => setNoteFor(noteFor === l.key ? null : l.key)} title={quickNotes.length ? 'طعمة / ملاحظة' : 'ملاحظة'}>
+                        <Icon name="file" size={12} />
+                        {quickNotes.length ? <span>طعمة</span> : null}
+                      </button>
                       {l.note ? <em className="line-note"> · {l.note}</em> : null}
                     </small>
                     {item.trackSerial && (
@@ -401,22 +407,18 @@ export function Pos() {
                     <Icon name="close" size={16} />
                   </button>
                 </div>
-                <div className="line-tools">
-                  {weighed &&
-                    WEIGHTS.map(([label, q]) => (
+                {weighed && (
+                  <div className="line-tools">
+                    {WEIGHTS.map(([label, q]) => (
                       <button key={label} className={l.qty === q ? 'on' : ''} onClick={() => setLine(l.key, { qty: q })}>
                         {label}
                       </button>
                     ))}
-                  {weighed && (
                     <button className={amountFor === l.key ? 'on' : ''} onClick={() => setAmountFor(amountFor === l.key ? null : l.key)}>
                       بالمبلغ
                     </button>
-                  )}
-                  <button className={noteFor === l.key || l.note ? 'on' : ''} onClick={() => setNoteFor(noteFor === l.key ? null : l.key)}>
-                    <Icon name="file" size={13} /> {quickNotes.length ? 'طعمة / ملاحظة' : 'ملاحظة'}
-                  </button>
-                </div>
+                  </div>
+                )}
                 {weighed && amountFor === l.key && (
                   <AmountToQty
                     onPick={(amountText) => {
@@ -452,7 +454,7 @@ export function Pos() {
             );
           })}
         </div>
-        <div className="kv pos-totals">
+        <div className="kv pos-totals pairs">
           <span>المجموع</span>
           <strong>{money(state, subtotal, cur)}</strong>
           {can('discount.give') && (
@@ -485,6 +487,8 @@ export function Pos() {
             inputMode="decimal"
             title="Enter = دفع نقداً"
           />
+          <span>الباقي للزبون</span>
+          <strong className={change < 0 ? 'bad' : 'good'}>{money(state, Math.max(0, change), cur)}</strong>
           {cashSteps.length > 0 && (
             <div className="cash-quick">
               <button onClick={() => setReceived('')}>مضبوط</button>
@@ -495,8 +499,6 @@ export function Pos() {
               ))}
             </div>
           )}
-          <span>الباقي للزبون</span>
-          <strong className={change < 0 ? 'bad' : 'good'}>{money(state, Math.max(0, change), cur)}</strong>
         </div>
         <div className="pos-pay">
           <button className="primary big" disabled={busy || !cart.length} onClick={() => pay(false)}>
@@ -522,7 +524,7 @@ export function Pos() {
               إعادة طباعة آخر إيصال
             </button>
           )}
-          <span className="muted">
+          <span className="muted today-sales">
             مبيعاتي اليوم: {todaySales.length} فاتورة ·{' '}
             {currencies
               .map((c) => [c.code, todaySales.reduce((s, i) => s + (i.currency === c.code ? i.total : 0), 0)] as const)
