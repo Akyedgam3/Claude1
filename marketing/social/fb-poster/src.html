@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<!-- بوستر فيسبوك 1080×1350 (4:5). البناء: node marketing/social/fb-poster/build.mjs -->
+<style>
+@font-face { font-family: Cairo; font-weight: 400; src: url(img/cairo-arabic-400-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 700; src: url(img/cairo-arabic-700-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 900; src: url(img/cairo-arabic-900-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 700; src: url(img/cairo-latin-700-normal.woff2); unicode-range: U+0000-00FF; }
+@font-face { font-family: Cairo; font-weight: 900; src: url(img/cairo-latin-900-normal.woff2); unicode-range: U+0000-00FF; }
+* { box-sizing: border-box; margin: 0; }
+html, body { width: 1080px; height: 1350px; overflow: hidden; }
+body { font-family: Cairo, sans-serif; color: #fff; position: relative;
+  background: radial-gradient(ellipse 80% 55% at 50% 38%, #13866f 0%, #0b5546 45%, #052a22 80%, #03150f 100%); }
+.dots { position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,.07) 1.5px, transparent 1.5px); background-size: 30px 30px; }
+
+.top { position: absolute; top: 46px; inset-inline: 60px; display: flex; align-items: center; justify-content: space-between; }
+.brand { display: flex; align-items: center; gap: 16px; }
+.brand img { width: 78px; height: 78px; border-radius: 22px; box-shadow: 0 10px 26px rgba(0,0,0,.35); }
+.brand b { font-size: 50px; font-weight: 900; line-height: 1; }
+.brand small { display: block; font-size: 19px; color: #9fe3d1; font-weight: 700; margin-top: 4px; }
+.badge { background: #e7b75a; color: #052a22; font-weight: 900; font-size: 22px; padding: 10px 22px; border-radius: 999px; box-shadow: 0 8px 20px rgba(231,183,90,.35); }
+
+h1 { position: absolute; top: 170px; inset-inline: 40px; text-align: center; font-size: 76px; font-weight: 900; line-height: 1.2; text-shadow: 0 6px 24px rgba(0,0,0,.35); }
+h1 em { font-style: normal; color: #ffd27a; }
+.sub { position: absolute; top: 352px; inset-inline: 60px; text-align: center; font-size: 30px; font-weight: 700; color: #cfeee6; }
+
+/* اللابتوب والجوال */
+.laptop { position: absolute; top: 440px; left: 70px; width: 770px; }
+.laptop .screen { background: #111; border-radius: 22px 22px 0 0; padding: 16px 16px 18px; box-shadow: 0 40px 80px rgba(0,0,0,.5); border: 2px solid #2b3b37; }
+.laptop .screen img { display: block; width: 100%; border-radius: 6px; }
+.laptop .base { height: 26px; margin: 0 -50px; background: linear-gradient(#cfd6d4, #8e9895); border-radius: 0 0 26px 26px; position: relative; }
+.laptop .base::after { content: ''; position: absolute; top: 0; left: 50%; width: 140px; height: 9px; transform: translateX(-50%); background: #7b8582; border-radius: 0 0 10px 10px; }
+.phone { position: absolute; top: 470px; right: 64px; width: 250px; padding: 10px; background: #0d1312; border-radius: 40px; border: 2px solid #34433f; box-shadow: 0 40px 80px rgba(0,0,0,.6); }
+.phone img { display: block; width: 100%; border-radius: 30px; }
+.phone::before { content: none; }
+
+/* المزايا */
+.feats { position: absolute; top: 1012px; inset-inline: 46px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.f { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 18px; background: rgba(255,255,255,.09); border: 1.5px solid rgba(255,255,255,.16); font-size: 23px; font-weight: 700; white-space: nowrap; }
+.f svg { width: 32px; height: 32px; flex: none; color: #ffd27a; }
+
+.bottom { position: absolute; bottom: 0; inset-inline: 0; height: 168px; background: #f7f3e8; color: #052a22; display: flex; align-items: center; justify-content: space-between; padding: 0 52px; }
+.price small { display: block; font-size: 22px; font-weight: 700; color: #3c5a52; }
+.price b { font-size: 50px; font-weight: 900; line-height: 1.15; color: #0b6b58; }
+.price b span { font-size: 26px; color: #3c5a52; }
+.call { text-align: left; direction: ltr; }
+.call .wa { display: flex; align-items: center; gap: 12px; justify-content: flex-end; font-size: 31px; font-weight: 900; line-height: 1.3; }
+.call .wa svg { width: 34px; height: 34px; color: #1ea952; }
+.call .site { font-size: 26px; font-weight: 900; color: #0b6b58; text-align: right; }
+</style>
+</head>
+<body>
+<div class="dots"></div>
+
+<div class="top">
+  <div class="brand">
+    <img src="img/icon.png" alt="" />
+    <div><b>وزن</b><small>برنامج محاسبة وإدارة محلات</small></div>
+  </div>
+  <div class="badge">على الكمبيوتر والجوال</div>
+</div>
+
+<h1>ودّع الدفتر والآلة الحاسبة<br /><em>محلّك كلو بإيدك</em></h1>
+<p class="sub">مبيعات، أرباح، ديون، ومخزون… بكبسة زر وبالعربي</p>
+
+<div class="laptop">
+  <div class="screen"><img src="img/laptop.webp" alt="" /></div>
+  <div class="base"></div>
+</div>
+<div class="phone"><img src="img/phone.png" alt="" /></div>
+
+<div class="feats">
+  <div class="f"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01M8.5 16.43a5 5 0 0 1 7 0M5 12.86a10 10 0 0 1 5.17-2.69M19 12.86a10 10 0 0 0-2-1.43M2 8.82a15 15 0 0 1 4.18-2.65M22 8.82a15 15 0 0 0-11.29-3.76M2 2l20 20"/></svg>بيشتغل بدون نت</div>
+  <div class="f"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18M7 6h1v4M16.71 13.88l.7.71-2.82 2.82"/></svg>ليرة ودولار</div>
+  <div class="f"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5v14M8 5v14M12 5v14M17 5v14M21 5v14"/></svg>كاشير وباركود</div>
+  <div class="f"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>ديون الزباين</div>
+  <div class="f"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-6 4 3 5-7"/></svg>تقارير وأرباح</div>
+  <div class="f"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 0 1-8 0"/></svg>+14 مجال عمل</div>
+</div>
+
+<div class="bottom">
+  <div class="price">
+    <small>الاشتراك السنوي</small>
+    <b>29.99$ <span>· أو شراء دائم 59.99$</span></b>
+  </div>
+  <div class="call">
+    <div class="wa"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-3.3-.8-2.8-1.2-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.3 0 .5l-.4.6-.3.3c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.3z"/></svg>+963 968 037 609</div>
+    <div class="wa"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-3.3-.8-2.8-1.2-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.3 0 .5l-.4.6-.3.3c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.3z"/></svg>+963 980 072 891</div>
+    <div class="site">waznsy.com</div>
+  </div>
+</div>
+</body>
+</html>
