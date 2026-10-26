@@ -46,7 +46,7 @@ export function LockScreen({ info, onChanged, notify }: { info: AppInfo; onChang
           )}
         </div>
         <p className="muted">
-          أرسل بصمة الجهاز للبائع لتحصل على مفتاح الترخيص (شهري، 3 أشهر، 6 أشهر، سنوي، أو شراء دائم)، ثم الصقه هنا.
+          اكتب <b>كود التفعيل</b> (16 حرف ورقم) يلي وصلك من البائع واضغط «تفعيل»، لازم يكون في نت لحظتها. أو ابعت بصمة الجهاز للبائع والصق المفتاح الطويل يلي بيبعتلك ياه.
         </p>
         <form
           className="inline-form"
@@ -55,7 +55,7 @@ export function LockScreen({ info, onChanged, notify }: { info: AppInfo; onChang
             void activate();
           }}
         >
-          <textarea dir="ltr" className="mono" rows={3} placeholder="MZN2-..." value={key} onChange={(e) => setKey(e.target.value)} />
+          <textarea dir="ltr" className="mono" rows={3} placeholder="XXXX-XXXX-XXXX-XXXX  أو  MZN2-..." value={key} onChange={(e) => setKey(e.target.value)} />
         </form>
         <div className="button-row">
           <button className="primary" disabled={!key.trim() || busy} onClick={activate}>

@@ -50,6 +50,7 @@ label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); font-weig
 .bal div { background: var(--bg); border-radius: 10px; padding: 8px 10px; }
 .bal b { font-size: 20px; font-weight: 900; display: block; }
 .bal.zero b { color: var(--bad); }
+.code { font-family: ui-monospace, Consolas, monospace; direction: ltr; text-align: center; white-space: nowrap; font-size: clamp(17px, 5.6vw, 26px); font-weight: 900; letter-spacing: 2px; background: var(--soft); color: var(--g); padding: 14px 8px; border-radius: 12px; user-select: all; }
 .key { font-family: ui-monospace, Consolas, monospace; direction: ltr; font-size: 11px; word-break: break-all; background: var(--bg); padding: 8px; border-radius: 8px; max-height: 90px; overflow: auto; }
 .banner { background: #fff7e6; border: 1px solid var(--gold); border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; }
 .banner.ok { background: var(--soft); border-color: #b9e0d5; }
@@ -107,7 +108,11 @@ const waLink = (phone, text) => {
   const p = String(phone ?? '').replace(/[^0-9]/g, '');
   return `https://wa.me/${p}?text=${encodeURIComponent(text)}`;
 };
-const keyText = (c) => `ترخيص وزن: ${c.name}\nالاشتراك: ${c.plan === 'lifetime' ? 'دائم' : (S?.plans?.[c.plan]?.nameAr ?? 'سنوي') + ' حتى ' + fmtDate(c.expiresAt)}\nعدد الأجهزة: ${c.devices}\n\nمفتاح التفعيل (انسخه كامل والصقه بشاشة التفعيل بوزن):\n${c.key}`;
+const planText = (c) => (c.plan === 'lifetime' ? 'دائم' : (S?.plans?.[c.plan]?.nameAr ?? 'سنوي') + (c.expiresAt ? ' حتى ' + fmtDate(c.expiresAt) : ''));
+const HOW = 'افتح وزن، وبشاشة التفعيل اكتب الكود واضغط «تفعيل» (لازم يكون في نت لحظة التفعيل). إذا نسختك قديمة نزّل آخر نسخة من waznsy.com';
+const keyText = (c) => `ترخيص وزن: ${c.name}\nالاشتراك: ${planText(c)}\nعدد الأجهزة: ${c.devices}\n\nكود التفعيل:\n${c.code}\n\n${HOW}`;
+const longKeyText = (c) => `ترخيص وزن: ${c.name}\nالاشتراك: ${planText(c)}\nعدد الأجهزة: ${c.devices}\n\nمفتاح التفعيل (انسخه كامل والصقه بشاشة التفعيل بوزن):\n${c.key}`;
+const cardText = (k) => `كود تفعيل وزن${k.name && k.name !== 'زبون' ? ' لـ ' + k.name : ''}\nالاشتراك: ${k.plan === 'lifetime' ? 'دائم' : (S?.plans?.[k.plan]?.nameAr ?? 'سنوي')}${k.mobile ? ' (كمبيوتر + جوال: نفس الكود بيفعّل الجوال كمان)' : ''}\n\nالكود:\n${k.code}\n\n${HOW}`;
 
 function modal(html, onMount) {
   const bg = document.createElement('div');
@@ -120,11 +125,39 @@ function modal(html, onMount) {
   return bg;
 }
 function showKey(c, extra = '') {
-  const m = modal(`<h2>المفتاح جاهز: ${esc(c.name)}</h2><p class="muted">انسخه وابعتو للزبون. بيلصقه بشاشة التفعيل بوزن.</p><div class="key">${esc(c.key)}</div>${extra}
-    <div class="row" style="margin-top:12px"><button class="primary" id="cp">نسخ المفتاح</button><button class="wa" id="wa">ابعت واتساب</button><button id="x">سكّر</button></div>`);
-  $('#cp', m).onclick = () => copy(c.key, 'نسخت المفتاح');
-  $('#wa', m).onclick = () => window.open(waLink(c.phone, keyText(c)), '_blank', 'noopener');
+  const m = modal(`<h2>الترخيص جاهز: ${esc(c.name)}</h2><p class="muted">ابعت كود التفعيل للزبون، بيكتبه بشاشة التفعيل بوزن (من النسخة 1.2.23).</p>
+    ${c.code ? `<div class="code">${esc(c.code)}</div>` : ''}${extra}
+    <div class="row" style="margin-top:12px">${c.code ? '<button class="primary" id="cp">نسخ الكود</button>' : ''}<button class="wa" id="wa">ابعت واتساب</button><button id="x">سكّر</button></div>
+    <details style="margin-top:12px"><summary class="muted">المفتاح الطويل (للنسخ القديمة أو بدون نت)</summary><div class="key" style="margin-top:6px">${esc(c.key)}</div>
+      <div class="row" style="margin-top:6px"><button class="small" id="cpl">نسخ المفتاح الطويل</button><button class="small" id="wal">واتساب بالمفتاح الطويل</button></div></details>`);
+  if (c.code) $('#cp', m).onclick = () => copy(c.code, 'نسخت الكود');
+  $('#wa', m).onclick = () => window.open(waLink(c.phone, c.code ? keyText(c) : longKeyText(c)), '_blank', 'noopener');
+  $('#cpl', m).onclick = () => copy(c.key, 'نسخت المفتاح الطويل');
+  $('#wal', m).onclick = () => window.open(waLink(c.phone, longKeyText(c)), '_blank', 'noopener');
   $('#x', m).onclick = m.close;
+}
+function showCard(k) {
+  const m = modal(`<h2>كود التفعيل جاهز</h2><p class="muted">بيشتغل مرة وحدة: أول جهاز بيكتبه بياخد الترخيص${k.mobile ? '، ونفس الكود بيفعّل جوال الزبون كمان' : ''}. ما بيحتاج بصمة.</p>
+    <div class="code">${esc(k.code)}</div>
+    <div class="row" style="margin-top:12px"><button class="primary" id="cp">نسخ الكود</button><button class="wa" id="wa">ابعت واتساب</button><button id="x">سكّر</button></div>`);
+  $('#cp', m).onclick = () => copy(k.code, 'نسخت الكود');
+  $('#wa', m).onclick = () => window.open(waLink(k.phone, cardText(k)), '_blank', 'noopener');
+  $('#x', m).onclick = m.close;
+}
+function cardsList(cards, voidPath) {
+  const rows = cards.slice().reverse().slice(0, 100).map((k) => {
+    const st = k.void ? '<span class="tag off">ملغى</span>' : k.used.length ? `<span class="tag">مستعمل${k.mobile ? ` (${k.used.length}/2)` : ''}</span>` : '<span class="tag suspended">ما انستعمل</span>';
+    return `<div class="item"><div class="top"><div><b class="mono">${esc(k.code)}</b> ${st} ${k.mobile ? '<span class="tag mob">+ جوال</span>' : ''}<div class="muted">${esc(k.name)} · ${esc(S.plans?.[k.plan]?.nameAr ?? (k.plan === 'lifetime' ? 'دائم' : 'سنوي'))} · ${esc(fmtTime(k.createdAt))}</div></div></div>
+      ${!k.void && !k.used.length ? `<div class="row" style="margin-top:6px"><button class="small" data-k="show" data-id="${k.id}">عرض وإرسال</button><button class="small danger" data-k="void" data-id="${k.id}">إلغاء</button></div>` : ''}</div>`;
+  });
+  return rows.join('') || '<p class="muted">لسا ما في أكواد</p>';
+}
+function bindCards(el, voidPath) {
+  el.querySelectorAll('[data-k]').forEach((b) => (b.onclick = async () => {
+    const k = S.cards.find((x) => x.id === b.dataset.id);
+    if (b.dataset.k === 'show') return showCard(k);
+    if (confirm(`إلغاء الكود ${k.code}؟${voidPath.includes('agent') ? ' الرخصة بترجع لرصيدك.' : ''}`)) await run(() => api(voidPath.replace(':id', k.id), {}), 'انلغى الكود');
+  }));
 }
 
 // ───────────── الدخول ─────────────
@@ -302,6 +335,13 @@ function ownerCustomers(el) {
       <label>الاشتراك<select name="plan">${Object.entries(S.plans).map(([k, p]) => `<option value="${k}" ${k === 'annual' ? 'selected' : ''}>${esc(p.nameAr)}</option>`).join('')}</select></label>
       <label>الأجهزة<input name="devices" type="number" min="1" max="50" value="2" /></label>
       <button class="primary">إصدار المفتاح</button></form></div>
+    <div class="card"><h2>كود تفعيل بدون بصمة</h2><p class="muted">بتبعت الكود للزبون، وأول جهاز بيكتبه بياخد الترخيص.</p><form id="nk" class="grid">
+      <label>اسم الزبون (اختياري)<input name="name" /></label><label>الموبايل<input name="phone" dir="ltr" /></label>
+      <label>الاشتراك<select name="plan">${Object.entries(S.plans).map(([k, p]) => `<option value="${k}" ${k === 'annual' ? 'selected' : ''}>${esc(p.nameAr)}</option>`).join('')}</select></label>
+      <label>الأجهزة<input name="devices" type="number" min="1" max="50" value="2" /></label>
+      <label style="flex-direction:row;display:flex;gap:6px;align-items:center"><input type="checkbox" name="mobile" style="width:auto" /> مع تطبيق الجوال</label>
+      <button class="primary">إنشاء الكود</button></form>
+      <details style="margin-top:10px"><summary class="muted">الأكواد (${S.cards.length})</summary><div class="list" style="margin-top:8px">${cardsList(S.cards, '/api/cards/:id/void')}</div></details></div>
     <input id="cq" placeholder="بحث: اسم، موبايل، بصمة..." value="${esc(q)}" style="margin-bottom:10px" />
     <div class="list" id="cl">${filterCustomers(S.customers).slice().reverse().slice(0, 200).map((c) => customerRow(c, true)).join('') || '<p class="muted">لا يوجد</p>'}</div>`;
   $('#cq').oninput = (e) => { q = e.target.value; $('#cl').innerHTML = filterCustomers(S.customers).slice().reverse().slice(0, 200).map((c) => customerRow(c, true)).join(''); bindCustomers(el, true); };
@@ -315,6 +355,13 @@ function ownerCustomers(el) {
     }
     if (c) { await load(); showKey(c); }
   };
+  $('#nk').onsubmit = async (e) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+    const k = await run(() => api('/api/cards', { ...f, mobile: f.mobile === 'on' }));
+    if (k) showCard(k);
+  };
+  bindCards(el, '/api/cards/:id/void');
   bindCustomers(el, true);
 }
 function bindCustomers(el, owner) {
@@ -400,6 +447,14 @@ function renderAgent(m) {
         <label id="phl">بصمة الجوال (اختياري هلق)<input name="phoneMachineId" class="mono" placeholder="XXXX-XXXX-XXXX-XXXX" /></label>
         <button class="primary" ${first && S.canSign ? '' : 'disabled'}>تفعيل وإطلاع المفتاح</button>
       </form>${first ? '' : '<p class="muted" style="color:var(--bad)">رصيدك خلص. تواصل مع وزن لتضيف باقة.</p>'}</div>
+    <div class="card"><h2>بيع كود (بدون بصمة)</h2><p class="muted">متل كرت الشحن: بتبعت الكود للزبون، وهو بيكتبه ببرنامجه وبيتفعّل لحالو. بتنخصم رخصة هلق، وبترجع إذا ألغيت الكود قبل ما ينستعمل.</p>
+      <form id="ak" class="grid">
+        <label>اسم الزبون (اختياري)<input name="name" /></label>
+        <label>موبايل الزبون<input name="phone" dir="ltr" placeholder="+963..." /></label>
+        <label>نوع الرخصة<select name="bucket">${BUCKETS.map(([k, n]) => `<option value="${k}" ${b[k].left > 0 ? '' : 'disabled'} ${k === first ? 'selected' : ''}>${n} (باقي ${b[k].left})</option>`).join('')}</select></label>
+        <button class="primary" ${first ? '' : 'disabled'}>إنشاء الكود</button>
+      </form>
+      <details style="margin-top:10px"><summary class="muted">أكوادي (${S.cards.length})</summary><div class="list" style="margin-top:8px">${cardsList(S.cards, '/api/agent/cards/:id/void')}</div></details></div>
     ${soon.length ? `<div class="card"><h2>بينتهوا قريباً (${soon.length})</h2><div class="list">${soon.map((c) => customerRow(c, false)).join('')}</div></div>` : ''}
     <div class="card"><h2>زبايني (${mine.filter((c) => !c.phoneOf).length})</h2><input id="cq" placeholder="بحث..." value="${esc(q)}" style="margin-bottom:10px" /><div class="list" id="cl">${filterCustomers(mine).slice().reverse().map((c) => customerRow(c, false)).join('') || '<p class="muted">لسا ما فعّلت زباين</p>'}</div></div>`;
   const syncPhone = () => $('#phl').classList.toggle('hidden', !$('#bk').value.endsWith('Mobile'));
@@ -411,9 +466,16 @@ function renderAgent(m) {
     const f = Object.fromEntries(new FormData(e.target));
     const body = { name: f.name, phone: f.phone, machineId: f.machineId, plan: f.bucket.startsWith('lifetime') ? 'lifetime' : 'annual', mobile: f.bucket.endsWith('Mobile'), phoneMachineId: f.bucket.endsWith('Mobile') ? f.phoneMachineId : '' };
     const r = await run(() => api('/api/agent/customers', body), 'تم التفعيل');
-    if (r) showKey(r.customer, r.phone ? `<p style="margin-top:12px"><b>ومفتاح الجوال:</b></p><div class="key">${esc(r.phone.key)}</div><button class="small" id="cp2" style="margin-top:6px">نسخ مفتاح الجوال</button>` : '');
-    const b2 = $('#cp2'); if (b2 && r?.phone) b2.onclick = () => copy(r.phone.key);
+    if (r) showKey(r.customer, r.phone ? `<p style="margin-top:12px"><b>وكود الجوال:</b></p><div class="code">${esc(r.phone.code)}</div><button class="small" id="cp2" style="margin-top:6px">نسخ كود الجوال</button>` : '');
+    const b2 = $('#cp2'); if (b2 && r?.phone) b2.onclick = () => copy(r.phone.code, 'نسخت كود الجوال');
   };
+  $('#ak').onsubmit = async (e) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+    const k = await run(() => api('/api/agent/cards', { name: f.name, phone: f.phone, plan: f.bucket.startsWith('lifetime') ? 'lifetime' : 'annual', mobile: f.bucket.endsWith('Mobile') }));
+    if (k) showCard(k);
+  };
+  bindCards(m, '/api/agent/cards/:id/void');
   bindCustomers(m, false);
 }
 

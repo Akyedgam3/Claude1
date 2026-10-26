@@ -1,4 +1,4 @@
-import { buildPayload, compareVersions, issueLicense, parseLicense, publicKeyFromPrivate, signFeed, type FeedStatus, type LicenseFeed, type Plan, PLANS, type UpdateInfo } from '../src/license/format';
+import { buildPayload, CODE_ALPHABET, compareVersions, normalizeShortCode, issueLicense, parseLicense, publicKeyFromPrivate, signFeed, type FeedStatus, type LicenseFeed, type Plan, PLANS, type UpdateInfo } from '../src/license/format';
 
 // سجل العملاء والوكلاء والتراخيص: نفس المنطق للوحة الإدارة على الجهاز (registry.ts) وعلى النت (panel/).
 // ما فيه node:fs ولا node:crypto حتى يشتغل بـ Cloudflare Workers كمان.
@@ -26,6 +26,27 @@ export interface Customer {
   mobile?: boolean;
   /** هالسجل هو مفتاح الجوال لزبون الكمبيوتر هاد (ما بينخصم من رصيد الوكيل). */
   phoneOf?: string;
+  /** كود التفعيل القصير (16 حرف): البرنامج بيجيب فيه المفتاح الطويل من لوحة الإدارة على النت. */
+  code?: string;
+}
+
+/**
+ * «كرت» تفعيل بدون بصمة: الوكيل بيبيع الكود والزبون بيفعّل لحالو، وأول جهاز بيكتبه بياخد الترخيص
+ * (ورخصة «+ جوال» بتفعّل جهاز تاني كمان). الرصيد بينخصم لحظة إنشاء الكرت.
+ */
+export interface Card {
+  id: string;
+  code: string;
+  name: string;
+  phone?: string;
+  plan: Plan;
+  mobile?: boolean;
+  devices: number;
+  agentId?: string;
+  createdAt: string;
+  /** الزباين يلي انعملوا من هالكرت (الكمبيوتر، وبعدين الجوال). */
+  used: string[];
+  void?: boolean;
 }
 
 /** وكيل: بيشتري باقات رخص بسعر الوكلاء، وكل تفعيل أو تجديد لزبون بينخصم من رصيده. */
@@ -96,12 +117,15 @@ export interface LogEntry {
   agentId?: string;
 }
 
+export { normalizeShortCode };
+
 export interface RegistryFile {
   customers: Customer[];
   agents?: Agent[];
   update?: UpdateInfo;
   lastPublished?: string;
   log?: LogEntry[];
+  cards?: Card[];
 }
 
 const LOG_MAX = 5000;
@@ -133,6 +157,32 @@ export class RegistryCore {
   record(action: string, ids: { customerId?: string; agentId?: string } = {}): void {
     this.note(action, ids);
     this.save();
+  }
+
+  get cards(): Card[] {
+    return (this.data.cards ??= []);
+  }
+
+  /** كود قصير جديد ما حدا عندو ياه (80 بت عشوائي). */
+  private newCode(): string {
+    for (;;) {
+      const bytes = crypto.getRandomValues(new Uint8Array(16));
+      const code = [...bytes].map((b) => CODE_ALPHABET[b % 32]).join('').match(/.{4}/g)!.join('-');
+      if (!this.data.customers.some((c) => c.code === code) && !this.cards.some((c) => c.code === code)) return code;
+    }
+  }
+
+  /** بيعطي كود قصير لكل زبون ما عندو (الزباين القدام). بيرجع كم واحد انعطى. */
+  ensureCodes(): number {
+    let n = 0;
+    for (const c of this.data.customers) {
+      if (!c.code) {
+        c.code = this.newCode();
+        n++;
+      }
+    }
+    if (n) this.save();
+    return n;
   }
 
   get log(): LogEntry[] {
@@ -181,18 +231,20 @@ export class RegistryCore {
     );
   }
 
-  add(input: { name: string; phone?: string; notes?: string; machineId: string; plan: Plan; devices?: number; offlineDays?: number; agentId?: string; force?: boolean; mobile?: boolean }): Customer {
+  add(input: { name: string; phone?: string; notes?: string; machineId: string; plan: Plan; devices?: number; offlineDays?: number; agentId?: string; force?: boolean; mobile?: boolean }, opts: { prepaid?: boolean } = {}): Customer {
     if (!input.name?.trim()) throw new Error('اسم العميل مطلوب');
     // نفس البصمة عند زبون تاني: غالباً ويندوز منسوخ من نفس الملف، أو نفس الزبون عم يتسجّل مرتين
     const same = this.data.customers.find((x) => x.machineId.toUpperCase() === input.machineId?.trim().toUpperCase() && x.status !== 'revoked');
     if (same && !input.force && !input.agentId) throw Object.assign(new Error(`هالبصمة مسجّلة أصلاً للزبون «${same.name}». إذا جهاز تاني فعلاً، خلّيه يحدّث وزن لآخر نسخة ويبعتلك البصمة الجديدة.`), { duplicate: same.name });
     const agent = input.agentId ? this.agent(input.agentId) : null;
     if (agent) {
-      if (!agent.active) throw new Error('هذا الوكيل موقوف');
+      // كرت انباع قبل ما ينوقف الوكيل بيضل شغّال للزبون
+      if (!agent.active && !opts.prepaid) throw new Error('هذا الوكيل موقوف');
       // الوكيل بيفعّل سنوي أو دائم، كل واحد من رصيده
       const kind: AgentKind = input.plan === 'lifetime' ? 'lifetime' : 'annual';
       const bucket = bucketOf(kind, input.mobile);
-      if (agentBalance(agent)[bucket].left <= 0) throw new Error(`رصيد الوكيل ${agent.name} ${BUCKET_NAME[bucket]} خلص. ضيفله باقة جديدة أولاً.`);
+      // كرت مدفوع سلف: الرصيد انخصم لما انعمل الكرت
+      if (!opts.prepaid && agentBalance(agent)[bucket].left <= 0) throw new Error(`رصيد الوكيل ${agent.name} ${BUCKET_NAME[bucket]} خلص. ضيفله باقة جديدة أولاً.`);
       input = { ...input, plan: kind, devices: input.devices ?? AGENT_DEFAULT_DEVICES };
     }
     if (!/^[0-9A-F]{4}(-[0-9A-F]{4}){3}$/i.test(input.machineId?.trim() ?? '')) throw new Error('بصمة الجهاز غير صحيحة (مثال: 1A2B-3C4D-5E6F-7A8B)');
@@ -220,13 +272,14 @@ export class RegistryCore {
       history: [{ at: payload.issuedAt, action: `إصدار ${PLANS[payload.plan].nameAr}` + (agent ? ` عن طريق الوكيل ${agent.name}` : '') }],
       ...(agent ? { agentId: agent.id } : {}),
       ...(input.mobile ? { mobile: true } : {}),
+      code: this.newCode(),
     };
     if (!input.force && this.data.customers.some((x) => x.machineId === c.machineId && x.status !== 'revoked')) {
       throw new Error('هالجهاز إله ترخيص من قبل. استعمل التمديد بدل إصدار ترخيص جديد.');
     }
     c.key = this.sign(c);
     this.data.customers.push(c);
-    if (agent) agent.uses.push({ at: c.issuedAt, customerId: c.id, action: 'issue', kind: c.plan === 'lifetime' ? 'lifetime' : 'annual', ...(c.mobile ? { mobile: true } : {}) });
+    if (agent && !opts.prepaid) agent.uses.push({ at: c.issuedAt, customerId: c.id, action: 'issue', kind: c.plan === 'lifetime' ? 'lifetime' : 'annual', ...(c.mobile ? { mobile: true } : {}) });
     this.note(`تفعيل ${c.name} (${PLANS[c.plan].nameAr}${c.mobile ? ' + جوال' : ''})`, { customerId: c.id, ...(agent ? { agentId: agent.id } : {}) });
     this.save();
     return c;
@@ -255,6 +308,7 @@ export class RegistryCore {
       history: [{ at: now, action: `مفتاح الجوال لرخصة ${pc.name}` }],
       ...(pc.agentId ? { agentId: pc.agentId } : {}),
       phoneOf: pc.id,
+      code: this.newCode(),
     };
     c.key = this.sign(c);
     this.data.customers.push(c);
@@ -264,9 +318,11 @@ export class RegistryCore {
   }
 
   /** تمديد الاشتراك (يصل للعميل عبر القائمة، أو بمفتاح جديد إن لم يكن لديه إنترنت). */
-  extend(id: string, plan: Plan): Customer {
+  extend(id: string, plan: Plan, opts: { prepaid?: boolean } = {}): Customer {
     const c = this.find(id);
-    const agent = c.agentId ? this.agents.find((a) => a.id === c.agentId) : undefined;
+    // كرت مدفوع سلف: الرصيد انخصم لما انعمل الكرت، والمدة من الكرت
+    const agent = c.agentId && !opts.prepaid ? this.agents.find((a) => a.id === c.agentId) : undefined;
+    if (opts.prepaid && c.phoneOf) throw new Error('مفتاح الجوال بيتجدد مع رخصة الكمبيوتر تبعه');
     if (agent) {
       // زبائن الوكلاء: التجديد سنوي، وبينخصم من رصيد الوكيل السنوي (الدائم ما بيحتاج تجديد)
       if (c.phoneOf) throw new Error('مفتاح الجوال بيتجدد مع رخصة الكمبيوتر تبعه');
@@ -386,6 +442,106 @@ export class RegistryCore {
     this.note(`تعديل بيانات ${c.name}`, { customerId: c.id });
     this.save();
     return c;
+  }
+
+  // ───────────── أكواد التفعيل القصيرة ─────────────
+
+  /** كرت تفعيل بدون بصمة. للوكيل بينخصم من رصيده هلق، وبيرجع إذا انلغى قبل ما ينستعمل. */
+  createCard(input: { name?: string; phone?: string; plan: Plan; mobile?: boolean; devices?: number; agentId?: string }): Card {
+    const agent = input.agentId ? this.agent(input.agentId) : null;
+    let plan = input.plan;
+    if (agent) {
+      if (!agent.active) throw new Error('هذا الوكيل موقوف');
+      plan = plan === 'lifetime' ? 'lifetime' : 'annual';
+      const bucket = bucketOf(plan, input.mobile);
+      if (agentBalance(agent)[bucket].left <= 0) throw new Error(`رصيد الوكيل ${agent.name} ${BUCKET_NAME[bucket]} خلص. ضيفله باقة جديدة أولاً.`);
+    }
+    if (!(plan in PLANS)) throw new Error('نوع الاشتراك غير معروف');
+    const card: Card = {
+      id: crypto.randomUUID(),
+      code: this.newCode(),
+      name: input.name?.trim() || 'زبون',
+      ...(input.phone?.trim() ? { phone: input.phone.trim() } : {}),
+      plan,
+      ...(input.mobile ? { mobile: true } : {}),
+      devices: agent ? AGENT_DEFAULT_DEVICES : Math.max(1, Math.min(50, input.devices ?? AGENT_DEFAULT_DEVICES)),
+      ...(agent ? { agentId: agent.id } : {}),
+      createdAt: new Date().toISOString(),
+      used: [],
+    };
+    this.cards.push(card);
+    if (agent) agent.uses.push({ at: card.createdAt, customerId: card.id, action: 'issue', kind: plan === 'lifetime' ? 'lifetime' : 'annual', ...(card.mobile ? { mobile: true } : {}) });
+    this.note(`كود تفعيل ${card.code} لـ ${card.name} (${PLANS[plan].nameAr}${card.mobile ? ' + جوال' : ''})`, agent ? { agentId: agent.id } : {});
+    this.save();
+    return card;
+  }
+
+  /** إلغاء كرت ما انستعمل (والرصيد بيرجع للوكيل). */
+  voidCard(id: string): Card {
+    const card = this.cards.find((c) => c.id === id);
+    if (!card) throw new Error('الكود غير موجود');
+    if (card.used.length) throw new Error('الكود انستعمل، ما بينلغى. أوقف الزبون بداله.');
+    card.void = true;
+    const agent = card.agentId ? this.agents.find((a) => a.id === card.agentId) : undefined;
+    if (agent) agent.uses = agent.uses.filter((u) => u.customerId !== card.id);
+    this.note(`إلغاء الكود ${card.code}`, agent ? { agentId: agent.id } : {});
+    this.save();
+    return card;
+  }
+
+  /**
+   * البرنامج بيبعت الكود القصير وبصمات الجهاز، ومنرجعله الترخيص (فيه المفتاح الطويل الموقّع).
+   * كود زبون: لنفس جهازه بس. كرت: أول جهاز بياخده، ورخصة «+ جوال» بتاخد جهاز تاني.
+   */
+  redeem(codeText: string, machineIds: string[]): Customer {
+    const code = normalizeShortCode(codeText);
+    if (!code) throw new Error('الكود غلط. تأكد إنو 16 حرف ورقم.');
+    const ids = machineIds.map((m) => String(m ?? '').trim().toUpperCase()).filter((m) => /^[0-9A-F]{4}(-[0-9A-F]{4}){3}$/.test(m));
+    if (!ids.length) throw new Error('بصمة الجهاز غير صحيحة');
+    const own = this.data.customers.find((c) => c.code === code);
+    if (own) {
+      if (own.status === 'revoked') throw new Error('هالترخيص ملغى. تواصل مع البائع.');
+      if (!ids.includes(own.machineId)) throw new Error('هالكود لجهاز تاني. تواصل مع البائع.');
+      return own;
+    }
+    const card = this.cards.find((c) => c.code === code);
+    if (!card || card.void) throw new Error('الكود غلط أو ملغى. تأكد منه أو تواصل مع البائع.');
+    const done = this.data.customers.find((c) => card.used.includes(c.id) && ids.includes(c.machineId));
+    if (done) return done;
+    // الجهاز إلو ترخيص من قبل: الكرت بيجدده (زبون اشترى كود تجديد)
+    const existing = !card.used.length ? this.data.customers.find((c) => ids.includes(c.machineId) && c.status !== 'revoked' && !c.phoneOf) : undefined;
+    if (existing) {
+      if (existing.plan === 'lifetime') throw new Error('هالجهاز إلو ترخيص دائم أصلاً، ما بيحتاج كود. تواصل مع البائع ليلغي الكود ويرجعلك ياه.');
+      const prev = this.actor;
+      this.actor = 'تفعيل بالكود';
+      try {
+        if (card.mobile) existing.mobile = true;
+        const c = this.extend(existing.id, card.plan, { prepaid: true });
+        card.used.push(c.id);
+        this.note(`تجديد ${c.name} بالكود ${card.code}`, { customerId: c.id, ...(card.agentId ? { agentId: card.agentId } : {}) });
+        this.save();
+        return c;
+      } finally {
+        this.actor = prev;
+      }
+    }
+    const prev = this.actor;
+    this.actor = 'تفعيل بالكود';
+    try {
+      let c: Customer;
+      if (!card.used.length) {
+        c = this.add({ name: card.name, ...(card.phone ? { phone: card.phone } : {}), machineId: ids[0]!, plan: card.plan, devices: card.devices, ...(card.agentId ? { agentId: card.agentId } : {}), ...(card.mobile ? { mobile: true } : {}) }, { prepaid: true });
+      } else if (card.used.length === 1 && card.mobile) {
+        c = this.addPhone(card.used[0]!, ids[0]!);
+      } else {
+        throw new Error('هالكود انستعمل من قبل على جهاز تاني.');
+      }
+      card.used.push(c.id);
+      this.save();
+      return c;
+    } finally {
+      this.actor = prev;
+    }
   }
 
   // ───────────── الوكلاء ─────────────

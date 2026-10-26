@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { agentBalance, Registry } from '../admin/registry';
+import { agentBalance, normalizeShortCode, Registry } from '../admin/registry';
 import { compareVersions, parseFeed, parseLicense, updateFor } from '../src/license/license';
 import { LicenseManager } from '../src/license/manager';
 
@@ -82,6 +82,53 @@ describe('agents', () => {
     r.addPackage(a.id, { tier: 'a10' });
     const only = r.add({ name: 'ماركت', machineId: '5555-6666-7777-8888', plan: 'annual', agentId: a.id });
     expect(() => r.addPhone(only.id, '1212-3434-5656-7878')).toThrow(/بس/);
+  });
+
+  it('short activation codes: per customer, and prepaid cards without a fingerprint', () => {
+    const r = new Registry(path.join(dir, 'registry.json'), PRIV);
+    const a = r.addAgent({ name: 'وكيل الأكواد' });
+    r.addPackage(a.id, { tier: 'a10' });
+    r.addPackage(a.id, { tier: 'l10m' });
+    // كل زبون جديد إلو كود 16 حرف، بيرجّع مفتاحه لنفس جهازه بس
+    const c = r.add({ name: 'زبون', machineId: M1, plan: 'annual', agentId: a.id });
+    expect(c.code).toMatch(/^[A-HJ-NP-Z2-9]{4}(-[A-HJ-NP-Z2-9]{4}){3}$/);
+    expect(r.redeem(c.code!.replace(/-/g, '').toLowerCase(), ['0000-0000-0000-0000', M1]).key).toBe(c.key);
+    expect(() => r.redeem(c.code!, [M2])).toThrow(/لجهاز تاني/);
+    expect(() => r.redeem('ABCD', [M1])).toThrow(/16/);
+    // كرت «دائم + جوال»: الرصيد بينخصم هلق، وأول جهاز بياخده، والتاني بياخد مفتاح الجوال
+    const card = r.createCard({ name: 'محل الكرت', plan: 'lifetime', mobile: true, agentId: a.id });
+    expect(agentBalance(r.agent(a.id)).lifetimeMobile.left).toBe(9);
+    const pc = r.redeem(card.code, [M2]);
+    expect(parseLicense(pc.key, PUB)).toMatchObject({ machineId: M2, plan: 'lifetime', customer: 'محل الكرت' });
+    expect(r.redeem(card.code, [M2]).id).toBe(pc.id); // إعادة التنصيب على نفس الجهاز
+    expect(agentBalance(r.agent(a.id)).lifetimeMobile.left).toBe(9); // ما انخصم مرتين
+    const phone = r.redeem(card.code, ['5555-6666-7777-8888']);
+    expect(phone.phoneOf).toBe(pc.id);
+    expect(() => r.redeem(card.code, ['9999-9999-9999-9999'])).toThrow(/انستعمل/);
+    // كرت سنوي بس جهاز واحد، والإلغاء قبل الاستعمال بيرجّع الرصيد
+    const spare = r.createCard({ plan: 'annual', agentId: a.id });
+    expect(agentBalance(r.agent(a.id)).annual.left).toBe(8);
+    r.voidCard(spare.id);
+    expect(agentBalance(r.agent(a.id)).annual.left).toBe(9);
+    expect(() => r.redeem(spare.code, [M2])).toThrow(/ملغى/);
+    expect(() => r.voidCard(card.id)).toThrow(/انستعمل/);
+    // الكرت بيضل شغّال حتى لو الوكيل انوقف بعد ما باعه
+    const sold = r.createCard({ plan: 'annual', agentId: a.id });
+    r.updateAgent(a.id, { active: false });
+    expect(r.redeem(sold.code, ['1212-3434-5656-7878']).agentId).toBe(a.id);
+    // كرت على جهاز إلو ترخيص سنوي: بيجدده بدل ما يرفض
+    r.updateAgent(a.id, { active: true });
+    const before = r.find(c.id).expiresAt!;
+    const renewal = r.createCard({ plan: 'annual', agentId: a.id });
+    const renewed = r.redeem(renewal.code, [M1]);
+    expect(renewed.id).toBe(c.id);
+    expect(new Date(renewed.expiresAt!).getTime()).toBeGreaterThan(new Date(before).getTime() + 300 * 86_400_000);
+    expect(parseLicense(renewed.key, PUB)?.expiresAt).toBe(renewed.expiresAt);
+    // والدائم ما بيحتاج تجديد
+    const extra = r.createCard({ plan: 'annual', agentId: a.id });
+    expect(() => r.redeem(extra.code, [M2])).toThrow(/دائم/);
+    expect(normalizeShortCode(' abcd efgh jkmn pqrs ')).toBe('ABCD-EFGH-JKMN-PQRS');
+    expect(normalizeShortCode('1A2B-3C4D-5E6F-7A8B')).toBeNull(); // البصمة مش كود
   });
 
   it('refuses activation when the balance is empty or the agent is stopped', () => {

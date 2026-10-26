@@ -1,6 +1,7 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { normalizeShortCode } from './format';
 import { checkLicense, machineIds as readMachineIds, parseFeed, parseLicense, PLANS, updateFor, type LicenseCheck, type LicenseFeed, type UpdateInfo } from './license';
 
 // يحفظ مفتاح الترخيص وآخر قائمة حالة ووقت آخر تحقق في ملف مشفّر على الجهاز.
@@ -47,6 +48,8 @@ export interface ManagerOptions {
   legacyMachineId?: string;
   /** نسخة البرنامج الحالية، لمعرفة إذا في تحديث. */
   appVersion?: string;
+  /** روابط التفعيل بالكود القصير (لوحة الإدارة على النت). */
+  redeemUrls?: string[];
 }
 
 const DAY = 86_400_000;
@@ -146,6 +149,28 @@ export class LicenseManager {
       ...(check.message ? { message: check.message } : {}),
       ...(offlineDaysLeft !== undefined ? { offlineDaysLeft } : {}),
     };
+  }
+
+  /**
+   * تفعيل بكود قصير (16 حرف): منبعت الكود وبصمات الجهاز للوحة الإدارة، وبترجّع المفتاح الطويل الموقّع
+   * فمنفعّله متل العادة (يعني التحقق من التوقيع والجهاز بيضل هون، واللوحة ما بتقدر تمرّق مفتاح مزوّر).
+   */
+  async activateCode(text: string): Promise<LicenseStatus> {
+    const code = normalizeShortCode(text);
+    if (!code) throw new Error('كود التفعيل غلط. لازم يكون 16 حرف ورقم.');
+    const offline = 'ما قدرنا نوصل لسيرفر التفعيل. تأكد من النت وجرّب مرة تانية، أو اطلب المفتاح الطويل من البائع.';
+    for (const url of this.o.redeemUrls ?? []) {
+      let res: Response;
+      try {
+        res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code, machineIds: [this.machineId, this.legacyId] }), signal: AbortSignal.timeout(20_000) });
+      } catch {
+        continue;
+      }
+      const j = (await res.json().catch(() => ({}))) as { key?: string; error?: string };
+      if (!res.ok) throw new Error(j.error || offline);
+      if (typeof j.key === 'string') return this.activate(j.key);
+    }
+    throw new Error(offline);
   }
 
   /** تفعيل مفتاح جديد. يرمي خطأ إن كان غير صالح لهذا الجهاز. */

@@ -74,6 +74,15 @@ export function updateFor(feed: LicenseFeed | null | undefined, current: string)
 }
 
 export const KEY_PREFIX = 'MZN2-';
+
+/** حروف كود التفعيل القصير: بدون 0/O و1/I حتى ما يتلخبط الزبون. */
+export const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+/** كود التفعيل القصير (16 حرف) بشكل XXXX-XXXX-XXXX-XXXX، أو null إذا النص مش كود قصير. */
+export function normalizeShortCode(text: string): string | null {
+  const clean = String(text ?? '').toUpperCase().replace(/[\s-]/g, '');
+  if (clean.length !== 16 || [...clean].some((ch) => !CODE_ALPHABET.includes(ch))) return null;
+  return clean.match(/.{4}/g)!.join('-');
+}
 export const FEED_PREFIX = 'MZNF1.';
 export const DAY = 86_400_000;
 

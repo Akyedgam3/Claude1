@@ -8,7 +8,8 @@ import { CloudSessions, CLOUD_MIN_DEVICES } from '../app/cloud-sessions';
 import { execute } from '../app/executor';
 import { OFFLINE, type CloudClient } from '../cloud/client';
 import { newCloudCode, normalizeCloudCode } from '../cloud/code';
-import { FEED_CHECK_HOURS, LICENSE_FEED_URLS } from '../license/config';
+import { FEED_CHECK_HOURS, LICENSE_FEED_URLS, LICENSE_REDEEM_URLS } from '../license/config';
+import { normalizeShortCode } from '../license/format';
 import { LicenseManager, type LicenseStatus } from '../license/manager';
 import { IS_TEST_BUILD, LICENSE_PUBLIC_KEY } from '../license/public-key';
 import { buildCsv, buildWorkbook, readWorkbook, type ExportSheet } from '../main/exporter';
@@ -217,8 +218,9 @@ function registerHandlers(): void {
     { allowLocked: true },
   );
 
-  handle('license:activate', (key: string) => {
-    const s = license.activate(key);
+  handle('license:activate', async (key: string) => {
+    // كود قصير (16 حرف) أو المفتاح الطويل
+    const s = normalizeShortCode(String(key ?? '')) ? await license.activateCode(String(key)) : license.activate(key);
     lastLicense = s;
     void refreshLicense();
     return s;
@@ -533,7 +535,8 @@ const EVENTS = ['update:progress', 'company:events', 'company:reset', 'company:c
 export async function startHost(): Promise<void> {
   const machineId = await native.machineId();
   const feedUrls = IS_TEST_BUILD ? (localStorage.getItem('wazn.testFeed') ? [localStorage.getItem('wazn.testFeed')!] : []) : LICENSE_FEED_URLS;
-  license = new LicenseManager({ dataDir: USER_DATA, publicKey: LICENSE_PUBLIC_KEY, feedUrls, appVersion: __APP_VERSION__, machineId });
+  const redeemUrls = IS_TEST_BUILD ? (localStorage.getItem('wazn.testRedeem') ? [localStorage.getItem('wazn.testRedeem')!] : []) : LICENSE_REDEEM_URLS;
+  license = new LicenseManager({ dataDir: USER_DATA, publicKey: LICENSE_PUBLIC_KEY, feedUrls, redeemUrls, appVersion: __APP_VERSION__, machineId });
   licenseStatus();
   registerHandlers();
   (window as unknown as { mizan: unknown }).mizan = {

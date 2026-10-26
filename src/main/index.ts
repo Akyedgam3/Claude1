@@ -10,7 +10,8 @@ import { hostCompanyFor } from '../app/host-company';
 import { DEFAULT_LAN_PORT, discoverHosts, LanClient, LanHost, newPairingCode } from '../app/lan';
 import { OFFLINE } from '../cloud/client';
 import { newCloudCode, normalizeCloudCode } from '../cloud/code';
-import { FEED_CHECK_HOURS, LICENSE_FEED_URLS } from '../license/config';
+import { FEED_CHECK_HOURS, LICENSE_FEED_URLS, LICENSE_REDEEM_URLS } from '../license/config';
+import { normalizeShortCode } from '../license/format';
 import { LicenseManager, type LicenseStatus } from '../license/manager';
 import { IS_TEST_BUILD, LICENSE_PUBLIC_KEY } from '../license/public-key';
 import { CompanyStore, peekCompany, type Credentials } from '../storage/company-store';
@@ -305,8 +306,9 @@ function registerIpc(): void {
     { allowLocked: true },
   );
 
-  handle('license:activate', (key: string) => {
-    const s = license.activate(key);
+  handle('license:activate', async (key: string) => {
+    // كود قصير (16 حرف) أو المفتاح الطويل
+    const s = normalizeShortCode(String(key ?? '')) ? await license.activateCode(String(key)) : license.activate(key);
     lastLicense = s;
     void refreshLicense();
     return s;
@@ -737,7 +739,9 @@ if (!app.requestSingleInstanceLock()) {
     // رابط بديل للتجربة فقط في نسخة التطوير
     const testFeed = (isDev || IS_TEST_BUILD) && process.env['MIZAN_FEED_URL'] ? [process.env['MIZAN_FEED_URL']] : null;
     const feedUrls = testFeed ?? (IS_TEST_BUILD ? [] : LICENSE_FEED_URLS);
-    license = new LicenseManager({ dataDir: app.getPath('userData'), publicKey: LICENSE_PUBLIC_KEY, feedUrls, appVersion: app.getVersion() });
+    const testRedeem = (isDev || IS_TEST_BUILD) && process.env['MIZAN_REDEEM_URL'] ? [process.env['MIZAN_REDEEM_URL']] : null;
+    const redeemUrls = testRedeem ?? (IS_TEST_BUILD ? [] : LICENSE_REDEEM_URLS);
+    license = new LicenseManager({ dataDir: app.getPath('userData'), publicKey: LICENSE_PUBLIC_KEY, feedUrls, redeemUrls, appVersion: app.getVersion() });
     licenseStatus();
     registerIpc();
     createWindow();

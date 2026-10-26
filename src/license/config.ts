@@ -2,6 +2,9 @@
 // ضع هنا رابط ملف feed.txt بعد رفعه (GitHub Pages، Cloudflare Pages، أو موقعك الخاص).
 // يمكن وضع أكثر من رابط احتياطاً لحجب أحدها.
 // إن تُركت فارغة يعمل البرنامج بالمفتاح فقط دون إمكانية الإيقاف عن بعد.
+/** التفعيل بكود قصير: البرنامج بيبعت الكود وبصمته، ولوحة الإدارة على النت بترجّع المفتاح الطويل الموقّع. */
+export const LICENSE_REDEEM_URLS: string[] = ['https://wazn-panel.wazn.workers.dev/api/redeem'];
+
 export const LICENSE_FEED_URLS: string[] = [
   'https://raw.githubusercontent.com/Akyedgam3/mizan-updates/main/feed.txt',
   // نفس الملف على الموقع (GitHub Pages بالدومين): بيتحدّث خلال دقائق، ومفيد إذا raw.githubusercontent محجوب

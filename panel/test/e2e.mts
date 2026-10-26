@@ -50,7 +50,8 @@ await p.getByRole('button', { name: 'الزباين' }).click();
 await p.locator('#nc input[name=name]').fill('زبون مباشر');
 await p.locator('#nc input[name=machineId]').fill('1111-2222-3333-4444');
 await p.getByRole('button', { name: 'إصدار المفتاح' }).click();
-const directKey = await p.locator('.modal .key').innerText();
+const directKey = (await p.locator('.modal .key').textContent()) ?? '';
+check(/^[A-Z2-9]{4}(-[A-Z2-9]{4}){3}$/.test((await p.locator('.modal .code').innerText()).trim()), 'direct customer has a 16-char code');
 check(parseLicense(directKey, PUB)?.customer === 'زبون مباشر', 'direct customer key verifies with the app code');
 await p.locator('.modal').getByRole('button', { name: 'سكّر' }).click();
 await p.getByRole('button', { name: 'خروج' }).click();
@@ -73,13 +74,26 @@ await ag.locator('#ac input[name=machineId]').fill('1A2B-3C4D-5E6F-7A8B');
 await ag.locator('#ac select[name=bucket]').selectOption('annualMobile');
 await ag.locator('#ac input[name=phoneMachineId]').fill('ABCD-ABCD-ABCD-ABCD');
 await ag.getByRole('button', { name: 'تفعيل وإطلاع المفتاح' }).click();
-const keys = await ag.locator('.modal .key').allInnerTexts();
-const pc = parseLicense(keys[0] ?? '', PUB), ph = parseLicense(keys[1] ?? '', PUB);
+const pc = parseLicense((await ag.locator('.modal .key').first().textContent()) ?? '', PUB);
 check(pc?.machineId === '1A2B-3C4D-5E6F-7A8B' && pc.plan === 'annual' && pc.devices === 2, 'agent computer key verifies');
-check(ph?.machineId === 'ABCD-ABCD-ABCD-ABCD' && ph.expiresAt === pc?.expiresAt, 'agent phone key verifies, same expiry');
+const codes = await ag.locator('.modal .code').allInnerTexts();
+check(codes.length === 2, 'agent sees the computer code and the phone code');
+// كود الجوال بيرجّع مفتاح الجوال لجهازه بس
+const red = await (await fetch(`${BASE}/api/redeem`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: codes[1], machineIds: ['ABCD-ABCD-ABCD-ABCD'] }) })).json() as { key?: string };
+const ph = parseLicense(red.key ?? '', PUB);
+check(ph?.machineId === 'ABCD-ABCD-ABCD-ABCD' && ph.expiresAt === pc?.expiresAt, 'phone code redeems the phone key, same expiry');
 await ag.screenshot({ path: `${OUT}/panel-agent-key.png` });
 await ag.locator('.modal').getByRole('button', { name: 'سكّر' }).click();
 check((await ag.locator('.bal').first().innerText()).includes('9'), 'agent balance went down to 9');
+// كرت بدون بصمة من الوكيل
+await ag.locator('#ak input[name=name]').fill('محل الكرت');
+await ag.getByRole('button', { name: 'إنشاء الكود' }).click();
+const cardCode = (await ag.locator('.modal .code').innerText()).trim();
+check(/^[A-Z2-9]{4}(-[A-Z2-9]{4}){3}$/.test(cardCode), 'agent sells a code without a fingerprint');
+await ag.locator('.modal').getByRole('button', { name: 'سكّر' }).click();
+check((await ag.locator('.bal').first().innerText()).includes('8'), 'selling a code takes from the balance');
+const got = await (await fetch(`${BASE}/api/redeem`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: cardCode, machineIds: ['5555-6666-7777-8888'] }) })).json() as { key?: string; name?: string };
+check(parseLicense(got.key ?? '', PUB)?.customer === 'محل الكرت', 'the code activates a new machine');
 await ag.screenshot({ path: `${OUT}/panel-agent.png`, fullPage: true });
 // الوكيل ما بيوصل لبيانات المدير ولا لزباين غيره
 const forbidden = await ag.evaluate(async () => (await fetch('/api/state')).status);
@@ -99,7 +113,7 @@ check(log.includes('LAPTOP HOME') && log.includes('محل النور') && log.in
 await p.waitForTimeout(6000);
 const feedText = await (await fetch(`${BASE}/feed.txt`)).text();
 const feed = parseFeed(feedText, PUB);
-check(feed && Object.keys(feed.entries).length === 3, `feed signed and has 3 licenses (${feed ? Object.keys(feed.entries).length : 'none'})`);
+check(feed && Object.keys(feed.entries).length === 4, `feed signed and has 4 licenses (${feed ? Object.keys(feed.entries).length : 'none'})`);
 await p.reload();
 await p.getByText('آخر النشاط').waitFor();
 await p.screenshot({ path: `${OUT}/panel-owner-home.png`, fullPage: true });

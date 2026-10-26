@@ -178,8 +178,12 @@ export class RegistryDO extends DurableObject<Env> {
       this.savedLog.add(e);
       data.log!.push(e);
     }
+    const cards = this.kvGet('cards');
+    if (cards) data.cards = JSON.parse(cards);
     this.reg = new RegistryCore(data, key, (d) => this.persist(d));
     this.regKey = key;
+    // الزباين القدام بياخدوا كود قصير كمان (مفيد لإعادة التنصيب)
+    this.reg.ensureCodes();
     return this.reg;
   }
 
@@ -201,6 +205,7 @@ export class RegistryDO extends DurableObject<Env> {
       }
     }
     this.kvSet('update', d.update ? JSON.stringify(d.update) : null);
+    this.kvSet('cards', d.cards?.length ? JSON.stringify(d.cards) : null);
     this.kvSet('lastPublished', d.lastPublished ?? null);
     for (const e of d.log ?? []) {
       if (this.savedLog.has(e)) continue;
@@ -323,6 +328,7 @@ export class RegistryDO extends DurableObject<Env> {
         const feed = this.kvGet('feed');
         return feed ? new Response(feed, { headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' } }) : new Response('', { status: 404 });
       }
+      if (url.pathname === '/api/redeem') return await this.redeem(req);
       if (req.method === 'POST') {
         // الطلبات من صفحتنا بس (الكوكي SameSite=Strict، وهاد حماية زيادة)
         if (req.headers.get('X-Wazn') !== '1') throw new HttpError(403, 'غير مصرح');
@@ -334,6 +340,28 @@ export class RegistryDO extends DurableObject<Env> {
     } catch (e) {
       if (e instanceof HttpError) return json({ error: e.message }, e.status);
       return json({ error: (e as Error).message || 'خطأ' }, 400);
+    }
+  }
+
+  /** البرنامج بيبعت الكود القصير وبصمات الجهاز، ومنرجعله المفتاح الطويل (مفتوح لكل البرامج، بدون كوكي). */
+  private async redeem(req: Request): Promise<Response> {
+    const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' };
+    if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
+    if (req.method !== 'POST') return json({ error: 'غير مسموح' }, 405, cors);
+    const ip = req.headers.get('CF-Connecting-IP') ?? 'local';
+    if (this.tooMany(`redeem|${ip}`)) return json({ error: 'محاولات كتير، جرّب بعد ربع ساعة' }, 429, cors);
+    const body = (await req.json().catch(() => ({}))) as { code?: unknown; machineIds?: unknown };
+    const machineIds = Array.isArray(body.machineIds) ? body.machineIds.map(String).slice(0, 4) : [];
+    try {
+      if (!(await this.privateKey())) throw new Error('التفعيل بالكود مش جاهز حالياً. اطلب المفتاح الطويل من البائع.');
+      const reg = await this.registry();
+      const before = reg.customers.length;
+      const c = reg.redeem(String(body.code ?? ''), machineIds);
+      if (reg.customers.length !== before) this.schedulePublish();
+      return json({ key: c.key, name: c.name, plan: c.plan, expiresAt: c.expiresAt }, 200, cors);
+    } catch (e) {
+      this.fail(`redeem|${ip}`);
+      return json({ error: (e as Error).message }, 400, cors);
     }
   }
 
@@ -412,7 +440,17 @@ export class RegistryDO extends DurableObject<Env> {
         return c;
       };
       if (path === '/api/agent/state' && req.method === 'GET') {
-        return json({ agent: { name: agent.name, city: agent.city ?? '', phone: agent.phone ?? '' }, balance: agentBalance(agent), customers: mine(), tiers: AGENT_TIERS, devices: AGENT_DEFAULT_DEVICES, canSign });
+        return json({ agent: { name: agent.name, city: agent.city ?? '', phone: agent.phone ?? '' }, balance: agentBalance(agent), customers: mine(), cards: reg.cards.filter((c) => c.agentId === agent.id), tiers: AGENT_TIERS, devices: AGENT_DEFAULT_DEVICES, canSign });
+      }
+      if (path === '/api/agent/cards' && req.method === 'POST') {
+        const plan: Plan = str('plan') === 'lifetime' ? 'lifetime' : 'annual';
+        return json(reg.createCard({ name: str('name'), phone: str('phone'), plan, mobile: body['mobile'] === true, agentId: agent.id }));
+      }
+      const mv = /^\/api\/agent\/cards\/([^/]+)\/void$/.exec(path);
+      if (mv && req.method === 'POST') {
+        const card = reg.cards.find((c) => c.id === mv[1]);
+        if (!card || card.agentId !== agent.id) throw new HttpError(403, 'هالكود مش إلك');
+        return json(reg.voidCard(card.id));
       }
       if (path === '/api/agent/customers' && req.method === 'POST') {
         needKey();
@@ -444,6 +482,7 @@ export class RegistryDO extends DurableObject<Env> {
         customers: reg.customers,
         agents: reg.agents.map((a) => ({ ...a, balance: agentBalance(a), username: users[a.id] ?? null })),
         update: reg.appUpdate ?? null,
+        cards: reg.cards,
         tiers: AGENT_TIERS,
         plans: PLANS,
         devices: AGENT_DEFAULT_DEVICES,
@@ -493,6 +532,11 @@ export class RegistryDO extends DurableObject<Env> {
         }),
       );
     }
+    if (path === '/api/cards' && req.method === 'POST') {
+      return json(reg.createCard({ name: str('name'), phone: str('phone'), plan: str('plan') as Plan, mobile: body['mobile'] === true, ...(num('devices') ? { devices: num('devices')! } : {}) }));
+    }
+    const mcv = /^\/api\/cards\/([^/]+)\/void$/.exec(path);
+    if (mcv && req.method === 'POST') return json(reg.voidCard(mcv[1]!));
     if (path === '/api/agents' && req.method === 'POST') {
       const username = str('username').toLowerCase();
       if (!USERNAME_RE.test(username)) throw new HttpError(400, 'اسم المستخدم: 3–32 حرف إنكليزي صغير أو رقم (مسموح . _ -)');
