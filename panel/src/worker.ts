@@ -7,6 +7,8 @@ import { DurableObject } from 'cloudflare:workers';
 import { agentBalance, AGENT_DEFAULT_DEVICES, AGENT_TIERS, RegistryCore, type Agent, type AgentKind, type Customer, type RegistryFile } from '../../admin/registry-core';
 import { PLANS, publicKeyFromPrivate, type FeedStatus, type Plan } from '../../src/license/format';
 import UI from './ui.html';
+import APP_JS from './app.js.txt';
+import qrcode from 'qrcode-generator';
 
 export interface Env {
   REGISTRY: DurableObjectNamespace<RegistryDO>;
@@ -26,7 +28,10 @@ export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
     if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
-      return new Response(UI, { headers: { 'Content-Type': 'text/html; charset=utf-8', ...SECURITY_HEADERS } });
+      return new Response(UI, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache', ...SECURITY_HEADERS } });
+    }
+    if (req.method === 'GET' && url.pathname === '/app.js') {
+      return new Response(APP_JS, { headers: { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-cache', ...SECURITY_HEADERS } });
     }
     if (url.pathname === '/feed.txt' || url.pathname.startsWith('/api/')) {
       return env.REGISTRY.get(env.REGISTRY.idFromName('main')).fetch(req);
@@ -39,7 +44,11 @@ const SECURITY_HEADERS = {
   'X-Frame-Options': 'DENY',
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'no-referrer',
-  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'",
+  // السكربت من /app.js بس: حتى لو حدا كتب كود باسم زبون، ما بيتنفّذ
+  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'",
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
+  'Cross-Origin-Opener-Policy': 'same-origin',
 };
 
 class HttpError extends Error {
@@ -97,6 +106,53 @@ function newPassword(len = 12): string {
   return [...crypto.getRandomValues(new Uint8Array(len))].map((b) => A[b % A.length]).join('');
 }
 
+// ───────────── التحقق بخطوتين (TOTP، متل Google Authenticator) ─────────────
+
+const B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+function base32(bytes: Uint8Array): string {
+  let bits = 0, value = 0, out = '';
+  for (const b of bytes) {
+    value = (value << 8) | b;
+    bits += 8;
+    while (bits >= 5) {
+      out += B32[(value >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+  }
+  if (bits > 0) out += B32[(value << (5 - bits)) & 31];
+  return out;
+}
+function unbase32(text: string): Uint8Array {
+  let bits = 0, value = 0;
+  const out: number[] = [];
+  for (const ch of text.toUpperCase().replace(/[^A-Z2-7]/g, '')) {
+    value = (value << 5) | B32.indexOf(ch);
+    bits += 5;
+    if (bits >= 8) {
+      out.push((value >>> (bits - 8)) & 255);
+      bits -= 8;
+    }
+  }
+  return new Uint8Array(out);
+}
+async function totpAt(secret: string, step: number): Promise<string> {
+  const key = await crypto.subtle.importKey('raw', unbase32(secret), { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']);
+  const msg = new Uint8Array(8);
+  new DataView(msg.buffer).setUint32(4, step);
+  const h = new Uint8Array(await crypto.subtle.sign('HMAC', key, msg));
+  const o = h[19]! & 15;
+  const n = (((h[o]! & 127) << 24) | (h[o + 1]! << 16) | (h[o + 2]! << 8) | h[o + 3]!) % 1_000_000;
+  return String(n).padStart(6, '0');
+}
+/** الرمز من تطبيق المصادقة (منقبل الدقيقة يلي قبل وبعد لفرق الساعة). */
+async function totpOk(secret: string, code: string): Promise<boolean> {
+  const c = String(code ?? '').replace(/\s/g, '');
+  if (!/^\d{6}$/.test(c)) return false;
+  const step = Math.floor(Date.now() / 30_000);
+  for (const d of [-1, 0, 1]) if (sameString(await totpAt(secret, step + d), c)) return true;
+  return false;
+}
+
 // ───────────── Durable Object: السجل كله ─────────────
 
 type Role = 'owner' | 'agent';
@@ -107,6 +163,7 @@ type UserRow = {
   hash: string;
   salt: string;
   disabled: number;
+  totp: string | null;
 };
 interface Session {
   username: string;
@@ -115,7 +172,13 @@ interface Session {
 }
 
 const SESSION_DAYS = 30;
+/** جلسة المدير أقصر (هو يلي بيتحكم بكل شي). */
+const OWNER_SESSION_DAYS = 7;
 const MAX_FAILS = 8;
+/** قفل الحساب نفسه بيحتاج محاولات أكتر (حتى ما حدا يقفل المدير برّا عن قصد). */
+const MAX_USER_FAILS = 20;
+/** حد الطلبات لكل عنوان بالدقيقة. */
+const RATE_PER_MIN = 240;
 const LOCK_MINUTES = 15;
 const PUBLISH_DELAY_MS = 4000;
 const USERNAME_RE = /^[a-z0-9._-]{3,32}$/;
@@ -127,6 +190,7 @@ export class RegistryDO extends DurableObject<Env> {
   /** نسخة JSON من كل زبون ووكيل محفوظة، لحتى نكتب يلي تغيّر بس. */
   private saved = new Map<string, string>();
   private savedLog = new WeakSet<object>();
+  private rate = new Map<string, { n: number; t: number }>();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -137,6 +201,11 @@ export class RegistryDO extends DurableObject<Env> {
     this.sql.exec(`CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, role TEXT NOT NULL, agent_id TEXT, hash TEXT NOT NULL, salt TEXT NOT NULL, disabled INTEGER NOT NULL DEFAULT 0, created TEXT NOT NULL)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, username TEXT NOT NULL, expires INTEGER NOT NULL)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS fails (k TEXT PRIMARY KEY, n INTEGER NOT NULL, until INTEGER NOT NULL)`);
+    try {
+      this.sql.exec(`ALTER TABLE users ADD COLUMN totp TEXT`);
+    } catch {
+      // العمود موجود
+    }
   }
 
   // ── تخزين ──
@@ -239,14 +308,16 @@ export class RegistryDO extends DurableObject<Env> {
 
   private async newSession(username: string): Promise<string> {
     const token = randomHex(32);
-    this.sql.exec(`INSERT INTO sessions (token, username, expires) VALUES (?, ?, ?)`, await sha256(token), username, Date.now() + SESSION_DAYS * 86_400_000);
+    const role = this.sql.exec<{ role: string }>(`SELECT role FROM users WHERE username = ?`, username).toArray()[0]?.role;
+    const days = role === 'owner' ? OWNER_SESSION_DAYS : SESSION_DAYS;
+    this.sql.exec(`INSERT INTO sessions (token, username, expires) VALUES (?, ?, ?)`, await sha256(token), username, Date.now() + days * 86_400_000);
     this.sql.exec(`DELETE FROM sessions WHERE expires < ?`, Date.now());
-    return `wazn_s=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${SESSION_DAYS * 86400}`;
+    return `wazn_s=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${days * 86400}`;
   }
 
-  private tooMany(k: string): boolean {
+  private tooMany(k: string, max = MAX_FAILS): boolean {
     const r = this.sql.exec<{ n: number; until: number }>(`SELECT n, until FROM fails WHERE k = ?`, k).toArray()[0];
-    return !!r && r.n >= MAX_FAILS && r.until > Date.now();
+    return !!r && r.n >= max && r.until > Date.now();
   }
   private fail(k: string): void {
     const r = this.sql.exec<{ n: number; until: number }>(`SELECT n, until FROM fails WHERE k = ?`, k).toArray()[0];
@@ -324,6 +395,16 @@ export class RegistryDO extends DurableObject<Env> {
   override async fetch(req: Request): Promise<Response> {
     const url = new URL(req.url);
     try {
+      // حد الطلبات لكل عنوان (حماية من الإغراق)
+      const ip = req.headers.get('CF-Connecting-IP') ?? 'local';
+      const now = Date.now();
+      const r = this.rate.get(ip);
+      if (!r || now - r.t > 60_000) this.rate.set(ip, { n: 1, t: now });
+      else if (++r.n > RATE_PER_MIN) return json({ error: 'طلبات كتير، استنى دقيقة' }, 429);
+      if (this.rate.size > 5000) this.rate.clear();
+      // حجم الطلب: الاستيراد كبير، والباقي صغير
+      const max = url.pathname === '/api/import' ? 8_000_000 : 64_000;
+      if (Number(req.headers.get('Content-Length') ?? 0) > max) return json({ error: 'الطلب كبير كتير' }, 413);
       if (url.pathname === '/feed.txt') {
         const feed = this.kvGet('feed');
         return feed ? new Response(feed, { headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' } }) : new Response('', { status: 404 });
@@ -335,7 +416,14 @@ export class RegistryDO extends DurableObject<Env> {
         const origin = req.headers.get('Origin');
         if (origin && origin !== url.origin) throw new HttpError(403, 'غير مصرح');
       }
-      const body = req.method === 'POST' ? ((await req.json().catch(() => ({}))) as Record<string, unknown>) : {};
+      const raw = req.method === 'POST' ? await req.text() : '';
+      if (raw.length > max) return json({ error: 'الطلب كبير كتير' }, 413);
+      let body: Record<string, unknown> = {};
+      try {
+        body = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+      } catch {
+        body = {};
+      }
       return await this.route(req, url.pathname, body);
     } catch (e) {
       if (e instanceof HttpError) return json({ error: e.message }, e.status);
@@ -366,7 +454,8 @@ export class RegistryDO extends DurableObject<Env> {
   }
 
   private async route(req: Request, path: string, body: Record<string, unknown>): Promise<Response> {
-    const str = (k: string) => (typeof body[k] === 'string' ? (body[k] as string).trim() : '');
+    // كل نص محدود الطول (ما حدا يعبّي السجل بنصوص ضخمة)
+    const str = (k: string) => (typeof body[k] === 'string' ? (body[k] as string).trim().slice(0, k === 'pem' || k === 'token' ? 4000 : 500) : '');
     const num = (k: string) => (body[k] === undefined || body[k] === '' ? undefined : Number(body[k]));
     const ip = req.headers.get('CF-Connecting-IP') ?? 'local';
     const hasOwner = this.sql.exec(`SELECT 1 FROM users WHERE role = 'owner'`).toArray().length > 0;
@@ -376,7 +465,8 @@ export class RegistryDO extends DurableObject<Env> {
       const s = await this.session(req);
       if (!s) return json({ user: null, needsSetup: !hasOwner });
       const agent = s.agentId ? (await this.registry()).agents.find((a) => a.id === s.agentId) : null;
-      return json({ user: { username: s.username, role: s.role, name: agent?.name ?? 'المدير' } });
+      const u = this.sql.exec<UserRow>(`SELECT * FROM users WHERE username = ?`, s.username).toArray()[0];
+      return json({ user: { username: s.username, role: s.role, name: agent?.name ?? 'المدير', twoFactor: !!u?.totp } });
     }
     if (path === '/api/setup' && req.method === 'POST') {
       if (hasOwner) throw new HttpError(400, 'الإعداد صار من قبل');
@@ -391,19 +481,33 @@ export class RegistryDO extends DurableObject<Env> {
     }
     if (path === '/api/login' && req.method === 'POST') {
       const username = str('username').toLowerCase();
-      if (this.tooMany(`u|${username}`) || this.tooMany(`ip|${ip}`)) throw new HttpError(429, 'محاولات دخول كتير، جرّب بعد ربع ساعة');
+      const country = req.headers.get('CF-IPCountry') ?? '?';
+      if (this.tooMany(`u|${username}`, MAX_USER_FAILS) || this.tooMany(`ip|${ip}`)) throw new HttpError(429, 'محاولات دخول كتير، جرّب بعد ربع ساعة');
       const u = this.sql.exec<UserRow>(`SELECT * FROM users WHERE username = ?`, username).toArray()[0];
       const ok = u && !u.disabled && sameString(await hashPassword(str('password'), u.salt), u.hash);
       if (!ok) {
         this.fail(`u|${username}`);
         this.fail(`ip|${ip}`);
+        if (this.tooMany(`u|${username}`, MAX_USER_FAILS) && u) (await this.registry()).record(`⚠ محاولات دخول فاشلة كتير على حساب ${username} (من ${country})، انقفل ربع ساعة`);
         throw new HttpError(401, 'اسم المستخدم أو كلمة السر غلط');
+      }
+      if (u.totp) {
+        // التحقق بخطوتين: بعد كلمة السر الصح، الرمز من تطبيق المصادقة
+        if (!str('otp')) return json({ needOtp: true }, 401);
+        if (!(await totpOk(await unseal(this.env.SECRET_KEY, u.totp), str('otp')))) {
+          this.fail(`u|${username}`);
+          this.fail(`ip|${ip}`);
+          throw new HttpError(401, 'رمز التحقق غلط');
+        }
       }
       if (u.role === 'agent') {
         const a = (await this.registry()).agents.find((x) => x.id === u.agent_id);
         if (!a?.active) throw new HttpError(403, 'حساب الوكيل موقوف. تواصل مع وزن.');
       }
       this.sql.exec(`DELETE FROM fails WHERE k = ?`, `u|${username}`);
+      const reg0 = await this.registry();
+      const who = u.role === 'owner' ? 'المدير' : (reg0.agents.find((a) => a.id === u.agent_id)?.name ?? username);
+      reg0.record(`دخول ${who} (${country})`, u.agent_id ? { agentId: u.agent_id } : {});
       return json({ ok: true }, 200, { 'Set-Cookie': await this.newSession(username) });
     }
     if (path === '/api/logout' && req.method === 'POST') {
@@ -421,6 +525,37 @@ export class RegistryDO extends DurableObject<Env> {
       if (str('new').length < (s.role === 'owner' ? 10 : 8)) throw new HttpError(400, `كلمة السر الجديدة لازم تكون ${s.role === 'owner' ? 10 : 8} حروف عالأقل`);
       await this.setPassword(s.username, str('new'));
       return json({ ok: true }, 200, { 'Set-Cookie': await this.newSession(s.username) });
+    }
+
+    if (path === '/api/logout-all' && req.method === 'POST') {
+      this.sql.exec(`DELETE FROM sessions WHERE username = ?`, s.username);
+      return json({ ok: true }, 200, { 'Set-Cookie': 'wazn_s=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0' });
+    }
+    if (path === '/api/2fa/start' && req.method === 'POST') {
+      const secret = base32(crypto.getRandomValues(new Uint8Array(20)));
+      this.kvSet(`totp-pending:${s.username}`, await seal(this.env.SECRET_KEY, secret));
+      const uri = `otpauth://totp/${encodeURIComponent(`Wazn:${s.username}`)}?secret=${secret}&issuer=Wazn&digits=6&period=30`;
+      const qr = qrcode(0, 'M');
+      qr.addData(uri);
+      qr.make();
+      return json({ secret, uri, svg: qr.createSvgTag({ cellSize: 5, margin: 3 }) });
+    }
+    if (path === '/api/2fa/enable' && req.method === 'POST') {
+      const pending = this.kvGet(`totp-pending:${s.username}`);
+      if (!pending) throw new HttpError(400, 'ابدأ من جديد');
+      if (!(await totpOk(await unseal(this.env.SECRET_KEY, pending), str('code')))) throw new HttpError(400, 'الرمز غلط. تأكد إنو ساعة الجوال مضبوطة وجرّب الرمز الجديد.');
+      this.sql.exec(`UPDATE users SET totp = ? WHERE username = ?`, pending, s.username);
+      this.kvSet(`totp-pending:${s.username}`, null);
+      (await this.registry()).record(`تفعيل التحقق بخطوتين لحساب ${s.username}`);
+      return json({ ok: true });
+    }
+    if (path === '/api/2fa/disable' && req.method === 'POST') {
+      const u = this.sql.exec<UserRow>(`SELECT * FROM users WHERE username = ?`, s.username).toArray()[0]!;
+      if (!sameString(await hashPassword(str('password'), u.salt), u.hash)) throw new HttpError(400, 'كلمة السر غلط');
+      if (u.totp && !(await totpOk(await unseal(this.env.SECRET_KEY, u.totp), str('code')))) throw new HttpError(400, 'رمز التحقق غلط');
+      this.sql.exec(`UPDATE users SET totp = NULL WHERE username = ?`, s.username);
+      (await this.registry()).record(`⚠ إيقاف التحقق بخطوتين لحساب ${s.username}`);
+      return json({ ok: true });
     }
 
     const reg = await this.registry();
@@ -517,8 +652,14 @@ export class RegistryDO extends DurableObject<Env> {
     if (mc && req.method === 'POST') {
       const [, id, action] = mc;
       if (action !== 'status' && action !== 'cloud') needKey();
-      if (action === 'extend') return touch(reg.extend(id!, str('plan') as Plan));
-      if (action === 'status') return touch(reg.setStatus(id!, str('status') as FeedStatus, str('message') || undefined));
+      if (action === 'extend') {
+        if (!(str('plan') in PLANS)) throw new HttpError(400, 'نوع الاشتراك غير معروف');
+        return touch(reg.extend(id!, str('plan') as Plan));
+      }
+      if (action === 'status') {
+        if (!['active', 'suspended', 'revoked'].includes(str('status'))) throw new HttpError(400, 'حالة غير معروفة');
+        return touch(reg.setStatus(id!, str('status') as FeedStatus, str('message') || undefined));
+      }
       if (action === 'cloud') return touch(reg.setCloud(id!, body['on'] === true));
       if (action === 'phone') return touch(reg.addPhone(id!, str('machineId')));
       return touch(
@@ -596,6 +737,12 @@ export class RegistryDO extends DurableObject<Env> {
     if (path === '/api/update' && req.method === 'POST') {
       if (body['clear']) return touch({ update: reg.setUpdate(null) ?? null });
       return touch({ update: reg.setUpdate({ version: str('version'), url: str('url'), notes: str('notes'), ...(str('minVersion') ? { minVersion: str('minVersion') } : {}) }) });
+    }
+    if (path === '/api/backup' && req.method === 'GET') {
+      // نسخة احتياطية من كل السجل (بدون المفتاح الخاص ورمز GitHub): بتنفتح بلوحة الإدارة القديمة كمان
+      const stamp = new Date().toISOString().slice(0, 10);
+      reg.record('تنزيل نسخة احتياطية');
+      return new Response(JSON.stringify(reg.raw, null, 1), { headers: { 'Content-Type': 'application/json; charset=utf-8', 'Content-Disposition': `attachment; filename="wazn-registry-${stamp}.json"`, 'Cache-Control': 'no-store', ...SECURITY_HEADERS } });
     }
     if (path === '/api/publish' && req.method === 'POST') {
       return json(await this.publish());

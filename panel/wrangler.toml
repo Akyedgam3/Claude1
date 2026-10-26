@@ -16,7 +16,7 @@ new_sqlite_classes = ["RegistryDO"]
 
 [[rules]]
 type = "Text"
-globs = ["**/*.html"]
+globs = ["**/*.html", "**/*.txt"]
 fallthrough = false
 
 [vars]
