@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { PLANS, type FeedStatus, type Plan } from '../src/license/license';
 import { LICENSE_FEED_URLS } from '../src/license/config';
 import { IS_DEV_KEY } from '../src/license/public-key';
-import { agentBalance, AGENT_DEFAULT_DEVICES, PACKAGE_PRICE, PACKAGE_SIZE, Registry } from './registry';
+import { agentBalance, AGENT_DEFAULT_DEVICES, AGENT_TIERS, Registry, type AgentKind } from './registry';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const keyFile = fs.existsSync(path.join(root, 'keys/license-private.pem')) ? 'keys/license-private.pem' : 'dev-keys/license-private.dev.pem';
@@ -57,7 +57,7 @@ const server = http.createServer(async (req, res) => {
         customers: registry.customers,
         agents: registry.agents.map((a) => ({ ...a, balance: agentBalance(a) })),
         update: registry.appUpdate ?? null,
-        pkg: { size: PACKAGE_SIZE, price: PACKAGE_PRICE, devices: AGENT_DEFAULT_DEVICES },
+        pkg: { tiers: AGENT_TIERS, devices: AGENT_DEFAULT_DEVICES },
         plans: PLANS,
         devKey: IS_DEV_KEY || keyFile.startsWith('dev-keys'),
         feedUrls: LICENSE_FEED_URLS,
@@ -66,7 +66,7 @@ const server = http.createServer(async (req, res) => {
       });
     }
     const body = req.method === 'POST' ? await readBody(req) : {};
-    const m = /^\/api\/customers\/([^/]+)\/(extend|status|update|cloud)$/.exec(url.pathname);
+    const m = /^\/api\/customers\/([^/]+)\/(extend|status|update|cloud|phone)$/.exec(url.pathname);
     if (req.method === 'POST' && url.pathname === '/api/customers') {
       const c = registry.add({
         name: str(body['name']) ?? '',
@@ -78,6 +78,7 @@ const server = http.createServer(async (req, res) => {
         ...(num(body['offlineDays']) ? { offlineDays: num(body['offlineDays'])! } : {}),
         ...(str(body['agentId']) ? { agentId: str(body['agentId'])! } : {}),
         ...(body['force'] ? { force: true } : {}),
+        ...(body['mobile'] === true || body['mobile'] === 'on' || body['mobile'] === '1' ? { mobile: true } : {}),
       });
       return send(200, c);
     }
@@ -102,6 +103,10 @@ const server = http.createServer(async (req, res) => {
         return send(
           200,
           registry.addPackage(id!, {
+            ...(str(body['tier']) ? { tier: str(body['tier'])! } : {}),
+            ...(str(body['kind']) ? { kind: str(body['kind']) as AgentKind } : {}),
+            ...(body['mobile'] === true ? { mobile: true } : {}),
+            ...(str(body['currency']) === 'USD' ? { currency: 'USD' as const } : {}),
             ...(num(body['count']) !== undefined ? { count: num(body['count'])! } : {}),
             ...(num(body['price']) !== undefined ? { price: num(body['price'])! } : {}),
             ...(str(body['note']) ? { note: str(body['note'])! } : {}),
@@ -137,6 +142,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && m) {
       const [, id, action] = m;
       if (action === 'extend') return send(200, registry.extend(id!, str(body['plan']) as Plan));
+      if (action === 'phone') return send(200, registry.addPhone(id!, str(body['machineId']) ?? ''));
       if (action === 'status') return send(200, registry.setStatus(id!, str(body['status']) as FeedStatus, str(body['message'])));
       if (action === 'cloud') return send(200, registry.setCloud(id!, body['on'] === true));
       return send(

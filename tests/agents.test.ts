@@ -23,9 +23,9 @@ describe('agents', () => {
   it('a package adds 10 licenses and every activation uses one', () => {
     const r = new Registry(path.join(dir, 'registry.json'), PRIV);
     const a = r.addAgent({ name: 'أبو خالد — حلب', phone: '+963 911 111 111', packages: 1 });
-    expect(agentBalance(a)).toEqual({ total: 10, used: 0, left: 10 });
-    const c = r.add({ name: 'ماركت النور', machineId: M1, plan: 'lifetime', agentId: a.id });
-    // الوكيل بيبيع سنوي بس، وجهازين افتراضياً
+    expect(agentBalance(a)).toMatchObject({ total: 10, used: 0, left: 10, annual: { left: 10 }, lifetime: { total: 0 } });
+    expect(a.packages[0]).toMatchObject({ count: 10, price: 12_250, kind: 'annual', currency: 'SYP' });
+    const c = r.add({ name: 'ماركت النور', machineId: M1, plan: 'annual', agentId: a.id });
     expect(c.plan).toBe('annual');
     expect(c.devices).toBe(2);
     expect(c.agentId).toBe(a.id);
@@ -35,11 +35,53 @@ describe('agents', () => {
     const renewed = r.extend(c.id, 'lifetime');
     expect(renewed.plan).toBe('annual');
     expect(renewed.expiresAt).not.toBeNull();
-    expect(agentBalance(r.agent(a.id))).toEqual({ total: 10, used: 2, left: 8 });
+    expect(agentBalance(r.agent(a.id))).toMatchObject({ total: 10, used: 2, left: 8 });
     // بيضل محفوظ بعد إعادة التحميل
     const again = new Registry(path.join(dir, 'registry.json'), PRIV);
     expect(agentBalance(again.agent(a.id)).left).toBe(8);
     expect(again.customers[0]!.agentId).toBe(a.id);
+  });
+
+  it('sells permanent keys from the permanent balance only', () => {
+    const r = new Registry(path.join(dir, 'registry.json'), PRIV);
+    const a = r.addAgent({ name: 'وكيل دائم' });
+    expect(() => r.add({ name: 'زبون', machineId: M1, plan: 'lifetime', agentId: a.id })).toThrow(/الدائم خلص/);
+    r.addPackage(a.id, { tier: 'l25' });
+    expect(agentBalance(r.agent(a.id))).toMatchObject({ annual: { total: 0 }, lifetime: { total: 25, left: 25 } });
+    expect(r.agent(a.id).packages[0]).toMatchObject({ count: 25, price: 37_250, kind: 'lifetime', tier: 'l25' });
+    // ما في رصيد سنوي
+    expect(() => r.add({ name: 'زبون', machineId: M1, plan: 'annual', agentId: a.id })).toThrow(/السنوي خلص/);
+    const c = r.add({ name: 'زبون', machineId: M1, plan: 'lifetime', agentId: a.id });
+    expect(c.plan).toBe('lifetime');
+    expect(c.expiresAt).toBeNull();
+    expect(agentBalance(r.agent(a.id)).lifetime.left).toBe(24);
+    expect(() => r.extend(c.id, 'annual')).toThrow(/دائم/);
+    expect(() => r.addPackage(a.id, { tier: 'x' })).toThrow(/خطة/);
+  });
+
+  it('computer + phone licenses: one unit, a free phone key that renews with the computer', () => {
+    const r = new Registry(path.join(dir, 'registry.json'), PRIV);
+    const a = r.addAgent({ name: 'وكيل الجوال' });
+    r.addPackage(a.id, { tier: 'a10m' });
+    expect(agentBalance(r.agent(a.id))).toMatchObject({ annual: { total: 0 }, annualMobile: { total: 10, left: 10 } });
+    // رصيد «+ جوال» ما بينصرف على رخصة كمبيوتر بس، والعكس
+    expect(() => r.add({ name: 'زبون', machineId: M1, plan: 'annual', agentId: a.id })).toThrow(/السنوي خلص/);
+    const pc = r.add({ name: 'محل الجوالات', machineId: M1, plan: 'annual', agentId: a.id, mobile: true });
+    expect(pc.mobile).toBe(true);
+    const phone = r.addPhone(pc.id, M2);
+    expect(phone).toMatchObject({ phoneOf: pc.id, plan: 'annual', expiresAt: pc.expiresAt, agentId: a.id });
+    expect(parseLicense(phone.key, PUB)?.machineId).toBe(M2);
+    expect(agentBalance(r.agent(a.id)).annualMobile.left).toBe(9);
+    expect(() => r.addPhone(pc.id, '9999-9999-9999-9999')).toThrow(/من قبل/);
+    expect(() => r.extend(phone.id, 'annual')).toThrow(/الكمبيوتر/);
+    // تجديد الكمبيوتر بيجدد الجوال كمان
+    const renewed = r.extend(pc.id, 'annual');
+    expect(r.find(phone.id).expiresAt).toBe(renewed.expiresAt);
+    expect(agentBalance(r.agent(a.id)).annualMobile.left).toBe(8);
+    // رخصة كمبيوتر بس ما إلها جوال
+    r.addPackage(a.id, { tier: 'a10' });
+    const only = r.add({ name: 'ماركت', machineId: '5555-6666-7777-8888', plan: 'annual', agentId: a.id });
+    expect(() => r.addPhone(only.id, '1212-3434-5656-7878')).toThrow(/بس/);
   });
 
   it('refuses activation when the balance is empty or the agent is stopped', () => {
@@ -73,7 +115,7 @@ describe('agents', () => {
     expect(() => r.addPackage(a.id, { count: 0 })).toThrow();
     expect(() => r.addPackage(a.id, { count: 1.5 })).toThrow();
     expect(() => r.addPackage(a.id, { price: -1 })).toThrow();
-    expect(r.addPackage(a.id).packages[0]).toMatchObject({ count: 10, price: 59.99 });
+    expect(r.addPackage(a.id).packages[0]).toMatchObject({ count: 10, price: 12_250, kind: 'annual', tier: 'a10' });
   });
 });
 

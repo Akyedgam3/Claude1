@@ -70,7 +70,7 @@
         <label><span>اسم الوكيل</span><input name="name" required /></label>
         <label><span>الموبايل (واتساب)</span><input name="phone" class="mono" placeholder="+963..." /></label>
         <label><span>المدينة</span><input name="city" /></label>
-        <label><span>عدد الباقات المدفوعة الآن</span><input name="packages" type="number" min="0" value="1" /></label>
+        <label><span>عدد باقات «انطلاقة» السنوية المدفوعة الآن</span><input name="packages" type="number" min="0" value="1" /></label>
         <label style="grid-column: span 3"><span>ملاحظات</span><input name="notes" /></label>
         <button class="primary">إضافة الوكيل</button>
       </form>
@@ -198,18 +198,24 @@ function tab(name) {
   document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('on', t.id === 'tab-' + name));
 }
 const fmtDate = (d) => (d ? d.slice(0, 10) : 'دائم');
-const money = (n) => '$' + Number(n).toFixed(2);
+const money = (n, cur = 'USD') => (cur === 'SYP' ? Number(n).toLocaleString('en-US') + ' ل.س' : '$' + Number(n).toFixed(2));
+const pkgMoney = (p) => money(p.price, p.currency ?? 'USD');
+const kindName = (k) => (k === 'lifetime' ? 'دائم' : 'سنوي');
+const tierLabel = (t) => `${t.name} ${kindName(t.kind)}${t.mobile ? ' + جوال' : ''} — ${t.count} رخصة (${money(t.price, 'SYP')})`;
+const BUCKETS = [['annual', 'سنوي'], ['lifetime', 'دائم'], ['annualMobile', 'سنوي + جوال'], ['lifetimeMobile', 'دائم + جوال']];
+const bucketsText = (b) => BUCKETS.filter(([k]) => b[k].total).map(([k, n]) => `${n}: ${b[k].left} / ${b[k].total}`).join(' · ') || 'ما في رصيد';
 function renderAgents() {
   const q = $('#aq').value.trim().toLowerCase();
   const all = state.agents;
   const sold = all.reduce((s, a) => s + a.balance.used, 0);
-  const paid = all.reduce((s, a) => s + a.packages.reduce((x, p) => x + p.price, 0), 0);
+  const paidBy = (cur) => all.reduce((s, a) => s + a.packages.filter((p) => (p.currency ?? 'USD') === cur).reduce((x, p) => x + p.price, 0), 0);
+  const paid = [paidBy('SYP') ? money(paidBy('SYP'), 'SYP') : '', paidBy('USD') ? money(paidBy('USD')) : ''].filter(Boolean).join(' + ') || '0';
   $('#agentStats').innerHTML = [
     ['الوكلاء', all.filter((a) => a.active).length],
     ['رخص مباعة للوكلاء', all.reduce((s, a) => s + a.balance.total, 0)],
     ['رخص مفعّلة لزبائن', sold],
     ['رصيد عند الوكلاء', all.reduce((s, a) => s + a.balance.left, 0)],
-    ['مدفوعات الوكلاء', money(paid)],
+    ['مدفوعات الوكلاء', paid],
   ].map(([k, v]) => `<div class="stat"><span class="muted">${k}</span><b>${v}</b></div>`).join('');
   const list = all.filter((a) => !q || [a.name, a.phone, a.city].some((f) => String(f ?? '').toLowerCase().includes(q)));
   $('#agentCards').innerHTML = list.map((a) => {
@@ -218,9 +224,9 @@ function renderAgents() {
     const pct = b.total ? Math.round((b.left / b.total) * 100) : 0;
     return `<div class="agent ${a.active ? '' : 'off'} ${selAgent === a.id ? 'sel' : ''}" onclick="openAgent('${a.id}')">
       <div class="head"><div><b>${esc(a.name)}</b><div class="muted">${esc(a.city)} ${a.phone ? '· <span class="mono">' + esc(a.phone) + '</span>' : ''}</div></div>${a.active ? '' : '<span class="tag suspended">موقوف</span>'}</div>
-      <div class="bal ${cls}">${b.left} <small>/ ${b.total} license</small></div>
+      <div class="bal ${cls}">${b.left} <small>/ ${b.total} رخصة</small></div>
       <div class="meter"><i style="width:${pct}%"></i></div>
-      <div class="muted" style="margin-top:6px">مفعّل لزبائن: ${b.used}</div>
+      <div class="muted" style="margin-top:6px">${bucketsText(b)} · مفعّل لزبائن: ${b.used}</div>
     </div>`;
   }).join('') || '<div class="muted">لا يوجد وكلاء بعد</div>';
   renderAgentPanel();
@@ -236,9 +242,10 @@ function renderAgentPanel() {
   const now = Date.now();
   panel.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-      <h2 style="margin:0">${esc(a.name)} — رصيده <span class="mono">${b.left} / ${b.total}</span></h2>
+      <h2 style="margin:0">${esc(a.name)} — <span style="font-size:15px">${bucketsText(b)}</span></h2>
       <div class="actions">
-        <button class="primary" onclick="addPackage('${a.id}')">+ باقة ${state.pkg.size} رخص (${money(state.pkg.price)})</button>
+        <select id="tier-${a.id}" style="width:auto">${state.pkg.tiers.map((t) => `<option value="${t.id}">${esc(tierLabel(t))}</option>`).join('')}</select>
+        <button class="primary" onclick="addPackage('${a.id}')">+ إضافة الخطة لرصيده</button>
         <button onclick="customPackage('${a.id}')">باقة بعدد/سعر مختلف</button>
         <button onclick="editAgent('${a.id}')">تعديل</button>
         <button class="${a.active ? 'danger' : ''}" onclick="toggleAgent('${a.id}', ${!a.active})">${a.active ? 'إيقاف الوكيل' : 'تفعيل الوكيل'}</button>
@@ -247,11 +254,13 @@ function renderAgentPanel() {
     <div class="row2" style="margin-top:14px">
       <div>
         <h2>تفعيل زبون من رصيد الوكيل</h2>
-        <p class="muted">الوكيل بيبعتلك بصمة جهاز الزبون (من شاشة التفعيل). الاشتراك سنوي، وكل تفعيل أو تجديد بينخصم رخصة.</p>
+        <p class="muted">الوكيل بيبعتلك بصمة جهاز الزبون (من شاشة التفعيل). كل تفعيل بينخصم رخصة من الرصيد السنوي أو الدائم، وتجديد السنوي كمان.</p>
         <form class="grid" style="grid-template-columns:1fr 1fr" onsubmit="activateForAgent(event, '${a.id}')">
           <label><span>اسم الزبون / المحل</span><input name="name" required /></label>
           <label><span>موبايل الزبون</span><input name="phone" /></label>
           <label style="grid-column: span 2"><span>بصمة الجهاز</span><input name="machineId" class="mono" placeholder="XXXX-XXXX-XXXX-XXXX" required /></label>
+          <label><span>نوع الرخصة</span><select name="bucket">${(() => { const first = BUCKETS.find(([k]) => b[k].left > 0)?.[0]; return BUCKETS.map(([k, n]) => `<option value="${k}" ${b[k].left > 0 ? '' : 'disabled'} ${k === first ? 'selected' : ''}>${n} (باقي ${b[k].left})</option>`).join(''); })()}</select></label>
+          <label><span>بصمة الجوال (لرخص «+ جوال»، اختياري هلق)</span><input name="phoneMachineId" class="mono" placeholder="XXXX-XXXX-XXXX-XXXX" /></label>
           <label><span>عدد الأجهزة</span><input name="devices" type="number" min="1" max="50" value="${state.pkg.devices}" /></label>
           <button class="primary" ${a.active && b.left > 0 ? '' : 'disabled'}>تفعيل وإصدار المفتاح</button>
         </form>
@@ -260,8 +269,8 @@ function renderAgentPanel() {
       </div>
       <div>
         <h2>الباقات</h2>
-        <table><thead><tr><th>التاريخ</th><th>الرخص</th><th>المبلغ</th><th>ملاحظة</th></tr></thead><tbody>
-        ${a.packages.slice().reverse().map((p) => `<tr><td>${fmtDate(p.at)}</td><td>${p.count}</td><td>${money(p.price)}</td><td class="muted">${esc(p.note)}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">لا يوجد</td></tr>'}
+        <table><thead><tr><th>التاريخ</th><th>الرخص</th><th>النوع</th><th>المبلغ</th><th>ملاحظة</th></tr></thead><tbody>
+        ${a.packages.slice().reverse().map((p) => `<tr><td>${fmtDate(p.at)}</td><td>${p.count}</td><td>${kindName(p.kind)}${p.mobile ? " + جوال" : ""}${p.tier ? ' · ' + esc(state.pkg.tiers.find((t) => t.id === p.tier)?.name ?? '') : ''}</td><td>${pkgMoney(p)}</td><td class="muted">${esc(p.note)}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">لا يوجد</td></tr>'}
         </tbody></table>
         ${a.notes ? `<p class="muted">${esc(a.notes)}</p>` : ''}
       </div>
@@ -271,10 +280,10 @@ function renderAgentPanel() {
     ${customers.map((c) => {
       const left = c.expiresAt ? Math.ceil((new Date(c.expiresAt).getTime() - now) / 86400000) : null;
       const soon = left !== null && left <= 30;
-      return `<tr><td><b>${esc(c.name)}</b><div class="muted">${esc(c.phone)}</div></td><td class="mono">${esc(c.machineId)}</td><td>${c.devices}</td>
+      return `<tr><td><b>${esc(c.name)}</b>${c.mobile ? ' <span class="tag active">+ جوال</span>' : ''}<div class="muted">${esc(c.phone)}</div></td><td class="mono">${esc(c.machineId)}</td><td>${c.devices}</td>
         <td style="${soon ? 'color:var(--bad)' : ''}">${fmtDate(c.expiresAt)}${left !== null ? `<div class="muted">${left > 0 ? 'باقي ' + left + ' يوم' : 'منتهي'}</div>` : ''}</td>
         <td><span class="tag ${c.status}">${{ active: 'فعّال', suspended: 'موقوف', revoked: 'ملغى' }[c.status]}</span></td>
-        <td class="actions"><button onclick="copyKey('${c.id}')">نسخ المفتاح</button><button class="wa" onclick="sendWa('${a.id}','${c.id}')">واتساب للوكيل</button><button onclick="renew('${c.id}')">تجديد سنة</button></td></tr>`;
+        <td class="actions">${c.mobile && !state.customers.some((x) => x.phoneOf === c.id && x.status !== 'revoked') ? `<button class="primary" onclick="addPhone('${c.id}')">+ مفتاح الجوال</button>` : ''}<button onclick="copyKey('${c.id}')">نسخ المفتاح</button><button class="wa" onclick="sendWa('${a.id}','${c.id}')">واتساب للوكيل</button>${c.phoneOf ? '<span class="muted">جوال</span>' : c.plan === 'lifetime' ? '<span class="muted">دائم</span>' : `<button onclick="renew('${c.id}')">تجديد سنة</button>`}</td></tr>`;
     }).join('') || '<tr><td colspan="6" class="muted">لا يوجد زبائن بعد</td></tr>'}
     </tbody></table>`;
 }
@@ -283,12 +292,18 @@ function addAgent(e) {
   const body = Object.fromEntries(new FormData(e.target));
   run(async () => { const a = await api('/api/agents', body); selAgent = a.id; e.target.reset(); }, 'تمت إضافة الوكيل');
 }
-function addPackage(id) { run(() => api(`/api/agents/${id}/package`, {}), 'انضافت الباقة لرصيد الوكيل'); }
+function addPackage(id) {
+  const t = state.pkg.tiers.find((x) => x.id === $(`#tier-${id}`).value);
+  if (!confirm(`إضافة «${tierLabel(t)}» لرصيد الوكيل؟`)) return;
+  run(() => api(`/api/agents/${id}/package`, { tier: t.id }), 'انضافت الخطة لرصيد الوكيل');
+}
 function customPackage(id) {
-  const count = prompt('عدد الرخص:', String(state.pkg.size)); if (count === null) return;
-  const price = prompt('المبلغ المدفوع ($):', String(state.pkg.price)); if (price === null) return;
+  const kind = confirm('رخص دائمة؟ (موافق = دائم، إلغاء = سنوي)') ? 'lifetime' : 'annual';
+  const mobile = confirm('مع تطبيق الجوال؟ (موافق = كمبيوتر + جوال، إلغاء = كمبيوتر بس)');
+  const count = prompt('عدد الرخص:', '10'); if (count === null) return;
+  const price = prompt('المبلغ المدفوع (ليرة سورية جديدة):', ''); if (price === null) return;
   const note = prompt('ملاحظة (اختياري):', '') ?? '';
-  run(() => api(`/api/agents/${id}/package`, { count, price, note }), 'انضافت الباقة');
+  run(() => api(`/api/agents/${id}/package`, { count, price, kind, mobile, note }), 'انضافت الباقة');
 }
 function editAgent(id) {
   const a = state.agents.find((x) => x.id === id);
@@ -303,16 +318,25 @@ function toggleAgent(id, active) {
 }
 function activateForAgent(e, agentId) {
   e.preventDefault();
-  const body = { ...Object.fromEntries(new FormData(e.target)), agentId };
+  const { bucket, phoneMachineId, ...rest } = Object.fromEntries(new FormData(e.target));
+  const body = { ...rest, agentId, plan: bucket.startsWith('lifetime') ? 'lifetime' : 'annual', mobile: bucket.endsWith('Mobile') };
   run(async () => {
     const c = await api('/api/customers', body);
+    if (body.mobile && phoneMachineId.trim()) await api(`/api/customers/${c.id}/phone`, { machineId: phoneMachineId.trim() });
     await navigator.clipboard?.writeText(c.key).catch(() => {});
     lastIssued = c.id;
-  }, 'تم التفعيل ونسخ المفتاح. لا تنسَ نشر قائمة الحالة.');
+  }, 'تم التفعيل ونسخ مفتاح الكمبيوتر. لا تنسَ نشر قائمة الحالة.');
+}
+function addPhone(id) {
+  const machineId = prompt('بصمة جوال الزبون (من شاشة التفعيل بالتطبيق):', ''); if (!machineId) return;
+  run(async () => {
+    const c = await api(`/api/customers/${id}/phone`, { machineId });
+    await navigator.clipboard?.writeText(c.key).catch(() => {});
+  }, 'تم إصدار مفتاح الجوال ونسخه. لا تنسَ نشر قائمة الحالة.');
 }
 let lastIssued = null;
 function waText(c) {
-  return `ترخيص وزن للزبون: ${c.name}\nالاشتراك: سنوي حتى ${fmtDate(c.expiresAt)}\nعدد الأجهزة: ${c.devices}\n\nمفتاح التفعيل (انسخه كامل والصقه بشاشة التفعيل):\n${c.key}`;
+  return `ترخيص وزن للزبون: ${c.name}\nالاشتراك: ${c.plan === 'lifetime' ? 'دائم' : 'سنوي حتى ' + fmtDate(c.expiresAt)}\nعدد الأجهزة: ${c.devices}\n\nمفتاح التفعيل (انسخه كامل والصقه بشاشة التفعيل):\n${c.key}`;
 }
 function sendWa(agentId, customerId) {
   const a = state.agents.find((x) => x.id === agentId);
