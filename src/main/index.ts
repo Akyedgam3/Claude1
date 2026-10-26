@@ -7,13 +7,14 @@ import { ACTIVITIES, can, chartFor, DEFAULT_CURRENCIES, defaultTaxes, PERMISSION
 import { CloudSessions, CLOUD_MIN_DEVICES } from '../app/cloud-sessions';
 import { BACKUP_FILES, unpackBackup } from '../app/backup-pack';
 import { hostCompanyFor } from '../app/host-company';
-import { DEFAULT_LAN_PORT, LanClient, LanHost, newPairingCode } from '../app/lan';
-import { newCloudCode } from '../cloud/code';
+import { DEFAULT_LAN_PORT, discoverHosts, LanClient, LanHost, newPairingCode } from '../app/lan';
+import { OFFLINE } from '../cloud/client';
+import { newCloudCode, normalizeCloudCode } from '../cloud/code';
 import { FEED_CHECK_HOURS, LICENSE_FEED_URLS } from '../license/config';
 import { LicenseManager, type LicenseStatus } from '../license/manager';
 import { IS_TEST_BUILD, LICENSE_PUBLIC_KEY } from '../license/public-key';
 import { CompanyStore, peekCompany, type Credentials } from '../storage/company-store';
-import { LocalBackend, RemoteBackend, type Backend } from './backend';
+import { CloudBackend, LocalBackend, RemoteBackend, type Backend } from './backend';
 import { buildCsv, buildWorkbook, readWorkbook, type ExportSheet } from './exporter';
 import appIcon from '../../build/icon.png?asset';
 
@@ -24,7 +25,11 @@ interface Settings {
   deviceId: string;
   recent: { name: string; dir: string }[];
   lan: { hostEnabled: boolean; port: number; pairingCode: string };
-  lastRemote?: { host: string; port: number };
+  /** آخر جهاز رئيسي بالشبكة: بالمرة الجاية بيكفي كلمة السر. */
+  lastRemote?: { host: string; port: number; pairingCode?: string; username?: string; name?: string; id?: string };
+  /** آخر اتصال عن بعد (رمز واسم مستخدم)، وبصمة كلمة السر والعمليات المأجّلة لكل غرفة ومستخدم. */
+  lastCloud?: { code: string; username: string; name?: string };
+  cloudOffline?: Record<string, { verifier: string; pending?: { id: string; method: string; at: number }[] }>;
   /** الاتصال عن بعد: رمز لكل شركة (حسب معرّفها). */
   cloud?: Record<string, string>;
 }
@@ -54,6 +59,8 @@ function readSettings(): Settings {
     lan: { hostEnabled: false, port: DEFAULT_LAN_PORT, pairingCode: newPairingCode(), ...s.lan },
     ...(s.lastRemote ? { lastRemote: s.lastRemote } : {}),
     ...(s.cloud ? { cloud: s.cloud } : {}),
+    ...(s.lastCloud ? { lastCloud: s.lastCloud } : {}),
+    ...(s.cloudOffline ? { cloudOffline: s.cloudOffline } : {}),
   };
   if (!s.deviceId || !s.lan) writeSettings(full);
   return full;
@@ -192,7 +199,9 @@ function sessionInfo() {
     company: backend.companyName,
     ...(backend instanceof LocalBackend
       ? { dir: backend.store.dir, viaRecovery: backend.store.viaRecovery, recoveredTail: backend.store.recoveredTail }
-      : { address: (backend as RemoteBackend).address }),
+      : backend instanceof CloudBackend
+        ? { address: backend.address, cloud: { offline: backend.client.offline, syncedAt: backend.client.syncedAt, pending: backend.client.pending.length } }
+        : { address: (backend as RemoteBackend).address }),
   };
 }
 
@@ -288,7 +297,8 @@ function registerIpc(): void {
         license: licenseStatus(),
         recent: s.recent.filter((r) => fs.existsSync(path.join(r.dir, 'company.json'))),
         session: sessionInfo(),
-        lastRemote: s.lastRemote ?? null,
+        // رمز الربط ما بيطلع للواجهة: بس إنو محفوظ
+        lastRemote: s.lastRemote ? { host: s.lastRemote.host, port: s.lastRemote.port, username: s.lastRemote.username ?? '', name: s.lastRemote.name ?? '', saved: !!(s.lastRemote.pairingCode && s.lastRemote.username) } : null,
         deviceName: os.hostname(),
       };
     },
@@ -405,6 +415,14 @@ function registerIpc(): void {
 
   handle('company:backup', async (toExternal: boolean) => {
     requirePermission('backup.manage');
+    if (backend instanceof CloudBackend) {
+      // كمبيوتر بعيد: نسخة كاملة من الجهاز الرئيسي بملف .wazn
+      const stamp = new Date().toISOString().slice(0, 10);
+      const res = await dialog.showSaveDialog(win!, { title: 'حفظ نسخة احتياطية من الجهاز الرئيسي', defaultPath: `Wazn-${safeFolderName(backend.companyName)}-${stamp}.wazn`, filters: [{ name: 'نسخة وزن', extensions: ['wazn'] }] });
+      if (res.canceled || !res.filePath) return null;
+      fs.writeFileSync(res.filePath, await backend.client.backup());
+      return res.filePath;
+    }
     const store = localStore();
     if (!toExternal) return store.backup();
     const res = await dialog.showOpenDialog(win!, { title: 'اختر مكان النسخة الاحتياطية (فلاشة مثلاً)', properties: ['openDirectory'] });
@@ -459,16 +477,107 @@ function registerIpc(): void {
     return true;
   });
 
-  handle('lan:connect', async (o: { host: string; port?: number; pairingCode: string; username: string; password: string }) => {
-    await closeBackend();
-    const port = o.port || DEFAULT_LAN_PORT;
-    const client = new LanClient(o.host.trim(), port, o.pairingCode);
-    const hello = await client.hello();
+  // الأجهزة الرئيسية (وضع الخادم مفعّل) على نفس الشبكة
+  handle('lan:discover', () => discoverHosts(), { allowLocked: true });
+
+  /** saved = آخر جهاز رئيسي محفوظ: بيكفي كلمة السر، وإذا تغيّر عنوانه منلاقيه بالبحث. */
+  handle('lan:connect', async (o: { host?: string; port?: number; pairingCode?: string; username?: string; password: string; saved?: boolean }) => {
     const s = readSettings();
-    const r = await client.login(o.username, o.password, s.deviceId, os.hostname());
+    const last = s.lastRemote;
+    if (o.saved && !(last?.pairingCode && last.username)) throw new Error('ما في جهاز رئيسي محفوظ، دخّل البيانات مرة وحدة');
+    const target = o.saved
+      ? { host: last!.host, port: last!.port, pairingCode: last!.pairingCode!, username: last!.username!, id: last!.id }
+      : { host: String(o.host ?? '').trim(), port: Number(o.port) || DEFAULT_LAN_PORT, pairingCode: String(o.pairingCode ?? ''), username: String(o.username ?? ''), id: undefined as string | undefined };
+    if (!target.host) throw new Error('اختار الجهاز الرئيسي أو اكتب عنوانه');
+    await closeBackend();
+    let client = new LanClient(target.host, target.port, target.pairingCode);
+    let hello: { name: string; id: string };
+    try {
+      hello = await client.hello();
+    } catch (e) {
+      // عنوان الجهاز الرئيسي تغيّر (الراوتر بيعطي عناوين جديدة): منلاقيه بالشبكة بمعرّف الشركة
+      const found = target.id ? (await discoverHosts()).find((h) => h.id === target.id) : undefined;
+      if (!found) throw e;
+      target.host = found.host;
+      target.port = found.port;
+      client = new LanClient(found.host, found.port, target.pairingCode);
+      hello = await client.hello();
+    }
+    const r = await client.login(target.username, String(o.password ?? ''), s.deviceId, os.hostname());
     attach(new RemoteBackend(client, r.user, hello.name, r.state, r.seq));
-    s.lastRemote = { host: o.host.trim(), port };
+    const cur = readSettings();
+    cur.lastRemote = { host: target.host, port: target.port, pairingCode: target.pairingCode, username: target.username, name: hello.name, id: hello.id };
+    writeSettings(cur);
+    return sessionInfo();
+  }, { allowLocked: true });
+
+  handle('lan:forget', () => {
+    const s = readSettings();
+    if (s.lastRemote) s.lastRemote = { host: s.lastRemote.host, port: s.lastRemote.port };
     writeSettings(s);
+    return true;
+  }, { allowLocked: true });
+
+  // ── كمبيوتر بعيد عبر الإنترنت (متل جوال البيت): بيشتغل بترخيص الجهاز الرئيسي ──
+  handle('cloud:last', () => {
+    const l = readSettings().lastCloud;
+    return l ? { code: l.code, username: l.username, name: l.name ?? '' } : null;
+  }, { allowLocked: true });
+
+  handle('cloud:forget', () => {
+    const s = readSettings();
+    delete s.lastCloud;
+    writeSettings(s);
+    return true;
+  }, { allowLocked: true });
+
+  handle('cloud:connect', async (o: { code?: string; username?: string; password: string; saved?: boolean }) => {
+    const s = readSettings();
+    if (o.saved && !s.lastCloud) throw new Error('ما في اتصال محفوظ، دخّل الرمز مرة وحدة');
+    const code = normalizeCloudCode(String((o.saved ? s.lastCloud!.code : o.code) ?? ''));
+    const username = String((o.saved ? s.lastCloud!.username : o.username) ?? '');
+    if (!code) throw new Error('رمز الاتصال غير صحيح. انسخه من الجهاز الرئيسي (الإعدادات ← الاتصال عن بعد).');
+    await closeBackend();
+    const [{ CloudClient }, { FirestoreTransport }, { cloudRoom }] = await Promise.all([import('../cloud/client'), import('../cloud/firestore'), import('../cloud/code')]);
+    const room = await cloudRoom(code);
+    const client = new CloudClient(new FirestoreTransport(), room, { username, password: String(o.password ?? ''), deviceId: s.deviceId, deviceName: os.hostname() });
+    const key = `${room.room}|${username.trim().toLowerCase()}`;
+    const saved = s.cloudOffline?.[key];
+    let online = true;
+    try {
+      await client.ping();
+    } catch (e) {
+      if ((e as Error).message !== OFFLINE) throw e;
+      online = false;
+    }
+    if (online) {
+      await client.login();
+      client.pending = saved?.pending ?? [];
+    } else {
+      // الجهاز الرئيسي مطفي: منفتح آخر نسخة، والعمليات الجديدة بتستنى ليرجع
+      await client.openOffline(saved?.verifier, saved?.pending ?? []);
+    }
+    const persist = (verifier?: string) => {
+      const cur = readSettings();
+      cur.cloudOffline = { ...cur.cloudOffline, [key]: { verifier: verifier ?? cur.cloudOffline?.[key]?.verifier ?? saved?.verifier ?? '', pending: client.pending } };
+      writeSettings(cur);
+    };
+    client.onMode = () => {
+      persist();
+      send('cloud:mode', { offline: client.offline, syncedAt: client.syncedAt, pending: client.pending.length });
+    };
+    client.onQueueReport = (r) => {
+      const fails = r.failed.map((f) => `• ${f.error}`).join('\n');
+      send(r.failed.length ? 'lan:error' : 'cloud:notice', r.failed.length ? `رجع الجهاز الرئيسي: تنفّذت ${r.done} عملية، وما تنفّذت ${r.failed.length}:\n${fails}` : `رجع الجهاز الرئيسي وتنفّذت كل العمليات اللي انعملت وهو مطفي (${r.done}).`);
+    };
+    attach(new CloudBackend(client));
+    if (online) {
+      persist(await client.verifier());
+      client.collectQueued();
+    }
+    const latest = readSettings();
+    latest.lastCloud = { code, username, name: client.companyName };
+    writeSettings(latest);
     return sessionInfo();
   }, { allowLocked: true });
 

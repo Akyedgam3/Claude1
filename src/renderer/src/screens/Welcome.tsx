@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ACTIVITY_LIST } from '../../../core';
 import logo from '../assets/logo.png';
 import { Icon } from '../components/icons';
@@ -54,14 +54,12 @@ export function Welcome({
         </button>
         {!IS_MOBILE && (
           <button className={tab === 'connect' ? 'active' : ''} onClick={() => setTab('connect')}>
-            الاتصال بجهاز رئيسي
+            على نفس الشبكة
           </button>
         )}
-        {IS_MOBILE && (
-          <button className={tab === 'cloud' ? 'active' : ''} onClick={() => setTab('cloud')}>
-            اتصال عن بعد
-          </button>
-        )}
+        <button className={tab === 'cloud' ? 'active' : ''} onClick={() => setTab('cloud')}>
+          اتصال عن بعد
+        </button>
       </div>
 
       {tab === 'open' && (
@@ -291,9 +289,31 @@ function LoginDialog({ peek, onClose, notify, onOpened }: { peek: CompanyPeek; o
 }
 
 export function ConnectForm({ info, notify, onConnected }: { info: AppInfo; notify: (m: string, k?: 'ok' | 'error') => void; onConnected: () => Promise<void> }) {
-  const [f, setF] = useState({ host: info.lastRemote?.host ?? '', port: String(info.lastRemote?.port ?? 47100), pairingCode: '', username: '', password: '' });
+  const last = info.lastRemote;
+  const [full, setFull] = useState(!last?.saved);
+  const [f, setF] = useState({ host: last?.host ?? '', port: String(last?.port ?? 47100), pairingCode: '', username: last?.username ?? '', password: '' });
   const [busy, setBusy] = useState(false);
+  const [found, setFound] = useState<{ host: string; port: number; name: string }[] | null>(null);
+  const [searching, setSearching] = useState(false);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
+  const quick = !!last?.saved && !full;
+  const search = async () => {
+    setSearching(true);
+    try {
+      const r = await api.lanDiscover();
+      setFound(r);
+      if (r.length === 1) setF((x) => ({ ...x, host: r[0]!.host, port: String(r[0]!.port) }));
+    } catch (e) {
+      notify((e as Error).message, 'error');
+    } finally {
+      setSearching(false);
+    }
+  };
+  // أول مرة: منفتّش لحالنا على الجهاز الرئيسي بالشبكة
+  useEffect(() => {
+    if (!quick && !f.host) void search();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quick]);
   return (
     <form
       className="form-grid"
@@ -301,7 +321,7 @@ export function ConnectForm({ info, notify, onConnected }: { info: AppInfo; noti
         e.preventDefault();
         setBusy(true);
         try {
-          await api.lanConnect({ ...f, port: Number(f.port) || 47100 });
+          await api.lanConnect(quick ? { saved: true, password: f.password } : { ...f, port: Number(f.port) || 47100 });
           await onConnected();
         } catch (err) {
           notify((err as Error).message, 'error');
@@ -310,25 +330,58 @@ export function ConnectForm({ info, notify, onConnected }: { info: AppInfo; noti
         }
       }}
     >
-      <p className="muted wide">على الجهاز الرئيسي: الإعدادات ← الشبكة المحلية ← تفعيل وضع الخادم. ستجد هناك العنوان ورمز الربط.</p>
-      <Field label="عنوان الجهاز الرئيسي (IP)">
-        <input dir="ltr" value={f.host} onChange={set('host')} placeholder="192.168.1.10" />
-      </Field>
-      <Field label="المنفذ">
-        <input dir="ltr" value={f.port} onChange={set('port')} />
-      </Field>
-      <Field label="رمز الربط">
-        <input dir="ltr" className="mono" value={f.pairingCode} onChange={set('pairingCode')} placeholder="XXXX-XXXX" />
-      </Field>
-      <Field label="اسم المستخدم">
-        <input dir="ltr" value={f.username} onChange={set('username')} />
-      </Field>
+      {quick ? (
+        <div className="saved-conn wide">
+          <Icon name="network" size={22} />
+          <div>
+            <b>{last!.name || 'الجهاز الرئيسي'}</b>
+            <small>
+              باسم <span dir="ltr">{last!.username}</span> · على نفس الشبكة
+            </small>
+          </div>
+          <button type="button" className="ghost" onClick={() => setFull(true)}>
+            جهاز تاني
+          </button>
+        </div>
+      ) : (
+        <>
+          <p className="muted wide">على الجهاز الرئيسي: الإعدادات ← الشبكة المحلية ← تفعيل وضع الخادم، وهناك بتلاقي رمز الربط. بعد أول مرة بيكفي كلمة السر.</p>
+          <div className="lan-found wide">
+            <button type="button" onClick={() => void search()} disabled={searching}>
+              <Icon name="search" size={16} /> {searching ? 'عم يدوّر على الجهاز الرئيسي...' : 'بحث عن الجهاز الرئيسي بالشبكة'}
+            </button>
+            {found && found.length === 0 && !searching && <small className="muted">ما لقينا جهاز رئيسي. تأكد إنو وضع الخادم مفعّل عليه وإنكم على نفس الشبكة، أو اكتب عنوانه.</small>}
+            {found?.map((h) => (
+              <button type="button" key={`${h.host}:${h.port}`} className={f.host === h.host && f.port === String(h.port) ? 'on' : ''} onClick={() => setF({ ...f, host: h.host, port: String(h.port) })}>
+                <Icon name="laptop" size={16} /> {h.name} <small dir="ltr">{h.host}</small>
+              </button>
+            ))}
+          </div>
+          <Field label="عنوان الجهاز الرئيسي (IP)">
+            <input dir="ltr" value={f.host} onChange={set('host')} placeholder="192.168.1.10" />
+          </Field>
+          <Field label="المنفذ">
+            <input dir="ltr" value={f.port} onChange={set('port')} />
+          </Field>
+          <Field label="رمز الربط">
+            <input dir="ltr" className="mono" value={f.pairingCode} onChange={set('pairingCode')} placeholder="XXXX-XXXX" />
+          </Field>
+          <Field label="اسم المستخدم">
+            <input dir="ltr" value={f.username} onChange={set('username')} />
+          </Field>
+        </>
+      )}
       <Field label="كلمة السر" wide>
-        <input type="password" value={f.password} onChange={set('password')} />
+        <input type="password" value={f.password} onChange={set('password')} autoFocus={quick} />
       </Field>
       <div className="form-actions wide">
-        <button className="primary" disabled={busy || !f.host || !f.pairingCode || !f.username}>
-          اتصال
+        {full && last?.saved && (
+          <button type="button" className="ghost" onClick={() => setFull(false)}>
+            رجوع لـ {last.name || 'الجهاز المحفوظ'}
+          </button>
+        )}
+        <button className="primary" disabled={busy || (!quick && (!f.host || !f.pairingCode || !f.username))}>
+          {busy ? 'جاري الاتصال...' : 'اتصال'}
         </button>
       </div>
     </form>

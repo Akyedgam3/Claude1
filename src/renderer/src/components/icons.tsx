@@ -1,4 +1,6 @@
 import {
+  Cloud,
+  Network,
   PaintRoller,
   Camera,
   Menu,
@@ -114,6 +116,8 @@ const ICONS: Record<string, LucideIcon> = {
   download: Download,
   sparkles: Sparkles,
   monitor: Monitor,
+  cloud: Cloud,
+  network: Network,
   live: Activity,
   debts: HandCoins,
   menu: Menu,

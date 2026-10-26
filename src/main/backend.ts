@@ -3,6 +3,7 @@ import type { CompanyState, User } from '../core/types';
 import { execute } from '../app/executor';
 import { LanClient, type EventItem } from '../app/lan';
 import type { CompanyStore } from '../storage/company-store';
+import type { CloudClient } from '../cloud/client';
 
 /** الشركة المفتوحة: محلياً على هذا الجهاز، أو عن بعد على الجهاز الرئيسي في الشبكة. */
 export interface Backend {
@@ -102,5 +103,37 @@ export class RemoteBackend implements Backend {
 
   async close(): Promise<void> {
     await this.client.stop();
+  }
+}
+
+/** عن بعد عبر الإنترنت (خدمة الاتصال عن بعد): نفس جوال البيت، بس على كمبيوتر. */
+export class CloudBackend implements Backend {
+  readonly kind = 'remote' as const;
+  readonly address = 'عن بعد';
+
+  constructor(readonly client: CloudClient) {}
+
+  get user(): User {
+    return this.client.user!;
+  }
+
+  get companyName(): string {
+    return this.client.companyName;
+  }
+
+  async snapshot() {
+    return this.client.snapshot();
+  }
+
+  call(method: string, args: unknown[]) {
+    return this.client.call(method, args);
+  }
+
+  listen(onEvents: (items: EventItem[]) => void, onReset: () => void, onError: (message: string) => void): void {
+    this.client.listen(onEvents, onReset, onError);
+  }
+
+  close(): Promise<void> {
+    return this.client.close();
   }
 }

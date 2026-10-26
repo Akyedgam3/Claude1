@@ -4,7 +4,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { execute } from '../src/app/executor';
 import { hostCompanyFor } from '../src/app/host-company';
-import { LanClient, LanHost, newPairingCode, type EventItem } from '../src/app/lan';
+import { discoverHosts, LanClient, LanHost, newPairingCode, type EventItem } from '../src/app/lan';
 import { DEFAULT_CURRENCIES, applyEvent, chartFor, type CompanyState, type User } from '../src/core';
 import { CompanyStore } from '../src/storage/company-store';
 
@@ -68,6 +68,14 @@ describe('LAN host and client', () => {
     host = new LanHost(hostCompanyFor(store, { blocked: () => blocked, devices: () => devices }), code, 0);
   });
   afterEach(() => host.stop());
+
+  it('answers network discovery with the company name and port only', async () => {
+    const { port } = await host.start();
+    const found = await discoverHosts(800, ['127.0.0.1']);
+    expect(found).toEqual([{ host: '127.0.0.1', port, name: 'محل الشبكة', id: store.meta.id }]);
+    host.stop();
+    expect(await discoverHosts(400, ['127.0.0.1'])).toEqual([]);
+  });
 
   it('works end to end with encrypted messages, permissions and live events', async () => {
     const { port } = await host.start();

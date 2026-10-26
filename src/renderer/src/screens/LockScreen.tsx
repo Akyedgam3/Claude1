@@ -8,7 +8,7 @@ import { CloudConnectForm } from '../cloud/CloudConnect';
 export function LockScreen({ info, onChanged, notify }: { info: AppInfo; onChanged: () => Promise<void>; notify: (m: string, k?: 'ok' | 'error') => void }) {
   const [key, setKey] = useState('');
   const [busy, setBusy] = useState(false);
-  const [connect, setConnect] = useState(false);
+  const [connect, setConnect] = useState<'lan' | 'cloud' | null>(null);
   const lic = info.license;
 
   const activate = async () => {
@@ -85,18 +85,22 @@ export function LockScreen({ info, onChanged, notify }: { info: AppInfo; onChang
           </button>
         </div>
       </section>
-      {IS_MOBILE && (
-        <section className="card lock-card">
-          <h3>متصل بمحل عن بعد؟</h3>
-          <p className="muted">الجوال المتصل عن بعد يعمل بترخيص الجهاز الرئيسي في المحل ولا يحتاج مفتاحاً خاصاً.</p>
-          {connect ? <CloudConnectForm notify={notify} onConnected={onChanged} /> : <button onClick={() => setConnect(true)}>اتصال عن بعد</button>}
-        </section>
-      )}
-      {!IS_MOBILE && <section className="card lock-card">
-        <h3>جهاز فرعي على الشبكة؟</h3>
-        <p className="muted">الأجهزة الإضافية (كاشير ثانٍ مثلاً) تعمل بترخيص الجهاز الرئيسي ولا تحتاج مفتاحاً خاصاً.</p>
-        {connect ? <ConnectForm info={info} notify={notify} onConnected={onChanged} /> : <button onClick={() => setConnect(true)}>الاتصال بالجهاز الرئيسي</button>}
-      </section>}
+      <section className="card lock-card">
+        <h3>{IS_MOBILE ? 'متصل بمحل عن بعد؟' : 'جهاز فرعي أو متصل عن بعد؟'}</h3>
+        <p className="muted">
+          {IS_MOBILE ? 'الجوال المتصل عن بعد' : 'الأجهزة الإضافية (كاشير تاني على نفس الشبكة، أو كمبيوتر بالبيت عن بعد)'} بتشتغل بترخيص الجهاز الرئيسي بالمحل وما بتحتاج مفتاح خاص.
+        </p>
+        {connect === 'cloud' ? (
+          <CloudConnectForm notify={notify} onConnected={onChanged} />
+        ) : connect === 'lan' ? (
+          <ConnectForm info={info} notify={notify} onConnected={onChanged} />
+        ) : (
+          <div className="button-row">
+            {!IS_MOBILE && <button onClick={() => setConnect('lan')}>على نفس الشبكة</button>}
+            <button onClick={() => setConnect('cloud')}>اتصال عن بعد</button>
+          </div>
+        )}
+      </section>
       <footer className="muted">الإصدار {info.version}</footer>
     </div>
   );

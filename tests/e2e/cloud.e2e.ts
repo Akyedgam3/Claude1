@@ -64,3 +64,66 @@ test('cloud: desktop hosts a remote phone', async () => {
     server.close();
   }
 });
+
+test('cloud: a computer at home works on the shop remotely, then with the password only', async () => {
+  test.skip(!EMU, 'needs the Firestore emulator');
+  const feed = { v: 1 as const, issuedAt: new Date().toISOString(), entries: { 'lic-cloud2': { status: 'active' as const, cloud: true } } };
+  const server = http.createServer((_req, res) => res.end(signFeed(feed, devKey)));
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+  const port = (server.address() as { port: number }).port;
+  const shop = await launch({ feedUrl: `http://127.0.0.1:${port}/feed.txt` });
+  // الكمبيوتر البعيد بيتصل من العملية الرئيسية: المحاكي من متغير البيئة
+  process.env['WAZN_CLOUD_EMULATOR'] = EMU!;
+  const home = await launch();
+  try {
+    const sp = shop.page;
+    await sp.evaluate((e) => localStorage.setItem('wazn.cloudEmulator', e), EMU!);
+    await activate(sp, { id: 'lic-cloud2' });
+    await createCompany(sp, { name: 'محل المدينة', activity: 'سوبرماركت' });
+    await nav(sp, 'الإعدادات');
+    await sp.getByRole('button', { name: 'الاتصال عن بعد' }).click();
+    await sp.locator('label.check', { hasText: 'تفعيل الاتصال عن بعد' }).locator('input').check();
+    const code = (await sp.locator('.cloud-code .big-code').innerText()).replace(/\s+/g, '-');
+
+    // كمبيوتر البيت بدون ترخيص: اتصال عن بعد من شاشة القفل
+    const hp = home.page;
+    await expect(hp.getByText('جهاز فرعي أو متصل عن بعد؟')).toBeVisible();
+    await hp.getByRole('button', { name: 'اتصال عن بعد' }).click();
+    await hp.locator('.field', { hasText: 'رمز الاتصال' }).locator('input').fill(code);
+    await hp.locator('.field', { hasText: 'اسم المستخدم' }).locator('input').fill('admin');
+    await hp.locator('.field', { hasText: 'كلمة السر' }).locator('input').fill('secret123');
+    await hp.getByRole('button', { name: 'اتصال', exact: true }).click();
+    await expect(hp.locator('.user-chip')).toContainText('متصل بالجهاز الرئيسي', { timeout: 60000 });
+    await shot(hp, '82-cloud-desktop-client');
+
+    // عملية من البيت بتوصل للمحل
+    await nav(hp, 'العملاء والموردون');
+    await hp.getByRole('button', { name: 'إضافة', exact: true }).click();
+    await hp.locator('.modal .field', { hasText: 'الاسم' }).locator('input').fill('زبون من البيت');
+    await hp.locator('.modal').getByRole('button', { name: 'حفظ' }).click();
+    await nav(sp, 'العملاء والموردون');
+    await expect(sp.locator('table')).toContainText('زبون من البيت');
+
+    // المرة الجاية: كلمة السر بس
+    await home.close();
+    const again = await launch({ home: home.home });
+    try {
+      const ap = again.page;
+      await ap.getByRole('button', { name: 'اتصال عن بعد' }).click();
+      await expect(ap.locator('.saved-conn')).toContainText('محل المدينة');
+      await expect(ap.locator('.field', { hasText: 'رمز الاتصال' })).toHaveCount(0);
+      await ap.locator('.field', { hasText: 'كلمة السر' }).locator('input').fill('secret123');
+      await ap.getByRole('button', { name: 'اتصال', exact: true }).click();
+      await expect(ap.locator('.user-chip')).toContainText('متصل بالجهاز الرئيسي', { timeout: 60000 });
+      await nav(ap, 'العملاء والموردون');
+      await expect(ap.locator('table')).toContainText('زبون من البيت');
+    } finally {
+      await again.close();
+    }
+  } finally {
+    delete process.env['WAZN_CLOUD_EMULATOR'];
+    await home.close();
+    await shop.close();
+    server.close();
+  }
+});

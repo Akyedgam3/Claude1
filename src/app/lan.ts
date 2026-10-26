@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto';
+import dgram from 'node:dgram';
 import http from 'node:http';
 import os from 'node:os';
 import type { CompanyEvent, CompanyState, User } from '../core/types';
@@ -9,6 +10,9 @@ import type { CompanyEvent, CompanyState, User } from '../core/types';
 // ومربوطة بالوقت ورقم عشوائي لمنع إعادة إرسالها، ثم يدخل كل مستخدم باسمه وكلمة سره.
 
 export const DEFAULT_LAN_PORT = 47100;
+/** البحث عن الجهاز الرئيسي بالشبكة (UDP): الجهاز الفرعي بينادي، والرئيسي بيرد باسم الشركة والمنفذ. */
+export const DISCOVERY_PORT = 47101;
+const DISCOVER_MSG = 'wazn-discover-v1';
 const MAX_SKEW_MS = 2 * 60_000;
 const LONG_POLL_MS = 25_000;
 const RING_SIZE = 2000;
@@ -87,6 +91,7 @@ export class LanHost {
   private readonly ring: EventItem[] = [];
   private readonly waiters = new Set<() => void>();
   private unsubscribe: (() => void) | null = null;
+  private beacon: dgram.Socket | null = null;
 
   constructor(
     private readonly company: HostCompany,
@@ -113,10 +118,30 @@ export class LanHost {
       this.server!.listen(this.port, '0.0.0.0', () => resolve());
     });
     const port = (this.server.address() as { port: number }).port;
+    this.startBeacon(port);
     return { port, addresses: localAddresses() };
   }
 
+  /** بيرد على البحث بالشبكة باسم الشركة ومعرّفها والمنفذ بس (الدخول نفسه بيضل برمز الربط وكلمة السر). */
+  private startBeacon(port: number): void {
+    const sock = dgram.createSocket({ type: 'udp4', reuseAddr: true });
+    sock.on('error', () => {
+      // المنفذ محجوز (نسخة تانية من البرنامج مثلاً): البحث ما بيشتغل بس الاتصال بالعنوان بيضل شغّال
+      sock.close();
+      if (this.beacon === sock) this.beacon = null;
+    });
+    sock.on('message', (msg, rinfo) => {
+      if (msg.toString() !== DISCOVER_MSG) return;
+      const reply = JSON.stringify({ app: 'wazn', name: this.company.name, id: this.company.id, port });
+      sock.send(reply, rinfo.port, rinfo.address);
+    });
+    sock.bind(DISCOVERY_PORT);
+    this.beacon = sock;
+  }
+
   stop(): void {
+    this.beacon?.close();
+    this.beacon = null;
     this.unsubscribe?.();
     for (const w of [...this.waiters]) w();
     this.server?.close();
@@ -235,6 +260,57 @@ export function localAddresses(): string[] {
     .flat()
     .filter((n): n is os.NetworkInterfaceInfo => !!n && n.family === 'IPv4' && !n.internal)
     .map((n) => n.address);
+}
+
+/** جهاز رئيسي لقيناه بالشبكة. */
+export interface FoundHost {
+  host: string;
+  port: number;
+  name: string;
+  id: string;
+}
+
+/** عناوين البث لكل شبكة متصل فيها الجهاز (192.168.1.255 مثلاً). */
+function broadcastAddresses(): string[] {
+  const out = new Set<string>(['255.255.255.255']);
+  for (const n of Object.values(os.networkInterfaces()).flat()) {
+    if (!n || n.family !== 'IPv4' || n.internal) continue;
+    const ip = n.address.split('.').map(Number);
+    const mask = n.netmask.split('.').map(Number);
+    out.add(ip.map((b, i) => (b & mask[i]!) | (~mask[i]! & 255)).join('.'));
+  }
+  return [...out];
+}
+
+/** بيدوّر على الأجهزة الرئيسية (وضع الخادم مفعّل) بنفس الشبكة. */
+export function discoverHosts(timeoutMs = 1500, targets = broadcastAddresses()): Promise<FoundHost[]> {
+  return new Promise((resolve) => {
+    const found = new Map<string, FoundHost>();
+    const sock = dgram.createSocket('udp4');
+    const done = () => {
+      try {
+        sock.close();
+      } catch {
+        // انسكر
+      }
+      resolve([...found.values()]);
+    };
+    sock.on('error', done);
+    sock.on('message', (msg, rinfo) => {
+      try {
+        const r = JSON.parse(msg.toString()) as { app?: string; name?: string; id?: string; port?: number };
+        if (r.app !== 'wazn' || typeof r.port !== 'number') return;
+        found.set(`${rinfo.address}:${r.port}`, { host: rinfo.address, port: r.port, name: String(r.name ?? ''), id: String(r.id ?? '') });
+      } catch {
+        // رد مش من وزن
+      }
+    });
+    sock.bind(0, () => {
+      sock.setBroadcast(true);
+      for (const t of targets) sock.send(DISCOVER_MSG, DISCOVERY_PORT, t, () => undefined);
+      setTimeout(done, timeoutMs);
+    });
+  });
 }
 
 // ───────────── الجهاز الفرعي ─────────────

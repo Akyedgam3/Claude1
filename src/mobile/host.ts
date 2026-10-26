@@ -29,7 +29,7 @@ interface Settings {
   /** الاتصال عن بعد كجهاز رئيسي: رمز لكل شركة. */
   cloud?: Record<string, string>;
   /** آخر رمز اتصلنا فيه بجهاز رئيسي عن بعد (حتى ما ينكتب كل مرة). */
-  lastCloud?: { code: string; username: string };
+  lastCloud?: { code: string; username: string; name?: string };
   /** للعمل والجهاز الرئيسي مطفي: بصمة كلمة السر لكل (رمز + حساب) دخل قبل، والعمليات المأجّلة. */
   cloudOffline?: Record<string, { verifier: string; pending?: { id: string; method: string; at: number }[] }>;
 }
@@ -433,7 +433,17 @@ function registerHandlers(): void {
 
   // جوال بعيد: بيشتغل على بيانات الجهاز الرئيسي وبترخيصه (متل الأجهزة الفرعية على الشبكة)
   handle('cloud:last', () => readSettings().lastCloud ?? null, { allowLocked: true });
-  handle('cloud:connect', async (o: { code: string; username: string; password: string }) => {
+  handle('cloud:forget', () => {
+    const s = readSettings();
+    delete s.lastCloud;
+    writeSettings(s);
+    return true;
+  }, { allowLocked: true });
+  handle('cloud:connect', async (o: { code?: string; username?: string; password: string; saved?: boolean }) => {
+    // saved = آخر اتصال محفوظ: بيكفي كلمة السر
+    const last = readSettings().lastCloud;
+    if (o?.saved && !last) throw new Error('ما في اتصال محفوظ، دخّل الرمز مرة وحدة');
+    if (o?.saved) o = { ...o, code: last!.code, username: last!.username };
     const code = normalizeCloudCode(String(o?.code ?? ''));
     if (!code) throw new Error('رمز الاتصال غير صحيح. انسخه أو امسحه من الجهاز الرئيسي (الإعدادات ← الاتصال عن بعد).');
     closeStore();
@@ -484,7 +494,7 @@ function registerHandlers(): void {
       client.collectQueued();
     }
     const latest = readSettings();
-    latest.lastCloud = { code, username: String(o.username ?? '') };
+    latest.lastCloud = { code, username: String(o.username ?? ''), name: client.companyName };
     writeSettings(latest);
     return sessionInfo();
   }, { allowLocked: true });

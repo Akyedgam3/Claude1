@@ -22,7 +22,8 @@ function firestore(): Firestore {
   // بعض الشبكات وبرامج VPN بتقطع الاتصال المستمر: منخلي Firestore يكتشف ويحوّل لـ long polling
   db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
   // نسخة الاختبارات بس: Firestore المحلي بدل الحقيقي
-  const emu = IS_TEST_BUILD && typeof localStorage !== 'undefined' ? localStorage.getItem('wazn.cloudEmulator') : null;
+  // (بالواجهة من localStorage، وبالعملية الرئيسية للكمبيوتر من متغير البيئة)
+  const emu = !IS_TEST_BUILD ? null : typeof localStorage !== 'undefined' ? localStorage.getItem('wazn.cloudEmulator') : typeof process !== 'undefined' ? (process.env.WAZN_CLOUD_EMULATOR ?? null) : null;
   if (emu) connectFirestoreEmulator(db, emu.split(':')[0]!, Number(emu.split(':')[1]));
   return db;
 }

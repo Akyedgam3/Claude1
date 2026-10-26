@@ -3833,3 +3833,47 @@ button.danger-soft {
 .partners .row-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .partners .row-actions button { padding: 4px 10px; font-size: 13px; }
 .partner-kv { grid-template-columns: repeat(3, auto auto); margin-bottom: 12px; }
+
+/* اتصال محفوظ: بيكفي كلمة السر */
+.saved-conn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--primary-soft);
+}
+.saved-conn > svg {
+  color: var(--primary);
+  flex: none;
+}
+.saved-conn > div {
+  flex: 1;
+  min-width: 0;
+}
+.saved-conn b,
+.saved-conn small {
+  display: block;
+}
+.saved-conn small {
+  color: var(--muted);
+}
+/* الأجهزة الرئيسية اللي لقيناها بالشبكة */
+.lan-found {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.lan-found button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.lan-found button.on {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 700;
+}

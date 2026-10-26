@@ -20,19 +20,20 @@ test('a second device connects to the main device over the local network', async
     const code = (await hp.locator('.lan-info .big-code').innerText()).trim();
     const port = (await hp.locator('.lan-info strong').nth(1).innerText()).trim();
 
-    // الجهاز الفرعي بدون ترخيص خاص: يتصل بالجهاز الرئيسي
+    // الجهاز الفرعي بدون ترخيص خاص: بيلاقي الجهاز الرئيسي بالشبكة لحالو
     const cp = client.page;
-    await expect(cp.getByText('جهاز فرعي على الشبكة؟')).toBeVisible();
-    await cp.getByRole('button', { name: 'الاتصال بالجهاز الرئيسي' }).click();
-    await cp.locator('.field', { hasText: 'عنوان الجهاز الرئيسي' }).locator('input').fill('127.0.0.1');
-    await cp.locator('.field', { hasText: 'المنفذ' }).locator('input').fill(port);
+    await expect(cp.getByText('جهاز فرعي أو متصل عن بعد؟')).toBeVisible();
+    await cp.getByRole('button', { name: 'على نفس الشبكة' }).click();
+    await expect(cp.locator('.lan-found button', { hasText: 'محل الشبكة' }).first()).toBeVisible({ timeout: 10000 });
+    await cp.locator('.lan-found button', { hasText: 'محل الشبكة' }).first().click();
+    await expect(cp.locator('.field', { hasText: 'المنفذ' }).locator('input')).toHaveValue(port);
     await cp.locator('.field', { hasText: 'رمز الربط' }).locator('input').fill('WRONG-CODE');
     await cp.locator('.field', { hasText: 'اسم المستخدم' }).locator('input').fill('admin');
     await cp.locator('.field', { hasText: 'كلمة السر' }).locator('input').fill('secret123');
-    await cp.getByRole('button', { name: 'اتصال' }).click();
+    await cp.getByRole('button', { name: 'اتصال', exact: true }).click();
     await expect(cp.locator('.toast.error')).toContainText('رمز الربط');
     await cp.locator('.field', { hasText: 'رمز الربط' }).locator('input').fill(code);
-    await cp.getByRole('button', { name: 'اتصال' }).click();
+    await cp.getByRole('button', { name: 'اتصال', exact: true }).click();
     await expect(cp.locator('.user-chip')).toContainText('متصل بالجهاز الرئيسي');
 
     // عملية من الجهاز الفرعي تظهر مباشرة على الجهاز الرئيسي
@@ -56,6 +57,21 @@ test('a second device connects to the main device over the local network', async
     await nav(hp, 'الإعدادات');
     await hp.getByRole('button', { name: 'الشبكة المحلية' }).click();
     await expect(hp.locator('.lan-info')).toContainText('المالك');
+
+    // المرة الجاية: بيكفي كلمة السر
+    await client.close();
+    const again = await launch({ home: client.home });
+    try {
+      const ap = again.page;
+      await ap.getByRole('button', { name: 'على نفس الشبكة' }).click();
+      await expect(ap.locator('.saved-conn')).toContainText('محل الشبكة');
+      await expect(ap.locator('.field', { hasText: 'رمز الربط' })).toHaveCount(0);
+      await ap.locator('.field', { hasText: 'كلمة السر' }).locator('input').fill('secret123');
+      await ap.getByRole('button', { name: 'اتصال', exact: true }).click();
+      await expect(ap.locator('.user-chip')).toContainText('متصل بالجهاز الرئيسي');
+    } finally {
+      await again.close();
+    }
   } finally {
     await client.close();
     await host.close();

@@ -24,7 +24,8 @@ export interface AppInfo {
   license: LicenseStatus;
   recent: { name: string; dir: string }[];
   session: SessionInfo | null;
-  lastRemote: { host: string; port: number } | null;
+  /** آخر جهاز رئيسي بالشبكة؛ saved = محفوظ ببيكفي كلمة السر. */
+  lastRemote: { host: string; port: number; username?: string; name?: string; saved?: boolean } | null;
   deviceName: string;
 }
 
@@ -92,7 +93,9 @@ export const api = {
   reveal: () => inv<void>('company:reveal'),
   lanStatus: () => inv<LanStatus>('lan:status'),
   lanHost: (enable: boolean, newCode?: boolean) => inv<boolean>('lan:host', enable, newCode),
-  lanConnect: (o: { host: string; port?: number; pairingCode: string; username: string; password: string }) => inv<SessionInfo>('lan:connect', o),
+  lanConnect: (o: { host?: string; port?: number; pairingCode?: string; username?: string; password: string; saved?: boolean }) => inv<SessionInfo>('lan:connect', o),
+  lanDiscover: () => inv<{ host: string; port: number; name: string; id: string }[]>('lan:discover'),
+  lanForget: () => inv<boolean>('lan:forget'),
   cloudStatus: () => inv<CloudStatus>('cloud:status'),
   cloudSetup: (enable: boolean, newCode?: boolean) => inv<CloudStatus>('cloud:setup', enable, newCode),
   cloudHostConfig: () => inv<{ code: string } | null>('cloud:hostConfig'),
@@ -103,9 +106,10 @@ export const api = {
   cloudHostBackup: (token: string) => inv<string>('cloud:hostBackup', token),
   cloudHostState: () => inv<{ state: CompanyState; seq: number }>('cloud:hostState'),
   cloudHostQueued: (username: string, password: string, method: string, args: unknown[]) => inv<{ value: unknown; seq: number }>('cloud:hostQueued', username, password, method, args),
-  /** الجوال بس: الاتصال بجهاز رئيسي عن بعد. */
-  cloudConnect: (o: { code: string; username: string; password: string }) => inv<SessionInfo>('cloud:connect', o),
-  cloudLast: () => inv<{ code: string; username: string } | null>('cloud:last'),
+  /** الاتصال بجهاز رئيسي عن بعد (saved = آخر اتصال محفوظ، بيكفي كلمة السر). */
+  cloudConnect: (o: { code?: string; username?: string; password: string; saved?: boolean }) => inv<SessionInfo>('cloud:connect', o),
+  cloudLast: () => inv<{ code: string; username: string; name?: string } | null>('cloud:last'),
+  cloudForget: () => inv<boolean>('cloud:forget'),
   printers: () => inv<{ name: string; label: string }[]>('print:printers'),
   print: (o: { paper: string; printer?: string; copies?: number }) => inv<boolean>('print:run', o),
   exportPdf: (o: { paper: string; name: string }) => inv<string | false>('export:pdf', o),
