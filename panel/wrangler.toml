@@ -1,0 +1,30 @@
+# لوحة إدارة وزن على النت. النشر: cd panel && npx wrangler deploy
+# الأسرار (مرة وحدة): npx wrangler secret put SECRET_KEY ، npx wrangler secret put SETUP_CODE
+name = "wazn-panel"
+main = "src/worker.ts"
+compatibility_date = "2026-09-01"
+account_id = "997682f19c93551a24bdcff945e8d121"
+workers_dev = true
+
+[[durable_objects.bindings]]
+name = "REGISTRY"
+class_name = "RegistryDO"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RegistryDO"]
+
+[[rules]]
+type = "Text"
+globs = ["**/*.html"]
+fallthrough = false
+
+[vars]
+FEED_REPO = "Akyedgam3/mizan-updates"
+FEED_PATH = "feed.txt"
+FEED_BRANCH = "main"
+# المفتاح العام الحقيقي تبع البرنامج (src/license/public-key.ts): اللوحة بترفض أي مفتاح خاص ما بيطابقه
+EXPECTED_PUBLIC_KEY = """-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEABI3KNWfoltibkQXBfnr61y2OnggBkep6rek4LOfnTRk=
+-----END PUBLIC KEY-----
+"""

@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>لوحة وزن</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet" />
+<style>
+:root { --g: #0f6e5c; --g2: #14957c; --soft: #e3f2ee; --ink: #1d2433; --muted: #6b7385; --line: #e3e6eb; --bg: #f4f6f8; --card: #fff; --bad: #c0392b; --warn: #b7791f; --gold: #e7b75a; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: Cairo, system-ui, sans-serif; background: var(--bg); color: var(--ink); font-size: 15px; }
+header { background: linear-gradient(135deg, #0b5546, #0f6e5c); color: #fff; padding: 12px 16px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 5; }
+header b { font-size: 20px; font-weight: 900; }
+header .who { margin-inline-start: auto; font-size: 13px; opacity: .9; }
+header button { background: rgba(255,255,255,.15); color: #fff; border: 0; }
+main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+nav.tabs { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 14px; }
+nav.tabs button { white-space: nowrap; }
+nav.tabs button.on { background: var(--g); color: #fff; border-color: var(--g); }
+button, .btn { font: inherit; font-weight: 700; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: #fff; color: var(--ink); cursor: pointer; }
+button.primary { background: var(--g); border-color: var(--g); color: #fff; }
+button.danger { color: var(--bad); border-color: #f1c4be; }
+button.wa { background: #25d366; border-color: #25d366; color: #fff; }
+button:disabled { opacity: .5; cursor: default; }
+button.small { padding: 3px 10px; font-size: 13px; }
+input, select, textarea { font: inherit; padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px; width: 100%; background: #fff; color: var(--ink); }
+textarea { min-height: 90px; }
+label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); font-weight: 700; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; margin-bottom: 14px; }
+.card h2 { margin: 0 0 12px; font-size: 18px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; align-items: end; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.stat { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+.stat span { color: var(--muted); font-size: 13px; display: block; }
+.stat b { font-size: 24px; font-weight: 900; }
+.muted { color: var(--muted); font-size: 13px; }
+.mono { font-family: ui-monospace, Consolas, monospace; direction: ltr; unicode-bidi: embed; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.list { display: grid; gap: 10px; }
+.item { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+.item .top { display: flex; gap: 8px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
+.item b.name { font-size: 16px; }
+.tag { display: inline-block; font-size: 12px; font-weight: 900; padding: 1px 9px; border-radius: 999px; background: var(--soft); color: var(--g); }
+.tag.suspended { background: #fff4e0; color: var(--warn); }
+.tag.revoked, .tag.off { background: #fde8e6; color: var(--bad); }
+.tag.mob { background: #eef0ff; color: #3b49c9; }
+.bal { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin: 8px 0; }
+.bal div { background: var(--bg); border-radius: 10px; padding: 8px 10px; }
+.bal b { font-size: 20px; font-weight: 900; display: block; }
+.bal.zero b { color: var(--bad); }
+.key { font-family: ui-monospace, Consolas, monospace; direction: ltr; font-size: 11px; word-break: break-all; background: var(--bg); padding: 8px; border-radius: 8px; max-height: 90px; overflow: auto; }
+.banner { background: #fff7e6; border: 1px solid var(--gold); border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; }
+.banner.ok { background: var(--soft); border-color: #b9e0d5; }
+.banner.bad { background: #fde8e6; border-color: #f1c4be; }
+.login { max-width: 380px; margin: 60px auto; }
+.login h1 { text-align: center; font-size: 30px; font-weight: 900; color: var(--g); margin: 0 0 4px; }
+.toast { position: fixed; bottom: 18px; inset-inline: 16px; margin: 0 auto; max-width: 480px; background: var(--ink); color: #fff; padding: 12px 16px; border-radius: 12px; z-index: 50; white-space: pre-line; }
+.toast.bad { background: var(--bad); }
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 40; display: grid; place-items: center; padding: 16px; }
+.modal { background: #fff; border-radius: 18px; padding: 18px; width: 100%; max-width: 520px; max-height: 90vh; overflow: auto; }
+.modal h2 { margin-top: 0; }
+.log li { padding: 6px 0; border-bottom: 1px solid var(--line); list-style: none; }
+.log { padding: 0; margin: 0; }
+.hidden { display: none !important; }
+@media (max-width: 560px) { main { padding: 12px; } .card { padding: 13px; } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const app = $('#app');
+let me = null, S = null, tab = 'home', q = '';
+const LINK = location.origin;
+
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? { credentials: 'same-origin' } : { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-Wazn': '1' }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401 && me) { me = null; render(); }
+  if (!r.ok) throw new Error(j.error || 'خطأ');
+  return j;
+}
+function toast(m, bad) {
+  const t = document.createElement('div');
+  t.className = 'toast' + (bad ? ' bad' : '');
+  t.textContent = m;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), bad ? 6000 : 3500);
+}
+async function run(fn, ok) {
+  try { const r = await fn(); if (ok) toast(ok); await load(); return r; } catch (e) { toast(e.message, true); }
+}
+const copy = (t, m = 'تم النسخ') => navigator.clipboard?.writeText(t).then(() => toast(m), () => toast('ما قدرت انسخ', true));
+const fmtDate = (d) => (d ? String(d).slice(0, 10) : 'دائم');
+const fmtTime = (d) => String(d ?? '').slice(0, 16).replace('T', ' ');
+const money = (n, cur = 'USD') => (cur === 'SYP' ? Number(n).toLocaleString('en-US') + ' ل.س' : '$' + Number(n).toFixed(2));
+const kindName = (k) => (k === 'lifetime' ? 'دائم' : 'سنوي');
+const BUCKETS = [['annual', 'سنوي'], ['lifetime', 'دائم'], ['annualMobile', 'سنوي + جوال'], ['lifetimeMobile', 'دائم + جوال']];
+const tierLabel = (t) => `${t.name} ${kindName(t.kind)}${t.mobile ? ' + جوال' : ''} — ${t.count} رخصة (${money(t.price, 'SYP')})`;
+const daysLeft = (c) => (c.expiresAt ? Math.ceil((new Date(c.expiresAt) - Date.now()) / 86400000) : null);
+const statusTag = (c) => `<span class="tag ${c.status}">${{ active: 'فعّال', suspended: 'موقوف', revoked: 'ملغى' }[c.status]}</span>`;
+const waLink = (phone, text) => {
+  const p = String(phone ?? '').replace(/[^0-9]/g, '');
+  return `https://wa.me/${p}?text=${encodeURIComponent(text)}`;
+};
+const keyText = (c) => `ترخيص وزن: ${c.name}\nالاشتراك: ${c.plan === 'lifetime' ? 'دائم' : (S?.plans?.[c.plan]?.nameAr ?? 'سنوي') + ' حتى ' + fmtDate(c.expiresAt)}\nعدد الأجهزة: ${c.devices}\n\nمفتاح التفعيل (انسخه كامل والصقه بشاشة التفعيل بوزن):\n${c.key}`;
+
+function modal(html, onMount) {
+  const bg = document.createElement('div');
+  bg.className = 'modal-bg';
+  bg.innerHTML = `<div class="modal">${html}</div>`;
+  bg.addEventListener('click', (e) => { if (e.target === bg) bg.remove(); });
+  document.body.appendChild(bg);
+  bg.close = () => bg.remove();
+  onMount?.(bg);
+  return bg;
+}
+function showKey(c, extra = '') {
+  const m = modal(`<h2>المفتاح جاهز: ${esc(c.name)}</h2><p class="muted">انسخه وابعتو للزبون. بيلصقه بشاشة التفعيل بوزن.</p><div class="key">${esc(c.key)}</div>${extra}
+    <div class="row" style="margin-top:12px"><button class="primary" id="cp">نسخ المفتاح</button><button class="wa" id="wa">ابعت واتساب</button><button id="x">سكّر</button></div>`);
+  $('#cp', m).onclick = () => copy(c.key, 'نسخت المفتاح');
+  $('#wa', m).onclick = () => window.open(waLink(c.phone, keyText(c)), '_blank', 'noopener');
+  $('#x', m).onclick = m.close;
+}
+
+// ───────────── الدخول ─────────────
+function renderLogin(needsSetup) {
+  app.innerHTML = `<div class="login card"><h1>وزن</h1><p class="muted" style="text-align:center">${needsSetup ? 'إعداد أول مرة: حساب المدير' : 'لوحة الإدارة والوكلاء'}</p>
+    <form id="f" class="list">
+      ${needsSetup ? '<label>رمز الإعداد<input name="code" required autocomplete="off" /></label>' : ''}
+      <label>اسم المستخدم<input name="username" required autocomplete="username" dir="ltr" autocapitalize="none" /></label>
+      <label>كلمة السر<input name="password" type="password" required autocomplete="${needsSetup ? 'new-password' : 'current-password'}" /></label>
+      ${needsSetup ? '<p class="muted">كلمة سر قوية، 10 حروف عالأقل. هالحساب بيتحكم بكل التراخيص.</p>' : ''}
+      <button class="primary">${needsSetup ? 'إنشاء الحساب' : 'دخول'}</button>
+    </form></div>`;
+  $('#f').onsubmit = async (e) => {
+    e.preventDefault();
+    const body = Object.fromEntries(new FormData(e.target));
+    try { await api(needsSetup ? '/api/setup' : '/api/login', body); await boot(); } catch (err) { toast(err.message, true); }
+  };
+}
+
+async function boot() {
+  const r = await api('/api/me');
+  me = r.user;
+  if (!me) return renderLogin(r.needsSetup);
+  tab = me.role === 'owner' ? 'home' : 'agent';
+  await load();
+}
+async function load() {
+  if (!me) return;
+  S = await api(me.role === 'owner' ? '/api/state' : '/api/agent/state');
+  render();
+}
+function render() {
+  if (!me) return boot();
+  const owner = me.role === 'owner';
+  app.innerHTML = `<header><b>وزن</b><span>${owner ? 'لوحة المدير' : 'لوحة الوكيل'}</span><span class="who">${esc(me.name)}</span><button class="small" id="pw">كلمة السر</button><button class="small" id="out">خروج</button></header><main id="m"></main>`;
+  $('#out').onclick = () => run(() => api('/api/logout', {})).then(() => { me = null; renderLogin(false); });
+  $('#pw').onclick = changePassword;
+  const m = $('#m');
+  if (!owner) return renderAgent(m);
+  const tabs = [['home', 'الرئيسية'], ['agents', 'الوكلاء'], ['customers', 'الزباين'], ['updates', 'التحديثات'], ['settings', 'الإعدادات']];
+  m.innerHTML = `<nav class="tabs">${tabs.map(([k, n]) => `<button class="${tab === k ? 'on' : ''}" data-t="${k}">${n}</button>`).join('')}</nav><div id="body"></div>`;
+  m.querySelectorAll('[data-t]').forEach((b) => (b.onclick = () => { tab = b.dataset.t; q = ''; render(); }));
+  ({ home: ownerHome, agents: ownerAgents, customers: ownerCustomers, updates: ownerUpdates, settings: ownerSettings })[tab]($('#body'));
+}
+function changePassword() {
+  const m = modal(`<h2>تغيير كلمة السر</h2><form class="list" id="f"><label>كلمة السر الحالية<input name="old" type="password" required /></label><label>كلمة السر الجديدة<input name="new" type="password" required minlength="8" /></label><div class="row"><button class="primary">حفظ</button><button type="button" id="x">إلغاء</button></div></form>`);
+  $('#x', m).onclick = m.close;
+  $('#f', m).onsubmit = async (e) => { e.preventDefault(); const r = await run(() => api('/api/password', Object.fromEntries(new FormData(e.target))), 'تغيّرت كلمة السر'); if (r) m.close(); };
+}
+
+// ───────────── المدير ─────────────
+function publishBanner() {
+  const p = S.publish;
+  if (!S.settings.hasKey) return `<div class="banner bad">ما في مفتاح توقيع لسا: روح على <b>الإعدادات</b> وارفع <span class="mono">license-private.pem</span>.</div>`;
+  if (!S.settings.hasGithub) return `<div class="banner">النشر التلقائي مش شغّال: ضيف رمز GitHub من <b>الإعدادات</b>.</div>`;
+  if (S.pending) return `<div class="banner">في تغييرات عم تنتشر خلال ثواني…</div>`;
+  if (p && !p.ok) return `<div class="banner bad">${esc(p.message)}</div>`;
+  return p ? `<div class="banner ok">آخر نشر تلقائي: ${esc(fmtTime(p.at))} ✓</div>` : '';
+}
+function ownerHome(el) {
+  const now = Date.now();
+  const active = S.customers.filter((c) => c.status === 'active');
+  const soon = active.filter((c) => { const d = daysLeft(c); return d !== null && d >= 0 && d <= 30; });
+  el.innerHTML = publishBanner() + `<div class="stats">
+    <div class="stat"><span>الزباين الفعّالين</span><b>${active.length}</b></div>
+    <div class="stat"><span>بينتهوا خلال شهر</span><b>${soon.length}</b></div>
+    <div class="stat"><span>الوكلاء</span><b>${S.agents.filter((a) => a.active).length}</b></div>
+    <div class="stat"><span>رصيد عند الوكلاء</span><b>${S.agents.reduce((s, a) => s + a.balance.left, 0)}</b></div>
+    <div class="stat"><span>تفعيلات آخر 7 أيام</span><b>${S.customers.filter((c) => now - new Date(c.issuedAt) < 7 * 86400000).length}</b></div>
+  </div>
+  <div class="card"><h2>آخر النشاط</h2><ul class="log">${S.log.slice(0, 80).map((l) => `<li><b>${esc(l.by)}</b>: ${esc(l.action)} <span class="muted">· ${esc(fmtTime(l.at))}</span></li>`).join('') || '<li class="muted">لسا ما في نشاط</li>'}</ul></div>`;
+}
+function ownerAgents(el) {
+  el.innerHTML = `<div class="card"><h2>وكيل جديد</h2><form id="na" class="grid">
+      <label>اسم الوكيل / المركز<input name="name" required /></label>
+      <label>اسم المستخدم (إنكليزي)<input name="username" required dir="ltr" autocapitalize="none" placeholder="laptop.home" /></label>
+      <label>الموبايل (واتساب)<input name="phone" dir="ltr" placeholder="+963..." /></label>
+      <label>المدينة<input name="city" /></label>
+      <label>أول خطة (اختياري)<select name="tier"><option value="">بدون</option>${S.tiers.map((t) => `<option value="${t.id}">${esc(tierLabel(t))}</option>`).join('')}</select></label>
+      <button class="primary">إنشاء الوكيل ولوحته</button></form></div>
+    <input id="aq" placeholder="بحث عن وكيل..." value="${esc(q)}" style="margin-bottom:10px" />
+    <div class="list">${S.agents.filter((a) => !q || [a.name, a.city, a.phone, a.username].some((f) => String(f ?? '').toLowerCase().includes(q.toLowerCase()))).slice().reverse().map(agentCard).join('') || '<p class="muted">لا يوجد وكلاء</p>'}</div>`;
+  $('#aq').oninput = (e) => { q = e.target.value; ownerAgents(el); $('#aq').focus(); };
+  $('#na').onsubmit = async (e) => {
+    e.preventDefault();
+    const body = Object.fromEntries(new FormData(e.target));
+    const r = await run(() => api('/api/agents', body));
+    if (r) sendCreds(r.agent, r.username, r.password, true);
+  };
+  el.querySelectorAll('[data-act]').forEach((b) => (b.onclick = () => agentAction(b.dataset.act, b.dataset.id)));
+}
+function agentCard(a) {
+  const b = a.balance;
+  const n = S.customers.filter((c) => c.agentId === a.id && !c.phoneOf).length;
+  return `<div class="item"><div class="top"><div><b class="name">${esc(a.name)}</b> ${a.active ? '' : '<span class="tag off">موقوف</span>'}<div class="muted">${esc(a.city)} ${a.phone ? '· <span class="mono">' + esc(a.phone) + '</span>' : ''} · دخول: <span class="mono">${esc(a.username ?? 'ما في')}</span> · زباين: ${n}</div></div></div>
+    <div class="bal ${b.left <= 0 ? 'zero' : ''}">${BUCKETS.filter(([k]) => b[k].total).map(([k, nm]) => `<div><span class="muted">${nm}</span><b>${b[k].left} <small class="muted">/ ${b[k].total}</small></b></div>`).join('') || '<div><span class="muted">الرصيد</span><b>0</b></div>'}</div>
+    <div class="row">
+      <select id="tier-${a.id}" style="flex:1;min-width:200px">${S.tiers.map((t) => `<option value="${t.id}">${esc(tierLabel(t))}</option>`).join('')}</select>
+      <button class="primary small" data-act="pkg" data-id="${a.id}">+ إضافة الخطة</button>
+      <button class="small" data-act="custom" data-id="${a.id}">باقة مخصصة</button>
+      ${a.username ? `<button class="small" data-act="reset" data-id="${a.id}">كلمة سر جديدة</button>` : `<button class="small" data-act="login" data-id="${a.id}">إنشاء حساب دخول</button>`}
+      <button class="small" data-act="edit" data-id="${a.id}">تعديل</button>
+      <button class="small ${a.active ? 'danger' : ''}" data-act="${a.active ? 'stop' : 'start'}" data-id="${a.id}">${a.active ? 'سحب الوكالة' : 'إعادة تفعيل'}</button>
+    </div></div>`;
+}
+function sendCreds(a, username, password, isNew) {
+  const text = `أهلاً ${a.name}،\n${isNew ? 'صار عندك لوحة وكيل وزن' : 'كلمة سر جديدة للوحة وكيل وزن'}:\n\nالرابط: ${LINK}\nاسم المستخدم: ${username}\nكلمة السر: ${password}\n\nمن اللوحة بتفعّل زباينك من رصيدك وبتطلعلك المفاتيح فوراً. غيّر كلمة السر من زر «كلمة السر» فوق.`;
+  const m = modal(`<h2>${isNew ? 'انعمل الوكيل' : 'كلمة سر جديدة'}</h2><p>ابعت هالبيانات للوكيل. كلمة السر <b>ما رح تبين مرة تانية</b>.</p>
+    <div class="key" style="font-size:14px;direction:rtl;white-space:pre-line">${esc(text)}</div>
+    <div class="row" style="margin-top:12px"><button class="wa" id="wa">ابعت واتساب</button><button id="cp">نسخ</button><button id="x">سكّر</button></div>`);
+  $('#wa', m).onclick = () => window.open(waLink(a.phone, text), '_blank', 'noopener');
+  $('#cp', m).onclick = () => copy(text);
+  $('#x', m).onclick = m.close;
+}
+async function agentAction(act, id) {
+  const a = S.agents.find((x) => x.id === id);
+  if (act === 'pkg') {
+    const t = S.tiers.find((x) => x.id === $(`#tier-${id}`).value);
+    if (confirm(`إضافة «${tierLabel(t)}» لرصيد ${a.name}؟`)) await run(() => api(`/api/agents/${id}/package`, { tier: t.id }), 'انضافت الخطة');
+  } else if (act === 'custom') {
+    const m = modal(`<h2>باقة مخصصة لـ ${esc(a.name)}</h2><form class="list" id="f"><label>النوع<select name="b">${BUCKETS.map(([k, n]) => `<option value="${k}">${n}</option>`).join('')}</select></label>
+      <label>عدد الرخص<input name="count" type="number" min="1" value="10" required /></label><label>المبلغ المدفوع (ل.س جديدة)<input name="price" type="number" min="0" value="0" /></label><label>ملاحظة<input name="note" /></label>
+      <div class="row"><button class="primary">إضافة</button><button type="button" id="x">إلغاء</button></div></form>`);
+    $('#x', m).onclick = m.close;
+    $('#f', m).onsubmit = async (e) => {
+      e.preventDefault();
+      const f = Object.fromEntries(new FormData(e.target));
+      const r = await run(() => api(`/api/agents/${id}/package`, { count: f.count, price: f.price, note: f.note, kind: f.b.startsWith('lifetime') ? 'lifetime' : 'annual', mobile: f.b.endsWith('Mobile') }), 'انضافت الباقة');
+      if (r) m.close();
+    };
+  } else if (act === 'reset') {
+    if (!confirm(`كلمة سر جديدة لـ ${a.name}؟ القديمة بتبطل فوراً.`)) return;
+    const r = await run(() => api(`/api/agents/${id}/reset`, {}));
+    if (r) sendCreds(a, r.username, r.password, false);
+  } else if (act === 'login') {
+    const username = prompt('اسم مستخدم للوكيل (إنكليزي صغير):', '');
+    if (!username) return;
+    const r = await run(() => api(`/api/agents/${id}/login`, { username }));
+    if (r) sendCreds(a, r.username, r.password, true);
+  } else if (act === 'edit') {
+    const m = modal(`<h2>تعديل ${esc(a.name)}</h2><form class="list" id="f"><label>الاسم<input name="name" value="${esc(a.name)}" /></label><label>الموبايل<input name="phone" dir="ltr" value="${esc(a.phone)}" /></label><label>المدينة<input name="city" value="${esc(a.city)}" /></label><label>ملاحظات<input name="notes" value="${esc(a.notes)}" /></label><div class="row"><button class="primary">حفظ</button><button type="button" id="x">إلغاء</button></div></form>`);
+    $('#x', m).onclick = m.close;
+    $('#f', m).onsubmit = async (e) => { e.preventDefault(); const r = await run(() => api(`/api/agents/${id}/update`, Object.fromEntries(new FormData(e.target))), 'تم الحفظ'); if (r) m.close(); };
+  } else if (act === 'stop') {
+    if (confirm(`سحب الوكالة من ${a.name}؟ ما عاد بيقدر يدخل ولا يفعّل، وزباينه بيضلوا شغالين.`)) await run(() => api(`/api/agents/${id}/update`, { active: false }), 'انسحبت الوكالة');
+  } else if (act === 'start') {
+    await run(() => api(`/api/agents/${id}/update`, { active: true }), 'رجع الوكيل فعّال');
+  }
+}
+function customerRow(c, owner) {
+  const left = daysLeft(c);
+  const agent = c.agentId ? S.agents?.find((a) => a.id === c.agentId) : null;
+  const hasPhone = S.customers.some((x) => x.phoneOf === c.id && x.status !== 'revoked');
+  return `<div class="item"><div class="top"><div><b class="name">${esc(c.name)}</b> ${statusTag(c)} ${c.mobile ? '<span class="tag mob">+ جوال</span>' : ''} ${c.phoneOf ? '<span class="tag mob">مفتاح جوال</span>' : ''} ${c.cloud ? '<span class="tag">عن بعد</span>' : ''}
+      <div class="muted">${owner ? (agent ? 'الوكيل: ' + esc(agent.name) + ' · ' : 'مباشر · ') : ''}${esc(S.plans?.[c.plan]?.nameAr ?? (c.plan === 'lifetime' ? 'دائم' : 'سنوي'))} · ${c.devices} جهاز · <span class="mono">${esc(c.machineId)}</span>${c.phone ? ' · <span class="mono">' + esc(c.phone) + '</span>' : ''}</div>
+      <div class="muted" style="${left !== null && left <= 30 ? 'color:var(--bad)' : ''}">ينتهي: ${fmtDate(c.expiresAt)}${left !== null ? (left > 0 ? ` (باقي ${left} يوم)` : ' (منتهي)') : ''}</div></div></div>
+    <div class="row" style="margin-top:8px"><button class="small primary" data-c="key" data-id="${c.id}">المفتاح</button>
+      ${c.mobile && !hasPhone ? `<button class="small" data-c="phone" data-id="${c.id}">+ مفتاح الجوال</button>` : ''}
+      ${owner ? `<button class="small" data-c="extend" data-id="${c.id}">تمديد</button>
+        ${c.status === 'active' ? `<button class="small" data-c="suspend" data-id="${c.id}">إيقاف</button>` : `<button class="small" data-c="activate" data-id="${c.id}">تفعيل</button>`}
+        <button class="small" data-c="cloud" data-id="${c.id}">${c.cloud ? 'إيقاف عن بعد' : 'تفعيل عن بعد'}</button>
+        <button class="small" data-c="edit" data-id="${c.id}">تعديل</button>
+        ${c.status !== 'revoked' ? `<button class="small danger" data-c="revoke" data-id="${c.id}">إلغاء</button>` : ''}`
+      : !c.phoneOf && c.plan !== 'lifetime' ? `<button class="small" data-c="renew" data-id="${c.id}">تجديد سنة</button>` : ''}
+    </div></div>`;
+}
+function filterCustomers(list) {
+  const s = q.trim().toLowerCase();
+  return !s ? list : list.filter((c) => [c.name, c.phone, c.machineId, c.notes].some((f) => String(f ?? '').toLowerCase().includes(s)));
+}
+function ownerCustomers(el) {
+  el.innerHTML = publishBanner() + `<div class="card"><h2>زبون مباشر جديد</h2><form id="nc" class="grid">
+      <label>الاسم / المحل<input name="name" required /></label><label>الموبايل<input name="phone" dir="ltr" /></label>
+      <label>بصمة الجهاز<input name="machineId" required class="mono" placeholder="XXXX-XXXX-XXXX-XXXX" /></label>
+      <label>الاشتراك<select name="plan">${Object.entries(S.plans).map(([k, p]) => `<option value="${k}" ${k === 'annual' ? 'selected' : ''}>${esc(p.nameAr)}</option>`).join('')}</select></label>
+      <label>الأجهزة<input name="devices" type="number" min="1" max="50" value="2" /></label>
+      <button class="primary">إصدار المفتاح</button></form></div>
+    <input id="cq" placeholder="بحث: اسم، موبايل، بصمة..." value="${esc(q)}" style="margin-bottom:10px" />
+    <div class="list" id="cl">${filterCustomers(S.customers).slice().reverse().slice(0, 200).map((c) => customerRow(c, true)).join('') || '<p class="muted">لا يوجد</p>'}</div>`;
+  $('#cq').oninput = (e) => { q = e.target.value; $('#cl').innerHTML = filterCustomers(S.customers).slice().reverse().slice(0, 200).map((c) => customerRow(c, true)).join(''); bindCustomers(el, true); };
+  $('#nc').onsubmit = async (e) => {
+    e.preventDefault();
+    const body = Object.fromEntries(new FormData(e.target));
+    let c;
+    try { c = await api('/api/customers', body); } catch (err) {
+      if (/مسجّلة أصلاً/.test(err.message) && confirm(err.message + '\n\nمتأكد إنو جهاز تاني وبدك تكمّل؟')) c = await api('/api/customers', { ...body, force: true }).catch((x) => toast(x.message, true));
+      else toast(err.message, true);
+    }
+    if (c) { await load(); showKey(c); }
+  };
+  bindCustomers(el, true);
+}
+function bindCustomers(el, owner) {
+  el.querySelectorAll('[data-c]').forEach((b) => (b.onclick = () => customerAction(b.dataset.c, b.dataset.id, owner)));
+}
+async function customerAction(act, id, owner) {
+  const c = S.customers.find((x) => x.id === id);
+  if (act === 'key') return showKey(c);
+  if (act === 'phone') {
+    const machineId = prompt('بصمة جوال الزبون (من شاشة التفعيل بالتطبيق):', '');
+    if (!machineId) return;
+    const r = await run(() => api(owner ? `/api/customers/${id}/phone` : `/api/agent/customers/${id}/phone`, { machineId }), 'انعمل مفتاح الجوال');
+    if (r) showKey(r);
+  } else if (act === 'renew') {
+    if (!confirm(`تجديد ${c.name} سنة؟ بتنخصم رخصة من رصيدك.`)) return;
+    const r = await run(() => api(`/api/agent/customers/${id}/renew`, {}), 'تم التجديد');
+    if (r) showKey(r, '<p class="muted">إذا البرنامج عند الزبون متصل بالنت ما بيحتاج المفتاح الجديد، بيتجدد لحالو.</p>');
+  } else if (act === 'extend') {
+    const m = modal(`<h2>تمديد ${esc(c.name)}</h2><form class="list" id="f"><label>المدة<select name="plan">${Object.entries(S.plans).map(([k, p]) => `<option value="${k}" ${k === 'annual' ? 'selected' : ''}>${esc(p.nameAr)}</option>`).join('')}</select></label><div class="row"><button class="primary">تمديد</button><button type="button" id="x">إلغاء</button></div></form>`);
+    $('#x', m).onclick = m.close;
+    $('#f', m).onsubmit = async (e) => { e.preventDefault(); const r = await run(() => api(`/api/customers/${id}/extend`, Object.fromEntries(new FormData(e.target))), 'تم التمديد، وبينتشر لحالو'); if (r) m.close(); };
+  } else if (act === 'suspend' || act === 'revoke') {
+    const message = prompt(act === 'revoke' ? 'سبب الإلغاء (بيطلع للزبون):' : 'رسالة بتطلع للزبون:', act === 'suspend' ? 'تم إيقاف البرنامج لعدم تسديد الاشتراك. يرجى التواصل مع البائع.' : '');
+    if (message === null) return;
+    if (act === 'revoke' && !confirm('إلغاء نهائي؟')) return;
+    await run(() => api(`/api/customers/${id}/status`, { status: act === 'revoke' ? 'revoked' : 'suspended', message }), 'تم، وبينتشر لحالو');
+  } else if (act === 'activate') {
+    await run(() => api(`/api/customers/${id}/status`, { status: 'active' }), 'رجع فعّال');
+  } else if (act === 'cloud') {
+    await run(() => api(`/api/customers/${id}/cloud`, { on: !c.cloud }), c.cloud ? 'انطفى الاتصال عن بعد' : 'انفتح الاتصال عن بعد');
+  } else if (act === 'edit') {
+    const m = modal(`<h2>تعديل ${esc(c.name)}</h2><form class="list" id="f"><label>الاسم<input name="name" value="${esc(c.name)}" /></label><label>الموبايل<input name="phone" dir="ltr" value="${esc(c.phone)}" /></label><label>الأجهزة<input name="devices" type="number" min="1" max="50" value="${c.devices}" /></label><label>أيام العمل بدون نت<input name="offlineDays" type="number" min="1" max="60" value="${c.offlineDays}" /></label><label>بصمة جديدة (إذا غيّر الجهاز)<input name="machineId" class="mono" placeholder="${esc(c.machineId)}" /></label><label>ملاحظات<input name="notes" value="${esc(c.notes)}" /></label><div class="row"><button class="primary">حفظ وإصدار مفتاح جديد</button><button type="button" id="x">إلغاء</button></div></form>`);
+    $('#x', m).onclick = m.close;
+    $('#f', m).onsubmit = async (e) => { e.preventDefault(); const r = await run(() => api(`/api/customers/${id}/update`, Object.fromEntries(new FormData(e.target)))); if (r) { m.close(); showKey(r); } };
+  }
+}
+function ownerUpdates(el) {
+  const u = S.update;
+  el.innerHTML = publishBanner() + `<div class="card"><h2>إعلان نسخة جديدة</h2>${u ? `<p>المعلن هلق: <b class="mono">${esc(u.version)}</b> · <span class="muted">${esc(fmtDate(u.date))}</span></p>` : '<p class="muted">ما في إعلان.</p>'}
+    <form id="uf" class="list"><div class="grid"><label>رقم النسخة<input name="version" dir="ltr" required value="${esc(u?.version ?? '')}" placeholder="1.2.23" /></label>
+    <label>الحد الأدنى (إجباري للأقدم، اختياري)<input name="minVersion" dir="ltr" value="${esc(u?.minVersion ?? '')}" /></label></div>
+    <label>رابط التحميل<input name="url" dir="ltr" required value="${esc(u?.url ?? 'https://waznsy.com/get.html')}" /></label>
+    <label>شو الجديد (كل سطر نقطة)<textarea name="notes">${esc((u?.notes ?? []).join('\n'))}</textarea></label>
+    <div class="row"><button class="primary">نشر الإعلان</button>${u ? '<button type="button" class="danger" id="clr">إلغاء الإعلان</button>' : ''}</div></form></div>`;
+  $('#uf').onsubmit = (e) => { e.preventDefault(); run(() => api('/api/update', Object.fromEntries(new FormData(e.target))), 'انعلن التحديث، وبيوصل للبرامج لحالو'); };
+  if (u) $('#clr').onclick = () => confirm('إلغاء الإعلان؟') && run(() => api('/api/update', { clear: true }), 'انلغى');
+}
+function ownerSettings(el) {
+  const st = S.settings;
+  el.innerHTML = `<div class="card"><h2>1. مفتاح التوقيع ${st.hasKey ? '<span class="tag">✓ موجود</span>' : '<span class="tag off">ناقص</span>'}</h2>
+      <p class="muted">ارفع <span class="mono">keys/license-private.pem</span> من جهازك. بيتخزّن مشفّر، وما بيطلع من اللوحة أبداً. اللوحة بترفض أي مفتاح غير مفتاح وزن الحقيقي.</p>
+      <input type="file" id="pem" accept=".pem,.txt" /></div>
+    <div class="card"><h2>2. رمز GitHub للنشر التلقائي ${st.hasGithub ? '<span class="tag">✓ موجود</span>' : '<span class="tag off">ناقص</span>'}</h2>
+      <p class="muted">رمز (Fine-grained token) إلو صلاحية <b>Contents: Read and write</b> على <span class="mono">${esc(st.feedRepo)}</span> بس.</p>
+      <div class="row"><input id="gh" type="password" placeholder="github_pat_..." style="flex:1" /><button class="primary" id="ghs">حفظ</button></div></div>
+    <div class="card"><h2>3. نقل السجل القديم (مرة وحدة)</h2>
+      <p class="muted">ارفع <span class="mono">keys/registry.json</span> من جهازك: بينتقلوا كل الزباين والوكلاء. بيصير بس إذا اللوحة فاضية. بعدين اعمل للوكلاء حسابات دخول من صفحة الوكلاء.</p>
+      <input type="file" id="reg" accept=".json" /></div>
+    <div class="card"><h2>النشر</h2>${publishBanner() || '<p class="muted">لسا ما صار نشر.</p>'}<p class="muted">القائمة بتنتشر لحالها بعد كل تغيير. هاد الزر للحالات الخاصة بس.</p><button id="pub">نشر هلق</button>
+      <p class="muted">رابط القائمة من اللوحة: <span class="mono">${esc(LINK)}/feed.txt</span></p></div>`;
+  const readFile = (input) => new Promise((res, rej) => { const f = input.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = rej; r.readAsText(f); });
+  $('#pem').onchange = async (e) => { const pem = await readFile(e.target); await run(() => api('/api/settings/key', { pem }), 'انحفظ مفتاح التوقيع'); };
+  $('#ghs').onclick = () => run(() => api('/api/settings/github', { token: $('#gh').value }), 'انحفظ رمز GitHub');
+  $('#reg').onchange = async (e) => { const registry = await readFile(e.target); const r = await run(() => api('/api/import', { registry })); if (r) toast(`انتقل ${r.customers} زبون و${r.agents} وكيل`); };
+  $('#pub').onclick = async () => { const r = await run(() => api('/api/publish', {})); if (r) toast(r.message, !r.ok); };
+}
+
+// ───────────── الوكيل ─────────────
+function renderAgent(m) {
+  const b = S.balance;
+  const first = BUCKETS.find(([k]) => b[k].left > 0)?.[0];
+  const mine = S.customers;
+  const soon = mine.filter((c) => { const d = daysLeft(c); return !c.phoneOf && d !== null && d <= 30; });
+  m.innerHTML = `${S.canSign ? '' : '<div class="banner bad">اللوحة لسا عم تتجهّز. جرّب بعد شوي.</div>'}
+    <div class="card"><h2>رصيدي</h2><div class="bal">${BUCKETS.map(([k, n]) => `<div class="${b[k].left <= 0 ? 'zero' : ''}"><span class="muted">${n}</span><b>${b[k].left} <small class="muted">/ ${b[k].total}</small></b></div>`).join('')}</div>
+      <p class="muted">لزيادة رصيدك تواصل مع وزن. سقف سعر البيع للزبون: 60$ للسنوي و120$ للدائم.</p></div>
+    <div class="card"><h2>تفعيل زبون جديد</h2>
+      <form id="ac" class="grid">
+        <label>اسم الزبون / المحل<input name="name" required /></label>
+        <label>موبايل الزبون<input name="phone" dir="ltr" placeholder="+963..." /></label>
+        <label>بصمة الجهاز (من شاشة التفعيل بوزن)<input name="machineId" required class="mono" placeholder="XXXX-XXXX-XXXX-XXXX" /></label>
+        <label>نوع الرخصة<select name="bucket" id="bk">${BUCKETS.map(([k, n]) => `<option value="${k}" ${b[k].left > 0 ? '' : 'disabled'} ${k === first ? 'selected' : ''}>${n} (باقي ${b[k].left})</option>`).join('')}</select></label>
+        <label id="phl">بصمة الجوال (اختياري هلق)<input name="phoneMachineId" class="mono" placeholder="XXXX-XXXX-XXXX-XXXX" /></label>
+        <button class="primary" ${first && S.canSign ? '' : 'disabled'}>تفعيل وإطلاع المفتاح</button>
+      </form>${first ? '' : '<p class="muted" style="color:var(--bad)">رصيدك خلص. تواصل مع وزن لتضيف باقة.</p>'}</div>
+    ${soon.length ? `<div class="card"><h2>بينتهوا قريباً (${soon.length})</h2><div class="list">${soon.map((c) => customerRow(c, false)).join('')}</div></div>` : ''}
+    <div class="card"><h2>زبايني (${mine.filter((c) => !c.phoneOf).length})</h2><input id="cq" placeholder="بحث..." value="${esc(q)}" style="margin-bottom:10px" /><div class="list" id="cl">${filterCustomers(mine).slice().reverse().map((c) => customerRow(c, false)).join('') || '<p class="muted">لسا ما فعّلت زباين</p>'}</div></div>`;
+  const syncPhone = () => $('#phl').classList.toggle('hidden', !$('#bk').value.endsWith('Mobile'));
+  $('#bk').onchange = syncPhone;
+  syncPhone();
+  $('#cq').oninput = (e) => { q = e.target.value; $('#cl').innerHTML = filterCustomers(mine).slice().reverse().map((c) => customerRow(c, false)).join(''); bindCustomers(m, false); };
+  $('#ac').onsubmit = async (e) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+    const body = { name: f.name, phone: f.phone, machineId: f.machineId, plan: f.bucket.startsWith('lifetime') ? 'lifetime' : 'annual', mobile: f.bucket.endsWith('Mobile'), phoneMachineId: f.bucket.endsWith('Mobile') ? f.phoneMachineId : '' };
+    const r = await run(() => api('/api/agent/customers', body), 'تم التفعيل');
+    if (r) showKey(r.customer, r.phone ? `<p style="margin-top:12px"><b>ومفتاح الجوال:</b></p><div class="key">${esc(r.phone.key)}</div><button class="small" id="cp2" style="margin-top:6px">نسخ مفتاح الجوال</button>` : '');
+    const b2 = $('#cp2'); if (b2 && r?.phone) b2.onclick = () => copy(r.phone.key);
+  };
+  bindCustomers(m, false);
+}
+
+boot().catch((e) => { app.innerHTML = `<div class="login card"><p>${esc(e.message)}</p></div>`; });
+</script>
+</body>
+</html>
