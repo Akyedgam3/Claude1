@@ -29,7 +29,7 @@ public class SignApk {
             .setInputApk(new File(a[0]))
             .setOutputApk(new File(a[1]))
             .setMinSdkVersion(24)
-            .setV1SigningEnabled(true) // v1 مع v2: بعض الجوالات وبرامج التنصيب بتتطلّع على v1
+            .setV1SigningEnabled(false) // أندرويد 7+ (minSdk 24) بيكفيه v2
             .setV2SigningEnabled(true)
             .build()
             .sign();
