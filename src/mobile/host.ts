@@ -229,7 +229,9 @@ function registerHandlers(): void {
   handle('app:openUpdate', async () => {
     const u = (lastLicense ?? licenseStatus()).update;
     if (!u) throw new Error('لا يوجد تحديث');
-    await native.openUrl(u.url);
+    // رابط التحديث بالقائمة عادةً لملف الكمبيوتر (.exe): الجوال بياخد تطبيق أندرويد من نفس المكان
+    const url = /\.exe(\?|$)/i.test(u.url) ? u.url.replace(/[^/]+\.exe(\?.*)?$/i, 'Wazn.apk') : u.url;
+    await native.openUrl(url);
     return true;
   }, { allowLocked: true });
 
