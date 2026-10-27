@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<title>وزن — عرض الوكلاء</title>
+<!-- بروشور عرض الوكلاء (A4، 4 صفحات). البناء: node marketing/brochure-agents/build.mjs <ملف.pdf> -->
+<style>
+@font-face { font-family: Cairo; font-weight: 400; src: url(img/cairo-arabic-400-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 700; src: url(img/cairo-arabic-700-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 900; src: url(img/cairo-arabic-900-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 400; src: url(img/cairo-latin-400-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F; }
+@font-face { font-family: Cairo; font-weight: 700; src: url(img/cairo-latin-700-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F; }
+@font-face { font-family: Cairo; font-weight: 900; src: url(img/cairo-latin-900-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F; }
+@page { size: A4; margin: 0; }
+:root { --g: #0f6e5c; --g2: #14957c; --g3: #5fe0bf; --gold: #e7b75a; --gold2: #f3d38d; --ink: #1d2433; --muted: #6b7385; --line: #e3e6eb; --soft: #f4f6f8; --deep: #071a17; --deep2: #0f3a33; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { font-family: Cairo, sans-serif; color: var(--ink); line-height: 1.7; }
+.page { width: 210mm; height: 297mm; position: relative; overflow: hidden; page-break-after: always; background: #fff; padding: 17mm 14mm 13mm; }
+.page:last-child { page-break-after: auto; }
+.ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+svg.i { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.top { position: absolute; top: 0; left: 0; right: 0; height: 11mm; display: flex; align-items: center; justify-content: space-between; padding: 0 14mm; font-size: 9pt; color: var(--muted); border-bottom: 1px solid var(--line); }
+.top b { color: var(--g); display: flex; align-items: center; gap: 6px; font-size: 10pt; }
+.top img { width: 18px; height: 18px; border-radius: 5px; }
+.foot { position: absolute; bottom: 0; left: 0; right: 0; height: 10mm; display: flex; align-items: center; justify-content: space-between; padding: 0 14mm; font-size: 8.5pt; color: var(--muted); }
+.kick { color: var(--g2); font-weight: 900; font-size: 11pt; }
+h2 { font-size: 21pt; font-weight: 900; line-height: 1.3; margin: 1mm 0 2mm; }
+h3 { font-size: 12.5pt; font-weight: 900; }
+p.lead { font-size: 11pt; color: #4a5263; }
+
+/* الغلاف */
+.cover { background: radial-gradient(ellipse at 50% 15%, #145a4c 0%, var(--deep2) 38%, var(--deep) 72%, #030b0a 100%); color: #fff; padding: 0; }
+.cover .glow { position: absolute; border-radius: 50%; filter: blur(70px); }
+.cover .g1 { width: 120mm; height: 120mm; background: var(--g); opacity: .45; top: -40mm; left: -40mm; }
+.cover .g2 { width: 110mm; height: 110mm; background: var(--gold); opacity: .18; bottom: -45mm; right: -30mm; }
+.cover .grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px); background-size: 10mm 10mm; }
+.cover .inner { position: relative; height: 100%; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 20mm 16mm 14mm; }
+.cover .brand { display: flex; align-items: center; gap: 4mm; }
+.cover .brand img { width: 20mm; height: 20mm; border-radius: 5.5mm; box-shadow: 0 6mm 16mm rgba(0,0,0,.45); }
+.cover .brand b { font-size: 34pt; font-weight: 900; line-height: 1; }
+.cover .pill { margin-top: 8mm; background: var(--gold); color: #052a22; font-weight: 900; font-size: 12pt; padding: 1.5mm 6mm; border-radius: 99px; }
+.cover h1 { font-size: 40pt; font-weight: 900; line-height: 1.2; margin-top: 5mm; }
+.cover h1 span { color: var(--gold2); }
+.cover .sub { font-size: 13pt; color: #c4dad4; margin-top: 4mm; max-width: 160mm; }
+.cover .shots { position: relative; width: 180mm; height: 112mm; margin-top: 9mm; }
+.cover .laptop { position: absolute; left: 0; top: 4mm; width: 140mm; }
+.cover .laptop .scr { background: #111; border-radius: 4mm 4mm 0 0; padding: 2.6mm; border: 1px solid #2b3b37; box-shadow: 0 12mm 26mm rgba(0,0,0,.5); }
+.cover .laptop .scr img { display: block; width: 100%; border-radius: 1mm; }
+.cover .laptop .base { height: 4.5mm; margin: 0 -9mm; background: linear-gradient(#cfd6d4, #8e9895); border-radius: 0 0 4mm 4mm; }
+.cover .phone { position: absolute; right: 2mm; top: 0; width: 50mm; padding: 1.8mm; background: #0d1312; border-radius: 7mm; border: 1px solid #34433f; box-shadow: 0 12mm 26mm rgba(0,0,0,.6); }
+.cover .phone img { display: block; width: 100%; border-radius: 5.5mm; }
+.cover .hl { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3.5mm; width: 100%; margin-top: auto; }
+.cover .hl div { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18); border-radius: 4mm; padding: 3.5mm 2mm; }
+.cover .hl b { display: block; font-size: 19pt; font-weight: 900; color: var(--gold2); line-height: 1.2; }
+.cover .hl span { font-size: 10pt; font-weight: 700; color: #d9ebe6; }
+
+/* بطاقات */
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3.5mm; margin-top: 5mm; }
+.card { border: 1px solid var(--line); border-radius: 4mm; padding: 4.5mm; background: #fff; }
+.card .ic { width: 10.5mm; height: 10.5mm; border-radius: 3mm; color: #fff; background: linear-gradient(135deg, var(--g2), var(--g)); margin-bottom: 2.3mm; padding: 2.3mm; display: grid; }
+.card:nth-child(3n+2) .ic { background: linear-gradient(135deg, var(--gold2), #c99434); }
+.card:nth-child(3n) .ic { background: linear-gradient(135deg, #7ea6f5, #3b63c4); }
+.card p { font-size: 9.6pt; color: var(--muted); line-height: 1.6; }
+.steps { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm 5mm; margin-top: 4mm; }
+.step { display: flex; gap: 3mm; align-items: flex-start; }
+.step .n { flex: none; width: 8.5mm; height: 8.5mm; border-radius: 50%; background: var(--g); color: #fff; font-weight: 900; display: grid; place-items: center; font-size: 11pt; }
+.step p { font-size: 9.8pt; color: #4a5263; line-height: 1.6; }
+.how { display: grid; grid-template-columns: 1fr 58mm; gap: 7mm; margin-top: 6mm; align-items: start; }
+.mock { border-radius: 6mm; overflow: hidden; border: 1.5mm solid #0d1312; box-shadow: 0 6mm 14mm rgba(0,0,0,.18); }
+.mock img { display: block; width: 100%; }
+.codebox { margin: 4mm auto 0; width: 82mm; border: 1px solid var(--line); border-radius: 4mm; overflow: hidden; }
+.codebox img { display: block; width: 100%; }
+
+/* الخطط */
+.plans { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin-top: 3mm; }
+.plan { position: relative; border: 1px solid var(--line); border-radius: 4mm; padding: 4mm 3.5mm 3mm; background: #fff; }
+.plan.pop { border: 2px solid var(--g); box-shadow: 0 4mm 10mm rgba(15,110,92,.15); }
+.plan .flag { position: absolute; top: -3mm; left: 50%; transform: translateX(-50%); background: var(--g); color: #fff; font-size: 7.5pt; font-weight: 900; padding: 0 3mm; border-radius: 99px; white-space: nowrap; }
+.plan h3 { font-size: 13pt; }
+.plan .cnt { color: var(--g); font-weight: 900; font-size: 10pt; margin-bottom: 2mm; }
+.plan .row { display: flex; justify-content: space-between; align-items: baseline; border-top: 1px dashed var(--line); padding-top: 1.5mm; margin-top: 1.5mm; }
+.plan .row span { color: var(--muted); font-weight: 700; font-size: 9pt; }
+.plan .row b { font-size: 13.5pt; font-weight: 900; white-space: nowrap; }
+.plan .row b small { font-size: 8pt; color: var(--muted); }
+.plan .per { font-size: 7.8pt; color: var(--muted); text-align: end; }
+.plan .save { display: inline-block; margin-top: 2mm; font-size: 8pt; font-weight: 900; color: var(--g); background: #e3f2ee; padding: 0 2.5mm; border-radius: 99px; }
+.group { display: flex; align-items: baseline; gap: 3mm; margin-top: 5mm; }
+.group h3 { font-size: 14pt; }
+.group span { color: var(--muted); font-size: 9.5pt; font-weight: 700; }
+.note { margin-top: 4mm; font-size: 9.5pt; color: #4a5263; background: var(--soft); border-radius: 3mm; padding: 3mm 4mm; }
+
+/* القواعد */
+.cap { display: flex; gap: 4mm; align-items: center; border: 2px solid var(--gold); background: #fff8e8; border-radius: 4mm; padding: 4mm 5mm; margin-top: 4mm; }
+.cap .ic { flex: none; width: 12mm; height: 12mm; color: #b7791f; }
+.cap .nums { display: flex; gap: 6mm; margin-top: 1mm; }
+.cap .nums div { background: #fff; border-radius: 3mm; padding: 1.5mm 4mm; border: 1px solid #f0d9a8; }
+.cap .nums b { font-size: 17pt; font-weight: 900; color: #8a5a10; }
+.cap .nums span { font-size: 9pt; color: var(--muted); font-weight: 700; }
+.svc { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 3mm; margin-top: 3mm; }
+.svc div { border: 1px solid var(--line); border-radius: 3.5mm; padding: 3mm; }
+.svc div.free { background: #e3f2ee; border-color: #b9e0d5; }
+.svc b { display: block; font-size: 15pt; font-weight: 900; }
+.svc .free b { color: var(--g); font-size: 12pt; }
+.svc span { font-size: 8.8pt; color: var(--muted); font-weight: 700; line-height: 1.5; display: block; }
+ul.rules { list-style: none; margin-top: 3mm; display: grid; gap: 1.6mm; }
+ul.rules li { display: flex; gap: 2.5mm; font-size: 9.8pt; color: #3d4556; line-height: 1.6; }
+ul.rules li::before { content: ''; flex: none; width: 2mm; height: 2mm; border-radius: 50%; background: var(--g2); margin-top: 2mm; }
+.contact { position: absolute; left: 14mm; right: 14mm; bottom: 13mm; background: linear-gradient(135deg, var(--deep2), var(--deep)); color: #fff; border-radius: 5mm; padding: 6mm 7mm; display: flex; align-items: center; gap: 7mm; }
+.contact h3 { font-size: 16pt; }
+.contact p { color: #c4dad4; font-size: 10pt; }
+.contact .ph { display: flex; flex-direction: column; gap: 1mm; margin-top: 2mm; }
+.contact .ph div { display: flex; align-items: center; gap: 2.5mm; font-size: 13.5pt; font-weight: 900; }
+.contact .ph svg { width: 6mm; height: 6mm; color: #25d366; fill: currentColor; stroke: none; }
+.contact .qr { flex: none; margin-inline-start: auto; text-align: center; font-size: 8.5pt; color: #c4dad4; }
+.contact .qr div { background: #fff; padding: 2mm; border-radius: 3mm; width: 34mm; height: 34mm; margin-bottom: 1.5mm; }
+.contact .qr svg { width: 100%; height: 100%; display: block; }
+</style>
+</head>
+<body>
+
+<!-- 1. الغلاف -->
+<section class="page cover">
+  <div class="glow g1"></div><div class="glow g2"></div><div class="grid"></div>
+  <div class="inner">
+    <div class="brand"><img src="img/icon.png" alt="" /><b>وزن</b></div>
+    <div class="pill">عرض الوكلاء الجديد</div>
+    <h1>كن وكيل <span>وزن</span><br />بمدينتك</h1>
+    <p class="sub">برنامج محاسبة وإدارة محلات عربي، على الكمبيوتر والجوال، بيشتغل بدون إنترنت. إنت بتبيع، ونحنا منعطيك كل الأدوات: لوحة وكيل على النت، أكواد تفعيل قصيرة، وخطط بأسعار وكلاء.</p>
+    <div class="shots">
+      <div class="laptop"><div class="scr"><img src="img/dashboard.webp" alt="" /></div><div class="base"></div></div>
+      <div class="phone"><img src="img/phone.png" alt="" /></div>
+    </div>
+    <div class="hl">
+      <div><b>12,250 ل.س</b><span>تبدأ بـ 10 رخص سنوية</span></div>
+      <div><b>+14</b><span>مجال عمل يعني سوق أوسع</span></div>
+      <div><b>كمبيوتر + جوال</b><span>بنفس الرخصة إذا بدك</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 2. ليش وزن وكيف بتشتغل -->
+<section class="page">
+  <div class="top"><b><img src="img/icon.png" alt="" />وزن</b><span>عرض الوكلاء</span></div>
+  <div class="kick">ليش تكون وكيل وزن؟</div>
+  <h2>برنامج بيبيع حالو، وإنت بتربح من كل رخصة</h2>
+  <p class="lead">وزن معمول لسوقنا: ليرة ودولار، بدون إنترنت، وبالعربي. الزبون بيفهمه من أول يوم، وإنت بتشتري الرخص بسعر الوكلاء وبتحدد سعر البيع.</p>
+  <div class="cards">
+    <div class="card"><div class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><h3>هامش ربح بإيدك</h3><p>بتشتري بسعر الوكلاء وبتبيع بالسعر المناسب لسوقك، تحت سقف واضح بيحمي سمعة البرنامج.</p></div>
+    <div class="card"><div class="ic"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></div><h3>لوحة وكيل على النت</h3><p>من جوالك أو كمبيوترك: رصيدك، زباينك، وتفعيل أي زبون بثواني، وبتطلعلك المفاتيح فوراً.</p></div>
+    <div class="card"><div class="ic"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="12" rx="2"/><path d="M7 11h2M11 11h2M15 11h2M7 15h10"/></svg></div><h3>كود تفعيل قصير</h3><p>16 حرف بدل المفتاح الطويل. وفيك تبيع «كود بدون بصمة» متل كرت الشحن، والزبون بيفعّل لحالو.</p></div>
+    <div class="card"><div class="ic"><svg class="i" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg></div><h3>كمبيوتر وجوال</h3><p>خطط فيها تطبيق الجوال (أندرويد) مع الكمبيوتر بنفس الرخصة، والجوال بيتجدد مع الكمبيوتر.</p></div>
+    <div class="card"><div class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M3 9l1-5h16l1 5M4 9v11h16V9M3 9h18M9 20v-6h6v6"/></svg></div><h3>+14 مجال عمل</h3><p>ماركت، مطاعم، موبايلات، صيدليات، ألبسة، قطع سيارات، مواد بناء، ورش، حلويات… كل محل زبون محتمل.</p></div>
+    <div class="card"><div class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></svg></div><h3>تحديثات ودعم</h3><p>تحديثات مستمرة بتوصل للبرنامج لحالها، وفيديوهات شرح مجانية بتسهّل عليك البيع والتدريب.</p></div>
+  </div>
+  <div class="how">
+    <div>
+      <div class="kick" style="margin-top:2mm">كيف بتشتغل؟</div>
+      <div class="steps" style="grid-template-columns:1fr">
+        <div class="step"><div class="n">1</div><p><b>اختار خطتك</b> وادفع، ومنضيفلك الرصيد ومنبعتلك رابط لوحتك واسم المستخدم وكلمة السر عالواتساب.</p></div>
+        <div class="step"><div class="n">2</div><p><b>نزّل البرنامج للزبون</b> من waznsy.com، وخلّيه يجرّب بالبيانات التجريبية.</p></div>
+        <div class="step"><div class="n">3</div><p><b>فعّل الزبون من لوحتك:</b> يا ببصمة جهازه، يا بكود بدون بصمة. الرخصة بتنخصم من رصيدك.</p></div>
+        <div class="step"><div class="n">4</div><p><b>ابعتله الكود بالواتساب</b> بكبسة زر، وهو بيكتبه ببرنامجه وبيتفعّل لحالو.</p></div>
+        <div class="step"><div class="n">5</div><p><b>التجديد السنوي</b> من نفس اللوحة، وبتشوف مين قرّب ينتهي اشتراكه.</p></div>
+      </div>
+      <div class="codebox"><img src="img/agent-code.png" alt="" /></div>
+    </div>
+    <div class="mock"><img src="img/agent-panel-top.png" alt="" /></div>
+  </div>
+  <div class="foot"><span>waznsy.com</span><span>2</span></div>
+</section>
+
+<!-- 3. الخطط -->
+<section class="page">
+  <div class="top"><b><img src="img/icon.png" alt="" />وزن</b><span>عرض الوكلاء</span></div>
+  <div class="kick">خطط الوكلاء</div>
+  <h2>اختار الخطة اللي بتناسب حجم شغلك</h2>
+  <p class="lead">الأسعار بالليرة السورية الجديدة. «سنوي» = بتفعّل الزبون سنة وبتجدد من رصيدك، «دائم» = مفتاح مدى الحياة. وكل ما كبرت الخطة بيرخص سعر الرخصة.</p>
+  <div id="plans"></div>
+  <div class="note">كل رخصة بتشتغل على جهازين لنفس المحل (وفيك تزيد لـ 5 أو أكتر). بخطط «كمبيوتر + جوال» الرخصة الوحدة إلها مفتاحين: للكمبيوتر ولتطبيق الجوال. بدك خطة أكبر من 100 رخصة؟ راسلنا.</div>
+  <div class="foot"><span>waznsy.com/agents.html</span><span>3</span></div>
+</section>
+
+<!-- 4. القواعد والتواصل -->
+<section class="page">
+  <div class="top"><b><img src="img/icon.png" alt="" />وزن</b><span>عرض الوكلاء</span></div>
+  <div class="kick">قواعد واضحة بتحمي الكل</div>
+  <h2>سقف سعر البيع والخدمات الإضافية</h2>
+  <div class="cap">
+    <div class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg></div>
+    <div>
+      <h3>الوكيل حر يحدد سعره، تحت السقف:</h3>
+      <div class="nums"><div><b class="ltr">60$</b> <span>للرخصة السنوية</span></div><div><b class="ltr">120$</b> <span>للرخصة الدائمة</span></div></div>
+      <p style="font-size:9.5pt;color:#6b5320;margin-top:1.5mm">أو ما يعادلها بالليرة، مع الجوال أو بدونه. أي بيع بأغلى من هيك بتنسحب الوكالة فوراً، وزباين الوكيل بيضلو شغالين وبيتابعو معنا مباشرة.</p>
+    </div>
+  </div>
+  <h3 style="margin-top:6mm">خدمات التدريب والإدخال (اختيارية، ومنفصلة عن سعر الرخصة)</h3>
+  <div class="svc">
+    <div class="free"><b>مجاناً دايماً</b><span>الفيديوهات التعليمية، والتنصيب والتفعيل، والشرح الأساسي، والدعم عالواتساب.</span></div>
+    <div><b class="ltr">15$</b><span>دورة تدريب أونلاين، ساعة</span></div>
+    <div><b class="ltr">25$</b><span>دورة بالمحل لصاحب المحل والموظفين (ساعة ونص)</span></div>
+    <div><b class="ltr">10$</b><span>إدخال المواد والأرصدة، لكل 250 مادة</span></div>
+  </div>
+  <p style="font-size:9pt;color:var(--muted);margin-top:2mm">هي الأسعار هي الحد الأعلى. الخدمات ما بتكون شرط للبيع أو التفعيل أو التجديد.</p>
+  <h3 style="margin-top:5mm">شروط مختصرة</h3>
+  <ul class="rules">
+    <li>الوكيل جهة مستقلة، بيشتري الرخص بباقات بسعر الوكلاء، وبتنخصم رخصة من رصيده مع كل تفعيل أو تجديد سنوي.</li>
+    <li>بيبيع حسب نوع باقته: سنوي أو دائم، للكمبيوتر أو للكمبيوتر مع الجوال. المدد التانية (شهري، 3 و6 أشهر) بتنباع مباشرة من وزن.</li>
+    <li>الرصيد المدفوع ما بيرجع، وبيضل متاح طول ما الوكالة فعّالة. والكود يلي ما انستعمل إذا انلغى بترجع رخصته للرصيد.</li>
+    <li>الوكيل بيقدّم البرنامج بصدق، وبيبعت بيانات التفعيل الصحيحة، وبيعرّف زبونه على شروط الاستخدام.</li>
+    <li>الشروط الكاملة على الموقع: waznsy.com/terms.html</li>
+  </ul>
+  <div class="contact">
+    <div>
+      <h3>جاهز تبلّش؟</h3>
+      <p>راسلنا عالواتساب، ومنفتحلك لوحتك اليوم.</p>
+      <div class="ph">
+        <div><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-3.3-.8-2.8-1.2-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.3 0 .5l-.4.6-.3.3c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.3z"/></svg><span class="ltr">+963 968 037 609</span></div>
+        <div><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-3.3-.8-2.8-1.2-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.3 0 .5l-.4.6-.3.3c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.3z"/></svg><span class="ltr">+963 980 072 891</span></div>
+      </div>
+      <p style="margin-top:2mm"><span class="ltr">info@waznsy.com</span> · <span class="ltr">waznsy.com</span></p>
+    </div>
+    <div class="qr"><div id="qr"></div>صفحة الوكلاء</div>
+  </div>
+</section>
+
+<script>
+// الخطط من نفس أرقام لوحة الإدارة (admin/registry-core.ts ← AGENT_TIERS)
+const T = [['انطلاقة', 10, 12250, 15800, 16500, 21300], ['فضي', 25, 28750, 37250, 38750, 50250], ['ذهبي', 50, 53500, 69500, 72000, 93750], ['ماسي', 100, 98000, 128000, 132000, 172500]];
+const f = (n) => n.toLocaleString('en-US');
+const group = (title, sub, mobile) => `<div class="group"><h3>${title}</h3><span>${sub}</span></div><div class="plans">${T.map(([name, cnt, a, l, am, lm], i) => {
+  const ya = mobile ? am : a, yl = mobile ? lm : l, base = (mobile ? T[0][4] : T[0][2]) / 10;
+  return `<div class="plan${i === 1 ? ' pop' : ''}">${i === 1 ? '<span class="flag">الأكثر طلباً</span>' : ''}<h3>${name}</h3><div class="cnt">${cnt} رخصة</div>
+    <div class="row"><span>سنوي</span><b>${f(ya)} <small>ل.س</small></b></div><div class="per">${f(Math.round(ya / cnt))} ل.س للرخصة</div>
+    <div class="row"><span>دائم</span><b>${f(yl)} <small>ل.س</small></b></div><div class="per">${f(Math.round(yl / cnt))} ل.س للرخصة</div>
+    ${i ? `<span class="save">وفّر ${Math.round((1 - ya / cnt / base) * 100)}%</span>` : '<span class="save" style="background:#fff7e6;color:#8a5a10">أقل حد للوكيل</span>'}</div>`;
+}).join('')}</div>`;
+document.getElementById('plans').innerHTML = group('كمبيوتر بس', 'كل رخصة = مفتاح لكمبيوتر الزبون', false) + group('كمبيوتر + جوال', 'كل رخصة = مفتاح للكمبيوتر ومفتاح لتطبيق الجوال', true);
+</script>
+</body>
+</html>
