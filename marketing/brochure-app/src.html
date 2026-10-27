@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<title>وزن — دليل البرنامج ومزاياه</title>
+<!-- دليل البرنامج الكامل (A4). البناء: node marketing/brochure-app/build.mjs <ملف.pdf> -->
+<!-- ممنوع أسعار الزباين هون (انشالت من الموقع بطلب صاحب المشروع). -->
+<style>
+@font-face { font-family: Cairo; font-weight: 400; src: url(img/cairo-arabic-400-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 700; src: url(img/cairo-arabic-700-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 900; src: url(img/cairo-arabic-900-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 400; src: url(img/cairo-latin-400-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F; }
+@font-face { font-family: Cairo; font-weight: 700; src: url(img/cairo-latin-700-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F; }
+@font-face { font-family: Cairo; font-weight: 900; src: url(img/cairo-latin-900-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F; }
+@page { size: A4; margin: 0; }
+:root { --g: #0f6e5c; --g2: #14957c; --g3: #5fe0bf; --gold: #e7b75a; --gold2: #f3d38d; --ink: #1d2433; --muted: #6b7385; --line: #e3e6eb; --soft: #f4f6f8; --deep: #071a17; --deep2: #0f3a33; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { font-family: Cairo, sans-serif; color: var(--ink); line-height: 1.7; }
+.page { width: 210mm; height: 297mm; position: relative; overflow: hidden; page-break-after: always; background: #fff; padding: 17mm 14mm 13mm; }
+.page:last-child { page-break-after: auto; }
+.ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+i.ic { display: block; font-style: normal; }
+.kick i.ic { display: inline-block; }
+svg.i { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; display: block; }
+
+.top { position: absolute; top: 0; left: 0; right: 0; height: 11mm; display: flex; align-items: center; justify-content: space-between; padding: 0 14mm; font-size: 9pt; color: var(--muted); border-bottom: 1px solid var(--line); }
+.top b { color: var(--g); display: flex; align-items: center; gap: 6px; font-size: 10pt; }
+.top img { width: 18px; height: 18px; border-radius: 5px; }
+.foot { position: absolute; bottom: 0; left: 0; right: 0; height: 10mm; display: flex; align-items: center; justify-content: space-between; padding: 0 14mm; font-size: 8.5pt; color: var(--muted); }
+.kick { color: var(--g2); font-weight: 900; font-size: 11pt; display: flex; align-items: center; gap: 2mm; }
+.kick .ic { width: 6mm; height: 6mm; }
+h2 { font-size: 21pt; font-weight: 900; line-height: 1.3; margin: 1mm 0 2mm; }
+h3 { font-size: 12.5pt; font-weight: 900; }
+p.lead { font-size: 10.8pt; color: #4a5263; }
+
+/* الغلاف */
+.cover { background: radial-gradient(ellipse at 50% 15%, #145a4c 0%, var(--deep2) 38%, var(--deep) 72%, #030b0a 100%); color: #fff; padding: 0; }
+.cover .glow { position: absolute; border-radius: 50%; filter: blur(70px); }
+.cover .g1 { width: 120mm; height: 120mm; background: var(--g); opacity: .45; top: -40mm; left: -40mm; }
+.cover .g2 { width: 110mm; height: 110mm; background: var(--gold); opacity: .16; bottom: -45mm; right: -30mm; }
+.cover .grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px); background-size: 10mm 10mm; }
+.cover .inner { position: relative; height: 100%; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 20mm 16mm 14mm; }
+.cover .brand { display: flex; align-items: center; gap: 4mm; }
+.cover .brand img { width: 20mm; height: 20mm; border-radius: 5.5mm; box-shadow: 0 6mm 16mm rgba(0,0,0,.45); }
+.cover .brand b { font-size: 34pt; font-weight: 900; line-height: 1; }
+.cover .pill { margin-top: 8mm; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25); color: #e6f4f0; font-weight: 700; font-size: 11pt; padding: 1.2mm 6mm; border-radius: 99px; }
+.cover h1 { font-size: 42pt; font-weight: 900; line-height: 1.2; margin-top: 5mm; }
+.cover h1 span { color: var(--gold2); }
+.cover .sub { font-size: 13pt; color: #c4dad4; margin-top: 4mm; max-width: 165mm; }
+.cover .shots { position: relative; width: 180mm; height: 112mm; margin-top: 9mm; }
+.cover .laptop { position: absolute; left: 0; top: 4mm; width: 140mm; }
+.cover .laptop .scr { background: #111; border-radius: 4mm 4mm 0 0; padding: 2.6mm; border: 1px solid #2b3b37; box-shadow: 0 12mm 26mm rgba(0,0,0,.5); }
+.cover .laptop .scr img { display: block; width: 100%; border-radius: 1mm; }
+.cover .laptop .base { height: 4.5mm; margin: 0 -9mm; background: linear-gradient(#cfd6d4, #8e9895); border-radius: 0 0 4mm 4mm; }
+.cover .phone { position: absolute; right: 2mm; top: 0; width: 50mm; padding: 1.8mm; background: #0d1312; border-radius: 7mm; border: 1px solid #34433f; box-shadow: 0 12mm 26mm rgba(0,0,0,.6); }
+.cover .phone img { display: block; width: 100%; border-radius: 5.5mm; }
+.cover .hl { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; width: 100%; margin-top: auto; }
+.cover .hl div { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18); border-radius: 4mm; padding: 3mm 2mm; display: flex; flex-direction: column; align-items: center; gap: 1mm; }
+.cover .hl .ic { width: 8mm; height: 8mm; color: var(--gold2); }
+.cover .hl span { font-size: 10.5pt; font-weight: 700; color: #e6f4f0; }
+
+/* بطاقات */
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3.5mm; margin-top: 5mm; }
+.card { border: 1px solid var(--line); border-radius: 4mm; padding: 4.2mm; background: #fff; }
+.card > .ic { width: 10.5mm; height: 10.5mm; border-radius: 3mm; color: #fff; background: linear-gradient(135deg, var(--g2), var(--g)); margin-bottom: 2.2mm; padding: 2.3mm; }
+.card:nth-child(3n+2) > .ic { background: linear-gradient(135deg, var(--gold2), #c99434); }
+.card:nth-child(3n) > .ic { background: linear-gradient(135deg, #7ea6f5, #3b63c4); }
+.card p { font-size: 9.5pt; color: var(--muted); line-height: 1.6; }
+.nums { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3.5mm; margin-top: 5mm; }
+.nums div { background: var(--soft); border-radius: 4mm; padding: 3.5mm; text-align: center; }
+.nums b { display: block; font-size: 22pt; font-weight: 900; color: var(--g); line-height: 1.2; }
+.nums span { font-size: 9.5pt; color: var(--muted); font-weight: 700; }
+.plat { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3.5mm; margin-top: 3mm; }
+.plat div { border: 1px solid var(--line); border-radius: 4mm; padding: 3.5mm 4mm; display: flex; gap: 3mm; align-items: flex-start; }
+.plat .ic { flex: none; width: 9mm; height: 9mm; color: var(--g); }
+.plat b { display: block; font-size: 11pt; }
+.plat span { font-size: 9pt; color: var(--muted); line-height: 1.55; display: block; }
+
+/* المجالات */
+.acts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; margin-top: 5mm; }
+.act { border: 1px solid var(--line); border-radius: 4mm; padding: 3.3mm 3.8mm; display: flex; gap: 3mm; align-items: flex-start; }
+.act .ic { flex: none; width: 10mm; height: 10mm; border-radius: 3mm; padding: 2.2mm; color: var(--g); background: #e3f2ee; }
+.act b { display: block; font-size: 10.8pt; line-height: 1.4; }
+.act span { display: block; font-size: 8.8pt; color: var(--muted); line-height: 1.5; margin-top: .5mm; }
+.act.new b::after { content: 'جديد'; font-size: 7pt; background: var(--gold); color: #3d2a05; border-radius: 99px; padding: 0 2mm; margin-inline-start: 1.5mm; vertical-align: middle; }
+.act.you { background: linear-gradient(135deg, #e3f2ee, #fff); border-color: #b9e0d5; }
+
+/* لقطات الشاشة */
+.shot { border-radius: 3mm; overflow: hidden; border: 1px solid #d5dad8; box-shadow: 0 3mm 9mm rgba(15,40,35,.13); background: #fff; }
+.shot .bar { height: 4.5mm; background: #eef1f0; display: flex; align-items: center; gap: 1.2mm; padding: 0 2.5mm; direction: ltr; }
+.shot .bar i { width: 1.6mm; height: 1.6mm; border-radius: 50%; background: #c9d0ce; }
+.shot img { display: block; width: 100%; }
+.cap { font-size: 8.5pt; color: var(--muted); font-weight: 700; text-align: center; margin-top: 1.3mm; }
+.big { margin: 4mm auto 0; width: 158mm; }
+.duo { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; margin-top: 4mm; }
+.trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3.5mm; margin-top: 4mm; }
+
+/* القوائم */
+ul.ok { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 1.8mm 5mm; margin-top: 4.5mm; }
+ul.ok.one { grid-template-columns: 1fr; }
+ul.ok li { display: flex; gap: 2.2mm; font-size: 9.7pt; color: #3d4556; line-height: 1.55; }
+ul.ok li::before { content: ''; flex: none; width: 4.2mm; height: 4.2mm; margin-top: .8mm; border-radius: 50%; background: var(--g2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / 2.8mm no-repeat; }
+ul.ok li b { color: var(--ink); }
+.box { border: 1px solid var(--line); border-radius: 4mm; padding: 4mm 4.5mm; margin-top: 4mm; }
+.box.tint { background: var(--soft); border-color: transparent; }
+.box.gold { background: #fff8e8; border-color: #f0d9a8; }
+.box h3 { display: flex; align-items: center; gap: 2.5mm; }
+.box h3 .ic { width: 7mm; height: 7mm; color: var(--g); }
+.box.gold h3 .ic { color: #b7791f; }
+.box p { font-size: 9.6pt; color: #4a5263; margin-top: 1mm; }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+
+/* الأجهزة */
+.dev { display: grid; grid-template-columns: 52mm 1fr; gap: 7mm; margin-top: 5mm; align-items: start; }
+.dev .phone { padding: 1.6mm; background: #0d1312; border-radius: 7mm; box-shadow: 0 6mm 14mm rgba(0,0,0,.2); }
+.dev .phone img { display: block; width: 100%; border-radius: 5.6mm; }
+.mode { display: flex; gap: 3.5mm; align-items: flex-start; padding: 3.2mm 0; border-bottom: 1px dashed var(--line); }
+.mode:last-child { border-bottom: 0; }
+.mode .ic { flex: none; width: 11mm; height: 11mm; border-radius: 3mm; padding: 2.4mm; color: #fff; background: linear-gradient(135deg, var(--g2), var(--g)); }
+.mode:nth-child(2) .ic { background: linear-gradient(135deg, #7ea6f5, #3b63c4); }
+.mode:nth-child(3) .ic { background: linear-gradient(135deg, var(--gold2), #c99434); }
+.mode:nth-child(4) .ic { background: linear-gradient(135deg, #b48cf2, #6a43c4); }
+.mode b { font-size: 11.5pt; display: block; }
+.mode p { font-size: 9.5pt; color: #4a5263; line-height: 1.6; }
+.tag { display: inline-block; font-size: 7.5pt; font-weight: 900; padding: 0 2mm; border-radius: 99px; background: #fff3d6; color: #8a5a10; margin-inline-start: 1.5mm; vertical-align: middle; }
+
+/* البداية */
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3.5mm; margin-top: 4mm; }
+.step { border: 1px solid var(--line); border-radius: 4mm; padding: 4mm; position: relative; }
+.step .n { width: 9mm; height: 9mm; border-radius: 50%; background: var(--g); color: #fff; font-weight: 900; display: grid; place-items: center; font-size: 12pt; margin-bottom: 2mm; }
+.step p { font-size: 9.4pt; color: #4a5263; line-height: 1.6; }
+.subs { display: flex; flex-wrap: wrap; gap: 2mm; margin-top: 2.5mm; }
+.subs span { border: 1.5px solid var(--g); color: var(--g); font-weight: 900; font-size: 10pt; border-radius: 99px; padding: .6mm 4.5mm; }
+.faq { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm 5mm; margin-top: 3mm; }
+.faq div b { font-size: 10pt; display: block; }
+.faq div p { font-size: 9pt; color: #4a5263; line-height: 1.55; }
+.contact { position: absolute; left: 14mm; right: 14mm; bottom: 13mm; background: linear-gradient(135deg, var(--deep2), var(--deep)); color: #fff; border-radius: 5mm; padding: 6mm 7mm; display: flex; align-items: center; gap: 7mm; }
+.contact h3 { font-size: 16pt; }
+.contact p { color: #c4dad4; font-size: 10pt; }
+.contact .ph { display: flex; flex-direction: column; gap: 1mm; margin-top: 2mm; }
+.contact .ph div { display: flex; align-items: center; gap: 2.5mm; font-size: 13.5pt; font-weight: 900; }
+.contact .ph svg { width: 6mm; height: 6mm; color: #25d366; fill: currentColor; stroke: none; }
+.contact .qr { flex: none; margin-inline-start: auto; text-align: center; font-size: 8.5pt; color: #c4dad4; }
+.contact .qr div { background: #fff; padding: 2mm; border-radius: 3mm; width: 34mm; height: 34mm; margin-bottom: 1.5mm; }
+.contact .qr svg { width: 100%; height: 100%; display: block; }
+</style>
+</head>
+<body>
+
+<!-- 1. الغلاف -->
+<section class="page cover">
+  <div class="glow g1"></div><div class="glow g2"></div><div class="grid"></div>
+  <div class="inner">
+    <div class="brand"><img src="img/icon.png" alt="" /><b>وزن</b></div>
+    <div class="pill">دليل البرنامج ومزاياه</div>
+    <h1>حساباتك صارت<br /><span>بوزنها</span></h1>
+    <p class="sub">برنامج محاسبة وإدارة محلات عربي، على الكمبيوتر والجوال، بيشتغل بدون إنترنت، ومفصّل لـ 15 مجال عمل: من الميني ماركت والمطاعم لورش الخياطة ومحلات الموبايلات.</p>
+    <div class="shots">
+      <div class="laptop"><div class="scr"><img src="img/dashboard.webp" alt="" /></div><div class="base"></div></div>
+      <div class="phone"><img src="img/phone.png" alt="" /></div>
+    </div>
+    <div class="hl">
+      <div><i class="ic" data-i="wifiOff"></i><span>بدون إنترنت</span></div>
+      <div><i class="ic" data-i="lock"></i><span>بياناتك مشفّرة عندك</span></div>
+      <div><i class="ic" data-i="coins"></i><span>ليرة ودولار</span></div>
+      <div><i class="ic" data-i="network"></i><span>أكتر من جهاز</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 2. شو هو وزن -->
+<section class="page">
+  <div class="top"><b><img src="img/icon.png" alt="" />وزن</b><span>دليل البرنامج</span></div>
+  <div class="kick">شو هو وزن؟</div>
+  <h2>كل شغل محلك بمكان واحد، ومبني لظروف سوقنا</h2>
+  <p class="lead">وزن بيجمعلك البيع والفواتير والمخزون والديون والحسابات والتقارير ببرنامج واحد، بالعربي ومن اليمين لليسار. بتختار نوع شغلك وقت إنشاء الشركة، فبتطلعلك الشاشات والمزايا اللي بتلزمك بس.</p>
+  <div class="cards">
+    <div class="card"><i class="ic" data-i="wifiOff"></i><h3>بدون إنترنت</h3><p>كل شغلك على جهازك. النت بيلزم بس كل كم يوم ليتأكد من الاشتراك ويجيب التحديثات.</p></div>
+    <div class="card"><i class="ic" data-i="lock"></i><h3>بياناتك مشفّرة</h3><p>دفاترك محفوظة مشفّرة على جهازك، وما حدا بيفتحها بدون كلمة السر. ونحنا ما منوصل لبياناتك أبداً.</p></div>
+    <div class="card"><i class="ic" data-i="users"></i><h3>مستخدمين وصلاحيات</h3><p>كاشير، محاسب، مدير… كل واحد بيشوف ويعمل اللي إله بس، وكل عملية مسجلة باسم صاحبها.</p></div>
+    <div class="card"><i class="ic" data-i="network"></i><h3>أكتر من جهاز</h3><p>اربط أجهزة المحل على نفس الشبكة وكلها بتشتغل على نفس الدفاتر لحظة بلحظة، أو تابع محلك من البيت.</p></div>
+    <div class="card"><i class="ic" data-i="coins"></i><h3>ليرة ودولار</h3><p>سعّر بالدولار وبيع بالليرة، وسعر الصرف بإيدك. وفيك تضيف أي عملة تانية بتتعامل فيها.</p></div>
+    <div class="card"><i class="ic" data-i="refresh"></i><h3>تحديثات مستمرة</h3><p>كل ما نضيف ميزة جديدة بيطلعلك إشعار جوّا البرنامج لتحدّث بكبسة، بدون ما تخسر شي من بياناتك.</p></div>
+  </div>
+  <div class="nums">
+    <div><b>15</b><span>مجال عمل جاهز</span></div>
+    <div><b>100%</b><span>عربي ومن اليمين لليسار</span></div>
+    <div><b>2</b><span>جهاز بكل رخصة</span></div>
+    <div><b>5 د</b><span>وبتبلّش شغل</span></div>
+  </div>
+  <h3 style="margin-top:6mm">وين بيشتغل؟</h3>
+  <div class="plat">
+    <div><i class="ic" data-i="laptop"></i><p><b>كمبيوتر ويندوز</b><span>ويندوز 10 و11 (64-bit). البرنامج الكامل، مع طباعة حرارية وA4.</span></p></div>
+    <div><i class="ic" data-i="phone"></i><p><b>جوال وتابلت أندرويد</b><span>أندرويد 7 وأحدث. نفس الميزات، وبياناته مشفّرة على الجوال نفسه.</span></p></div>
+    <div><i class="ic" data-i="cloud"></i><p><b>آيفون (نسخة ويب)</b><span>للاتصال عن بعد بمحلك من سفاري، بدون تنصيب.</span></p></div>
+  </div>
+  <div class="foot"><span>waznsy.com</span><span>2</span></div>
+</section>
+
+<!-- 3. المجالات -->
+<section class="page">
+  <div class="top"><b><img src="img/icon.png" alt="" />وزن</b><span>دليل البرنامج</span></div>
+  <div class="kick">برنامج واحد، لكل شغلة شاشتها</div>
+  <h2>اختار نوع شغلك، ووزن بيجهّز حالو إلك</h2>
+  <p class="lead">كل مجال إلو تصنيفاته ووحداته وشاشاته الخاصة، وبتنضاف لكل شي مشترك: البيع والفواتير والمخزون والديون والحسابات والتقارير.</p>
+  <div class="acts">
+    <div class="act"><i class="ic" data-i="cart"></i><div><b>سوبرماركت وبقالية</b><span>كاشير سريع بالباركود، مواد بالوزن، كرتونة وقطعة، وتواريخ صلاحية.</span></div></div>
+    <div class="act new"><i class="ic" data-i="utensils"></i><div><b>مطاعم وكافيهات</b><span>طاولات حسب المكان، شاشة مطبخ، سفري وتوصيل، ونسبة خدمة.</span></div></div>
+    <div class="act new"><i class="ic" data-i="scissors"></i><div><b>خياطة وورش جملة</b><span>قياسات وطلبات تفصيل، وأتواب قماش الزبون، مدّ وقص ومراحل.</span></div></div>
+    <div class="act new"><i class="ic" data-i="laptop"></i><div><b>موبايلات وكمبيوتر</b><span>IMEI ورقم تسلسلي، كفالات، تقسيط، استبدال، وتجميعات كمبيوتر.</span></div></div>
+    <div class="act"><i class="ic" data-i="pill"></i><div><b>صيدليات</b><span>أدوية بدفعات وتواريخ صلاحية، اسم علمي، وتنبيه قبل الانتهاء.</span></div></div>
+    <div class="act"><i class="ic" data-i="shirt"></i><div><b>ألبسة وأحذية</b><span>موديلات بمقاسات وألوان، تبديل ومرتجعات.</span></div></div>
+    <div class="act"><i class="ic" data-i="car"></i><div><b>قطع غيار وصيانة سيارات</b><span>بيع قطع بأرقامها والتوافق، أوامر إصلاح، وسجل سيارات الزبائن.</span></div></div>
+    <div class="act"><i class="ic" data-i="brick"></i><div><b>مواد بناء وحديد</b><span>طن وكيس ومتر، أسعار جملة، وبيع بالدين للمتعهدين.</span></div></div>
+    <div class="act new"><i class="ic" data-i="roller"></i><div><b>جبسين وديكور</b><span>مشاريع بغرفها وقياساتها، سعر المتر، دفعات، وكشف للزبون.</span></div></div>
+    <div class="act"><i class="ic" data-i="leaf"></i><div><b>لحوم وخضار وفواكه</b><span>بيع بالوزن وباركود الميزان الإلكتروني، وتالف يومي.</span></div></div>
+    <div class="act"><i class="ic" data-i="bread"></i><div><b>أفران وحلويات</b><span>تصنيع من مواد أولية بوصفات، بيع بالوزن والقطعة.</span></div></div>
+    <div class="act new"><i class="ic" data-i="icecream"></i><div><b>حلويات وبوظة</b><span>بالكيلو والعلبة والكاسة، طعمات البوظة بكبسة، وصلاحية قصيرة.</span></div></div>
+    <div class="act"><i class="ic" data-i="truck"></i><div><b>توزيع وتجارة جملة</b><span>مندوبين، أسعار جملة وخاصة، كرتونة وقطعة، وذمم العملاء.</span></div></div>
+    <div class="act"><i class="ic" data-i="steth"></i><div><b>عيادات وصالونات</b><span>مواعيد، خدمات، وملفات المراجعين.</span></div></div>
+    <div class="act"><i class="ic" data-i="store"></i><div><b>تجارة عامة وخدمات</b><span>أي محل أو شركة: مبيعات، مشتريات، مخزون وحسابات.</span></div></div>
+  </div>
+  <div class="box tint" style="margin-top:5mm">
+    <h3><i class="ic" data-i="sparkles"></i>وعلى ذوقك</h3>
+    <p>شغّل أو طفّي أي ميزة من «تخصيص النشاط»، وضيف تصنيفاتك ووحداتك وحقولك الخاصة. وإذا شغلك ما بيشبه ولا مجال، اختار «تجارة عامة» وفصّلها متل ما بدك.</p>
+  </div>
+  <div class="foot"><span>waznsy.com</span><span>3</span></div>
+</section>
+
+<!-- 4. البيع والفواتير -->
+<section class="page">
+  <div class="top"><b><img src="img/icon.png" alt="" />وزن</b><span>دليل البرنامج</span></div>
+  <div class="kick"><i class="ic" data-i="cart"></i>البيع والفواتير</div>
+  <h2>كاشير سريع، وفواتير بشكل محترم</h2>
+  <p class="lead">امسح الباركود أو دوّر بالاسم، واقبض كاش أو آجل أو جزء من المبلغ. والفاتورة بتطلع بتصميم من 3 تصاميم وبلون محلك.</p>
+  <div class="shot big"><div class="bar"><i></i><i></i><i></i></div><img src="img/pos.webp" alt="" /></div>
+  <div class="cap">نقطة البيع</div>
+  <div class="duo">
+    <div><div class="shot"><div class="bar"><i></i><i></i><i></i></div><img src="img/invoice.webp" alt="" /></div><div class="cap">الفاتورة</div></div>
+    <div><div class="shot"><div class="bar"><i></i><i></i><i></i></div><img src="img/designs.webp" alt="" /></div><div class="cap">تصاميم الفواتير ولون المحل</div></div>
+  </div>
+  <ul class="ok">
+    <li><span><b>باركود وبحث:</b> قارئ الباركود، باركود الميزان، وأزرار للمواد الأكتر مبيعاً.</span></li>
+    <li><span><b>نقدي أو آجل أو جزئي:</b> والباقي بينزل على حساب الزبون لحالو.</span></li>
+    <li><span><b>طباعة حرارية 80مم وA4</b>، وتصدير PDF، ومشاركة عالواتساب.</span></li>
+    <li><span><b>3 تصاميم فواتير</b> مع QR وختم وتوقيع وشروط البيع.</span></li>
+    <li><span><b>عروض أسعار</b> بتتحول لفاتورة بكبسة لما يوافق الزبون.</span></li>
+    <li><span><b>مرتجعات وخصومات</b>، وفواتير شراء من الموردين.</span></li>
+    <li><span><b>تقرير إغلاق يومي</b> للصندوق: شو انباع، شو انقبض، وشو لازم يكون بالدرج.</span></li>
+    <li><span><b>شاشة للزبون</b> بتعرضله السلة والمجموع وقت البيع.</span></li>
+  </ul>
+  <div class="foot"><span>waznsy.com</span><span>4</span></div>
+</section>
+
+<!-- 5. المطاعم -->
+<section class="page">
+  <div class="top"><b><img src="img/icon.png" alt="" />وزن</b><span>دليل البرنامج</span></div>
+  <div class="kick"><i class="ic" data-i="utensils"></i>المطاعم والكافيهات</div>
+  <h2>طاولات، مطبخ، وتوصيل، بدون ورق</h2>
+  <p class="lead">الطاولات مقسّمة حسب المكان، وكل طاولة بتبيّن المبلغ وقديش صرلها مفتوحة. الطلب بيوصل لشاشة المطبخ، والمتأخر بيحمرّ.</p>
+  <div class="shot big"><div class="bar"><i></i><i></i><i></i></div><img src="img/tables.webp" alt="" /></div>
+  <div class="cap">الطاولات</div>
+  <div class="duo">
+    <div><div class="shot"><div class="bar"><i></i><i></i><i></i></div><img src="img/order.webp" alt="" /></div><div class="cap">الطلب</div></div>
+    <div><div class="shot"><div class="bar"><i></i><i></i><i></i></div><img src="img/kitchen.webp" alt="" /></div><div class="cap">شاشة المطبخ</div></div>
+  </div>
+  <ul class="ok">
+    <li><span><b>ملاحظات للمطبخ بكبسة:</b> حار، بدون بصل، زيادة…</span></li>
+    <li><span><b>نسبة خدمة وخصم</b>، سفري وتوصيل مع العنوان والهاتف.</span></li>
+    <li><span><b>نقل ودمج الطاولات</b>، وطباعة الحساب قبل الدفع.</span></li>
+    <li><span><b>لوحة إدارة مباشرة:</b> الطاولات المفتوحة ومبيعات اليوم لحظة بلحظة.</span></li>
+  </ul>
+  <div class="box gold">
+    <h3><i class="ic" data-i="icecream"></i>حلويات وبوظة</h3>
+    <p>بيع بالكيلو والعلبة والكاسة، طعمات البوظة بكبسة وحدة، وتنبيه للمواد قصيرة الصلاحية. ومع «الأفران» التصنيع من مواد أولية بوصفات، فبتعرف كلفة كل قطعة.</p>
+  </div>
+  <div class="foot"><span>waznsy.com</span><span>5</span></div>
+</section>
+
+<!-- 6. الورش -->
+<section class="page">
+  <div class="top"><b><img src="img/icon.png" alt="" />وزن</b><span>دليل البرنامج</span></div>
+  <div class="kick"><i class="ic" data-i="scissors"></i>ورش الخياطة والتنفيذ</div>
+  <h2>أتواب الزبون، المدّ، والقص، كله محسوب</h2>
+  <p class="lead">استلم أتواب القماش برقمها وطولها باليارد أو بالمتر. البرنامج بيحسبلك كم مدّة بدك، وكم قماش، وإذا في نقص. وبآخر الأسبوع بتطلع حساب صاحب الشغل.</p>
+  <div class="split" style="grid-template-columns:1.55fr 1fr;margin-top:4mm;align-items:start">
+    <div><div class="shot"><div class="bar"><i></i><i></i><i></i></div><img src="img/workshop.webp" alt="" /></div><div class="cap">الطلبية والمدّ</div></div>
+    <div><div class="shot"><div class="bar"><i></i><i></i><i></i></div><img src="img/sheet.webp" alt="" /></div><div class="cap">حساب صاحب الشغل</div></div>
+  </div>
+  <ul class="ok">
+    <li><span><b>مراحل الشغل:</b> قص، خياطة، خلص، وتالف.</span></li>
+    <li><span><b>مصاريف</b> على الزبون أو على الورشة.</span></li>
+    <li><span><b>ورقة طلبية مطبوعة</b> بدل الدفتر.</span></li>
+    <li><span><b>طلبات تفصيل</b> للمحلات: قياسات الزبون محفوظة، وموعد التسليم.</span></li>
+  </ul>
+  <div class="split">
+    <div class="box">
+      <h3><i class="ic" data-i="roller"></i>جبسين وديكور</h3>
+      <p>كل مشروع بغرفه: سقف، جدار، مرد، كرنيش، إنارة مخفية… بتدخل القياسات وسعر المتر، والبرنامج بيطلّع الكشف والمبلغ، وبيسجّل الدفعات وسجل الزبون.</p>
+    </div>
+    <div class="box">
+      <h3><i class="ic" data-i="wrench"></i>صيانة وخدمات</h3>
+      <p>أوامر صيانة للسيارات والأجهزة: استلام العطل، قطع وأجور يد، تسليم وفوترة. وللعيادات والصالونات: مواعيد وخدمات وملفات المراجعين.</p>
+    </div>
+  </div>
+  <div class="foot"><span>waznsy.com</span><span>6</span></div>
+</section>
+
+<!-- 7. الإلكترونيات -->
+<section class="page">
+  <div class="top"><b><img src="img/icon.png" alt="" />وزن</b><span>دليل البرنامج</span></div>
+  <div class="kick"><i class="ic" data-i="laptop"></i>موبايلات ولابتوبات وكمبيوتر</div>
+  <h2>كل جهاز برقمه، وكل قسط بموعده</h2>
+  <p class="lead">IMEI للموبايل ورقم تسلسلي للابتوب. امسحه بنقطة البيع وبينزل الجهاز نفسه. وبسجل الأجهزة بتعرف قصة أي جهاز: من وين إجا، لمين انباع، وإذا لساتو بالكفالة.</p>
+  <div class="shot big"><div class="bar"><i></i><i></i><i></i></div><img src="img/device.webp" alt="" /></div>
+  <div class="cap">سجل الأجهزة</div>
+  <div class="duo">
+    <div><div class="shot"><div class="bar"><i></i><i></i><i></i></div><img src="img/installments.webp" alt="" /></div><div class="cap">التقسيط</div></div>
+    <div><div class="shot"><div class="bar"><i></i><i></i><i></i></div><img src="img/pcbuild.webp" alt="" /></div><div class="cap">تجميعة كمبيوتر</div></div>
+  </div>
+  <ul class="ok">
+    <li><span><b>تقسيط</b> بدفعة أولى وأشهر وكفيل، والقسط المتأخر بالأحمر.</span></li>
+    <li><span><b>بيع مع استبدال:</b> الزبون بيدفع الفرق بس، والجهاز القديم بيدخل المخزون.</span></li>
+    <li><span><b>تجميعة كمبيوتر</b> من قطع المخزون مع أجور التجميع.</span></li>
+    <li><span><b>كفالات ومواصفات</b> لكل جهاز، وبتعرف بثانية إذا لساتو بالكفالة.</span></li>
+  </ul>
+  <div class="foot"><span>waznsy.com</span><span>7</span></div>
+</section>
+
+<!-- 8. المخزون والحسابات -->
+<section class="page">
+  <div class="top"><b><img src="img/icon.png" alt="" />وزن</b><span>دليل البرنامج</span></div>
+  <div class="kick"><i class="ic" data-i="chart"></i>المخزون والحسابات والتقارير</div>
+  <h2>بتعرف شو عندك، وشو ربحت، بلحظة</h2>
+  <p class="lead">مواد بوحدات متعددة، حد أدنى للمخزون، دفعات وصلاحية. ووراها نظام محاسبة كامل بيشتغل لحالو: كل فاتورة وسند بيعمل قيده بدون ما تعرف محاسبة.</p>
+  <div class="shot big"><div class="bar"><i></i><i></i><i></i></div><img src="img/items.webp" alt="" /></div>
+  <div class="cap">المواد</div>
+  <div class="duo">
+    <div><div class="shot"><div class="bar"><i></i><i></i><i></i></div><img src="img/reports.webp" alt="" /></div><div class="cap">التقارير</div></div>
+    <div><div class="shot"><div class="bar"><i></i><i></i><i></i></div><img src="img/account.webp" alt="" /></div><div class="cap">كشف حساب</div></div>
+  </div>
+  <ul class="ok">
+    <li><span><b>وحدات متعددة:</b> قطعة، علبة، كرتونة، كيلو، متر… كل وحدة بسعرها.</span></li>
+    <li><span><b>جرد وتحويل وتالف</b>، وأكتر من مستودع، ورصيد أول المدة.</span></li>
+    <li><span><b>دليل حسابات وقيود يومية</b> جاهزة، وسندات قبض ودفع.</span></li>
+    <li><span><b>تقارير أرباح ومبيعات ومخزون</b>، وميزان مراجعة، وكشوف حسابات.</span></li>
+    <li><span><b>عملات وسعر صرف:</b> ليرة ودولار وأي عملة بتضيفها، بسعر بتحدده إنت.</span></li>
+    <li><span><b>تصدير Excel وCSV</b> لأي جدول، وإقفال الفترات حتى ما يتعدّل القديم.</span></li>
+  </ul>
+  <div class="foot"><span>waznsy.com</span><span>8</span></div>
+</section>
+
+<!-- 9. الديون والشركاء -->
+<section class="page">
+  <div class="top"><b><img src="img/icon.png" alt="" />وزن</b><span>دليل البرنامج</span></div>
+  <div class="kick"><i class="ic" data-i="book"></i>الديون والشركاء</div>
+  <h2>ودّع دفتر الديون</h2>
+  <p class="lead">كل الديون بمكان واحد: يلي إلك عالناس ويلي عليك إلهم، من الفواتير الآجلة أو ديون بتسجّلها بإيدك. وبتعرف مين تأخر عن موعده، وبتقبض أو بتدفع بكبسة.</p>
+  <div class="shot big"><div class="bar"><i></i><i></i><i></i></div><img src="img/debts.webp" alt="" /></div>
+  <div class="cap">الديون: لنا وعلينا</div>
+  <ul class="ok">
+    <li><span><b>لنا وعلينا</b> بشاشة وحدة، مع الصافي.</span></li>
+    <li><span><b>مواعيد سداد</b> وتنبيه بالمتأخر.</span></li>
+    <li><span><b>كشف حساب كامل</b> لأي زبون أو مورد، بتطبعه أو بتبعته واتساب.</span></li>
+    <li><span><b>تذكير بالدين</b> برسالة جاهزة للزبون.</span></li>
+  </ul>
+  <h2 style="font-size:16pt;margin-top:6mm">الشركاء والمساهمين</h2>
+  <p class="lead">سجّل كل شريك ورأس ماله، والبرنامج بيحسب نسبته ونصيبه من ربح الفترة، وبيبيّن كل إيداع أو سحب بتاريخه.</p>
+  <div class="shot" style="margin-top:3mm;width:125mm;margin-inline:auto"><div class="bar"><i></i><i></i><i></i></div><img src="img/partners.webp" alt="" /></div>
+  <div class="foot"><span>waznsy.com</span><span>9</span></div>
+</section>
+
+<!-- 10. الأجهزة والحماية -->
+<section class="page">
+  <div class="top"><b><img src="img/icon.png" alt="" />وزن</b><span>دليل البرنامج</span></div>
+  <div class="kick"><i class="ic" data-i="network"></i>أكتر من جهاز</div>
+  <h2>محلك معك، بالمحل وبالبيت</h2>
+  <div class="dev">
+    <div class="phone"><img src="img/phone.png" alt="" /></div>
+    <div>
+      <div class="mode"><i class="ic" data-i="phone"></i><div><b>تطبيق أندرويد</b><p>وزن كامل على جوالك أو التابلت، بنفس الميزات. شغّال بدون نت، وبياناته مشفّرة على الجوال نفسه، وبيتحدّث من جوّا التطبيق.</p></div></div>
+      <div class="mode"><i class="ic" data-i="network"></i><div><b>أجهزة المحل على نفس الشبكة</b><p>كاشير ومحاسب ومدير، كل واحد على جهاز، وكلهم على نفس الدفاتر لحظة بلحظة. الجهاز الفرعي بيلاقي الرئيسي لحالو، وبعد أول مرة بيكفي كلمة السر.</p></div></div>
+      <div class="mode"><i class="ic" data-i="cloud"></i><div><b>الاتصال عن بعد <span class="tag">خدمة إضافية</span></b><p>تابع محلك واشتغل على بياناته من جوالك أو كمبيوترك بالبيت، عبر الإنترنت. امسح الرمز مرة وحدة وبعدها كلمة السر بس. كل شي مشفّر من جهاز لجهاز، وما حدا بالنص بيشوف شي.</p></div></div>
+      <div class="mode"><i class="ic" data-i="apple"></i><div><b>آيفون</b><p>امسح رمز الاتصال بكاميرا الآيفون، فبتنفتح وزن بسفاري جاهزة. ضيفها عالشاشة الرئيسية فبتصير متل التطبيق.</p></div></div>
+    </div>
+  </div>
+  <div class="kick" style="margin-top:5mm"><i class="ic" data-i="shield"></i>الأمان والتخصيص</div>
+  <div class="cards" style="margin-top:3mm">
+    <div class="card"><i class="ic" data-i="users"></i><h3>صلاحيات دقيقة</h3><p>كل مستخدم بكلمة سره، وبتحدد شو بيشوف وشو بيعمل: البيع، الأسعار، التقارير، المصاريف…</p></div>
+    <div class="card"><i class="ic" data-i="history"></i><h3>كل عملية بسجلها</h3><p>مين عمل الفاتورة ومين عدّلها ووقتيش. الدفتر ما بينمسح منه شي، والتعديل بينسجّل.</p></div>
+    <div class="card"><i class="ic" data-i="save"></i><h3>نسخ احتياطي</h3><p>نسخة مشفّرة بكبسة على فلاشة أو أي مكان، وبترجعها على أي جهاز إذا غيّرت الكمبيوتر.</p></div>
+  </div>
+  <div class="foot"><span>waznsy.com</span><span>10</span></div>
+</section>
+
+<!-- 11. كيف تبلّش -->
+<section class="page">
+  <div class="top"><b><img src="img/icon.png" alt="" />وزن</b><span>دليل البرنامج</span></div>
+  <div class="kick">كيف بتبلّش؟</div>
+  <h2>تلات خطوات وبتكون شغّال</h2>
+  <div class="steps">
+    <div class="step"><div class="n">1</div><h3>نزّل ونصّب</h3><p>من <span class="ltr">waznsy.com</span> للكمبيوتر أو الجوال. إذا ويندوز سألك، اكبس «More info» وبعدين «Run anyway».</p></div>
+    <div class="step"><div class="n">2</div><h3>فعّل</h3><p>ابعتلنا «بصمة الجهاز» يلي بتطلع بأول شاشة، أو للوكيل تبعك، فبيوصلك كود تفعيل من 16 حرف بتكتبه وبس.</p></div>
+    <div class="step"><div class="n">3</div><h3>اختار شغلك وبلّش</h3><p>اختار نوع محلك، وإذا حابب تتعرّف عالبرنامج شغّل «بيانات تجريبية» وجرّب كل شي.</p></div>
+  </div>
+  <div class="box tint" style="margin-top:5mm">
+    <h3><i class="ic" data-i="calendar"></i>الاشتراك</h3>
+    <p>نفس البرنامج الكامل بكل الاشتراكات، الفرق بس بالمدة. كل رخصة على جهازين لنفس المحل، مع التحديثات والدعم. للأسعار والعروض راسلنا واتساب.</p>
+    <div class="subs"><span>شهري</span><span>3 أشهر</span><span>6 أشهر</span><span>سنوي</span><span>شراء دائم</span></div>
+  </div>
+  <h3 style="margin-top:5mm">أسئلة شائعة</h3>
+  <div class="faq">
+    <div><b>بحاجة إنترنت؟</b><p>لا، كل الشغل على جهازك. بس بيتصل كل كم يوم ليتأكد من الاشتراك ويجيب التحديثات.</p></div>
+    <div><b>بياناتي وين؟ حدا بيشوفها؟</b><p>على جهازك بس، ومشفّرة بكلمة السر تبعك. نحنا ما منوصل إلها ولا منرفعها على أي سيرفر.</p></div>
+    <div><b>غيّرت الكمبيوتر أو عملت فورمات؟</b><p>نصّب البرنامج، رجّع النسخة الاحتياطية، وابعتلنا بصمة الجهاز الجديد لننقلك الرخصة.</p></div>
+    <div><b>بقدر جرّب قبل ما اشتري؟</b><p>أكيد. راسلنا ومنفعّلك نسخة تجريبية، وفيك تشغّل «بيانات تجريبية» لتشوف كل شي.</p></div>
+    <div><b>في شرح؟</b><p>في فيديوهات شرح مجانية لنسخة الكمبيوتر والجوال على الموقع، وجولة تعريفية جوّا البرنامج.</p></div>
+    <div><b>محلي بحاجة أكتر من جهازين؟</b><p>منزيدلك العدد لخمس أجهزة أو أكتر حسب حاجتك.</p></div>
+  </div>
+  <div class="contact">
+    <div>
+      <h3>جاهز تجرّب وزن؟</h3>
+      <p>راسلنا عالواتساب، ومنفعّلك اليوم.</p>
+      <div class="ph">
+        <div><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-3.3-.8-2.8-1.2-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.3 0 .5l-.4.6-.3.3c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.3z"/></svg><span class="ltr">+963 968 037 609</span></div>
+        <div><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-3.3-.8-2.8-1.2-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.3 0 .5l-.4.6-.3.3c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.3z"/></svg><span class="ltr">+963 980 072 891</span></div>
+      </div>
+      <p style="margin-top:2mm"><span class="ltr">info@waznsy.com</span> · <span class="ltr">waznsy.com</span></p>
+    </div>
+    <div class="qr"><div id="qr"></div>حمّل وزن</div>
+  </div>
+</section>
+
+<script>
+// أيقونات بأسلوب lucide
+const I = {
+  wifiOff: '<path d="M12 20h.01M8.5 16.43a5 5 0 0 1 7 0M5 12.86a10 10 0 0 1 5.17-2.69M19 12.86a10 10 0 0 0-2-1.43M2 8.82a15 15 0 0 1 4.18-2.65M22 8.82a15 15 0 0 0-11.29-3.76M2 2l20 20"/>',
+  lock: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  network: '<rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3M12 12V8"/>',
+  coins: '<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+  refresh: '<path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/>',
+  cart: '<circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>',
+  utensils: '<path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2M7 2v20M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/>',
+  scissors: '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12"/>',
+  laptop: '<path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16"/>',
+  pill: '<path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7ZM8.5 8.5l7 7"/>',
+  shirt: '<path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/>',
+  car: '<path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2M9 17h6"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/>',
+  brick: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 9v6M16 15v6M16 3v6M3 15h18M3 9h18M8 15v6M8 3v6"/>',
+  roller: '<rect x="3" y="3" width="16" height="6" rx="2"/><path d="M19 6h2v6h-9v3"/><rect x="10" y="15" width="4" height="6" rx="1"/>',
+  leaf: '<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10ZM2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>',
+  bread: '<path d="M4 11a8 6 0 0 1 16 0v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM9 12v4M15 12v4M12 11v5"/>',
+  icecream: '<path d="m7 11 4.08 10.35a1 1 0 0 0 1.84 0L17 11M17 7A5 5 0 0 0 7 7M17 7a2 2 0 0 1 0 4H7a2 2 0 0 1 0-4"/>',
+  truck: '<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2M15 18H9M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+  steth: '<path d="M11 2v2M5 2v2M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1M8 15a6 6 0 0 0 12 0v-3"/><circle cx="20" cy="10" r="2"/>',
+  store: '<path d="M3 9l1-5h16l1 5M4 9v11h16V9M3 9h18M9 20v-6h6v6"/>',
+  sparkles: '<path d="M12 3l1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2zM19 3v4M21 5h-4"/>',
+  phone: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
+  cloud: '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
+  apple: '<path d="M12 6.5c1.5-1 3.5-1.5 5 0 1.4 1.4 2 3 2 5 0 4-3 9-5 9-1 0-1.5-.6-2-.6s-1 .6-2 .6c-2 0-5-5-5-9 0-2 .6-3.6 2-5 1.5-1.5 3.5-1 5 0zM12 6.5C12 4.5 13 3 15 2.5"/>',
+  shield: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+  history: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8M3 3v5h5M12 7v5l4 2"/>',
+  save: '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>',
+  chart: '<path d="M3 3v18h18M7 16v-4M12 16V8M17 16v-7"/>',
+  book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5zM20 17v4H6.5"/>',
+  calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94z"/>',
+};
+for (const el of document.querySelectorAll('[data-i]')) el.innerHTML = `<svg class="i" viewBox="0 0 24 24">${I[el.dataset.i] ?? ''}</svg>`;
+</script>
+</body>
+</html>
