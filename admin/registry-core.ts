@@ -61,7 +61,7 @@ export interface Agent {
   /** kind: نوع الرخص (القديمة بدونه = سنوي)، currency: عملة المبلغ (القديمة بدونها = دولار). */
   packages: { at: string; count: number; price: number; kind?: AgentKind; mobile?: boolean; currency?: 'SYP' | 'USD'; tier?: string; note?: string }[];
   /** كل رخصة انصرفت من رصيده. */
-  uses: { at: string; customerId: string; action: 'issue' | 'renew'; kind?: AgentKind; mobile?: boolean }[];
+  uses: { at: string; customerId: string; action: 'issue' | 'renew' | 'upgrade'; kind?: AgentKind; mobile?: boolean }[];
 }
 
 /** الوكيل بيبيع سنوي (بيتجدد كل سنة من رصيده) أو دائم، والرخصة الوحدة بتشتغل على جهازين افتراضياً. */
@@ -318,18 +318,25 @@ export class RegistryCore {
   }
 
   /** تمديد الاشتراك (يصل للعميل عبر القائمة، أو بمفتاح جديد إن لم يكن لديه إنترنت). */
-  extend(id: string, plan: Plan, opts: { prepaid?: boolean } = {}): Customer {
+  /**
+   * تمديد أو تحويل الاشتراك. زبائن الوكلاء: سنة (من الرصيد السنوي) أو تحويل لدائم (من الرصيد الدائم).
+   * free: المدير بيمدد بدون ما ينخصم شي من رصيد الوكيل.
+   */
+  extend(id: string, plan: Plan, opts: { prepaid?: boolean; free?: boolean } = {}): Customer {
     const c = this.find(id);
     // كرت مدفوع سلف: الرصيد انخصم لما انعمل الكرت، والمدة من الكرت
     const agent = c.agentId && !opts.prepaid ? this.agents.find((a) => a.id === c.agentId) : undefined;
     if (opts.prepaid && c.phoneOf) throw new Error('مفتاح الجوال بيتجدد مع رخصة الكمبيوتر تبعه');
+    const kind: AgentKind = plan === 'lifetime' ? 'lifetime' : 'annual';
+    const charge = agent && !opts.free ? agent : undefined;
     if (agent) {
-      // زبائن الوكلاء: التجديد سنوي، وبينخصم من رصيد الوكيل السنوي (الدائم ما بيحتاج تجديد)
       if (c.phoneOf) throw new Error('مفتاح الجوال بيتجدد مع رخصة الكمبيوتر تبعه');
       if (c.plan === 'lifetime') throw new Error('هالزبون اشتراكه دائم، ما بيحتاج تجديد');
-      const bucket = bucketOf('annual', c.mobile);
-      if (agentBalance(agent)[bucket].left <= 0) throw new Error(`رصيد الوكيل ${agent.name} ${BUCKET_NAME[bucket]} خلص. ضيفله باقة جديدة أولاً.`);
-      plan = AGENT_PLAN;
+      if (charge) {
+        const bucket = bucketOf(kind, c.mobile);
+        if (agentBalance(charge)[bucket].left <= 0) throw new Error(`رصيد الوكيل ${charge.name} ${BUCKET_NAME[bucket]} خلص. ضيفله باقة جديدة أولاً.`);
+        plan = kind === 'lifetime' ? 'lifetime' : AGENT_PLAN;
+      }
     }
     const days = PLANS[plan].days;
     if (days === null) {
@@ -343,7 +350,7 @@ export class RegistryCore {
     delete c.message;
     c.key = this.sign(c);
     c.history.push({ at: new Date().toISOString(), action: `تمديد ${PLANS[plan].nameAr} حتى ${c.expiresAt?.slice(0, 10) ?? 'دائم'}` });
-    if (agent) agent.uses.push({ at: new Date().toISOString(), customerId: c.id, action: 'renew', kind: 'annual', ...(c.mobile ? { mobile: true } : {}) });
+    if (charge) charge.uses.push({ at: new Date().toISOString(), customerId: c.id, action: kind === 'lifetime' ? 'upgrade' : 'renew', kind, ...(c.mobile ? { mobile: true } : {}) });
     // مفتاح الجوال بيمشي مع رخصة الكمبيوتر
     for (const ph of this.data.customers.filter((x) => x.phoneOf === c.id && x.status !== 'revoked')) {
       ph.plan = c.plan;
@@ -353,7 +360,7 @@ export class RegistryCore {
       ph.key = this.sign(ph);
       ph.history.push({ at: new Date().toISOString(), action: `تمديد مع رخصة الكمبيوتر حتى ${c.expiresAt?.slice(0, 10) ?? 'دائم'}` });
     }
-    this.note(`تمديد ${c.name} ${PLANS[plan].nameAr} حتى ${c.expiresAt?.slice(0, 10) ?? 'دائم'}`, { customerId: c.id, ...(agent ? { agentId: agent.id } : {}) });
+    this.note(`${plan === 'lifetime' ? 'تحويل لدائم' : 'تمديد'}: ${c.name} ${PLANS[plan].nameAr} حتى ${c.expiresAt?.slice(0, 10) ?? 'دائم'}${agent && !charge ? ' (بدون خصم من الوكيل)' : ''}`, { customerId: c.id, ...(agent ? { agentId: agent.id } : {}) });
     this.save();
     return c;
   }
@@ -591,6 +598,27 @@ export class RegistryCore {
     if (kind !== 'annual' && kind !== 'lifetime') throw new Error('نوع الرخص غير معروف');
     a.packages.push({ at: new Date().toISOString(), count, price, kind, ...(mobile ? { mobile: true } : {}), currency: input.currency ?? 'SYP', ...(tier && !custom ? { tier: tier.id } : {}), ...(input.note?.trim() ? { note: input.note.trim() } : {}) });
     this.note(`باقة لـ ${a.name}: ${count} رخصة ${kind === 'lifetime' ? 'دائمة' : 'سنوية'}${mobile ? ' + جوال' : ''}`, { agentId: a.id });
+    this.save();
+    return a;
+  }
+
+  /**
+   * إنقاص رصيد الوكيل (غلطة بباقة، أو رجّعنالو مصاري): بتنسجّل كباقة بعدد سالب حتى يضل السجل كامل.
+   * ما بينزل تحت اللي استعملو (الرخص المفعّلة بتضل شغالة).
+   */
+  deductPackage(id: string, input: { kind?: AgentKind; mobile?: boolean; count: number; refund?: number; currency?: 'SYP' | 'USD'; note?: string }): Agent {
+    const a = this.agent(id);
+    const kind: AgentKind = input.kind ?? 'annual';
+    if (kind !== 'annual' && kind !== 'lifetime') throw new Error('نوع الرخص غير معروف');
+    const count = input.count;
+    if (!Number.isInteger(count) || count <= 0 || count > 10_000) throw new Error('العدد غير صحيح');
+    const refund = input.refund ?? 0;
+    if (!Number.isFinite(refund) || refund < 0) throw new Error('المبلغ غير صحيح');
+    const bucket = bucketOf(kind, input.mobile);
+    const left = agentBalance(a)[bucket].left;
+    if (count > left) throw new Error(`رصيد ${a.name} ${BUCKET_NAME[bucket]} ${left} بس، ما فيك تنقص ${count}`);
+    a.packages.push({ at: new Date().toISOString(), count: -count, price: -refund, kind, ...(input.mobile ? { mobile: true } : {}), currency: input.currency ?? 'SYP', note: input.note?.trim() || 'إنقاص رصيد' });
+    this.note(`إنقاص رصيد ${a.name}: ${count} رخصة ${BUCKET_NAME[bucket]}`, { agentId: a.id });
     this.save();
     return a;
   }

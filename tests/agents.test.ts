@@ -20,6 +20,35 @@ beforeEach(() => {
 afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
 
 describe('agents', () => {
+  it('an annual customer can switch to lifetime from the lifetime balance', () => {
+    const r = new Registry(path.join(dir, 'registry.json'), PRIV);
+    const a = r.addAgent({ name: 'وكيل', packages: 1 });
+    const c = r.add({ name: 'زبون', machineId: M1, plan: 'annual', agentId: a.id });
+    expect(() => r.extend(c.id, 'lifetime')).toThrow(/الدائم/);
+    r.addPackage(a.id, { tier: 'l10' });
+    const up = r.extend(c.id, 'lifetime');
+    expect(up.plan).toBe('lifetime');
+    expect(up.expiresAt).toBeNull();
+    expect(parseLicense(up.key, PUB)?.expiresAt ?? null).toBeNull();
+    expect(agentBalance(r.agent(a.id))).toMatchObject({ annual: { used: 1 }, lifetime: { used: 1, left: 9 } });
+    expect(() => r.extend(c.id, 'annual')).toThrow(/دائم/);
+    // المدير بيقدر يمدد بدون خصم من الوكيل
+    const c2 = r.add({ name: 'زبون 2', machineId: M2, plan: 'annual', agentId: a.id });
+    r.extend(c2.id, 'lifetime', { free: true });
+    expect(agentBalance(r.agent(a.id)).lifetime.used).toBe(1);
+  });
+  it('the owner can reduce an agent balance, never below what is used', () => {
+    const r = new Registry(path.join(dir, 'registry.json'), PRIV);
+    const a = r.addAgent({ name: 'وكيل', packages: 1 });
+    r.addPackage(a.id, { tier: 'l10' });
+    r.add({ name: 'زبون', machineId: M1, plan: 'annual', agentId: a.id });
+    r.deductPackage(a.id, { kind: 'annual', count: 4, note: 'غلطة' });
+    expect(agentBalance(r.agent(a.id))).toMatchObject({ annual: { total: 6, used: 1, left: 5 }, lifetime: { left: 10 } });
+    expect(() => r.deductPackage(a.id, { kind: 'annual', count: 6 })).toThrow();
+    expect(() => r.deductPackage(a.id, { kind: 'lifetime', mobile: true, count: 1 })).toThrow();
+    r.deductPackage(a.id, { kind: 'lifetime', count: 10 });
+    expect(agentBalance(r.agent(a.id)).lifetime.left).toBe(0);
+  });
   it('a package adds 10 licenses and every activation uses one', () => {
     const r = new Registry(path.join(dir, 'registry.json'), PRIV);
     const a = r.addAgent({ name: 'أبو خالد — حلب', phone: '+963 911 111 111', packages: 1 });
@@ -31,8 +60,8 @@ describe('agents', () => {
     expect(c.agentId).toBe(a.id);
     expect(parseLicense(c.key, PUB)?.machineId).toBe(M1);
     expect(agentBalance(r.agent(a.id)).left).toBe(9);
-    // التجديد كمان بينخصم، وبيضل سنوي
-    const renewed = r.extend(c.id, 'lifetime');
+    // التجديد كمان بينخصم، وأي مدة غير الدائم بتصير سنة
+    const renewed = r.extend(c.id, 'monthly');
     expect(renewed.plan).toBe('annual');
     expect(renewed.expiresAt).not.toBeNull();
     expect(agentBalance(r.agent(a.id))).toMatchObject({ total: 10, used: 2, left: 8 });

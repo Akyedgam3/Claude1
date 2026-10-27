@@ -597,11 +597,11 @@ export class RegistryDO extends DurableObject<Env> {
         this.schedulePublish();
         return json({ customer: c, phone });
       }
-      const m = /^\/api\/agent\/customers\/([^/]+)\/(renew|phone)$/.exec(path);
+      const m = /^\/api\/agent\/customers\/([^/]+)\/(renew|lifetime|phone)$/.exec(path);
       if (m && req.method === 'POST') {
         needKey();
         const c = own(m[1]!);
-        const out = m[2] === 'renew' ? reg.extend(c.id, 'annual') : reg.addPhone(c.id, str('machineId'));
+        const out = m[2] === 'renew' ? reg.extend(c.id, 'annual') : m[2] === 'lifetime' ? reg.extend(c.id, 'lifetime') : reg.addPhone(c.id, str('machineId'));
         this.schedulePublish();
         return json(out);
       }
@@ -654,7 +654,7 @@ export class RegistryDO extends DurableObject<Env> {
       if (action !== 'status' && action !== 'cloud') needKey();
       if (action === 'extend') {
         if (!(str('plan') in PLANS)) throw new HttpError(400, 'نوع الاشتراك غير معروف');
-        return touch(reg.extend(id!, str('plan') as Plan));
+        return touch(reg.extend(id!, str('plan') as Plan, body['free'] === true ? { free: true } : {}));
       }
       if (action === 'status') {
         if (!['active', 'suspended', 'revoked'].includes(str('status'))) throw new HttpError(400, 'حالة غير معروفة');
@@ -688,7 +688,7 @@ export class RegistryDO extends DurableObject<Env> {
       if (str('tier')) reg.addPackage(a.id, { tier: str('tier') });
       return json({ agent: a, username, password });
     }
-    const ma = /^\/api\/agents\/([^/]+)\/(package|update|reset|login)$/.exec(path);
+    const ma = /^\/api\/agents\/([^/]+)\/(package|deduct|update|reset|login)$/.exec(path);
     if (ma && req.method === 'POST') {
       const [, id, action] = ma;
       const a = reg.agent(id!);
@@ -700,6 +700,17 @@ export class RegistryDO extends DurableObject<Env> {
             ...(body['mobile'] === true ? { mobile: true } : {}),
             ...(num('count') !== undefined ? { count: num('count')! } : {}),
             ...(num('price') !== undefined ? { price: num('price')! } : {}),
+            ...(str('note') ? { note: str('note') } : {}),
+          }),
+        );
+      }
+      if (action === 'deduct') {
+        return json(
+          reg.deductPackage(a.id, {
+            kind: str('kind') === 'lifetime' ? 'lifetime' : 'annual',
+            ...(body['mobile'] === true ? { mobile: true } : {}),
+            count: num('count') ?? 0,
+            ...(num('refund') !== undefined ? { refund: num('refund')! } : {}),
             ...(str('note') ? { note: str('note') } : {}),
           }),
         );

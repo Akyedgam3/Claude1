@@ -117,8 +117,28 @@ check(feed && Object.keys(feed.entries).length === 4, `feed signed and has 4 lic
 await p.reload();
 await p.getByText('آخر النشاط').waitFor();
 await p.screenshot({ path: `${OUT}/panel-owner-home.png`, fullPage: true });
-// سحب الوكالة بيطلع الوكيل
+// إنقاص رصيد الوكيل
 await p.getByRole('button', { name: 'الوكلاء' }).click();
+const balBefore = await p.locator('.item .bal').first().innerText();
+await p.getByRole('button', { name: '− إنقاص رصيد' }).first().click();
+await p.locator('.modal input[name=count]').fill('2');
+await p.locator('.modal input[name=note]').fill('تجربة');
+await p.screenshot({ path: `${OUT}/panel-deduct.png` });
+await p.locator('.modal').getByRole('button', { name: 'إنقاص' }).click();
+check(await sawToast(p, 'انخصم من الرصيد'), 'owner reduced the agent balance');
+await p.waitForTimeout(500);
+const balAfter = await p.locator('.item .bal').first().innerText();
+console.log('balance', JSON.stringify(balBefore), '->', JSON.stringify(balAfter));
+check(balBefore !== balAfter, 'balance changed on screen');
+// تحويل زبون سنوي لدائم (المدير، بدون خصم من الوكيل)
+const up = await p.evaluate(async () => {
+  const st = await (await fetch('/api/state')).json();
+  const c = st.customers.find((x: { plan: string; phoneOf?: string; agentId?: string }) => x.plan !== 'lifetime' && !x.phoneOf && x.agentId);
+  const r = await fetch(`/api/customers/${c.id}/extend`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Wazn': '1' }, body: JSON.stringify({ plan: 'lifetime', free: true }) });
+  return { status: r.status, plan: (await r.json()).plan };
+});
+check(up.status === 200 && up.plan === 'lifetime', `owner switched an agent customer to lifetime (${JSON.stringify(up)})`);
+// سحب الوكالة بيطلع الوكيل
 await p.getByRole('button', { name: 'سحب الوكالة' }).click();
 await p.waitForTimeout(800);
 const after = await ag.evaluate(async () => (await fetch('/api/agent/state')).status);

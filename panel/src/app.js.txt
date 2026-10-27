@@ -192,6 +192,7 @@ function agentCard(a) {
       <select id="tier-${a.id}" style="flex:1;min-width:200px">${S.tiers.map((t) => `<option value="${t.id}">${esc(tierLabel(t))}</option>`).join('')}</select>
       <button class="primary small" data-act="pkg" data-id="${a.id}">+ إضافة الخطة</button>
       <button class="small" data-act="custom" data-id="${a.id}">باقة مخصصة</button>
+      ${b.left > 0 ? `<button class="small danger" data-act="deduct" data-id="${a.id}">− إنقاص رصيد</button>` : ''}
       ${a.username ? `<button class="small" data-act="reset" data-id="${a.id}">كلمة سر جديدة</button>` : `<button class="small" data-act="login" data-id="${a.id}">إنشاء حساب دخول</button>`}
       <button class="small" data-act="edit" data-id="${a.id}">تعديل</button>
       <button class="small ${a.active ? 'danger' : ''}" data-act="${a.active ? 'stop' : 'start'}" data-id="${a.id}">${a.active ? 'سحب الوكالة' : 'إعادة تفعيل'}</button>
@@ -220,6 +221,21 @@ async function agentAction(act, id) {
       e.preventDefault();
       const f = Object.fromEntries(new FormData(e.target));
       const r = await run(() => api(`/api/agents/${id}/package`, { count: f.count, price: f.price, note: f.note, kind: f.b.startsWith('lifetime') ? 'lifetime' : 'annual', mobile: f.b.endsWith('Mobile') }), 'انضافت الباقة');
+      if (r) m.close();
+    };
+  } else if (act === 'deduct') {
+    const have = BUCKETS.filter(([k]) => a.balance[k].left > 0);
+    const m = modal(`<h2>إنقاص رصيد ${esc(a.name)}</h2><p class="muted">الرخص اللي فعّلها بتضل شغالة؛ بينقص بس الباقي برصيده. وبينسجّل بالسجل.</p><form class="list" id="f">
+      <label>من أي رصيد<select name="b">${have.map(([k, n]) => `<option value="${k}">${n} (باقي ${a.balance[k].left})</option>`).join('')}</select></label>
+      <label>كم رخصة ننقص<input name="count" type="number" min="1" value="1" required /></label>
+      <label>مبلغ رجّعناه للوكيل (اختياري، ل.س جديدة)<input name="refund" type="number" min="0" value="0" /></label>
+      <label>السبب<input name="note" placeholder="مثلاً: غلطة بالباقة" /></label>
+      <div class="row"><button class="primary">إنقاص</button><button type="button" id="x">إلغاء</button></div></form>`);
+    $('#x', m).onclick = m.close;
+    $('#f', m).onsubmit = async (e) => {
+      e.preventDefault();
+      const f = Object.fromEntries(new FormData(e.target));
+      const r = await run(() => api(`/api/agents/${id}/deduct`, { count: f.count, refund: f.refund, note: f.note, kind: f.b.startsWith('lifetime') ? 'lifetime' : 'annual', mobile: f.b.endsWith('Mobile') }), 'انخصم من الرصيد');
       if (r) m.close();
     };
   } else if (act === 'reset') {
@@ -255,7 +271,7 @@ function customerRow(c, owner) {
         <button class="small" data-c="cloud" data-id="${c.id}">${c.cloud ? 'إيقاف عن بعد' : 'تفعيل عن بعد'}</button>
         <button class="small" data-c="edit" data-id="${c.id}">تعديل</button>
         ${c.status !== 'revoked' ? `<button class="small danger" data-c="revoke" data-id="${c.id}">إلغاء</button>` : ''}`
-      : !c.phoneOf && c.plan !== 'lifetime' ? `<button class="small" data-c="renew" data-id="${c.id}">تجديد سنة</button>` : ''}
+      : !c.phoneOf && c.plan !== 'lifetime' ? `<button class="small" data-c="renew" data-id="${c.id}">تجديد سنة</button> <button class="small" data-c="lifetime" data-id="${c.id}">تحويل لدائم</button>` : ''}
     </div></div>`;
 }
 function filterCustomers(list) {
@@ -313,10 +329,17 @@ async function customerAction(act, id, owner) {
     if (!confirm(`تجديد ${c.name} سنة؟ بتنخصم رخصة من رصيدك.`)) return;
     const r = await run(() => api(`/api/agent/customers/${id}/renew`, {}), 'تم التجديد');
     if (r) showKey(r, '<p class="muted">إذا البرنامج عند الزبون متصل بالنت ما بيحتاج المفتاح الجديد، بيتجدد لحالو.</p>');
+  } else if (act === 'lifetime') {
+    if (!confirm(`تحويل ${c.name} لاشتراك دائم؟ بتنخصم رخصة من رصيدك الدائم${c.mobile ? ' مع الجوال' : ''}.`)) return;
+    await run(() => api(`/api/agent/customers/${id}/lifetime`, {}), 'صار اشتراكه دائم');
   } else if (act === 'extend') {
-    const m = modal(`<h2>تمديد ${esc(c.name)}</h2><form class="list" id="f"><label>المدة<select name="plan">${Object.entries(S.plans).map(([k, p]) => `<option value="${k}" ${k === 'annual' ? 'selected' : ''}>${esc(p.nameAr)}</option>`).join('')}</select></label><div class="row"><button class="primary">تمديد</button><button type="button" id="x">إلغاء</button></div></form>`);
+    const ag = c.agentId ? S.agents?.find((a) => a.id === c.agentId) : null;
+    const lifetime = c.plan === 'lifetime';
+    const m = modal(`<h2>تمديد أو تحويل ${esc(c.name)}</h2><form class="list" id="f">${lifetime ? '<p class="muted">اشتراكه دائم أصلاً.</p>' : ''}<label>المدة<select name="plan">${Object.entries(S.plans).map(([k, p]) => `<option value="${k}" ${k === 'annual' ? 'selected' : ''}>${esc(p.nameAr)}${k === 'lifetime' ? ' (تحويل لدائم)' : ''}</option>`).join('')}</select></label>
+      ${ag ? `<label class="row" style="gap:6px;color:var(--ink)"><input type="checkbox" name="charge" checked style="width:auto" /> خصم رخصة من رصيد الوكيل ${esc(ag.name)} (سنة من السنوي، دائم من الدائم)</label>` : ''}
+      <div class="row"><button class="primary">تمديد</button><button type="button" id="x">إلغاء</button></div></form>`);
     $('#x', m).onclick = m.close;
-    $('#f', m).onsubmit = async (e) => { e.preventDefault(); const r = await run(() => api(`/api/customers/${id}/extend`, Object.fromEntries(new FormData(e.target))), 'تم التمديد، وبينتشر لحالو'); if (r) m.close(); };
+    $('#f', m).onsubmit = async (e) => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); const r = await run(() => api(`/api/customers/${id}/extend`, { plan: f.plan, ...(ag && !f.charge ? { free: true } : {}) }), f.plan === 'lifetime' ? 'صار اشتراكه دائم، وبينتشر لحالو' : 'تم التمديد، وبينتشر لحالو'); if (r) m.close(); };
   } else if (act === 'suspend' || act === 'revoke') {
     const message = prompt(act === 'revoke' ? 'سبب الإلغاء (بيطلع للزبون):' : 'رسالة بتطلع للزبون:', act === 'suspend' ? 'تم إيقاف البرنامج لعدم تسديد الاشتراك. يرجى التواصل مع البائع.' : '');
     if (message === null) return;
