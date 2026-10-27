@@ -43,7 +43,8 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       const item = event.item;
       if (!item.name.trim()) fail('اسم المادة مطلوب');
       if (!item.code.trim()) fail('رمز المادة مطلوب');
-      const others = Object.values(state.items).filter((i) => i.id !== item.id);
+      // المواد المحذوفة (المؤرشفة) ما بتحجز رمزها ولا باركودها
+      const others = Object.values(state.items).filter((i) => i.id !== item.id && !i.archived);
       if (others.some((i) => i.code === item.code)) fail(`الرمز ${item.code} مستخدم لمادة أخرى`);
       const barcodes = [item.barcode, ...(item.units ?? []).map((u) => u.barcode)].filter(Boolean);
       for (const b of barcodes) {
@@ -421,6 +422,7 @@ export function applyCommerceEvent(state: CompanyState, event: CompanyEvent): vo
     case 'invoice.voided': {
       const inv = state.invoices.find((i) => i.id === event.invoiceId)!;
       inv.voidEntryId = event.entry.id;
+      if (event.deleted) inv.deleted = true;
       state.entries.push(event.entry);
       state.voided[inv.entryId] = event.entry.id;
       for (const m of invoiceMoves(state, inv)) applyMove(state, negate(m));

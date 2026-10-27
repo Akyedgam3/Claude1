@@ -327,6 +327,7 @@ export function ConfirmButton({ label, confirmLabel, onConfirm, className }: { l
   }, [armed]);
   return armed ? (
     <button
+      type="button"
       className={`danger ${className ?? ''}`}
       onClick={async () => {
         setArmed(false);
@@ -336,7 +337,7 @@ export function ConfirmButton({ label, confirmLabel, onConfirm, className }: { l
       {confirmLabel ?? 'تأكيد'}
     </button>
   ) : (
-    <button className={`ghost danger ${className ?? ''}`} onClick={() => setArmed(true)}>
+    <button type="button" className={`ghost danger ${className ?? ''}`} onClick={() => setArmed(true)}>
       {label}
     </button>
   );

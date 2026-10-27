@@ -645,6 +645,20 @@ export class Ledger {
     this.emit({ type: 'item.saved', item });
   }
 
+  /**
+   * حذف مادة: بتختفي من المواد والبيع، وفواتيرها القديمة بتضل متل ما هي.
+   * لازم رصيدها يكون صفر، وما تكون داخلة بوصفة مادة تانية.
+   */
+  deleteItem(itemId: string): void {
+    const item = this.state.items[itemId] ?? fail('المادة غير موجودة');
+    if (item.archived) fail('المادة محذوفة مسبقاً');
+    const qty = this.state.stock[itemId]?.totalQty ?? 0;
+    if (item.kind === 'stock' && Math.abs(qty) > 1e-9) fail(`ما فيك تحذف «${item.name}» وإلها رصيد (${+qty.toFixed(3)} ${item.unit}). صفّر رصيدها من الجرد أو بيعها أول`);
+    const inRecipe = Object.values(this.state.items).find((i) => !i.archived && i.recipe?.some((r) => r.itemId === itemId));
+    if (inRecipe) fail(`«${item.name}» داخلة بوصفة «${inRecipe.name}»؛ شيلها من الوصفة أول`);
+    this.saveItem({ ...item, archived: true });
+  }
+
   /** حفظ مجموعة مواد دفعة واحدة (استيراد من Excel أو توليد مقاسات وألوان). */
   saveItems(items: Item[]): number {
     for (const item of items) this.saveItem(item);
@@ -697,11 +711,22 @@ export class Ledger {
     return this.postInvoice(next, { number: old.number, replaces: old.id });
   }
 
+  /**
+   * حذف فاتورة انعملت بالغلط: بتنلغى بتاريخها نفسه (فأرباح وصندوق هداك اليوم بيرجعوا متل ما كانوا)
+   * وبتختفي من سجل الفواتير. إذا فترتها مقفلة بتنلغى بتاريخ اليوم. القيود بتضل محفوظة للمراجعة.
+   */
+  deleteInvoice(invoiceId: string, today: string): void {
+    const invoice = this.state.invoices.find((i) => i.id === invoiceId) ?? fail('الفاتورة غير موجودة');
+    if (invoice.voidEntryId) fail('الفاتورة ملغاة مسبقاً');
+    const locked = this.state.info?.lockedUntil;
+    this.voidInvoice(invoiceId, locked && invoice.date <= locked ? today : invoice.date, { deleted: true });
+  }
+
   /** إلغاء الفاتورة: قيد عكسي وإرجاع حركة المخزون كما كانت. */
-  voidInvoice(invoiceId: string, date: string): void {
+  voidInvoice(invoiceId: string, date: string, opts: { deleted?: boolean } = {}): void {
     const invoice = this.state.invoices.find((i) => i.id === invoiceId) ?? fail('الفاتورة غير موجودة');
     const original = this.state.entries.find((e) => e.id === invoice.entryId)!;
-    this.emit({ type: 'invoice.voided', invoiceId, entry: this.reversal(original, date) });
+    this.emit({ type: 'invoice.voided', invoiceId, entry: this.reversal(original, date), ...(opts.deleted ? { deleted: true } : {}) });
     // إعادة فتح المستند المرتبط إن وُجد لتعديله وفوترته من جديد
     const src = invoice.source;
     if (src?.type === 'repair') {

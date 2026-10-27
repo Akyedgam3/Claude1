@@ -1,4 +1,4 @@
-import { amountInWords, findRate, INVOICE_KIND_NAMES, lineAmount, type CompanyState, type Invoice } from '../../../core';
+import { amountInWords, findRate, INVOICE_KIND_NAMES, invoicePartyBalance, invoiceProfit, lineAmount, type CompanyState, type Invoice } from '../../../core';
 import { dateText, money, plainMoney, qtyText, rateLine, today, useCompany } from '../api';
 import type { ReactNode } from 'react';
 import { CommercialDoc, type DocModel } from '../components/CommercialDoc';
@@ -19,10 +19,13 @@ export function InvoiceView({ id }: { id: string }) {
         {canEditInvoice(inv, can as never) && <button onClick={() => navigate(inv.kind, inv.id)}>تعديل</button>}
         {!inv.voidEntryId && can('sales.void') && (
           <ConfirmButton
-            label="إلغاء الفاتورة"
-            confirmLabel="تأكيد الإلغاء"
+            label="حذف الفاتورة"
+            confirmLabel="تأكيد الحذف"
             onConfirm={async () => {
-              if (await call('voidInvoice', inv.id, today())) notify('تم إلغاء الفاتورة وإرجاع المخزون');
+              if (await call('deleteInvoice', inv.id, today())) {
+                notify('انحذفت الفاتورة ورجع المخزون والحسابات متل ما كانوا');
+                navigate('invoices');
+              }
             }}
           />
         )}
@@ -39,7 +42,7 @@ export function InvoiceView({ id }: { id: string }) {
         const next = state.invoices.find((x) => x.replaces === inv.id);
         return (
           <div className="banner bad">
-            هذه الفاتورة ملغاة
+            {inv.deleted ? 'هذه الفاتورة محذوفة' : 'هذه الفاتورة ملغاة'}
             {next && (
               <>
                 {' '}— انعدّلت، والنسخة الجديدة{' '}
@@ -59,6 +62,16 @@ export function InvoiceView({ id }: { id: string }) {
           </button>
         </div>
       )}
+      {inv.kind === 'sale' && !inv.voidEntryId && can('costs.view') && state.info!.print?.showInvoiceProfit !== false && (() => {
+        const p = invoiceProfit(state, inv);
+        return (
+          <div className={`profit-box no-print ${p.profit < 0 ? 'loss' : ''}`} style={{ maxWidth: 420 }}>
+            <span>{p.profit < 0 ? 'خسارة هالفاتورة' : 'ربح هالفاتورة'}</span>
+            <strong>{money(state, Math.abs(p.profit))}</strong>
+            {p.revenue > 0 && <small>{Math.round((p.profit / p.revenue) * 100)}% · المبيع بدون الضريبة {money(state, p.revenue)} · التكلفة {money(state, p.cost)}</small>}
+          </div>
+        );
+      })()}
       <div className="paper-preview">
         <InvoiceDocument inv={inv} />
       </div>
@@ -83,6 +96,7 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
   const decimals = state.currencies[inv.currency]?.decimals ?? 2;
   const saleSide = inv.kind === 'sale' || inv.kind === 'sale_return';
   const moneyIn = inv.kind === 'sale' || inv.kind === 'purchase_return';
+  const account = partyAccountRows(state, inv);
 
   const refs: ReactNode[] = [];
   if (vehicle) {
@@ -137,8 +151,9 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
     ],
     grand: { label: 'الإجمالي', value: m(inv.total) },
     after: [
+      ...(account?.before ?? []),
       { label: moneyIn ? 'المقبوض' : 'المدفوع', value: m(inv.paid) },
-      ...(remaining > 0 ? [{ label: 'الباقي', value: m(remaining) }] : []),
+      ...(account ? account.after : remaining > 0 ? [{ label: 'الباقي', value: m(remaining) }] : []),
       ...(inv.currency !== company.baseCurrency ? [{ label: 'سعر الصرف', value: rateLine(state, inv.currency, inv.rate) }] : []),
       ...(showUsd ? [{ label: 'المقابل بالدولار', value: money(state, Math.round(((inv.total * inv.rate) / usdRate) * 10 ** (2 - decimals)), 'USD') }] : []),
     ],
@@ -165,7 +180,7 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
     lines: inv.lines.map((l, i) => ({ name: l.description, sub: model.lines[i]!.sub!, qty: qtyText(l.qty), price: plain(l.price), total: plain(lineAmount(l)) })),
     totals: model.totals,
     grand: { label: 'الصافي', value: m(inv.total) },
-    after: model.after!.filter((a) => a.label !== 'المقبوض' || remaining > 0),
+    after: model.after!.filter((a) => a.label !== 'المقبوض' || remaining > 0 || !!account),
     ...(inv.notes && !order ? { note: inv.notes } : {}),
     qrText: model.qrText!,
   };
@@ -175,6 +190,29 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
       <ThermalReceipt data={receipt} />
     </>
   );
+}
+
+/**
+ * الحساب السابق للزبون أو المورد على الفاتورة: «حساب سابق» و«الإجمالي مع السابق» قبل المقبوض،
+ * و«الباقي بذمته» بعده. بيظهر بس إذا كان عليه أو إله شي قبل الفاتورة (ومنطفّيه من الإعدادات).
+ */
+export function partyAccountRows(state: CompanyState, inv: Invoice): { before: { label: string; value: string }[]; after: { label: string; value: string }[] } | null {
+  if (state.info!.print?.showPreviousBalance === false || inv.voidEntryId) return null;
+  const bal = invoicePartyBalance(state, inv);
+  if (!bal || bal.previous === 0) return null;
+  const m = (v: number) => money(state, v, inv.currency);
+  const sale = inv.kind === 'sale' || inv.kind === 'sale_return';
+  const s = sale ? 1 : -1; // موجب = بالاتجاه الطبيعي: الزبون مديون إلنا، أو نحنا مديونين للمورد
+  const prev = s * bal.previous;
+  const after = s * bal.after;
+  const adds = inv.kind === 'sale' || inv.kind === 'purchase';
+  return {
+    before: [
+      { label: prev > 0 ? 'حساب سابق' : sale ? 'رصيد سابق إله' : 'رصيد سابق إلنا', value: m(Math.abs(prev)) },
+      ...(adds && prev > 0 ? [{ label: 'الإجمالي مع الحساب السابق', value: m(prev + inv.total) }] : []),
+    ],
+    after: [{ label: after >= 0 ? (sale ? 'الباقي بذمته' : 'الباقي علينا') : sale ? 'رصيد إله عندنا' : 'رصيد إلنا عنده', value: m(Math.abs(after)) }],
+  };
 }
 
 /** نص مختصر للفاتورة يُرسل للزبون برسالة. */
@@ -192,6 +230,7 @@ export function invoiceText(state: CompanyState, inv: Invoice): string {
     inv.discount ? `الخصم: ${m(inv.discount)}` : '',
     `*الإجمالي: ${m(inv.total)}*`,
     inv.total - inv.paid > 0 ? `المدفوع: ${m(inv.paid)} — الباقي: ${m(inv.total - inv.paid)}` : 'مدفوعة بالكامل',
+    ...((acc) => (acc ? [...acc.before, ...acc.after].map((r) => `${r.label}: ${r.value}`) : []))(partyAccountRows(state, inv)),
     '',
     state.info!.print?.footer || 'شكراً لتعاملكم معنا',
   ]

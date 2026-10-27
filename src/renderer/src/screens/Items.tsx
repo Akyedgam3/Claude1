@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { attributesFor, generateVariants, type Item, type ItemKind, type ItemUnit, type RecipeLine } from '../../../core';
 import { api, major, money, parseAmount, qtyText, toInput, today, uid, useCompany } from '../api';
 import { Barcode, ExportButtons, usePrinter } from '../components/print';
-import { CameraScanButton, ColorPicker, CurrencySelect, ItemName, Empty, Field, itemMatches, itemOptions, Modal, PageHeader, Picker, SearchBox, Tabs } from '../components/ui';
+import { CameraScanButton, ColorPicker, ConfirmButton, CurrencySelect, ItemName, Empty, Field, itemMatches, itemOptions, Modal, PageHeader, Picker, SearchBox, Tabs } from '../components/ui';
 import { Icon } from '../components/icons';
 
 export function Items({ initialQuery }: { initialQuery?: string } = {}) {
@@ -527,6 +527,19 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
         )}
 
         <div className="form-actions wide">
+          {item && !item.archived && (
+            <ConfirmButton
+              className="push-start"
+              label={`حذف ${profile.itemLabel}`}
+              confirmLabel="متأكد؟ احذفها"
+              onConfirm={async () => {
+                if (await call('deleteItem', item.id)) {
+                  notify(`انحذفت «${item.name}». فواتيرها القديمة بتضل متل ما هي`);
+                  onClose();
+                }
+              }}
+            />
+          )}
           <button type="button" onClick={onClose}>
             إلغاء
           </button>

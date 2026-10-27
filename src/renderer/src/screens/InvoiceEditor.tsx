@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { computeTaxes, findRate, INVOICE_KIND_NAMES, itemTitle, matchSerials, resolveScan, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party } from '../../../core';
+import { computeTaxes, findRate, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, resolveScan, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party } from '../../../core';
 import { convertPrice, fxRates, money, parseAmount, rateInverted, toInput, today, uid, useCompany } from '../api';
 import { CurrencySelect, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
 import { invoiceDrafts } from '../drafts';
@@ -297,6 +297,22 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
       return { amounts: [] as number[], subtotal: 0, disc: 0, taxes: [], total: 0, error: (e as Error).message };
     }
   }, [used, discount, taxIds, currency, state]);
+
+  // ربح الفاتورة وقت البيع (تقديري بمتوسط التكلفة الحالي)، بالعملة الأساسية. بينطفى من الإعدادات
+  const profit = useMemo(() => {
+    if (kind !== 'sale' || !can('costs.view') || state.info!.print?.showInvoiceProfit === false || !used.length || preview.error || !(rate > 0)) return null;
+    const scale = 10 ** (state.currencies[base]!.decimals - state.currencies[currency]!.decimals);
+    const revenue = Math.round((preview.subtotal - preview.disc) * rate * scale);
+    let cost = 0;
+    for (const l of used) {
+      if (!l.itemId) continue;
+      const item = state.items[l.itemId];
+      const factor = (l.unit && item?.units?.find((u) => u.name === l.unit)?.factor) || 1;
+      cost += itemUnitCost(state, l.itemId) * Number(l.qty || 0) * factor;
+    }
+    cost = Math.round(cost);
+    return { revenue, cost, profit: revenue - cost };
+  }, [kind, can, state, used, preview, rate, base, currency]);
 
   const paid = (() => {
     if (payMode === 'cash') return preview.total;
@@ -597,6 +613,13 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
               </>
             )}
           </div>
+          {profit && (
+            <div className={`profit-box ${profit.profit < 0 ? 'loss' : ''}`} title="صافي المبيع بدون الضريبة ناقص تكلفة البضاعة (بمتوسط التكلفة الحالي)">
+              <span>{profit.profit < 0 ? 'خسارة الفاتورة' : 'ربح الفاتورة'}</span>
+              <strong>{money(state, Math.abs(profit.profit), base)}</strong>
+              {profit.revenue > 0 && <small>{Math.round((profit.profit / profit.revenue) * 100)}% · التكلفة {money(state, profit.cost, base)}</small>}
+            </div>
+          )}
           <PaySwitch kind={kind} mode={payMode} onChange={setPayMode} />
           {payMode !== 'cash' && !partyId && <p className="bad small-note">{isSale ? 'اختر العميل في الأعلى ليُسجَّل الدين عليه' : 'اختر المورد في الأعلى ليُسجَّل الدين له'}</p>}
           <div className="kv">

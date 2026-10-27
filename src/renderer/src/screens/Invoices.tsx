@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { INVOICE_KIND_NAMES, type Invoice, type InvoiceKind } from '../../../core';
-import { dateText, major, money, useCompany } from '../api';
+import { dateText, major, money, today, useCompany } from '../api';
 import { ExportButtons } from '../components/print';
-import { Empty, Field, matches, PageHeader, SearchBox } from '../components/ui';
+import { ConfirmButton, Empty, Field, matches, PageHeader, SearchBox } from '../components/ui';
 import { Icon } from '../components/icons';
 
 /** صلاحية تعديل الفاتورة: إلغاء + إنشاء من نفس النوع، ومش طالعة من طلب أو مشروع. */
@@ -12,12 +12,14 @@ export function canEditInvoice(inv: Invoice, can: (p: never) => boolean): boolea
 }
 
 export function Invoices() {
-  const { state, navigate, can } = useCompany();
+  const { state, navigate, can, call, notify } = useCompany();
   const users = state.users;
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState<InvoiceKind | 'all'>('all');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [showDeleted, setShowDeleted] = useState(false);
+  const deletedCount = useMemo(() => state.invoices.filter((i) => i.deleted).length, [state.invoices]);
   // قائمة الكبسة اليمين على الفاتورة
   const [menu, setMenu] = useState<{ inv: Invoice; x: number; y: number } | null>(null);
 
@@ -26,6 +28,7 @@ export function Invoices() {
       state.invoices
         .filter(
           (i) =>
+            (showDeleted || !i.deleted) &&
             (kind === 'all' || i.kind === kind) &&
             (!from || i.date >= from) &&
             (!to || i.date <= to) &&
@@ -33,7 +36,7 @@ export function Invoices() {
         )
         .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
         .slice(0, 1000),
-    [state, query, kind, from, to],
+    [state, query, kind, from, to, showDeleted],
   );
 
   return (
@@ -68,7 +71,7 @@ export function Invoices() {
                 paid: major(state, i.paid, i.currency),
                 rest: major(state, i.total - i.paid, i.currency),
                 user: users[i.createdBy]?.displayName ?? i.createdBy,
-                status: i.voidEntryId ? 'ملغاة' : '',
+                status: i.deleted ? 'محذوفة' : i.voidEntryId ? 'ملغاة' : '',
               })),
             },
           ]}
@@ -92,6 +95,11 @@ export function Invoices() {
             <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
           </Field>
         </div>
+        {deletedCount > 0 && (
+          <label className="check">
+            <input type="checkbox" checked={showDeleted} onChange={(e) => setShowDeleted(e.target.checked)} /> إظهار المحذوفة ({deletedCount})
+          </label>
+        )}
       </div>
       {rows.length === 0 ? (
         <Empty>لا توجد فواتير</Empty>
@@ -128,7 +136,7 @@ export function Invoices() {
                 <td className="num">{money(state, i.paid, i.currency)}</td>
                 <td className="muted">{users[i.createdBy]?.displayName}</td>
                 <td>
-                  {i.voidEntryId && <span className="tag bad">ملغاة{state.invoices.some((x) => x.replaces === i.id) ? ' (معدّلة)' : ''}</span>}
+                  {i.deleted ? <span className="tag bad">محذوفة</span> : i.voidEntryId && <span className="tag bad">ملغاة{state.invoices.some((x) => x.replaces === i.id) ? ' (معدّلة)' : ''}</span>}
                   {i.replaces && <span className="tag">معدّلة</span>}
                 </td>
               </tr>
@@ -151,6 +159,17 @@ export function Invoices() {
               </button>
             ) : (
               <span className="muted">{menu.inv.voidEntryId ? 'الفاتورة ملغاة' : menu.inv.source ? 'بتتعدّل من الطلب أو المشروع تبعها' : 'ما عندك صلاحية التعديل'}</span>
+            )}
+            {!menu.inv.voidEntryId && can('sales.void') && (
+              <ConfirmButton
+                label="حذف الفاتورة"
+                confirmLabel="متأكد؟ احذفها"
+                onConfirm={async () => {
+                  const id = menu.inv.id;
+                  setMenu(null);
+                  if (await call('deleteInvoice', id, today())) notify('انحذفت الفاتورة ورجع المخزون والحسابات متل ما كانوا');
+                }}
+              />
             )}
           </div>
         </div>

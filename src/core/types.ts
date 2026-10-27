@@ -92,6 +92,8 @@ export interface PrintSettings {
   showStamp?: boolean; // ختم مدفوعة / آجل / ملغاة (افتراضياً نعم)
   showSignatures?: boolean; // خانات التوقيع
   terms?: string; // الشروط والأحكام أسفل الفاتورة
+  showPreviousBalance?: boolean; // الحساب السابق والرصيد بعد الفاتورة (افتراضياً نعم)
+  showInvoiceProfit?: boolean; // مربع ربح الفاتورة وقت البيع، لأصحاب صلاحية التكلفة (افتراضياً نعم)
   receipt?: ReceiptSettings; // تصميم الإيصال الحراري (80/58mm)
 }
 
@@ -313,6 +315,8 @@ export interface Invoice {
   replaces?: string;
   entryId: string;
   voidEntryId?: string;
+  /** انحذفت لأنها انعملت بالغلط (إلغاء بتاريخها، وبتختفي من السجل). */
+  deleted?: boolean;
   createdAt: string;
   createdBy: string;
 }
@@ -740,7 +744,7 @@ export type CompanyEvent =
   | { type: 'item.saved'; item: Item }
   | { type: 'warehouse.saved'; warehouse: Warehouse }
   | { type: 'invoice.posted'; invoice: Invoice; entry: JournalEntry }
-  | { type: 'invoice.voided'; invoiceId: string; entry: JournalEntry }
+  | { type: 'invoice.voided'; invoiceId: string; entry: JournalEntry; deleted?: boolean }
   | { type: 'stock.adjusted'; adjustment: StockAdjustment; entry?: JournalEntry }
   | { type: 'stock.transferred'; transfer: StockTransfer }
   | { type: 'production.posted'; production: Production }

@@ -1,4 +1,4 @@
-import type { Account, CompanyState, Item, JournalEntry, JournalLine } from './types';
+import type { Account, CompanyState, Invoice, Item, JournalEntry, JournalLine } from './types';
 
 export interface Period {
   from?: string; // YYYY-MM-DD شامل
@@ -458,6 +458,42 @@ export function dailySummary(state: CompanyState, date: string, userId?: string)
     .slice(0, 10)
     .map(([itemId, qty]) => ({ itemId, name: state.items[itemId]?.name ?? '', qty: Math.round(qty * 1000) / 1000 }));
   return { date, ...(userId ? { userId } : {}), invoices, voided, discounts, rows: [...rows.values()], topItems };
+}
+
+/** تكلفة الوحدة الأساسية من المادة حالياً (متوسط التكلفة؛ والمركّب = مجموع مكوّناته؛ والخدمة صفر). بالعملة الأساسية. */
+export function itemUnitCost(state: CompanyState, itemId: string, depth = 0): number {
+  const item = state.items[itemId];
+  if (!item || depth > 5) return 0;
+  if (item.kind === 'composite') return (item.recipe ?? []).reduce((s, r) => s + itemUnitCost(state, r.itemId, depth + 1) * r.qty, 0);
+  if (item.kind !== 'stock') return 0;
+  const w = state.stock[itemId];
+  if (!w) return 0;
+  return w.totalQty > 0 ? w.value / w.totalQty : w.lastCost;
+}
+
+/** ربح فاتورة مبيع محفوظة: صافي المبيع (بدون الضريبة) ناقص تكلفة البضاعة، بالعملة الأساسية. */
+export function invoiceProfit(state: CompanyState, inv: Invoice): { revenue: number; cost: number; profit: number } {
+  const base = state.currencies[state.info!.baseCurrency]!;
+  const cur = state.currencies[inv.currency] ?? base;
+  const revenue = Math.round((inv.subtotal - inv.discount) * inv.rate * 10 ** (base.decimals - cur.decimals));
+  const cost = inv.lines.reduce((s, l) => s + (l.cost ?? 0), 0);
+  return { revenue, cost, profit: revenue - cost };
+}
+
+/**
+ * حساب الشخص حول الفاتورة (بعملتها): الرصيد قبلها، وبعدها.
+ * موجب = لنا عليه (زبون مديون)، سالب = إله علينا. «قبلها» = كل الحركات اللي انسجّلت قبل قيد الفاتورة.
+ */
+export function invoicePartyBalance(state: CompanyState, inv: Invoice): { previous: number; after: number } | null {
+  if (!inv.partyId) return null;
+  let previous = 0;
+  let own = 0;
+  for (const e of state.entries) {
+    const mine = e.id === inv.entryId;
+    for (const l of e.lines) if (l.partyId === inv.partyId && l.currency === inv.currency) (mine ? (own += l.debit - l.credit) : (previous += l.debit - l.credit));
+    if (mine) return { previous, after: previous + own };
+  }
+  return null;
 }
 
 /** حركة على حساب شخص (فاتورة، دين، قبض، دفع) مع ما تبقّى منها غير مسدَّد. */

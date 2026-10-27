@@ -501,6 +501,14 @@ function PrintTab() {
           <input type="checkbox" checked={!!p.showUsdEquivalent} onChange={(e) => setP({ ...p, showUsdEquivalent: e.target.checked })} />
           إظهار المقابل بالدولار
         </label>
+        <label className="check">
+          <input type="checkbox" checked={p.showPreviousBalance !== false} onChange={(e) => setP({ ...p, showPreviousBalance: e.target.checked })} />
+          إظهار الحساب السابق للزبون على الفاتورة (والباقي بذمته بعدها)
+        </label>
+        <label className="check">
+          <input type="checkbox" checked={p.showInvoiceProfit !== false} onChange={(e) => setP({ ...p, showInvoiceProfit: e.target.checked })} />
+          إظهار ربح الفاتورة وقت البيع (بيشوفه بس اللي إله صلاحية التكلفة)
+        </label>
         <div className="form-actions wide">
           <button className="primary">حفظ</button>
         </div>

@@ -87,6 +87,7 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
   saveParty: 'parties.manage',
   saveItem: 'items.manage',
   saveItems: 'items.manage',
+  deleteItem: 'items.manage',
   saveWarehouse: 'stock.transfer',
   postInvoice: (args) => {
     const kind = (args[0] as { kind?: string } | undefined)?.kind;
@@ -95,6 +96,7 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
     return 'sales.create';
   },
   voidInvoice: 'sales.void',
+  deleteInvoice: 'sales.void',
   replaceInvoice: 'sales.void',
   postVoucher: 'vouchers.create',
   postDebt: 'vouchers.create',

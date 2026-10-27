@@ -490,6 +490,7 @@ button .icon-svg {
 .wide {
   grid-column: 1 / -1;
 }
+.form-actions .push-start { margin-inline-end: auto; }
 .form-actions {
   display: flex;
   gap: 8px;
@@ -3802,6 +3803,8 @@ button.danger-soft {
 .ctx-menu b { font-size: 13px; color: var(--muted); padding: 6px 10px 4px; }
 .ctx-menu button { display: flex; align-items: center; gap: 8px; justify-content: flex-start; border: 0; background: transparent; padding: 9px 10px; border-radius: 8px; text-align: start; }
 .ctx-menu button:hover { background: var(--primary-soft); }
+.ctx-menu button.danger { color: var(--danger); }
+.ctx-menu button.danger:not(.ghost) { background: var(--danger); color: #fff; }
 .ctx-menu .muted { padding: 8px 10px; font-size: 13px; }
 
 /* لون المادة (الموبايلات): نقطة ملونة واسم اللون جنب الاسم */
@@ -3877,3 +3880,11 @@ button.danger-soft {
   color: var(--primary);
   font-weight: 700;
 }
+
+/* مربع ربح الفاتورة (وقت البيع وبعرض الفاتورة، ما بينطبع) */
+.profit-box { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 10px; margin: 10px 0 4px; padding: 10px 12px; border-radius: 12px; background: var(--primary-soft); color: var(--primary); border: 1px dashed color-mix(in srgb, var(--primary) 45%, transparent); }
+.profit-box span { font-weight: 700; font-size: 13px; }
+.profit-box strong { font-size: 18px; font-weight: 900; }
+.profit-box small { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
+.profit-box.loss { background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+@media print { .profit-box { display: none !important; } }
