@@ -130,6 +130,8 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
   invoiceShipment: 'sales.create',
   addStoneBlock: 'purchases.create',
   cutStoneBlock: 'production.manage',
+  savePriceBoard: 'items.manage',
+  addPoultryCuts: 'items.manage',
   savePartner: 'partners.manage',
   partnerMove: 'partners.manage',
   voidPartnerMove: 'partners.manage',

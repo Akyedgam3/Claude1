@@ -3891,3 +3891,14 @@ button.danger-soft {
 
 /* عنوان قسم داخل نموذج (الشحنات، الكتل) */
 .form-grid .form-section { font-size: 14px; font-weight: 800; color: var(--primary); margin: 8px 0 -2px; padding-top: 8px; border-top: 1px dashed var(--border); }
+
+/* ── الفروج: الوزنات قفص قفص ── */
+.qty-cell { display: flex; align-items: center; gap: 4px; }
+.qty-cell .icon.on { color: var(--primary); background: var(--primary-soft); }
+.weigh-list { display: flex; flex-wrap: wrap; gap: 6px; min-height: 34px; align-items: center; }
+.weigh-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px 4px 10px; border-radius: 999px; background: var(--primary-soft); border: 1px solid var(--border); font-variant-numeric: tabular-nums; font-weight: 600; }
+.weigh-chip small { color: var(--muted); font-weight: 400; }
+.weigh-chip button { border: 0; background: none; padding: 2px; cursor: pointer; color: var(--muted); }
+.weigh-summary { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.price-board .num-input { max-width: 140px; }
+.weigh-note { display: block; color: var(--primary); }

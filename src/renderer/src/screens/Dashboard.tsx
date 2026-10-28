@@ -130,6 +130,11 @@ export function Dashboard() {
             <Icon name="mountain" size={20} /> الكتل والقص
           </button>
         )}
+        {feature('poultry') && (
+          <button className="primary big accent" onClick={() => navigate('poultry')}>
+            <Icon name="drumstick" size={20} /> تسعيرة اليوم والحمولات
+          </button>
+        )}
         {feature('tailoring') && can('tailoring.manage') && (
           <button className="primary big accent" onClick={() => navigate('tailor-order')}>
             <Icon name="scissors" size={20} /> طلب تفصيل جديد

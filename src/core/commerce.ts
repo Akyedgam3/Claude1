@@ -3,8 +3,9 @@ import { cashAccountFor, SYSTEM_ACCOUNTS } from './chart-templates';
 import type { EntryDraft, LineDraft } from './ledger';
 import { convertMinor } from './money';
 import { adjustmentMoves, applyMove, assertMovesPossible, invoiceMoves, negate, productionMoves, roundQty, StockPlanner, transferMoves } from './stock';
+import { cleanWeighing, weighingNet } from './poultry';
 import { computeTaxes } from './tax';
-import type { CompanyEvent, CompanyState, FabricRoll, Invoice, InvoiceKind, InvoiceLine, JournalEntry, LengthUnit, Order, Quote, RepairOrder, Shipment, ShipmentStatus, SiteJob, SiteJobLine, StoneBlock, TailorOrder, WorkOrder, WorkStage } from './types';
+import type { CompanyEvent, CompanyState, FabricRoll, Invoice, InvoiceKind, InvoiceLine, JournalEntry, LengthUnit, Order, Quote, RepairOrder, Shipment, ShipmentStatus, SiteJob, SiteJobLine, StoneBlock, TailorOrder, Weighing, WorkOrder, WorkStage } from './types';
 
 function fail(message: string): never {
   throw new Error(message);
@@ -210,6 +211,16 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       const prev = state.shipments?.[s.id];
       if (prev && prev.number !== s.number) fail('لا يمكن تغيير رقم الشحنة');
       if (prev?.invoiceId && !invoiceVoided(state, prev.invoiceId) && (s.status !== 'invoiced' || s.invoiceId !== prev.invoiceId)) fail('الشحنة مفوترة؛ ألغِ الفاتورة أولاً لتعديلها');
+      return;
+    }
+    case 'priceboard.saved': {
+      const b = event.board;
+      if (!DATE_RE.test(b.date)) fail('تاريخ غير صالح');
+      if (Object.keys(b.prices).length === 0) fail('التسعيرة فاضية');
+      for (const [id, p] of Object.entries(b.prices)) {
+        if (!state.items[id]) fail('مادة غير موجودة بالتسعيرة');
+        if (!Number.isSafeInteger(p.price) || p.price < 0 || (p.wholesale !== undefined && (!Number.isSafeInteger(p.wholesale) || p.wholesale < 0))) fail(`سعر غير صالح: ${state.items[id]!.name}`);
+      }
       return;
     }
     case 'stoneblock.saved': {
@@ -451,6 +462,9 @@ export function applyCommerceEvent(state: CompanyState, event: CompanyEvent): vo
       (state.shipments ??= {})[event.shipment.id] = { ...event.shipment };
       bump(state, 'shipment', event.shipment.number);
       return;
+    case 'priceboard.saved':
+      (state.priceBoards ??= {})[event.board.date] = { ...event.board };
+      return;
     case 'stoneblock.saved':
       (state.stoneBlocks ??= {})[event.block.id] = { ...event.block };
       bump(state, 'stoneblock', event.block.number);
@@ -533,6 +547,7 @@ export interface InvoiceLineDraft {
   expiry?: string;
   serials?: string[];
   note?: string;
+  weighing?: Weighing;
 }
 
 export interface InvoiceDraft {
@@ -596,8 +611,10 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft, opts: { n
   if (draft.lines.length === 0) fail('الفاتورة فارغة');
   const allowNegative = !!state.info?.allowNegativeStock;
 
-  const lines: InvoiceLine[] = draft.lines.map((d, i) => {
+  const lines: InvoiceLine[] = draft.lines.map((raw, i) => {
     const n = i + 1;
+    const weighing = raw.weighing ? cleanWeighing(raw.weighing, n) : undefined;
+    const d = weighing ? { ...raw, qty: weighingNet(weighing) } : raw;
     const item = d.itemId ? (state.items[d.itemId] ?? fail(`السطر ${n}: مادة غير موجودة`)) : null;
     if (!(d.qty > 0) || !Number.isFinite(d.qty)) fail(`السطر ${n}: الكمية يجب أن تكون أكبر من صفر`);
     if (!Number.isSafeInteger(d.price) || d.price < 0) fail(`السطر ${n}: سعر غير صالح`);
@@ -618,6 +635,7 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft, opts: { n
       price: d.price,
       discount,
       ...(d.note ? { note: d.note } : {}),
+      ...(weighing ? { weighing } : {}),
     };
   });
 

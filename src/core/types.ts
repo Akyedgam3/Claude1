@@ -74,7 +74,8 @@ export type Activity =
   | 'tailor'
   | 'gypsum'
   | 'customs'
-  | 'stone';
+  | 'stone'
+  | 'poultry';
 
 export type Paper = 'a4' | 'a5' | '80mm' | '58mm';
 
@@ -290,6 +291,25 @@ export interface InvoiceLine {
   serials?: string[];
   components?: ComponentMove[]; // للأصناف المركّبة
   note?: string;
+  /** وزنات على دفعات (قفص قفص): الكمية = مجموع الوزنات − وزن الفارغ. */
+  weighing?: Weighing;
+}
+
+/** وزن على دفعات متل ما بيوزن موزع الفروج: كل وزنة لحال، وزن الأقفاص الفاضية بينطرح، وعدد الطيور والنافق. */
+export interface Weighing {
+  weights: number[];
+  tare?: number; // وزن الأقفاص/الصناديق الفاضية (مجموع)
+  boxes?: number; // عدد الأقفاص
+  count?: number; // عدد الطيور
+  dead?: number; // النافق (ما بينحسب)
+}
+
+/** تسعيرة يوم: سعر المستهلك والجملة لكل صنف، محفوظة لنشوف تاريخ الأسعار. */
+export interface PriceBoard {
+  date: string;
+  prices: Record<string, { price: number; wholesale?: number }>;
+  by: string;
+  at: string;
 }
 
 export interface Invoice {
@@ -782,6 +802,7 @@ export interface CompanyState {
   siteJobs: Record<string, SiteJob>;
   shipments?: Record<string, Shipment>;
   stoneBlocks?: Record<string, StoneBlock>;
+  priceBoards?: Record<string, PriceBoard>;
   partners: Record<string, Partner>;
   quotes: Record<string, Quote>;
   rolls: Record<string, FabricRoll>;
@@ -821,6 +842,7 @@ export type CompanyEvent =
   | { type: 'sitejob.saved'; job: SiteJob }
   | { type: 'shipment.saved'; shipment: Shipment }
   | { type: 'stoneblock.saved'; block: StoneBlock }
+  | { type: 'priceboard.saved'; board: PriceBoard }
   | { type: 'partner.saved'; partner: Partner }
   | { type: 'quote.saved'; quote: Quote }
   | { type: 'rolls.saved'; rolls: FabricRoll[] }

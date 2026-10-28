@@ -6,6 +6,7 @@ import { buildSchedule, installmentState } from './electronics';
 import { cashAccountFor, SYSTEM_ACCOUNTS } from './chart-templates';
 import { convertMinor, currencyProblem, type Currency } from './money';
 import { invoiceMoves } from './stock';
+import { POULTRY_CUTS } from './poultry';
 import {
   buildAdjustment,
   buildCount,
@@ -19,6 +20,7 @@ import {
 } from './operations';
 import type {
   Partner,
+  PriceBoard,
   Account,
   Appointment,
   CompanyEvent,
@@ -1525,6 +1527,42 @@ export class Ledger {
     const block: StoneBlock = { ...b, cuts, ...(d.close || left - volume < 0.001 ? { closed: true } : {}) };
     this.emit({ type: 'stoneblock.saved', block });
     return block;
+  }
+
+  // ───────────── توزيع الفروج: تسعيرة اليوم والقطعيات ─────────────
+
+  /**
+   * تسعيرة اليوم: بتغيّر سعر المستهلك والجملة لكل صنف دفعة وحدة، وبتنحفظ بتاريخها لنرجع نشوف أسعار كل يوم.
+   * prices: سعر المستهلك (price) والجملة (wholesale) بأصغر وحدة من عملة المادة.
+   */
+  savePriceBoard(date: string, prices: Record<string, { price: number; wholesale?: number }>): PriceBoard {
+    const board: PriceBoard = { date, prices, by: this.actor, at: new Date().toISOString() };
+    this.emit({ type: 'priceboard.saved', board });
+    for (const [id, p] of Object.entries(prices)) {
+      const item = this.state.items[id]!;
+      const wholesale = p.wholesale || undefined;
+      if (item.price === p.price && (item.wholesalePrice || undefined) === wholesale) continue;
+      const { wholesalePrice: _w, ...rest } = item;
+      this.emit({ type: 'item.saved', item: { ...rest, price: p.price, ...(wholesale ? { wholesalePrice: wholesale } : {}) } });
+    }
+    return board;
+  }
+
+  /** بيضيف قطعيات الفروج المعتادة (فروج، وردة، جناح، شرحات...) اللي مش موجودة، بالكيلو. */
+  addPoultryCuts(): number {
+    const names = new Set(Object.values(this.state.items).filter((i) => !i.archived).map((i) => i.name.trim()));
+    const codes = new Set(Object.values(this.state.items).filter((i) => !i.archived).map((i) => i.code));
+    const currency = this.state.info?.baseCurrency ?? 'SYP';
+    let n = 0;
+    POULTRY_CUTS.forEach((c, i) => {
+      if (names.has(c.name) || this.state.items[c.id]) return;
+      let code = `D${String(i + 1).padStart(2, '0')}`;
+      while (codes.has(code)) code += '1';
+      codes.add(code);
+      this.emit({ type: 'item.saved', item: { id: c.id, code, name: c.name, kind: 'stock', unit: 'كيلو', price: 0, priceCurrency: currency, category: c.category } });
+      n++;
+    });
+    return n;
   }
 
   /** تعبئة شركة فاضية ببيانات تجريبية للعرض. */

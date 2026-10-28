@@ -32,6 +32,7 @@ import { TailorEditor, TailorOrders } from './screens/Tailor';
 import { SiteJobEditor, SiteJobs } from './screens/SiteJobs';
 import { Shipments } from './screens/Shipments';
 import { StoneBlocks } from './screens/StoneBlocks';
+import { Poultry } from './screens/Poultry';
 import { QuoteEditor, Quotes } from './screens/Quotes';
 import { StockOps } from './screens/StockOps';
 import { Users } from './screens/Users';
@@ -69,6 +70,7 @@ const NAV: (NavItem | string)[] = [
   { key: 'sitejobs', label: 'المشاريع والكشوفات', icon: 'roller', feature: 'sitejobs', perm: 'sitejobs.manage' },
   { key: 'shipments', label: 'الشحنات والتخليص', icon: 'container', feature: 'shipments', perm: 'shipments.manage' },
   { key: 'stoneblocks', label: 'الكتل والقص', icon: 'mountain', feature: 'stoneblocks', perms: ['production.manage', 'purchases.create'] },
+  { key: 'poultry', label: 'الفروج والتوزيع', icon: 'drumstick', feature: 'poultry' },
   'العمليات',
   { key: 'pos', label: 'نقطة البيع', icon: 'pos', feature: 'pos', perm: 'pos.use' },
   { key: 'restaurant', label: 'الطاولات والطلبات', icon: 'utensils', feature: 'tables', perm: 'restaurant.use' },
@@ -385,7 +387,7 @@ export function App() {
           <nav className="bottom-nav" aria-label="القائمة السريعة">
             {[
               screens.find((n) => n.key === 'dashboard'),
-              screens.find((n) => n.key === 'sitejobs') ?? screens.find((n) => n.key === 'shipments') ?? screens.find((n) => n.key === 'stoneblocks') ?? screens.find((n) => n.key === 'pos') ?? screens.find((n) => n.key === 'restaurant') ?? screens.find((n) => n.key === 'sale'),
+              screens.find((n) => n.key === 'sitejobs') ?? screens.find((n) => n.key === 'shipments') ?? screens.find((n) => n.key === 'stoneblocks') ?? screens.find((n) => n.key === 'poultry') ?? screens.find((n) => n.key === 'pos') ?? screens.find((n) => n.key === 'restaurant') ?? screens.find((n) => n.key === 'sale'),
               screens.find((n) => n.key === 'invoices'),
               screens.find((n) => n.key === 'debts') ?? screens.find((n) => n.key === 'items'),
             ]
@@ -393,7 +395,7 @@ export function App() {
               .map((n) => (
                 <button key={n.key} className={screen.key === n.key ? 'active' : ''} onClick={() => navigate(n.key)}>
                   <Icon name={n.icon} size={22} />
-                  <span>{n.key === 'dashboard' ? 'الرئيسية' : n.key === 'sitejobs' ? 'المشاريع' : n.key === 'shipments' ? 'الشحنات' : n.key === 'stoneblocks' ? 'الكتل' : n.key === 'pos' || n.key === 'restaurant' || n.key === 'sale' ? 'البيع' : n.key === 'invoices' ? 'الفواتير' : n.label}</span>
+                  <span>{n.key === 'dashboard' ? 'الرئيسية' : n.key === 'sitejobs' ? 'المشاريع' : n.key === 'shipments' ? 'الشحنات' : n.key === 'stoneblocks' ? 'الكتل' : n.key === 'poultry' ? 'الفروج' : n.key === 'pos' || n.key === 'restaurant' || n.key === 'sale' ? 'البيع' : n.key === 'invoices' ? 'الفواتير' : n.label}</span>
                 </button>
               ))}
             <button className={navOpen ? 'active' : ''} onClick={() => setNavOpen(true)}>
@@ -468,6 +470,8 @@ function Screen({ screen }: { screen: { key: string; param?: string } }) {
       return <Shipments />;
     case 'stoneblocks':
       return <StoneBlocks />;
+    case 'poultry':
+      return <Poultry />;
     case 'sitejob':
       return <SiteJobEditor key={p ?? 'new'} {...(p ? { id: p } : {})} />;
     case 'devices':

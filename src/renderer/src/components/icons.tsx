@@ -2,6 +2,8 @@ import {
   Cloud,
   Container,
   Mountain,
+  Drumstick,
+  Weight,
   Network,
   PaintRoller,
   Camera,
@@ -83,6 +85,8 @@ const ICONS: Record<string, LucideIcon> = {
   truck: Truck,
   container: Container,
   mountain: Mountain,
+  drumstick: Drumstick,
+  weight: Weight,
   stethoscope: Stethoscope,
   scissors: Scissors,
   // القائمة والأزرار

@@ -1,4 +1,4 @@
-import { amountInWords, findRate, INVOICE_KIND_NAMES, invoicePartyBalance, invoiceProfit, lineAmount, type CompanyState, type Invoice } from '../../../core';
+import { amountInWords, findRate, INVOICE_KIND_NAMES, invoicePartyBalance, invoiceProfit, lineAmount, weighingText, type CompanyState, type Invoice } from '../../../core';
 import { dateText, money, plainMoney, qtyText, rateLine, today, useCompany } from '../api';
 import type { ReactNode } from 'react';
 import { CommercialDoc, type DocModel } from '../components/CommercialDoc';
@@ -153,6 +153,7 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
       if (l.batches?.some((b) => b.batch)) sub.push(`الدفعة: ${l.batches.map((b) => `${b.batch}${b.expiry ? ` (${dateText(b.expiry)})` : ''}`).join('، ')}`);
       if (l.serials?.length) sub.push(<span className="mono">{l.serials.join(' · ')}</span>);
       if (item?.warrantyMonths && inv.kind === 'sale') sub.push(`كفالة ${item.warrantyMonths} شهراً`);
+      if (l.weighing) sub.push(weighingText(l.weighing, l.unit ?? item?.unit ?? 'كغ'));
       if (l.note) sub.push(l.note);
       return {
         description: l.description,

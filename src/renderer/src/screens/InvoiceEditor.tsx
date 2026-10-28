@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { computeTaxes, findRate, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, resolveScan, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party } from '../../../core';
+import { computeTaxes, findRate, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
 import { convertPrice, fxRates, money, parseAmount, rateInverted, toInput, today, uid, useCompany } from '../api';
 import { CurrencySelect, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
 import { invoiceDrafts } from '../drafts';
 import { ItemForm } from './Items';
 import { PartyForm } from './Parties';
 import { Icon } from '../components/icons';
+import { WeighingModal, weightsFromQty } from '../components/Weighing';
 
 interface LineState {
   key: string;
@@ -21,6 +22,7 @@ interface LineState {
   manualPrice?: boolean; // كتب المستخدم السعر بيده (لا نعيد تسعيره)
   src?: { amount: number; currency: string }; // السعر اليدوي بالعملة اللي انكتب فيها، لنحوّله إذا تغيّرت عملة الفاتورة أو سعر الصرف
   note?: string; // ملاحظة السطر (بتنحفظ متل ما هي عند تعديل فاتورة)
+  weighing?: Weighing; // وزنات قفص قفص (الكمية = الصافي)
 }
 
 /** حالة الفاتورة المفتوحة اللي بتنحفظ لما المستخدم يروح على شاشة تانية. */
@@ -101,6 +103,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
             manualPrice: true,
             src: { amount: l.price, currency: editing.currency },
             ...(l.note ? { note: l.note } : {}),
+            ...(l.weighing ? { weighing: l.weighing } : {}),
           })),
           emptyLine(),
         ]
@@ -136,6 +139,8 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
   const [salesman, setSalesman] = useState(editing?.salesman ?? d?.salesman ?? '');
   const [notes, setNotes] = useState(editing?.notes ?? d?.notes ?? '');
   const [newItem, setNewItem] = useState<string | null>(null);
+  const [weighLine, setWeighLine] = useState<string | null>(null);
+  const weighBirds = feature('poultry');
   const [newParty, setNewParty] = useState(false);
   const [serialChoices, setSerialChoices] = useState<{ code: string; matches: SerialMatch[] } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -350,6 +355,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
           ...(l.expiry ? { expiry: l.expiry } : {}),
           ...(l.serials.trim() ? { serials: l.serials.split(/[\s,،]+/).map((s) => s.trim()).filter(Boolean) } : {}),
           ...(l.note ? { note: l.note } : {}),
+          ...(l.weighing ? { weighing: l.weighing } : {}),
         })),
         discount: preview.disc,
         taxIds,
@@ -479,6 +485,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
                           {[item?.code, item?.partNumber, stock !== null ? `الرصيد: ${stock}` : null].filter(Boolean).join(' · ')}
                           {short && <span className="bad"> — الكمية أكبر من الرصيد</span>}
                         </small>
+                        {l.weighing && <small className="weigh-note">{weighingText(l.weighing, l.unit || item?.unit || 'كغ')}</small>}
                         {item?.trackExpiry &&
                           (stockIn ? (
                             <span className="line-extra">
@@ -541,7 +548,27 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
                     )}
                   </td>
                   <td>
-                    <input className="num-input" value={l.qty} onChange={(e) => setLine(l.key, { qty: e.target.value })} inputMode="decimal" />
+                    <div className="qty-cell">
+                      <input
+                        className="num-input"
+                        value={l.qty}
+                        title={l.weighing ? 'الكمية من الوزنات — اكبس زر الميزان لتعدّلها' : feature('poultry') ? 'فيك تكتب الوزنات: 99+110+114' : undefined}
+                        onChange={(e) => {
+                          const { weighing: _w, ...rest } = l;
+                          setLines((ls) => ls.map((x) => (x.key === l.key ? { ...rest, qty: e.target.value } : x)));
+                        }}
+                        onBlur={(e) => {
+                          const ws = weightsFromQty(e.target.value);
+                          if (ws?.length) setLine(l.key, { qty: String(Math.round(ws.reduce((a, b) => a + b, 0) * 1000) / 1000), weighing: { weights: ws } });
+                        }}
+                        inputMode="decimal"
+                      />
+                      {feature('poultry') && (l.itemId || l.description) && (
+                        <button type="button" className={`icon${l.weighing ? ' on' : ''}`} title={l.weighing ? `${l.weighing.weights.length} وزنات` : 'وزنات قفص قفص'} onClick={() => setWeighLine(l.key)}>
+                          <Icon name="weight" size={15} />
+                        </button>
+                      )}
+                    </div>
                   </td>
                   <td>
                     <input className="num-input" value={l.price} onChange={(e) => setLine(l.key, { price: e.target.value, manualPrice: true, src: priceSrc(e.target.value) })} inputMode="decimal" />
@@ -654,6 +681,24 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
         </section>
       </div>
 
+      {weighLine && (() => {
+        const l = lines.find((x) => x.key === weighLine);
+        if (!l) return null;
+        const item = l.itemId ? state.items[l.itemId] : null;
+        return (
+          <WeighingModal
+            {...(l.weighing ? { value: l.weighing } : {})}
+            unit={l.unit || item?.unit || 'كيلو'}
+            birds={weighBirds && !isSale}
+            onClose={() => setWeighLine(null)}
+            onSave={(w) => {
+              const { weighing: _w, ...rest } = l;
+              setLines((ls) => ls.map((x) => (x.key === l.key ? (w ? { ...rest, weighing: w, qty: String(Math.round((w.weights.reduce((a, b) => a + b, 0) - (w.tare ?? 0)) * 1000) / 1000) } : rest) : x)));
+              setWeighLine(null);
+            }}
+          />
+        );
+      })()}
       {newItem && (
         <ItemForm
           item={null}

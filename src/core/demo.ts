@@ -621,6 +621,38 @@ function stone(l: Ledger): void {
   l.postInvoice({ kind: 'sale', date: day(-4), partyId: 'c-villa', lines: [{ itemId: 'st-tile', qty: 22, price: P(1800) }, { itemId: 'st-step', qty: 6, price: P(1200) }] });
 }
 
+function poultry(l: Ledger): void {
+  l.addPoultryCuts();
+  l.saveParty({ id: 'p-farm', kind: 'supplier', name: 'مدجنة رابعة — صحنايا', phone: '0933 832 575' });
+  l.saveParty({ id: 'c-koki', kind: 'customer', name: 'كوكي للدواجن', phone: '0959 513 222', priceTier: 'wholesale' });
+  l.saveParty({ id: 'c-abuali', kind: 'customer', name: 'محل أبو علي', phone: '0944 210 377', priceTier: 'wholesale' });
+  l.saveParty({ id: 'c-rest', kind: 'customer', name: 'مطعم الشام', phone: '0988 112 450', priceTier: 'wholesale' });
+  // تسعيرة: [معرّف، جملة، مستهلك] بالليرة الجديدة للكيلو
+  const prices: [string, number, number][] = [
+    ['pl-whole', 285, 300], ['pl-wardeh', 280, 300], ['pl-wings', 230, 250], ['pl-fillet', 560, 600], ['pl-drum', 300, 330],
+    ['pl-kasta', 320, 350], ['pl-shawarma', 450, 480], ['pl-breast', 400, 430], ['pl-thigh', 290, 310], ['pl-thigh-neck', 260, 280],
+    ['pl-back', 80, 100], ['pl-liver', 250, 280], ['pl-gizzard', 280, 300], ['pl-liver-free', 300, 330], ['pl-gizzard-free', 330, 360],
+  ];
+  const board = (bump: number) => Object.fromEntries(prices.map(([id, w, p]) => [id, { price: P(p + bump), wholesale: P(w + bump) }]));
+  l.savePriceBoard(day(-1), board(-10));
+  // حمولة مبارح: 3 وزنات، 6 أقفاص فاضية، 75 طير
+  l.postInvoice({
+    kind: 'purchase', date: day(-1), partyId: 'p-farm', paid: P(40000),
+    lines: [
+      { itemId: 'pl-whole', qty: 0, price: P(240), weighing: { weights: [99, 110, 114], boxes: 6, tare: 42, count: 75, dead: 1 } },
+      { itemId: 'pl-liver', qty: 10, price: P(200) },
+      { itemId: 'pl-gizzard', qty: 5, price: P(220) },
+    ],
+  });
+  // تقطيع جزء من الفروج لقطعيات
+  l.postProduction({ date: day(-1), inputs: [{ itemId: 'pl-whole', qty: 60 }], outputs: [{ itemId: 'pl-fillet', qty: 15, weight: 30 }, { itemId: 'pl-wings', qty: 8, weight: 7 }, { itemId: 'pl-thigh', qty: 22, weight: 22 }, { itemId: 'pl-back', qty: 12, weight: 3 }], memo: 'تقطيع (تجريبي)' });
+  l.postInvoice({ kind: 'sale', date: day(-1), partyId: 'c-koki', lines: [{ itemId: 'pl-whole', qty: 0, price: P(275), weighing: { weights: [48.5, 52], boxes: 3, tare: 21 } }, { itemId: 'pl-liver', qty: 3, price: P(240) }], paid: P(10000) });
+  l.savePriceBoard(day(), board(0));
+  l.postInvoice({ kind: 'sale', date: day(), partyId: 'c-koki', lines: [{ itemId: 'pl-whole', qty: 0, price: P(285), weighing: { weights: [40, 38.5], boxes: 2, tare: 14 } }, { itemId: 'pl-wings', qty: 7, price: P(230) }, { itemId: 'pl-liver', qty: 2, price: P(250) }], paid: P(15000) });
+  l.postInvoice({ kind: 'sale', date: day(), partyId: 'c-abuali', lines: [{ itemId: 'pl-fillet', qty: 6, price: P(560) }, { itemId: 'pl-thigh', qty: 10, price: P(290) }, { itemId: 'pl-whole', qty: 25, price: P(285) }], paid: 0 });
+  l.postInvoice({ kind: 'sale', date: day(), partyId: 'c-rest', lines: [{ itemId: 'pl-fillet', qty: 5, price: P(560) }, { itemId: 'pl-gizzard', qty: 2, price: P(280) }], paid: P(3360) });
+}
+
 export function loadDemo(l: Ledger): void {
   const s = l.state;
   if (s.invoices.length > 0 || Object.keys(s.items).length > 0 || Object.keys(s.parties).length > 0) throw new Error('البيانات التجريبية بتنضاف لشركة فاضية بس');
@@ -632,6 +664,7 @@ export function loadDemo(l: Ledger): void {
   else if (activity === 'gypsum') gypsum(l);
   else if (activity === 'customs') customs(l);
   else if (activity === 'stone') stone(l);
+  else if (activity === 'poultry') poultry(l);
   else if (activity === 'mobile') mobile(l);
   else if (activity === 'sweets') sweets(l);
   else if (activity === 'supermarket') supermarket(l);
