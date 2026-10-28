@@ -98,6 +98,10 @@ export interface PrintSettings {
   showSignatures?: boolean; // خانات التوقيع
   terms?: string; // الشروط والأحكام أسفل الفاتورة
   showPreviousBalance?: boolean; // الحساب السابق والرصيد بعد الفاتورة (افتراضياً نعم)
+  /** عنوان فاتورة المبيع المطبوعة بدل «فاتورة مبيع» (شحنة، فاتورة...). */
+  saleTitle?: string;
+  /** بدون عنوان على فاتورة المبيع (بس الرقم). */
+  hideSaleTitle?: boolean;
   showInvoiceProfit?: boolean; // مربع ربح الفاتورة وقت البيع، لأصحاب صلاحية التكلفة (افتراضياً نعم)
   receipt?: ReceiptSettings; // تصميم الإيصال الحراري (80/58mm)
 }

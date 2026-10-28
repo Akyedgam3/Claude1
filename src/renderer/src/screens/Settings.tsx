@@ -505,6 +505,13 @@ function PrintTab() {
           <input type="checkbox" checked={p.showPreviousBalance !== false} onChange={(e) => setP({ ...p, showPreviousBalance: e.target.checked })} />
           إظهار الحساب السابق للزبون على الفاتورة (والباقي بذمته بعدها)
         </label>
+        <Field label="عنوان فاتورة المبيع المطبوعة">
+          <input placeholder="فاتورة مبيع" value={p.saleTitle ?? ''} disabled={!!p.hideSaleTitle} onChange={(e) => setP({ ...p, saleTitle: e.target.value })} />
+        </Field>
+        <label className="check">
+          <input type="checkbox" checked={!!p.hideSaleTitle} onChange={(e) => setP({ ...p, hideSaleTitle: e.target.checked })} />
+          بدون عنوان «فاتورة مبيع» (بيطلع الرقم بس، مفيد للشحنات والتخليص)
+        </label>
         <label className="check">
           <input type="checkbox" checked={p.showInvoiceProfit !== false} onChange={(e) => setP({ ...p, showInvoiceProfit: e.target.checked })} />
           إظهار ربح الفاتورة وقت البيع (بيشوفه بس اللي إله صلاحية التكلفة)

@@ -80,7 +80,7 @@ export function CommercialDoc({ model, className, preview }: { model: DocModel; 
           </div>
         </div>
         <div className="doc-titlebox">
-          <h2>{model.title}</h2>
+          {model.title && <h2>{model.title}</h2>}
           <div className="doc-number">
             رقم <b className="ltr">{model.number}</b>
           </div>

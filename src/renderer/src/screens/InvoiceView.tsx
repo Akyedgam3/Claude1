@@ -7,6 +7,13 @@ import { PrintButtons } from '../components/print';
 import { ConfirmButton, Empty, PageHeader } from '../components/ui';
 import { canEditInvoice } from './Invoices';
 
+/** عنوان الفاتورة المطبوعة: فاتورة المبيع فيك تغيّر عنوانها أو تشيله من الإعدادات. */
+function docTitle(state: CompanyState, inv: Invoice): string {
+  if (inv.kind !== 'sale') return INVOICE_KIND_NAMES[inv.kind];
+  const p = state.info?.print;
+  return p?.hideSaleTitle ? '' : p?.saleTitle?.trim() || INVOICE_KIND_NAMES.sale;
+}
+
 export function InvoiceView({ id }: { id: string }) {
   const { state, call, notify, navigate, can } = useCompany();
   const inv = state.invoices.find((i) => i.id === id);
@@ -132,7 +139,7 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
   if (order) refs.push(`طلب رقم ${order.number}${table ? ` · ${table.name}` : order.type === 'takeaway' ? ' · سفري' : order.type === 'delivery' ? ' · توصيل' : ''}`);
 
   const model: DocModel = {
-    title: INVOICE_KIND_NAMES[inv.kind],
+    title: docTitle(state, inv),
     number: inv.number,
     meta: [
       { label: 'التاريخ', value: <span className="ltr">{dateText(inv.date)}</span> },
@@ -186,7 +193,7 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
   const plain = (v: number) => plainMoney(state, v, inv.currency);
   const created = new Date(inv.createdAt);
   const receipt: ReceiptData = {
-    title: INVOICE_KIND_NAMES[inv.kind],
+    title: docTitle(state, inv),
     number: inv.number,
     date: dateText(inv.date),
     time: Number.isNaN(created.getTime()) ? '' : created.toLocaleString('en-GB'),
