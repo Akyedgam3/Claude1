@@ -247,3 +247,27 @@ describe('app updates', () => {
     expect(() => r.importKeys(bad)).toThrow(/غير صالح/);
   });
 });
+
+describe('trial', () => {
+  it('1 to 7 free days, once per machine, replaced when the customer buys', () => {
+    const r = new Registry(path.join(dir, 'registry.json'), PRIV);
+    const a = r.addAgent({ name: 'وكيل', packages: 1 });
+    expect(() => r.trial({ name: 'محل', machineId: M1, days: 8, agentId: a.id })).toThrow(/7/);
+    expect(() => r.trial({ name: 'محل', machineId: M1, days: 0, agentId: a.id })).toThrow();
+    const t = r.trial({ name: 'محل', machineId: M1, days: 3, agentId: a.id });
+    expect(t.trial).toBe(true);
+    expect(t.code).toMatch(/^[A-Z2-9]{4}-/);
+    const lic = parseLicense(t.key, PUB)!;
+    expect(Math.round((new Date(lic.expiresAt!).getTime() - Date.now()) / 86_400_000)).toBe(3);
+    expect(agentBalance(r.agent(a.id)).left).toBe(10);
+    expect(() => r.trial({ name: 'محل', machineId: M1, days: 2 })).toThrow(/تجربة من قبل/);
+    // اشترى: التفعيل العادي بيلغي التجربة
+    const paid = r.add({ name: 'محل', machineId: M1, plan: 'annual', agentId: a.id });
+    expect(paid.trial).toBeUndefined();
+    expect(r.customers.find((c) => c.id === t.id)!.status).toBe('revoked');
+    expect(agentBalance(r.agent(a.id)).left).toBe(9);
+    // جهاز إلو ترخيص ما بياخد تجربة
+    r.add({ name: 'تاني', machineId: M2, plan: 'annual' });
+    expect(() => r.trial({ name: 'تاني', machineId: M2, days: 1 })).toThrow(/ترخيص من قبل/);
+  });
+});

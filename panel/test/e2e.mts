@@ -130,6 +130,15 @@ await p.waitForTimeout(500);
 const balAfter = await p.locator('.item .bal').first().innerText();
 console.log('balance', JSON.stringify(balBefore), '->', JSON.stringify(balAfter));
 check(balBefore !== balAfter, 'balance changed on screen');
+// مدة تجريبية من لوحة الوكيل (ببلاش، 1–7 أيام)
+const tr = await ag.evaluate(`(async () => {
+  const post = (days) => fetch('/api/agent/trial', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Wazn': '1' }, body: JSON.stringify({ name: 'تجربة', machineId: '7777-8888-9999-AAAA', days }) });
+  const bad = (await post(9)).status;
+  const ok = await post(3);
+  const again = (await post(2)).status;
+  return { bad, ok: ok.status, trial: (await ok.json()).customer?.trial, again };
+})()`) as { bad: number; ok: number; trial: boolean; again: number };
+check(tr.bad === 400 && tr.ok === 200 && tr.trial === true && tr.again === 400, `agent gives a 1–7 day trial once per machine (${JSON.stringify(tr)})`);
 // تحويل زبون سنوي لدائم (المدير، بدون خصم من الوكيل)
 const up = await p.evaluate(async () => {
   const st = await (await fetch('/api/state')).json();

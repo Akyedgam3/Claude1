@@ -28,7 +28,11 @@ export interface Customer {
   phoneOf?: string;
   /** كود التفعيل القصير (16 حرف): البرنامج بيجيب فيه المفتاح الطويل من لوحة الإدارة على النت. */
   code?: string;
+  /** مدة تجريبية (1–7 أيام) ببلاش: ما بتنخصم من رصيد الوكيل، ومرة وحدة لكل جهاز. */
+  trial?: boolean;
 }
+
+export const TRIAL_MAX_DAYS = 7;
 
 /**
  * «كرت» تفعيل بدون بصمة: الوكيل بيبيع الكود والزبون بيفعّل لحالو، وأول جهاز بيكتبه بياخد الترخيص
@@ -233,6 +237,12 @@ export class RegistryCore {
 
   add(input: { name: string; phone?: string; notes?: string; machineId: string; plan: Plan; devices?: number; offlineDays?: number; agentId?: string; force?: boolean; mobile?: boolean }, opts: { prepaid?: boolean } = {}): Customer {
     if (!input.name?.trim()) throw new Error('اسم العميل مطلوب');
+    // التجربة بتنتهي لما يشتري: منلغي رخصة التجربة على نفس الجهاز ومنكمّل التفعيل عادي
+    const machine = input.machineId?.trim().toUpperCase();
+    for (const t of this.data.customers.filter((x) => x.trial && x.machineId === machine && x.status !== 'revoked')) {
+      t.status = 'revoked';
+      t.history.push({ at: new Date().toISOString(), action: 'انتهت التجربة: صار عنده اشتراك' });
+    }
     // نفس البصمة عند زبون تاني: غالباً ويندوز منسوخ من نفس الملف، أو نفس الزبون عم يتسجّل مرتين
     const same = this.data.customers.find((x) => x.machineId.toUpperCase() === input.machineId?.trim().toUpperCase() && x.status !== 'revoked');
     if (same && !input.force && !input.agentId) throw Object.assign(new Error(`هالبصمة مسجّلة أصلاً للزبون «${same.name}». إذا جهاز تاني فعلاً، خلّيه يحدّث وزن لآخر نسخة ويبعتلك البصمة الجديدة.`), { duplicate: same.name });
@@ -281,6 +291,47 @@ export class RegistryCore {
     this.data.customers.push(c);
     if (agent && !opts.prepaid) agent.uses.push({ at: c.issuedAt, customerId: c.id, action: 'issue', kind: c.plan === 'lifetime' ? 'lifetime' : 'annual', ...(c.mobile ? { mobile: true } : {}) });
     this.note(`تفعيل ${c.name} (${PLANS[c.plan].nameAr}${c.mobile ? ' + جوال' : ''})`, { customerId: c.id, ...(agent ? { agentId: agent.id } : {}) });
+    this.save();
+    return c;
+  }
+
+  /**
+   * مدة تجريبية من 1 لـ 7 أيام: ببلاش، ما بتنخصم من رصيد الوكيل، ومرة وحدة بس لكل جهاز.
+   * لما الزبون يشتري، التفعيل العادي على نفس البصمة بيلغي التجربة لحالو.
+   */
+  trial(input: { name: string; phone?: string; machineId: string; days: number; agentId?: string; notes?: string }): Customer {
+    if (!input.name?.trim()) throw new Error('اسم الزبون مطلوب');
+    const days = Number(input.days);
+    if (!Number.isInteger(days) || days < 1 || days > TRIAL_MAX_DAYS) throw new Error(`المدة التجريبية من يوم لـ ${TRIAL_MAX_DAYS} أيام`);
+    if (!/^[0-9A-F]{4}(-[0-9A-F]{4}){3}$/i.test(input.machineId?.trim() ?? '')) throw new Error('بصمة الجهاز غير صحيحة (مثال: 1A2B-3C4D-5E6F-7A8B)');
+    const machine = input.machineId.trim().toUpperCase();
+    const agent = input.agentId ? this.agent(input.agentId) : null;
+    if (agent && !agent.active) throw new Error('هذا الوكيل موقوف');
+    if (this.data.customers.some((x) => x.trial && x.machineId === machine)) throw new Error('هالجهاز أخد تجربة من قبل. التجربة مرة وحدة لكل جهاز.');
+    const has = this.data.customers.find((x) => x.machineId === machine && x.status !== 'revoked');
+    if (has) throw new Error(`هالجهاز إله ترخيص من قبل (${has.name})، ما بيحتاج تجربة.`);
+    const issued = new Date();
+    const c: Customer = {
+      id: crypto.randomUUID(),
+      name: input.name.trim(),
+      ...(input.phone ? { phone: input.phone } : {}),
+      ...(input.notes ? { notes: input.notes } : {}),
+      machineId: machine,
+      plan: 'monthly',
+      devices: 1,
+      offlineDays: Math.min(days, 7),
+      issuedAt: issued.toISOString(),
+      expiresAt: new Date(issued.getTime() + days * DAY).toISOString(),
+      status: 'active',
+      key: '',
+      history: [{ at: issued.toISOString(), action: `تجربة ${days} ${days === 1 ? 'يوم' : days === 2 ? 'يومين' : 'أيام'}` + (agent ? ` عن طريق الوكيل ${agent.name}` : '') }],
+      ...(agent ? { agentId: agent.id } : {}),
+      trial: true,
+      code: this.newCode(),
+    };
+    c.key = this.sign(c);
+    this.data.customers.push(c);
+    this.note(`تجربة ${days} أيام لـ ${c.name}`, { customerId: c.id, ...(agent ? { agentId: agent.id } : {}) });
     this.save();
     return c;
   }
@@ -346,6 +397,7 @@ export class RegistryCore {
       c.expiresAt = new Date(from + days * DAY).toISOString();
     }
     c.plan = plan;
+    delete c.trial;
     c.status = 'active';
     delete c.message;
     c.key = this.sign(c);

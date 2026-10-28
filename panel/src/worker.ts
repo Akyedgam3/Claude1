@@ -587,6 +587,12 @@ export class RegistryDO extends DurableObject<Env> {
         if (!card || card.agentId !== agent.id) throw new HttpError(403, 'هالكود مش إلك');
         return json(reg.voidCard(card.id));
       }
+      if (path === '/api/agent/trial' && req.method === 'POST') {
+        needKey();
+        const c = reg.trial({ name: str('name'), machineId: str('machineId'), days: num('days') ?? 0, agentId: agent.id, ...(str('phone') ? { phone: str('phone') } : {}) });
+        this.schedulePublish();
+        return json({ customer: c });
+      }
       if (path === '/api/agent/customers' && req.method === 'POST') {
         needKey();
         const plan: Plan = str('plan') === 'lifetime' ? 'lifetime' : 'annual';
@@ -633,6 +639,12 @@ export class RegistryDO extends DurableObject<Env> {
       this.schedulePublish();
       return json(v);
     };
+    if (path === '/api/trial' && req.method === 'POST') {
+      needKey();
+      const c = reg.trial({ name: str('name'), machineId: str('machineId'), days: num('days') ?? 0, ...(str('phone') ? { phone: str('phone') } : {}), ...(str('notes') ? { notes: str('notes') } : {}) });
+      this.schedulePublish();
+      return json({ customer: c });
+    }
     if (path === '/api/customers' && req.method === 'POST') {
       needKey();
       return touch(

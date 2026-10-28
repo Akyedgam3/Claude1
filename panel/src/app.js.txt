@@ -261,7 +261,7 @@ function customerRow(c, owner) {
   const left = daysLeft(c);
   const agent = c.agentId ? S.agents?.find((a) => a.id === c.agentId) : null;
   const hasPhone = S.customers.some((x) => x.phoneOf === c.id && x.status !== 'revoked');
-  return `<div class="item"><div class="top"><div><b class="name">${esc(c.name)}</b> ${statusTag(c)} ${c.mobile ? '<span class="tag mob">+ جوال</span>' : ''} ${c.phoneOf ? '<span class="tag mob">مفتاح جوال</span>' : ''} ${c.cloud ? '<span class="tag">عن بعد</span>' : ''}
+  return `<div class="item"><div class="top"><div><b class="name">${esc(c.name)}</b> ${statusTag(c)} ${c.mobile ? '<span class="tag mob">+ جوال</span>' : ''} ${c.phoneOf ? '<span class="tag mob">مفتاح جوال</span>' : ''} ${c.trial ? '<span class="tag suspended">تجربة</span>' : ''} ${c.cloud ? '<span class="tag">عن بعد</span>' : ''}
       <div class="muted">${owner ? (agent ? 'الوكيل: ' + esc(agent.name) + ' · ' : 'مباشر · ') : ''}${esc(S.plans?.[c.plan]?.nameAr ?? (c.plan === 'lifetime' ? 'دائم' : 'سنوي'))} · ${c.devices} جهاز · <span class="mono">${esc(c.machineId)}</span>${c.phone ? ' · <span class="mono">' + esc(c.phone) + '</span>' : ''}</div>
       <div class="muted" style="${left !== null && left <= 30 ? 'color:var(--bad)' : ''}">ينتهي: ${fmtDate(c.expiresAt)}${left !== null ? (left > 0 ? ` (باقي ${left} يوم)` : ' (منتهي)') : ''}</div></div></div>
     <div class="row" style="margin-top:8px"><button class="small primary" data-c="key" data-id="${c.id}">المفتاح</button>
@@ -271,12 +271,33 @@ function customerRow(c, owner) {
         <button class="small" data-c="cloud" data-id="${c.id}">${c.cloud ? 'إيقاف عن بعد' : 'تفعيل عن بعد'}</button>
         <button class="small" data-c="edit" data-id="${c.id}">تعديل</button>
         ${c.status !== 'revoked' ? `<button class="small danger" data-c="revoke" data-id="${c.id}">إلغاء</button>` : ''}`
-      : !c.phoneOf && c.plan !== 'lifetime' ? `<button class="small" data-c="renew" data-id="${c.id}">تجديد سنة</button> <button class="small" data-c="lifetime" data-id="${c.id}">تحويل لدائم</button>` : ''}
+      : c.trial ? '<span class="muted">لما يشتري: فعّله عادي بنفس البصمة</span>' : !c.phoneOf && c.plan !== 'lifetime' ? `<button class="small" data-c="renew" data-id="${c.id}">تجديد سنة</button> <button class="small" data-c="lifetime" data-id="${c.id}">تحويل لدائم</button>` : ''}
     </div></div>`;
 }
 function filterCustomers(list) {
   const s = q.trim().toLowerCase();
   return !s ? list : list.filter((c) => [c.name, c.phone, c.machineId, c.notes].some((f) => String(f ?? '').toLowerCase().includes(s)));
+}
+/** بطاقة «مدة تجريبية»: من يوم لـ 7 أيام، ببلاش ومرة وحدة لكل جهاز. */
+const trialCard = () => `<div class="card"><h2>مدة تجريبية للزبون</h2><p class="muted">ببلاش وما بتنخصم من الرصيد. من يوم لـ 7 أيام، ومرة وحدة بس لكل جهاز. ولما يشتري، فعّله عادي على نفس البصمة وبتنلغى التجربة لحالها.</p>
+  <form id="tr" class="grid">
+    <label>اسم الزبون / المحل<input name="name" required /></label>
+    <label>موبايل الزبون<input name="phone" dir="ltr" placeholder="+963..." /></label>
+    <label>بصمة الجهاز<input name="machineId" required class="mono" placeholder="XXXX-XXXX-XXXX-XXXX" /></label>
+    <label>كم يوم؟ (1 لـ 7)<input name="days" type="number" min="1" max="7" value="3" required /></label>
+    <button class="primary">تفعيل التجربة</button>
+  </form></div>`;
+function bindTrial(root, url) {
+  const f0 = $('#tr', root);
+  if (!f0) return;
+  f0.onsubmit = async (e) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+    const days = Number(f.days);
+    if (!(days >= 1 && days <= 7)) return toast('المدة التجريبية من يوم لـ 7 أيام', true);
+    const r = await run(() => api(url, { name: f.name, phone: f.phone, machineId: f.machineId, days }), `تفعّلت التجربة ${days} ${days === 1 ? 'يوم' : days === 2 ? 'يومين' : 'أيام'}`);
+    if (r) showKey(r.customer);
+  };
 }
 function ownerCustomers(el) {
   el.innerHTML = publishBanner() + `<div class="card"><h2>زبون مباشر جديد</h2><form id="nc" class="grid">
@@ -292,9 +313,11 @@ function ownerCustomers(el) {
       <label style="flex-direction:row;display:flex;gap:6px;align-items:center"><input type="checkbox" name="mobile" style="width:auto" /> مع تطبيق الجوال</label>
       <button class="primary">إنشاء الكود</button></form>
       <details style="margin-top:10px"><summary class="muted">الأكواد (${S.cards.length})</summary><div class="list" style="margin-top:8px">${cardsList(S.cards, '/api/cards/:id/void')}</div></details></div>
+    ${trialCard()}
     <input id="cq" placeholder="بحث: اسم، موبايل، بصمة..." value="${esc(q)}" style="margin-bottom:10px" />
     <div class="list" id="cl">${filterCustomers(S.customers).slice().reverse().slice(0, 200).map((c) => customerRow(c, true)).join('') || '<p class="muted">لا يوجد</p>'}</div>`;
   $('#cq').oninput = (e) => { q = e.target.value; $('#cl').innerHTML = filterCustomers(S.customers).slice().reverse().slice(0, 200).map((c) => customerRow(c, true)).join(''); bindCustomers(el, true); };
+  bindTrial(el, '/api/trial');
   $('#nc').onsubmit = async (e) => {
     e.preventDefault();
     const body = Object.fromEntries(new FormData(e.target));
@@ -435,6 +458,7 @@ function renderAgent(m) {
         <button class="primary" ${first ? '' : 'disabled'}>إنشاء الكود</button>
       </form>
       <details style="margin-top:10px"><summary class="muted">أكوادي (${S.cards.length})</summary><div class="list" style="margin-top:8px">${cardsList(S.cards, '/api/agent/cards/:id/void')}</div></details></div>
+    ${S.canSign ? trialCard() : ''}
     ${soon.length ? `<div class="card"><h2>بينتهوا قريباً (${soon.length})</h2><div class="list">${soon.map((c) => customerRow(c, false)).join('')}</div></div>` : ''}
     <div class="card"><h2>زبايني (${mine.filter((c) => !c.phoneOf).length})</h2><input id="cq" placeholder="بحث..." value="${esc(q)}" style="margin-bottom:10px" /><div class="list" id="cl">${filterCustomers(mine).slice().reverse().map((c) => customerRow(c, false)).join('') || '<p class="muted">لسا ما فعّلت زباين</p>'}</div></div>`;
   const syncPhone = () => $('#phl').classList.toggle('hidden', !$('#bk').value.endsWith('Mobile'));
@@ -456,6 +480,7 @@ function renderAgent(m) {
     if (k) showCard(k);
   };
   bindCards(m, '/api/agent/cards/:id/void');
+  bindTrial(m, '/api/agent/trial');
   bindCustomers(m, false);
 }
 
