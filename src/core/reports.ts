@@ -480,6 +480,10 @@ export function invoiceProfit(state: CompanyState, inv: Invoice): { revenue: num
   // مصاريف الشحنة (أجرة السائق، رسوم دفعناها...) بعملة الفاتورة
   const shipment = inv.source?.type === 'shipment' ? state.shipments?.[inv.source.id] : undefined;
   if (shipment) cost += Math.round(shipment.costs.reduce((s, c) => s + c.amount, 0) * inv.rate * 10 ** (base.decimals - cur.decimals));
+  // مواد طلب الطباعة (فلكس، ورق) اللي انصرفت من المخزون، بالعملة الأساسية
+  const pj = inv.source?.type === 'printjob' ? state.printJobs?.[inv.source.id] : undefined;
+  const adj = pj?.materialsAdjustmentId ? state.adjustments.find((a) => a.id === pj.materialsAdjustmentId) : undefined;
+  if (adj) cost += adj.lines.reduce((s, l) => s - l.cost, 0);
   return { revenue, cost, profit: revenue - cost };
 }
 

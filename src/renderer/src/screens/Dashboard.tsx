@@ -130,6 +130,11 @@ export function Dashboard() {
             <Icon name="mountain" size={20} /> الكتل والقص
           </button>
         )}
+        {feature('printjobs') && can('printjobs.manage') && (
+          <button className="primary big accent" onClick={() => navigate('printjobs')}>
+            <Icon name="printer" size={20} /> طلبات الطباعة
+          </button>
+        )}
         {feature('poultry') && (
           <button className="primary big accent" onClick={() => navigate('poultry')}>
             <Icon name="drumstick" size={20} /> تسعيرة اليوم والحمولات

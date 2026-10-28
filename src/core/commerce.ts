@@ -213,6 +213,35 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       if (prev?.invoiceId && !invoiceVoided(state, prev.invoiceId) && (s.status !== 'invoiced' || s.invoiceId !== prev.invoiceId)) fail('الشحنة مفوترة؛ ألغِ الفاتورة أولاً لتعديلها');
       return;
     }
+    case 'printjob.saved': {
+      const j = event.job;
+      if (!state.parties[j.partyId]) fail('الزبون غير موجود');
+      if (!DATE_RE.test(j.date) || (j.due && !DATE_RE.test(j.due))) fail('تاريخ غير صالح');
+      if (!state.currencies[j.currency]) fail('عملة غير معروفة');
+      if (j.lines.length + j.extras.length === 0) fail('أضف بند واحد على الأقل');
+      for (const l of j.lines) {
+        if (!l.name?.trim()) fail('اكتب اسم البند');
+        if (!['area', 'pages', 'count'].includes(l.kind)) fail(`طريقة حساب غير معروفة: ${l.name}`);
+        if (!(Number.isFinite(l.qty) && l.qty > 0 && l.qty < 1e7)) fail(`العدد غير صالح: ${l.name}`);
+        if (l.kind === 'area' && !([l.width, l.height].every((x) => Number.isFinite(x) && x! > 0 && x! < 1000))) fail(`القياس غير صالح: ${l.name}`);
+        if (l.kind === 'pages' && !(Number.isInteger(l.pages) && l.pages! > 0 && l.pages! < 1e6)) fail(`عدد الصفحات غير صالح: ${l.name}`);
+        if (!Number.isSafeInteger(l.price) || l.price < 0) fail(`السعر غير صالح: ${l.name}`);
+        if (l.material) {
+          const it = state.items[l.material.itemId];
+          if (!it || it.kind !== 'stock') fail(`مادة الطباعة غير موجودة: ${l.name}`);
+          if (!(Number.isFinite(l.material.qty) && l.material.qty > 0)) fail(`كمية المادة غير صالحة: ${l.name}`);
+        }
+      }
+      for (const x of j.extras) {
+        if (!x.description.trim()) fail('اكتب وصف الإضافة');
+        if (!Number.isSafeInteger(x.amount) || x.amount < 0) fail(`مبلغ غير صالح: ${x.description}`);
+      }
+      if (j.discount !== undefined && (!Number.isSafeInteger(j.discount) || j.discount < 0)) fail('خصم غير صالح');
+      const prev = state.printJobs?.[j.id];
+      if (prev && prev.number !== j.number) fail('لا يمكن تغيير رقم الطلب');
+      if (prev?.invoiceId && !invoiceVoided(state, prev.invoiceId) && (j.status !== 'invoiced' || j.invoiceId !== prev.invoiceId)) fail('الطلب مفوتر؛ ألغِ الفاتورة أولاً لتعديله');
+      return;
+    }
     case 'priceboard.saved': {
       const b = event.board;
       if (!DATE_RE.test(b.date)) fail('تاريخ غير صالح');
@@ -461,6 +490,10 @@ export function applyCommerceEvent(state: CompanyState, event: CompanyEvent): vo
     case 'shipment.saved':
       (state.shipments ??= {})[event.shipment.id] = { ...event.shipment };
       bump(state, 'shipment', event.shipment.number);
+      return;
+    case 'printjob.saved':
+      (state.printJobs ??= {})[event.job.id] = { ...event.job };
+      bump(state, 'printjob', event.job.number);
       return;
     case 'priceboard.saved':
       (state.priceBoards ??= {})[event.board.date] = { ...event.board };

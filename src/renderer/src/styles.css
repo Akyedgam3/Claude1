@@ -3902,3 +3902,10 @@ button.danger-soft {
 .weigh-summary { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .price-board .num-input { max-width: 140px; }
 .weigh-note { display: block; color: var(--primary); }
+
+/* ── المطبعة: طلبات الطباعة ── */
+.preset-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.print-lines input, .print-lines select { min-width: 0; }
+.print-lines .dims { display: flex; align-items: center; gap: 4px; margin-top: 4px; }
+.print-lines .dims .num-input { max-width: 82px; }
+.print-lines .material-cell { min-width: 190px; }

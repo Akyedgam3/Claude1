@@ -75,7 +75,8 @@ export type Activity =
   | 'gypsum'
   | 'customs'
   | 'stone'
-  | 'poultry';
+  | 'poultry'
+  | 'printshop';
 
 export type Paper = 'a4' | 'a5' | '80mm' | '58mm';
 
@@ -579,6 +580,47 @@ export interface SiteJob {
   invoiceId?: string;
 }
 
+// ───────────── المطبعة: طلبات طباعة (فلكس بالمتر، تصوير بالصفحة، كروت بالقطعة) ─────────────
+
+export type PrintJobStatus = 'new' | 'design' | 'printing' | 'ready' | 'delivered' | 'invoiced' | 'cancelled';
+/** area: بالمتر المربع (فلكس، ستيكر)، pages: بالوجه/الصفحة (تصوير، طباعة)، count: بالقطعة (كروت، تجليد، رول أب). */
+export type PrintLineKind = 'area' | 'pages' | 'count';
+
+export interface PrintJobLine {
+  id: string;
+  kind: PrintLineKind;
+  name: string;
+  width?: number; // متر
+  height?: number; // متر
+  pages?: number; // عدد الوجوه بالنسخة الوحدة
+  qty: number; // عدد القطع / النسخ
+  price: number; // سعر المتر المربع / الوجه / القطعة بأصغر وحدة من عملة الطلب
+  /** المادة اللي بتنصرف من المخزون (رول فلكس بالمتر المربع، ورق...)، بتنخصم عند الفوترة. */
+  material?: { itemId: string; qty: number };
+  note?: string;
+}
+
+/** طلب طباعة لزبون: البنود والقياسات، العربون، موعد التسليم، والفاتورة. */
+export interface PrintJob {
+  id: string;
+  number: number;
+  partyId: string;
+  date: string;
+  due?: string; // موعد التسليم
+  title?: string; // آرمة محل، كروت، مذكرة تخرج...
+  status: PrintJobStatus;
+  currency: string;
+  lines: PrintJobLine[];
+  extras: { description: string; amount: number }[]; // تصميم، تركيب، توصيل...
+  discount?: number;
+  file?: string; // اسم ملف التصميم أو مكانه
+  notes?: string;
+  deposits: { entryId: string; amount: number; date: string }[];
+  /** تسوية صرف المواد من المخزون (بتنعمل مرة وحدة عند أول فوترة). */
+  materialsAdjustmentId?: string;
+  invoiceId?: string;
+}
+
 // ───────────── النقل والتخليص الجمركي ─────────────
 
 export type ShipmentStatus = 'loading' | 'transit' | 'customs' | 'arrived' | 'delivered' | 'invoiced' | 'cancelled';
@@ -803,6 +845,7 @@ export interface CompanyState {
   shipments?: Record<string, Shipment>;
   stoneBlocks?: Record<string, StoneBlock>;
   priceBoards?: Record<string, PriceBoard>;
+  printJobs?: Record<string, PrintJob>;
   partners: Record<string, Partner>;
   quotes: Record<string, Quote>;
   rolls: Record<string, FabricRoll>;
@@ -843,6 +886,7 @@ export type CompanyEvent =
   | { type: 'shipment.saved'; shipment: Shipment }
   | { type: 'stoneblock.saved'; block: StoneBlock }
   | { type: 'priceboard.saved'; board: PriceBoard }
+  | { type: 'printjob.saved'; job: PrintJob }
   | { type: 'partner.saved'; partner: Partner }
   | { type: 'quote.saved'; quote: Quote }
   | { type: 'rolls.saved'; rolls: FabricRoll[] }

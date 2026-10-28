@@ -1,5 +1,5 @@
 import type { Ledger } from './ledger';
-import type { Item } from './types';
+import type { Item, PrintJobLine } from './types';
 
 // بيانات تجريبية جاهزة لعرض البرنامج حسب النشاط (مطعم، خياطة، محل عام).
 // الأسعار بالليرة السورية الجديدة (منزلتين عشريتين).
@@ -653,6 +653,72 @@ function poultry(l: Ledger): void {
   l.postInvoice({ kind: 'sale', date: day(), partyId: 'c-rest', lines: [{ itemId: 'pl-fillet', qty: 5, price: P(560) }, { itemId: 'pl-gizzard', qty: 2, price: P(280) }], paid: P(3360) });
 }
 
+function printshop(l: Ledger): void {
+  l.saveParty({ id: 'c-school', kind: 'customer', name: 'مدرسة الأمل الخاصة', phone: '0944 330 120', priceTier: 'wholesale' });
+  l.saveParty({ id: 'c-resto', kind: 'customer', name: 'مطعم السلطان', phone: '0933 210 455' });
+  l.saveParty({ id: 'c-student', kind: 'customer', name: 'رنا الأحمد', phone: '0988 640 902' });
+  l.saveParty({ id: 's-paper', kind: 'supplier', name: 'شركة الورّاق للقرطاسية', phone: '0955 222 870' });
+  // قرطاسية وأدوات مدرسية: [id، الاسم، التصنيف، المفرق، الجملة، الباركود، الكمية، التكلفة، الحد الأدنى، الوحدة]
+  const goods: [string, string, string, number, number, string, number, number, number, string][] = [
+    ['p-pen-blue', 'قلم حبر أزرق', 'أقلام', 50, 40, '6290100000011', 300, 28, 50, 'قطعة'],
+    ['p-pen-red', 'قلم حبر أحمر', 'أقلام', 50, 40, '6290100000028', 150, 28, 30, 'قطعة'],
+    ['p-pencil', 'قلم رصاص', 'أقلام', 30, 22, '6290100000035', 400, 15, 60, 'قطعة'],
+    ['p-colors', 'ألوان خشبية 12 لون', 'أقلام', 450, 400, '6290100000042', 60, 300, 10, 'علبة'],
+    ['p-eraser', 'ممحاة', 'قرطاسية', 25, 18, '6290100000059', 250, 12, 40, 'قطعة'],
+    ['p-sharpener', 'برّاية', 'قرطاسية', 30, 22, '6290100000066', 200, 15, 30, 'قطعة'],
+    ['p-ruler', 'مسطرة 30 سم', 'قرطاسية', 60, 50, '6290100000073', 120, 35, 20, 'قطعة'],
+    ['p-nb60', 'دفتر 60 ورقة', 'دفاتر', 150, 130, '6290100000080', 500, 95, 80, 'دفتر'],
+    ['p-nb100', 'دفتر 100 ورقة سلك', 'دفاتر', 300, 260, '6290100000097', 200, 190, 40, 'دفتر'],
+    ['p-bag', 'حقيبة مدرسية', 'حقائب مدرسية', 4500, 4000, '6290100000103', 25, 3000, 5, 'قطعة'],
+    ['p-a4', 'ورق A4 رزمة 500', 'ورق', 1800, 1650, '6290100000110', 40, 1400, 10, 'رزمة'],
+  ];
+  for (const [id, name, category, price, whole, barcode, , , minStock, unit] of goods) {
+    item(l, { id, code: id.slice(2).toUpperCase(), name, kind: 'stock', unit, price: P(price), wholesalePrice: P(whole), barcode, category, minStock });
+  }
+  item(l, { id: 'p-flex', code: 'FLEX', name: 'رول فلكس 3.2 م', kind: 'stock', unit: 'م²', price: P(0), category: 'مواد طباعة', minStock: 30 });
+  item(l, { id: 'p-vinyl', code: 'VINYL', name: 'رول ستيكر فينيل', kind: 'stock', unit: 'م²', price: P(0), category: 'مواد طباعة', minStock: 20 });
+  l.adjustStock({
+    kind: 'opening',
+    date: day(-30),
+    lines: [...goods.map(([id, , , , , , qty, cost]) => ({ itemId: id, qty, unitCost: P(cost) })), { itemId: 'p-flex', qty: 160, unitCost: P(450) }, { itemId: 'p-vinyl', qty: 50, unitCost: P(700) }],
+    memo: 'بضاعة أول المدة (تجريبي)',
+  });
+  // خدمات التصوير بالكاشير (بالوجه)
+  item(l, { id: 'p-copy-bw', code: 'C1', name: 'تصوير A4 أبيض وأسود', kind: 'service', unit: 'وجه', price: P(25), category: 'خدمات طباعة وتصوير' });
+  item(l, { id: 'p-copy-color', code: 'C2', name: 'تصوير A4 ملون', kind: 'service', unit: 'وجه', price: P(100), category: 'خدمات طباعة وتصوير' });
+  item(l, { id: 'p-bind', code: 'C3', name: 'تجليد حلزوني', kind: 'service', unit: 'قطعة', price: P(300), category: 'خدمات طباعة وتصوير' });
+  // طقم مدرسي جاهز: بيعة وحدة بتنقّص كل مكوّناته
+  item(l, {
+    id: 'p-kit1', code: 'KIT1', name: 'طقم الصف الأول', kind: 'composite', unit: 'طقم', price: P(6500), category: 'حقائب مدرسية',
+    recipe: [{ itemId: 'p-bag', qty: 1 }, { itemId: 'p-nb60', qty: 6 }, { itemId: 'p-pencil', qty: 4 }, { itemId: 'p-eraser', qty: 2 }, { itemId: 'p-sharpener', qty: 1 }, { itemId: 'p-colors', qty: 1 }, { itemId: 'p-ruler', qty: 1 }],
+  });
+  // مبيعات قرطاسية
+  l.postInvoice({ kind: 'sale', date: day(-2), lines: [{ itemId: 'p-nb60', qty: 5, price: P(150) }, { itemId: 'p-pen-blue', qty: 3, price: P(50) }, { itemId: 'p-copy-bw', qty: 40, price: P(25) }] });
+  l.postInvoice({ kind: 'sale', date: day(-1), lines: [{ itemId: 'p-kit1', qty: 1, price: P(6500) }] });
+  l.postInvoice({ kind: 'sale', date: day(-1), partyId: 'c-school', lines: [{ itemId: 'p-a4', qty: 10, price: P(1650) }, { itemId: 'p-nb100', qty: 50, price: P(260) }], paid: P(15000) });
+  l.postInvoice({ kind: 'sale', date: day(), lines: [{ itemId: 'p-colors', qty: 2, price: P(450) }, { itemId: 'p-copy-color', qty: 6, price: P(100) }] });
+  // طلبات الطباعة
+  const ln = (id: string, x: Partial<PrintJobLine> & Pick<PrintJobLine, 'kind' | 'name' | 'qty' | 'price'>): PrintJobLine => ({ id, ...x });
+  l.savePrintJob({
+    id: 'pj-1', partyId: 'c-resto', date: day(-6), due: day(-3), title: 'آرمة واجهة المطعم', status: 'ready', currency: 'SYP',
+    lines: [ln('a', { kind: 'area', name: 'فلكس', width: 4, height: 1.5, qty: 1, price: P(1200), material: { itemId: 'p-flex', qty: 6.4 } })],
+    extras: [{ description: 'تصميم', amount: P(2000) }, { description: 'تركيب وشاسيه', amount: P(3500) }],
+  });
+  l.addPrintDeposit('pj-1', { date: day(-6), amount: P(5000) });
+  l.deliverPrintJob('pj-1', { date: day(-2) });
+  l.savePrintJob({
+    id: 'pj-2', partyId: 'c-student', date: day(-1), due: day(1), title: 'مشروع تخرج', status: 'printing', currency: 'SYP',
+    lines: [ln('a', { kind: 'pages', name: 'طباعة ليزر', pages: 120, qty: 3, price: P(30) }), ln('b', { kind: 'pages', name: 'تصوير ملون', pages: 12, qty: 3, price: P(100) }), ln('c', { kind: 'count', name: 'تجليد حراري / كرتون', qty: 3, price: P(800) })],
+    extras: [],
+  });
+  l.addPrintDeposit('pj-2', { date: day(-1), amount: P(5000) });
+  l.savePrintJob({
+    id: 'pj-3', partyId: 'c-school', date: day(), due: day(3), title: 'رول أب + كروت المدرسة', status: 'design', currency: 'SYP',
+    lines: [ln('a', { kind: 'count', name: 'رول أب', qty: 2, price: P(9000) }), ln('b', { kind: 'count', name: 'كروت شخصية (1000)', qty: 1, price: P(12000) }), ln('c', { kind: 'area', name: 'ستيكر / فينيل', width: 1, height: 0.5, qty: 10, price: P(1500), material: { itemId: 'p-vinyl', qty: 5.5 } })],
+    extras: [{ description: 'تصميم', amount: P(3000) }],
+  });
+}
+
 export function loadDemo(l: Ledger): void {
   const s = l.state;
   if (s.invoices.length > 0 || Object.keys(s.items).length > 0 || Object.keys(s.parties).length > 0) throw new Error('البيانات التجريبية بتنضاف لشركة فاضية بس');
@@ -665,6 +731,7 @@ export function loadDemo(l: Ledger): void {
   else if (activity === 'customs') customs(l);
   else if (activity === 'stone') stone(l);
   else if (activity === 'poultry') poultry(l);
+  else if (activity === 'printshop') printshop(l);
   else if (activity === 'mobile') mobile(l);
   else if (activity === 'sweets') sweets(l);
   else if (activity === 'supermarket') supermarket(l);

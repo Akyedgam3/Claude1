@@ -7,6 +7,7 @@ import { cashAccountFor, SYSTEM_ACCOUNTS } from './chart-templates';
 import { convertMinor, currencyProblem, type Currency } from './money';
 import { invoiceMoves } from './stock';
 import { POULTRY_CUTS } from './poultry';
+import { printJobDeposits, printJobToInvoiceLines, printJobTotals } from './printshop';
 import {
   buildAdjustment,
   buildCount,
@@ -21,6 +22,7 @@ import {
 import type {
   Partner,
   PriceBoard,
+  PrintJob,
   Account,
   Appointment,
   CompanyEvent,
@@ -839,6 +841,12 @@ export class Ledger {
     } else if (src?.type === 'tailor') {
       const o = this.state.tailorOrders[src.id];
       if (o?.invoiceId === invoice.id) this.emit({ type: 'tailor.saved', order: { ...withoutInvoice(o), status: 'ready' } });
+    } else if (src?.type === 'printjob') {
+      const j = this.state.printJobs?.[src.id];
+      if (j?.invoiceId === invoice.id) {
+        const { invoiceId: _i, ...rest } = j;
+        this.emit({ type: 'printjob.saved', job: { ...rest, status: 'delivered' } });
+      }
     } else if (src?.type === 'sitejob') {
       const j = this.state.siteJobs[src.id];
       if (j?.invoiceId === invoice.id) this.emit({ type: 'sitejob.saved', job: { ...withoutInvoice(j), status: 'done' } });
@@ -1394,6 +1402,95 @@ export class Ledger {
     }
     const invoice = this.postInvoice({ ...draft, paid });
     this.emit({ type: 'sitejob.saved', job: { ...j, status: 'invoiced', invoiceId: invoice.id } });
+    return invoice;
+  }
+
+  // ───────────── المطبعة: طلبات الطباعة ─────────────
+
+  savePrintJob(draft: Omit<PrintJob, 'number' | 'deposits' | 'materialsAdjustmentId' | 'invoiceId'> & { number?: number }): PrintJob {
+    const existing = this.state.printJobs?.[draft.id];
+    if (existing?.invoiceId) fail('الطلب مفوتر؛ ألغِ الفاتورة أولاً لتعديله');
+    if (draft.status === 'invoiced') fail('استخدم «فوترة» لإصدار فاتورة الطلب');
+    const paid = existing ? printJobDeposits(this.state, existing) : 0;
+    if (existing && existing.status !== 'cancelled' && draft.status === 'cancelled' && paid > 0) fail('على الطلب عربون؛ رجّعه (ألغِ سند القبض) قبل إلغاء الطلب');
+    if (paid > 0 && (draft.currency !== existing!.currency || draft.partyId !== existing!.partyId)) fail('على الطلب عربون؛ ما بيصير تغيّر الزبون أو العملة');
+    const job: PrintJob = {
+      ...draft,
+      extras: draft.extras ?? [],
+      number: existing?.number ?? (this.state.counters['printjob'] ?? 0) + 1,
+      deposits: existing?.deposits ?? [],
+      ...(existing?.materialsAdjustmentId ? { materialsAdjustmentId: existing.materialsAdjustmentId } : {}),
+    };
+    this.emit({ type: 'printjob.saved', job });
+    return job;
+  }
+
+  /** عربون أو دفعة على طلب الطباعة: سند قبض على حساب الزبون. */
+  addPrintDeposit(jobId: string, d: { date: string; amount: number; cashAccountId?: string; rate?: number }): PrintJob {
+    const j = this.state.printJobs?.[jobId] ?? fail('الطلب غير موجود');
+    if (j.invoiceId || j.status === 'cancelled') fail('ما بيصير عربون على طلب مفوتر أو ملغى');
+    const entry = this.postVoucher({
+      kind: 'receipt',
+      date: d.date,
+      amount: d.amount,
+      currency: j.currency,
+      partyId: j.partyId,
+      memo: `عربون طلب طباعة رقم ${j.number}${j.title ? ` (${j.title})` : ''}`,
+      ...(d.cashAccountId ? { cashAccountId: d.cashAccountId } : {}),
+      ...(d.rate ? { rate: d.rate } : {}),
+      createdBy: this.actor,
+    });
+    const job: PrintJob = { ...j, deposits: [...j.deposits, { entryId: entry.id, amount: d.amount, date: d.date }] };
+    this.emit({ type: 'printjob.saved', job });
+    return job;
+  }
+
+  /** فوترة الطلب: فاتورة مبيع بالبنود، العربون بينخصم من المطلوب، والمواد (فلكس، ورق) بتنصرف من المخزون مرة وحدة. */
+  deliverPrintJob(jobId: string, opts: TailorDeliverOptions): Invoice {
+    const j = this.state.printJobs?.[jobId] ?? fail('الطلب غير موجود');
+    if (j.invoiceId) fail('الطلب مفوتر من قبل');
+    if (j.status === 'cancelled') fail('الطلب ملغى');
+    const lines = printJobToInvoiceLines(j);
+    if (!lines.length) fail('الطلب فاضي');
+    const t = printJobTotals(j);
+    const discount = (opts.discount ?? 0) + t.discount;
+    const draft: InvoiceDraft = {
+      kind: 'sale',
+      date: opts.date,
+      partyId: j.partyId,
+      currency: j.currency,
+      lines,
+      ...(opts.rate ? { rate: opts.rate } : {}),
+      ...(discount ? { discount } : {}),
+      ...(opts.taxIds ? { taxIds: opts.taxIds } : {}),
+      ...(opts.cashAccountId ? { cashAccountId: opts.cashAccountId } : {}),
+      notes: `طلب طباعة رقم ${j.number}${j.title ? ` — ${j.title}` : ''}`,
+      source: { type: 'printjob', id: j.id },
+    };
+    let paid = opts.paid;
+    if (paid === undefined) {
+      const { invoice: preview } = buildInvoice(
+        { state: this.state, baseCode: this.base.code, resolveRate: (c, dt) => this.rateFor(c, dt), buildEntry: (e) => this.buildEntry(e), partyBalance: () => -Infinity },
+        { ...draft, paid: 0 },
+      );
+      paid = Math.max(0, preview.total - printJobDeposits(this.state, j));
+    }
+    // المواد (فلكس، ورق) بتنصرف مرة وحدة. منتأكد إنها بتكفي قبل الفاتورة حتى ما تنعمل وحدة بدون التانية
+    let materialsAdjustmentId = j.materialsAdjustmentId;
+    const mats = new Map<string, number>();
+    if (!materialsAdjustmentId) for (const l of j.lines) if (l.material) mats.set(l.material.itemId, (mats.get(l.material.itemId) ?? 0) + l.material.qty);
+    const wh = Object.keys(this.state.warehouses)[0] ?? 'main';
+    if (!this.state.info?.allowNegativeStock)
+      for (const [itemId, qty] of mats) {
+        const have = this.state.stock[itemId]?.qty[wh] ?? 0;
+        if (qty > have + 1e-9) fail(`ما بيكفي «${this.state.items[itemId]?.name}» بالمخزون: المطلوب ${qty} والموجود ${have}`);
+      }
+    const invoice = this.postInvoice({ ...draft, paid });
+    if (mats.size) {
+      const adj = this.adjustStock({ kind: 'consumption', date: opts.date, warehouseId: wh, lines: [...mats].map(([itemId, qty]) => ({ itemId, qty })), memo: `مواد طلب طباعة رقم ${j.number}` });
+      materialsAdjustmentId = adj.id;
+    }
+    this.emit({ type: 'printjob.saved', job: { ...j, status: 'invoiced', invoiceId: invoice.id, ...(materialsAdjustmentId ? { materialsAdjustmentId } : {}) } });
     return invoice;
   }
 
