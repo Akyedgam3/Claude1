@@ -244,8 +244,10 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
     price: item ? toInput(state, item.price, item.priceCurrency) : '',
     wholesalePrice: item?.wholesalePrice !== undefined ? toInput(state, item.wholesalePrice, item.priceCurrency) : '',
     specialPrice: item?.specialPrice !== undefined ? toInput(state, item.specialPrice, item.priceCurrency) : '',
+    dealerPrice: item?.dealerPrice !== undefined ? toInput(state, item.dealerPrice, item.priceCurrency) : '',
+    dealerId: item?.dealerId ?? '',
     minStock: item?.minStock !== undefined ? String(item.minStock) : '',
-    trackExpiry: item?.trackExpiry ?? (feature('batches') && profile.id === 'pharmacy'),
+    trackExpiry: item?.trackExpiry ?? (feature('batches') && (profile.id === 'pharmacy' || profile.id === 'pharmacydealers')),
     trackSerial: item?.trackSerial ?? false,
     weighed: item?.weighed ?? false,
     warrantyMonths: item?.warrantyMonths ? String(item.warrantyMonths) : '',
@@ -285,6 +287,8 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
         price: parseAmount(state, f.price, cur),
         ...(f.wholesalePrice ? { wholesalePrice: parseAmount(state, f.wholesalePrice, cur) } : {}),
         ...(f.specialPrice ? { specialPrice: parseAmount(state, f.specialPrice, cur) } : {}),
+        ...(f.dealerPrice ? { dealerPrice: parseAmount(state, f.dealerPrice, cur) } : {}),
+        ...(f.dealerId ? { dealerId: f.dealerId } : {}),
         ...(f.minStock ? { minStock: Number(f.minStock) } : {}),
         ...(unitList.length ? { units: unitList } : {}),
         ...(recipeList.length ? { recipe: recipeList } : {}),
@@ -413,9 +417,26 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
             <Field label="عملة السعر">
               <CurrencySelect value={f.priceCurrency} onChange={(c) => setF({ ...f, priceCurrency: c })} />
             </Field>
-            <Field label="سعر المبيع (مفرق)">
+            <Field label={feature('dealers') ? (f.dealerId ? 'سعر المبيع (مفرق) — مش مستعمل' : 'سعر الصيدلية (للزبون، وبيتحاسب فيه المورّد)') : 'سعر المبيع (مفرق)'}>
               <input value={f.price} onChange={set('price')} inputMode="decimal" />
             </Field>
+            {feature('dealers') && (
+              <>
+                <Field label="سعر المورّد (بيبيع فيه المورّد)">
+                  <input value={f.dealerPrice} onChange={set('dealerPrice')} inputMode="decimal" />
+                </Field>
+                <Field label="بضاعة مين؟">
+                  <select value={f.dealerId} onChange={(e) => setF({ ...f, dealerId: e.target.value })} disabled={!!item && (state.stock[item.id]?.totalQty ?? 0) !== 0}>
+                    <option value="">بضاعة الصيدلية</option>
+                    {Object.values(state.dealers ?? {}).map((d) => (
+                      <option key={d.id} value={d.id}>
+                        بضاعة خاصة بالمورّد {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </>
+            )}
             {feature('priceTiers') && (
               <>
                 <Field label="سعر الجملة">

@@ -34,6 +34,7 @@ import { Shipments } from './screens/Shipments';
 import { StoneBlocks } from './screens/StoneBlocks';
 import { Poultry } from './screens/Poultry';
 import { PrintJobs } from './screens/PrintJobs';
+import { Dealers } from './screens/Dealers';
 import { QuoteEditor, Quotes } from './screens/Quotes';
 import { StockOps } from './screens/StockOps';
 import { Users } from './screens/Users';
@@ -72,6 +73,7 @@ const NAV: (NavItem | string)[] = [
   { key: 'shipments', label: 'الشحنات والتخليص', icon: 'container', feature: 'shipments', perm: 'shipments.manage' },
   { key: 'stoneblocks', label: 'الكتل والقص', icon: 'mountain', feature: 'stoneblocks', perms: ['production.manage', 'purchases.create'] },
   { key: 'poultry', label: 'الفروج والتوزيع', icon: 'drumstick', feature: 'poultry' },
+  { key: 'dealers', label: 'الموردين', icon: 'users', feature: 'dealers', perm: 'dealers.manage' },
   { key: 'printjobs', label: 'طلبات الطباعة', icon: 'printer', feature: 'printjobs', perm: 'printjobs.manage' },
   'العمليات',
   { key: 'pos', label: 'نقطة البيع', icon: 'pos', feature: 'pos', perm: 'pos.use' },
@@ -123,7 +125,14 @@ const DETAIL_PARENT: Record<string, string> = { invoice: 'invoices', repair: 're
 export function App() {
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [state, setState] = useState<CompanyState | null>(null);
-  const [screen, setScreen] = useState<{ key: string; param?: string }>({ key: 'dashboard' });
+  // جهاز مثبّت على مورّد (صيدلية مع موردين) بيفتح على بيع المورّد
+  const [screen, setScreen] = useState<{ key: string; param?: string }>(() => {
+    try {
+      return localStorage.getItem('wazn.dealerDevice') ? { key: 'dealers' } : { key: 'dashboard' };
+    } catch {
+      return { key: 'dashboard' };
+    }
+  });
   const [toast, setToast] = useState<{ message: string; kind: 'ok' | 'error' } | null>(null);
   const seqRef = useRef(0);
   const stateRef = useRef<CompanyState | null>(null);
@@ -476,6 +485,8 @@ function Screen({ screen }: { screen: { key: string; param?: string } }) {
       return <Poultry />;
     case 'printjobs':
       return <PrintJobs />;
+    case 'dealers':
+      return <Dealers />;
     case 'sitejob':
       return <SiteJobEditor key={p ?? 'new'} {...(p ? { id: p } : {})} />;
     case 'devices':

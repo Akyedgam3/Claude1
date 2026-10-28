@@ -7,6 +7,7 @@ import { cashAccountFor, SYSTEM_ACCOUNTS } from './chart-templates';
 import { convertMinor, currencyProblem, type Currency } from './money';
 import { invoiceMoves } from './stock';
 import { POULTRY_CUTS } from './poultry';
+import { dealerStock, dealerUnitCost } from './dealers';
 import { printJobDeposits, printJobToInvoiceLines, printJobTotals } from './printshop';
 import {
   buildAdjustment,
@@ -22,6 +23,11 @@ import {
 import type {
   Partner,
   PriceBoard,
+  Dealer,
+  DealerMove,
+  DealerMoveKind,
+  DealerSale,
+  DealerSaleLine,
   PrintJob,
   Account,
   Appointment,
@@ -281,6 +287,7 @@ export function resetEvents(state: CompanyState, mode: ResetMode): CompanyEvent[
   if (mode === 'all') return events;
   for (const rate of state.rates) events.push({ type: 'rate.set', rate });
   for (const party of Object.values(state.parties)) events.push({ type: 'party.saved', party });
+  for (const dealer of Object.values(state.dealers ?? {})) events.push({ type: 'dealer.saved', dealer });
   // المكوّنات قبل الأصناف اللي بتستعملها
   const pending = Object.values(state.items);
   const done = new Set<string>();
@@ -1403,6 +1410,145 @@ export class Ledger {
     const invoice = this.postInvoice({ ...draft, paid });
     this.emit({ type: 'sitejob.saved', job: { ...j, status: 'invoiced', invoiceId: invoice.id } });
     return invoice;
+  }
+
+  // ───────────── صيدلية مع موردين مستقلين ─────────────
+
+  /** مورّد جديد أو تعديل: بينعمله حساب زبون عند الصيدلية (دين الأدوية اللي بياخدها). */
+  saveDealer(d: { id: string; name: string; phone?: string; active?: boolean }): Dealer {
+    const existing = this.state.dealers?.[d.id];
+    const name = d.name.trim() || fail('اكتب اسم المورّد');
+    let partyId = existing?.partyId;
+    if (!partyId) {
+      partyId = `dealer-${d.id}`;
+      this.saveParty({ id: partyId, kind: 'customer', name: `المورّد ${name}`, ...(d.phone ? { phone: d.phone } : {}) });
+    } else {
+      const p = this.state.parties[partyId];
+      if (p) this.saveParty({ ...p, name: `المورّد ${name}`, ...(d.phone ? { phone: d.phone } : {}) });
+    }
+    const dealer: Dealer = { id: d.id, name, ...(d.phone ? { phone: d.phone } : {}), partyId, active: d.active ?? existing?.active ?? true, createdAt: existing?.createdAt ?? new Date().toISOString() };
+    this.emit({ type: 'dealer.saved', dealer });
+    return dealer;
+  }
+
+  /** سعر الصيدلية للمادة بالعملة الأساسية (للمحاسبة مع المورّد). */
+  private pharmacyPrice(itemId: string, date: string): number {
+    const it = this.state.items[itemId]!;
+    if (it.priceCurrency === this.base.code) return it.price;
+    const rate = this.rateFor(it.priceCurrency, date) ?? fail(`لا يوجد سعر صرف لـ ${it.priceCurrency}`);
+    return convertMinor(it.price, this.state.currencies[it.priceCurrency]!, this.base, rate);
+  }
+
+  /**
+   * بيعة المورّد لزبونه بسعر المورّد، المصاري لصندوقه.
+   * الأدوية (من بضاعة الصيدلية) بتنسجّل فاتورة مبيع من الصيدلية للمورّد بسعر الصيدلية، دين عليه، والمخزون بينقص.
+   * بضاعته الخاصة بتنقص من مخزونه هو بتكلفتها.
+   */
+  postDealerSale(d: { id?: string; dealerId: string; date: string; lines: { itemId: string; qty: number; price: number }[]; discount?: number; customer?: string }): DealerSale {
+    const dealer = this.state.dealers?.[d.dealerId] ?? fail('المورّد غير موجود');
+    if (!dealer.active) fail('المورّد موقوف');
+    if (!d.lines.length) fail('الفاتورة فاضية');
+    const id = d.id ?? crypto.randomUUID();
+    const own = dealerStock(this.state, dealer.id);
+    const need = new Map<string, number>();
+    const lines: DealerSaleLine[] = d.lines.map((l) => {
+      const it = this.state.items[l.itemId] ?? fail('مادة غير موجودة');
+      if (!(l.qty > 0)) fail(`الكمية غير صالحة: ${it.name}`);
+      if (it.dealerId && it.dealerId !== dealer.id) fail(`«${it.name}» من بضاعة مورّد تاني`);
+      if (it.dealerId) {
+        const total = (need.get(it.id) ?? 0) + l.qty;
+        need.set(it.id, total);
+        const have = own[it.id]?.qty ?? 0;
+        if (total > have + 1e-9) fail(`ما بيكفي «${it.name}» ببضاعة المورّد: الموجود ${have}`);
+        return { itemId: it.id, name: it.name, qty: l.qty, price: l.price, cost: Math.round(dealerUnitCost(this.state, dealer.id, it.id) * l.qty), own: true };
+      }
+      return { itemId: it.id, name: it.name, qty: l.qty, price: l.price, cost: Math.round(this.pharmacyPrice(it.id, d.date) * l.qty), own: false };
+    });
+    const gross = lines.reduce((s, l) => s + Math.round(l.qty * l.price), 0);
+    const discount = Math.min(d.discount ?? 0, gross);
+    const meds = lines.filter((l) => !l.own);
+    let invoiceId: string | undefined;
+    if (meds.length) {
+      const inv = this.postInvoice({
+        kind: 'sale',
+        date: d.date,
+        partyId: dealer.partyId,
+        lines: meds.map((l) => ({ itemId: l.itemId, qty: l.qty, price: Math.round(l.cost / l.qty) })),
+        paid: 0,
+        notes: `بيع المورّد ${dealer.name} — بسعر الصيدلية`,
+        source: { type: 'dealersale', id },
+      });
+      invoiceId = inv.id;
+    }
+    const sale: DealerSale = {
+      id,
+      number: (this.state.counters['dealersale'] ?? 0) + 1,
+      dealerId: dealer.id,
+      date: d.date,
+      lines,
+      discount,
+      total: gross - discount,
+      ...(d.customer?.trim() ? { customer: d.customer.trim() } : {}),
+      ...(invoiceId ? { invoiceId } : {}),
+      createdAt: new Date().toISOString(),
+      createdBy: this.actor,
+    };
+    this.emit({ type: 'dealersale.posted', sale });
+    return sale;
+  }
+
+  /** إلغاء بيعة المورّد: فاتورة الصيدلية بتنلغى (الأدوية بترجع والدين بينشال)، وبضاعته بترجع لمخزونه. */
+  voidDealerSale(saleId: string, date: string): void {
+    const sale = (this.state.dealerSales ?? []).find((s) => s.id === saleId) ?? fail('الفاتورة غير موجودة');
+    if (sale.voided) fail('الفاتورة ملغاة من قبل');
+    const inv = sale.invoiceId ? this.state.invoices.find((i) => i.id === sale.invoiceId) : undefined;
+    if (inv && !inv.voidEntryId) this.voidInvoice(inv.id, date);
+    this.emit({ type: 'dealersale.voided', saleId, date, by: this.actor });
+  }
+
+  /**
+   * حركة بصندوق المورّد. التسديد للصيدلية بيعمل سند قبض عند الصيدلية على حسابه.
+   * شراء بضاعته الخاصة: lines بالكمية وتكلفة الوحدة.
+   */
+  postDealerMove(d: { dealerId: string; date: string; kind: DealerMoveKind; amount?: number; lines?: { itemId: string; qty: number; unitCost: number }[]; note?: string; cashAccountId?: string }): DealerMove {
+    const dealer = this.state.dealers?.[d.dealerId] ?? fail('المورّد غير موجود');
+    const lines = d.kind === 'purchase' ? (d.lines ?? []).map((l) => ({ itemId: l.itemId, qty: l.qty, cost: Math.round(l.qty * l.unitCost) })) : undefined;
+    if (d.kind === 'purchase' && !lines?.length) fail('أضف مادة واحدة عالأقل');
+    const amount = lines ? lines.reduce((s, l) => s + l.cost, 0) : (d.amount ?? 0);
+    let entryId: string | undefined;
+    if (d.kind === 'payment') {
+      if (!(amount > 0)) fail('المبلغ لازم يكون أكبر من صفر');
+      const entry = this.postVoucher({ kind: 'receipt', date: d.date, amount, partyId: dealer.partyId, memo: `تسديد المورّد ${dealer.name}${d.note ? `: ${d.note}` : ''}`, ...(d.cashAccountId ? { cashAccountId: d.cashAccountId } : {}), createdBy: this.actor });
+      entryId = entry.id;
+    }
+    const move: DealerMove = {
+      id: crypto.randomUUID(),
+      dealerId: dealer.id,
+      date: d.date,
+      kind: d.kind,
+      amount,
+      ...(lines ? { lines } : {}),
+      ...(d.note?.trim() ? { note: d.note.trim() } : {}),
+      ...(entryId ? { entryId } : {}),
+      createdAt: new Date().toISOString(),
+      createdBy: this.actor,
+    };
+    this.emit({ type: 'dealermove.posted', move });
+    return move;
+  }
+
+  voidDealerMove(moveId: string, date: string): void {
+    const m = (this.state.dealerMoves ?? []).find((x) => x.id === moveId) ?? fail('الحركة غير موجودة');
+    if (m.voided) fail('الحركة ملغاة من قبل');
+    if (m.kind === 'purchase') {
+      const st = dealerStock(this.state, m.dealerId);
+      for (const l of m.lines ?? []) if ((st[l.itemId]?.qty ?? 0) < l.qty - 1e-9) fail(`ما بيصير تلغي الشراء: انباع من «${this.state.items[l.itemId]?.name}»`);
+    }
+    if (m.entryId && !this.state.voided[m.entryId]) {
+      const e = this.state.entries.find((x) => x.id === m.entryId)!;
+      this.emit({ type: 'entry.posted', entry: this.reversal(e, date) });
+    }
+    this.emit({ type: 'dealermove.voided', moveId, date, by: this.actor });
   }
 
   // ───────────── المطبعة: طلبات الطباعة ─────────────

@@ -130,6 +130,11 @@ export function Dashboard() {
             <Icon name="mountain" size={20} /> الكتل والقص
           </button>
         )}
+        {feature('dealers') && can('dealers.manage') && (
+          <button className="primary big accent" onClick={() => navigate('dealers')}>
+            <Icon name="users" size={20} /> الموردين
+          </button>
+        )}
         {feature('printjobs') && can('printjobs.manage') && (
           <button className="primary big accent" onClick={() => navigate('printjobs')}>
             <Icon name="printer" size={20} /> طلبات الطباعة

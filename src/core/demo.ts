@@ -719,6 +719,40 @@ function printshop(l: Ledger): void {
   });
 }
 
+function pharmacyDealers(l: Ledger): void {
+  l.saveParty({ id: 's-pharma', kind: 'supplier', name: 'مستودع الشفاء للأدوية', phone: '0944 515 300' });
+  // [id، الاسم، الاسم العلمي، الشراء، سعر الصيدلية، سعر المورّد، الكمية، الحد الأدنى]
+  const meds: [string, string, string, number, number, number, number, number][] = [
+    ['m-panadol', 'بنادول 500 ملغ', 'باراسيتامول', 1000, 1500, 1800, 120, 20],
+    ['m-augmentin', 'أوغمنتين 1 غ', 'أموكسيسيلين + كلافولانيك', 6500, 8500, 10000, 40, 10],
+    ['m-brufen', 'بروفين 400', 'إيبوبروفين', 1200, 1700, 2000, 80, 15],
+    ['m-omeprazole', 'أوميبرازول 20', 'أوميبرازول', 2000, 2800, 3300, 60, 10],
+    ['m-vitc', 'فيتامين C فوار', 'حمض الأسكوربيك', 1800, 2500, 3000, 50, 10],
+    ['m-zyrtec', 'زيرتك شراب', 'سيتريزين', 2500, 3500, 4200, 30, 6],
+  ];
+  for (const [id, name, sci, , price, dealer, , min] of meds) {
+    item(l, { id, code: id.slice(2).toUpperCase(), name, kind: 'stock', unit: 'علبة', price: P(price), dealerPrice: P(dealer), category: 'أدوية', minStock: min, attributes: { 'الاسم العلمي': sci } });
+  }
+  l.postInvoice({ kind: 'purchase', date: day(-20), partyId: 's-pharma', lines: meds.map(([id, , , cost, , , qty]) => ({ itemId: id, qty, price: P(cost) })), paid: P(300000) });
+  l.updateCompany({ pricing: { retailMargin: 40, dealerMargin: 65 } });
+  // موردين مستقلين
+  const d1 = l.saveDealer({ id: 'd-samer', name: 'أبو سامر', phone: '0933 220 418' });
+  const d2 = l.saveDealer({ id: 'd-rami', name: 'رامي الحلبي', phone: '0988 410 772' });
+  // بضاعة أبو سامر الخاصة (غير الأدوية)
+  item(l, { id: 'x-diapers', code: 'X1', name: 'حفاضات أطفال', kind: 'stock', unit: 'كيس', price: 0, dealerPrice: P(6500), category: 'مواد المورّد', dealerId: d1.id });
+  item(l, { id: 'x-cream', code: 'X2', name: 'كريم مرطب', kind: 'stock', unit: 'قطعة', price: 0, dealerPrice: P(3500), category: 'مواد المورّد', dealerId: d1.id });
+  l.postDealerMove({ dealerId: d1.id, date: day(-10), kind: 'deposit', amount: P(80000), note: 'رأس مال المورّد' });
+  l.postDealerMove({ dealerId: d1.id, date: day(-10), kind: 'purchase', lines: [{ itemId: 'x-diapers', qty: 10, unitCost: P(5000) }, { itemId: 'x-cream', qty: 12, unitCost: P(2200) }], note: 'بضاعة خاصة' });
+  l.postDealerSale({ dealerId: d1.id, date: day(-3), lines: [{ itemId: 'm-panadol', qty: 10, price: P(1800) }, { itemId: 'm-augmentin', qty: 2, price: P(10000) }, { itemId: 'x-diapers', qty: 3, price: P(6500) }] });
+  l.postDealerSale({ dealerId: d1.id, date: day(-1), lines: [{ itemId: 'm-brufen', qty: 6, price: P(2000) }, { itemId: 'x-cream', qty: 4, price: P(3500) }] });
+  l.postDealerMove({ dealerId: d1.id, date: day(-1), kind: 'payment', amount: P(25000), note: 'دفعة' });
+  l.postDealerSale({ dealerId: d2.id, date: day(-2), lines: [{ itemId: 'm-omeprazole', qty: 5, price: P(3300) }, { itemId: 'm-vitc', qty: 4, price: P(3000) }] });
+  l.postDealerSale({ dealerId: d2.id, date: day(), lines: [{ itemId: 'm-zyrtec', qty: 3, price: P(4200) }, { itemId: 'm-panadol', qty: 8, price: P(1800) }] });
+  // مبيعات الصيدلية العادية
+  l.postInvoice({ kind: 'sale', date: day(-1), lines: [{ itemId: 'm-panadol', qty: 6, price: P(1500) }, { itemId: 'm-vitc', qty: 2, price: P(2500) }] });
+  l.postInvoice({ kind: 'sale', date: day(), lines: [{ itemId: 'm-augmentin', qty: 1, price: P(8500) }, { itemId: 'm-brufen', qty: 3, price: P(1700) }] });
+}
+
 export function loadDemo(l: Ledger): void {
   const s = l.state;
   if (s.invoices.length > 0 || Object.keys(s.items).length > 0 || Object.keys(s.parties).length > 0) throw new Error('البيانات التجريبية بتنضاف لشركة فاضية بس');
@@ -732,6 +766,7 @@ export function loadDemo(l: Ledger): void {
   else if (activity === 'stone') stone(l);
   else if (activity === 'poultry') poultry(l);
   else if (activity === 'printshop') printshop(l);
+  else if (activity === 'pharmacydealers') pharmacyDealers(l);
   else if (activity === 'mobile') mobile(l);
   else if (activity === 'sweets') sweets(l);
   else if (activity === 'supermarket') supermarket(l);

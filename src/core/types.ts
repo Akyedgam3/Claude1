@@ -76,7 +76,8 @@ export type Activity =
   | 'customs'
   | 'stone'
   | 'poultry'
-  | 'printshop';
+  | 'printshop'
+  | 'pharmacydealers';
 
 export type Paper = 'a4' | 'a5' | '80mm' | '58mm';
 
@@ -150,6 +151,8 @@ export interface CompanyInfo {
   print?: PrintSettings;
   scale?: ScaleSettings;
   customize?: ActivityCustomization;
+  /** نسب الربح المقترحة عند إدخال البضاعة: سعر الصيدلية وسعر المورّد من سعر الشراء. */
+  pricing?: { retailMargin?: number; dealerMargin?: number };
 }
 
 /** تخصيص النشاط من قبل المستخدم: تشغيل/إيقاف ميزات، وقوائم خاصة به. */
@@ -230,6 +233,10 @@ export interface Item {
   price: number; // سعر المبيع (مفرق) بأصغر وحدة من priceCurrency
   wholesalePrice?: number;
   specialPrice?: number;
+  /** سعر المورّد المستقل (صيدلية مع موردين): المورّد بيبيع فيه، والصيدلية بتحاسبه بـ price. */
+  dealerPrice?: number;
+  /** مادة خاصة بمورّد مستقل (مش من بضاعة الصيدلية): مخزونها وربحها إلو. */
+  dealerId?: string;
   priceCurrency: string;
   minStock?: number;
   trackExpiry?: boolean; // دفعات وتواريخ صلاحية (صيدلية، مواد غذائية)
@@ -621,6 +628,60 @@ export interface PrintJob {
   invoiceId?: string;
 }
 
+// ───────────── صيدلية مع موردين مستقلين ─────────────
+
+/** مورّد مستقل بيبيع من أدوية الصيدلية بسعره، وبيتسجّل عليه سعر الصيدلية دين. إلو صندوقه وبضاعته الخاصة. */
+export interface Dealer {
+  id: string;
+  name: string;
+  phone?: string;
+  partyId: string; // حسابه عند الصيدلية (دين الأدوية)
+  active: boolean;
+  createdAt: string;
+}
+
+export interface DealerSaleLine {
+  itemId: string;
+  name: string;
+  qty: number;
+  price: number; // سعر بيع المورّد بالعملة الأساسية
+  cost: number; // تكلفته على المورّد للكمية كلها (سعر الصيدلية للأدوية، أو وسطي تكلفة بضاعته)
+  own: boolean; // من بضاعة المورّد الخاصة
+}
+
+/** بيعة المورّد لزبونه (بدفتر المورّد، مش بأرباح الصيدلية). أدويتها بتنسجّل كفاتورة من الصيدلية للمورّد. */
+export interface DealerSale {
+  id: string;
+  number: number;
+  dealerId: string;
+  date: string;
+  lines: DealerSaleLine[];
+  discount: number;
+  total: number; // بعد الخصم، بيدخل صندوق المورّد
+  customer?: string;
+  invoiceId?: string; // فاتورة الصيدلية للمورّد بسعر الصيدلية
+  voided?: { date: string; by: string };
+  createdAt: string;
+  createdBy: string;
+}
+
+export type DealerMoveKind = 'purchase' | 'payment' | 'expense' | 'withdraw' | 'deposit';
+
+/** حركة بصندوق المورّد: شراء بضاعته الخاصة، تسديد للصيدلية، مصروف، سحب، إيداع. */
+export interface DealerMove {
+  id: string;
+  dealerId: string;
+  date: string;
+  kind: DealerMoveKind;
+  amount: number; // بالعملة الأساسية
+  lines?: { itemId: string; qty: number; cost: number }[]; // للشراء: الكمية وتكلفتها الكلية
+  note?: string;
+  entryId?: string; // سند القبض عند الصيدلية (للتسديد)
+  voided?: { date: string; by: string };
+  createdAt: string;
+  createdBy: string;
+}
+
 // ───────────── النقل والتخليص الجمركي ─────────────
 
 export type ShipmentStatus = 'loading' | 'transit' | 'customs' | 'arrived' | 'delivered' | 'invoiced' | 'cancelled';
@@ -846,6 +907,9 @@ export interface CompanyState {
   stoneBlocks?: Record<string, StoneBlock>;
   priceBoards?: Record<string, PriceBoard>;
   printJobs?: Record<string, PrintJob>;
+  dealers?: Record<string, Dealer>;
+  dealerSales?: DealerSale[];
+  dealerMoves?: DealerMove[];
   partners: Record<string, Partner>;
   quotes: Record<string, Quote>;
   rolls: Record<string, FabricRoll>;
@@ -887,6 +951,11 @@ export type CompanyEvent =
   | { type: 'stoneblock.saved'; block: StoneBlock }
   | { type: 'priceboard.saved'; board: PriceBoard }
   | { type: 'printjob.saved'; job: PrintJob }
+  | { type: 'dealer.saved'; dealer: Dealer }
+  | { type: 'dealersale.posted'; sale: DealerSale }
+  | { type: 'dealersale.voided'; saleId: string; date: string; by: string }
+  | { type: 'dealermove.posted'; move: DealerMove }
+  | { type: 'dealermove.voided'; moveId: string; date: string; by: string }
   | { type: 'partner.saved'; partner: Partner }
   | { type: 'quote.saved'; quote: Quote }
   | { type: 'rolls.saved'; rolls: FabricRoll[] }

@@ -263,7 +263,7 @@ export function ColorPicker({ value, onChange }: { value: string; onChange: (v: 
 
 export function itemOptions(state: CompanyState, filter?: (i: Item) => boolean): (Option & { item: Item })[] {
   return Object.values(state.items)
-    .filter((i) => !i.archived && (!filter || filter(i)))
+    .filter((i) => !i.archived && !i.dealerId && (!filter || filter(i)))
     .map((item) => ({
       id: item.id,
       label: itemTitle(item),

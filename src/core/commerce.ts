@@ -52,7 +52,8 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
         if (others.some((i) => i.barcode === b || i.units?.some((u) => u.barcode === b))) fail(`الباركود ${b} مستخدم لمادة أخرى`);
       }
       if (!state.currencies[item.priceCurrency]) fail('عملة السعر غير معرّفة');
-      for (const p of [item.price, item.wholesalePrice, item.specialPrice, ...(item.units ?? []).map((u) => u.price)]) {
+      if (item.dealerId && !state.dealers?.[item.dealerId]) fail('المورّد غير موجود');
+      for (const p of [item.price, item.wholesalePrice, item.specialPrice, item.dealerPrice, ...(item.units ?? []).map((u) => u.price)]) {
         if (p !== undefined && (!Number.isSafeInteger(p) || p < 0)) fail('سعر غير صالح');
       }
       for (const u of item.units ?? []) {
@@ -211,6 +212,46 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       const prev = state.shipments?.[s.id];
       if (prev && prev.number !== s.number) fail('لا يمكن تغيير رقم الشحنة');
       if (prev?.invoiceId && !invoiceVoided(state, prev.invoiceId) && (s.status !== 'invoiced' || s.invoiceId !== prev.invoiceId)) fail('الشحنة مفوترة؛ ألغِ الفاتورة أولاً لتعديلها');
+      return;
+    }
+    case 'dealer.saved': {
+      const d = event.dealer;
+      if (!d.name.trim()) fail('اكتب اسم المورّد');
+      if (!state.parties[d.partyId]) fail('حساب المورّد غير موجود');
+      return;
+    }
+    case 'dealersale.posted': {
+      const x = event.sale;
+      if (!state.dealers?.[x.dealerId]) fail('المورّد غير موجود');
+      if (!DATE_RE.test(x.date)) fail('تاريخ غير صالح');
+      if (!x.lines.length) fail('الفاتورة فاضية');
+      for (const l of x.lines) {
+        if (!state.items[l.itemId]) fail('مادة غير موجودة');
+        if (!(l.qty > 0) || !Number.isSafeInteger(l.price) || l.price < 0 || !Number.isSafeInteger(l.cost)) fail(`كمية أو سعر غير صالح: ${l.name}`);
+      }
+      if (!Number.isSafeInteger(x.discount) || x.discount < 0 || !Number.isSafeInteger(x.total) || x.total < 0) fail('مبلغ غير صالح');
+      return;
+    }
+    case 'dealersale.voided': {
+      const x = (state.dealerSales ?? []).find((s) => s.id === event.saleId) ?? fail('الفاتورة غير موجودة');
+      if (x.voided) fail('الفاتورة ملغاة من قبل');
+      return;
+    }
+    case 'dealermove.posted': {
+      const m = event.move;
+      if (!state.dealers?.[m.dealerId]) fail('المورّد غير موجود');
+      if (!DATE_RE.test(m.date)) fail('تاريخ غير صالح');
+      if (!Number.isSafeInteger(m.amount) || m.amount <= 0) fail('المبلغ لازم يكون أكبر من صفر');
+      for (const l of m.lines ?? []) {
+        const it = state.items[l.itemId] ?? fail('مادة غير موجودة');
+        if (it.dealerId !== m.dealerId) fail(`«${it.name}» مش من بضاعة هالمورّد`);
+        if (!(l.qty > 0) || !Number.isSafeInteger(l.cost) || l.cost < 0) fail(`كمية أو تكلفة غير صالحة: ${it.name}`);
+      }
+      return;
+    }
+    case 'dealermove.voided': {
+      const m = (state.dealerMoves ?? []).find((x) => x.id === event.moveId) ?? fail('الحركة غير موجودة');
+      if (m.voided) fail('الحركة ملغاة من قبل');
       return;
     }
     case 'printjob.saved': {
@@ -491,6 +532,26 @@ export function applyCommerceEvent(state: CompanyState, event: CompanyEvent): vo
       (state.shipments ??= {})[event.shipment.id] = { ...event.shipment };
       bump(state, 'shipment', event.shipment.number);
       return;
+    case 'dealer.saved':
+      (state.dealers ??= {})[event.dealer.id] = { ...event.dealer };
+      return;
+    case 'dealersale.posted':
+      (state.dealerSales ??= []).push({ ...event.sale });
+      bump(state, 'dealersale', event.sale.number);
+      return;
+    case 'dealersale.voided': {
+      const x = state.dealerSales!.find((s) => s.id === event.saleId)!;
+      x.voided = { date: event.date, by: event.by };
+      return;
+    }
+    case 'dealermove.posted':
+      (state.dealerMoves ??= []).push({ ...event.move });
+      return;
+    case 'dealermove.voided': {
+      const m = state.dealerMoves!.find((x) => x.id === event.moveId)!;
+      m.voided = { date: event.date, by: event.by };
+      return;
+    }
     case 'printjob.saved':
       (state.printJobs ??= {})[event.job.id] = { ...event.job };
       bump(state, 'printjob', event.job.number);

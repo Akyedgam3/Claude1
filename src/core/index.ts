@@ -15,3 +15,4 @@ export * from './electronics';
 export * from './partners';
 export * from './poultry';
 export * from './printshop';
+export * from './dealers';

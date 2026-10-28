@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { computeTaxes, findRate, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
+import { computeTaxes, findRate, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
 import { convertPrice, fxRates, money, parseAmount, rateInverted, toInput, today, uid, useCompany } from '../api';
 import { CurrencySelect, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
 import { invoiceDrafts } from '../drafts';
@@ -23,6 +23,8 @@ interface LineState {
   src?: { amount: number; currency: string }; // السعر اليدوي بالعملة اللي انكتب فيها، لنحوّله إذا تغيّرت عملة الفاتورة أو سعر الصرف
   note?: string; // ملاحظة السطر (بتنحفظ متل ما هي عند تعديل فاتورة)
   weighing?: Weighing; // وزنات قفص قفص (الكمية = الصافي)
+  sell?: string; // فاتورة الشراء (صيدلية مع موردين): سعر الصيدلية الجديد
+  dealer?: string; // وسعر المورّد الجديد
 }
 
 /** حالة الفاتورة المفتوحة اللي بتنحفظ لما المستخدم يروح على شاشة تانية. */
@@ -140,6 +142,25 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
   const [notes, setNotes] = useState(editing?.notes ?? d?.notes ?? '');
   const [newItem, setNewItem] = useState<string | null>(null);
   const [weighLine, setWeighLine] = useState<string | null>(null);
+  // صيدلية مع موردين: بفاتورة الشراء منحط سعر الصيدلية وسعر المورّد لكل مادة
+  const setPrices = feature('dealers') && kind === 'purchase' && can('items.manage');
+  const margins = state.info?.pricing ?? {};
+  const costOf = (l: LineState) => {
+    const item = l.itemId ? state.items[l.itemId] : null;
+    const factor = item?.units?.find((u) => u.name === l.unit)?.factor ?? 1;
+    try {
+      return parseAmount(state, l.price, currency) / factor;
+    } catch {
+      return 0;
+    }
+  };
+  const suggest = (l: LineState, m: number | undefined) => {
+    const item = l.itemId ? state.items[l.itemId] : null;
+    const c = costOf(l);
+    return item && m && c > 0 && item.priceCurrency === currency ? toInput(state, priceFromMargin(c, m, 10 ** (state.currencies[currency]?.decimals ?? 2) * 5), currency) : '';
+  };
+  const fillPrices = () =>
+    setLines((ls) => ls.map((l) => (l.itemId ? { ...l, sell: suggest(l, margins.retailMargin) || l.sell, dealer: suggest(l, margins.dealerMargin) || l.dealer } : l)));
   const weighBirds = feature('poultry');
   const [newParty, setNewParty] = useState(false);
   const [serialChoices, setSerialChoices] = useState<{ code: string; matches: SerialMatch[] } | null>(null);
@@ -231,6 +252,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
 
   const scan = (code: string) => {
     const r = kind === 'sale_return' ? null : resolveScan(state, code);
+    if (r?.item.dealerId) return notify(`«${r.item.name}» من بضاعة مورّد، بتنباع من شاشة الموردين`, 'error');
     if (r) return addScanned(r);
     // آخر أرقام الـ IMEI / الرقم التسلسلي (بالمرتجع: من الأجهزة المبيوعة)
     const m = matchSerials(state, code, { sold: kind === 'sale_return' });
@@ -365,6 +387,19 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
         ...(notes.trim() ? { notes: notes.trim() } : {}),
       };
       const res = editing ? await call<Invoice>('replaceInvoice', editing.id, draft) : await call<Invoice>('postInvoice', draft);
+      if (res && setPrices) {
+        // أسعار البيع الجديدة من فاتورة الشراء: سعر الصيدلية وسعر المورّد
+        let n = 0;
+        for (const l of used) {
+          const item = l.itemId ? state.items[l.itemId] : null;
+          if (!item || (!l.sell?.trim() && !l.dealer?.trim())) continue;
+          const price = l.sell?.trim() ? parseAmount(state, l.sell, item.priceCurrency) : item.price;
+          const dealerPrice = l.dealer?.trim() ? parseAmount(state, l.dealer, item.priceCurrency) : item.dealerPrice;
+          if (price === item.price && dealerPrice === item.dealerPrice) continue;
+          if (await call('saveItem', { ...item, price, ...(dealerPrice !== undefined ? { dealerPrice } : {}) })) n++;
+        }
+        if (n) notify(`انحدّثت أسعار ${n} مادة`);
+      }
       if (res) {
         notify(editing ? `تم تعديل ${INVOICE_KIND_NAMES[kind]} رقم ${res.value.number}` : `تم حفظ ${INVOICE_KIND_NAMES[kind]} رقم ${res.value.number}`);
         if (!editing) {
@@ -453,6 +488,19 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
         <div className="scan-row">
           <ScanInput onScan={scan} placeholder={feature('serials') ? 'امسح الباركود أو اكتب الرمز / آخر أرقام الـ IMEI ثم Enter' : 'امسح الباركود (أو باركود الميزان) أو اكتب الرمز / رقم القطعة ثم Enter'} />
         </div>
+        {setPrices && (
+          <div className="sell-prices-bar">
+            <span className="muted">
+              أسعار البيع: اكتب سعر الصيدلية وسعر المورّد تحت كل مادة، أو احسبهن من سعر الشراء
+              {margins.retailMargin || margins.dealerMargin ? ` (ربح الصيدلية ${margins.retailMargin ?? 0}% · المورّد ${margins.dealerMargin ?? 0}%)` : ' (حط نسب الربح من شاشة الموردين)'}
+            </span>
+            {(margins.retailMargin || margins.dealerMargin) && (
+              <button type="button" className="small" onClick={fillPrices}>
+                احسب الأسعار بالنسب
+              </button>
+            )}
+          </div>
+        )}
         <table className="table lines">
           <thead>
             <tr>
@@ -485,6 +533,18 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
                           {[item?.code, item?.partNumber, stock !== null ? `الرصيد: ${stock}` : null].filter(Boolean).join(' · ')}
                           {short && <span className="bad"> — الكمية أكبر من الرصيد</span>}
                         </small>
+                        {setPrices && (
+                          <span className="sell-prices">
+                            <label>
+                              سعر الصيدلية
+                              <input className="num-input" inputMode="decimal" placeholder={suggest(l, margins.retailMargin) || (item ? toInput(state, item.price, item.priceCurrency) : '')} value={l.sell ?? ''} onChange={(e) => setLine(l.key, { sell: e.target.value })} />
+                            </label>
+                            <label>
+                              سعر المورّد
+                              <input className="num-input" inputMode="decimal" placeholder={suggest(l, margins.dealerMargin) || (item?.dealerPrice ? toInput(state, item.dealerPrice, item.priceCurrency) : '')} value={l.dealer ?? ''} onChange={(e) => setLine(l.key, { dealer: e.target.value })} />
+                            </label>
+                          </span>
+                        )}
                         {l.weighing && <small className="weigh-note">{weighingText(l.weighing, l.unit || item?.unit || 'كغ')}</small>}
                         {item?.trackExpiry &&
                           (stockIn ? (

@@ -90,7 +90,7 @@ export function Pos() {
     return n;
   }, [state.invoices]);
   const sellable = useMemo(
-    () => Object.values(state.items).filter((i) => !i.archived && (i.price > 0 || i.units?.some((u) => (u.price ?? 0) > 0))),
+    () => Object.values(state.items).filter((i) => !i.archived && !i.dealerId && (i.price > 0 || i.units?.some((u) => (u.price ?? 0) > 0))),
     [state.items],
   );
   const categories = useMemo(() => [...new Set(sellable.map((i) => i.category).filter(Boolean))] as string[], [sellable]);
@@ -160,6 +160,7 @@ export function Pos() {
   const scan = (code: string) => {
     const r = resolveScan(state, code);
     if (!r) return notify(`لا توجد مادة بالرمز ${code}`, 'error');
+    if (r.item.dealerId) return notify(`«${r.item.name}» من بضاعة المورّد ${state.dealers?.[r.item.dealerId]?.name ?? ''}، بتنباع من شاشة الموردين`, 'error');
     // سعر باركود الميزان بعملة سعر المادة؛ نحوّله لعملة البيع
     let price: number | undefined;
     if (r.price !== undefined) {
