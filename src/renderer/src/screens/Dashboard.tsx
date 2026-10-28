@@ -120,6 +120,16 @@ export function Dashboard() {
             <Icon name="ruler" size={20} /> المشاريع
           </button>
         )}
+        {feature('shipments') && can('shipments.manage') && (
+          <button className="primary big accent" onClick={() => navigate('shipments')}>
+            <Icon name="container" size={20} /> الشحنات
+          </button>
+        )}
+        {feature('stoneblocks') && (can('production.manage') || can('purchases.create')) && (
+          <button className="primary big accent" onClick={() => navigate('stoneblocks')}>
+            <Icon name="mountain" size={20} /> الكتل والقص
+          </button>
+        )}
         {feature('tailoring') && can('tailoring.manage') && (
           <button className="primary big accent" onClick={() => navigate('tailor-order')}>
             <Icon name="scissors" size={20} /> طلب تفصيل جديد

@@ -1,4 +1,4 @@
-import { applyCommerceEvent, buildInvoice, convertOrder, orderTotals, piecesTotal, repairToInvoiceLines, rollRemaining, siteJobDeposits, siteJobToInvoiceLines, siteJobTotals, UNIT_NAMES, tailorDeposits, tailorToInvoiceLines, validateCommerceEvent, workOrderProgress, type InvoiceDraft, type InvoiceLineDraft } from './commerce';
+import { applyCommerceEvent, buildInvoice, convertOrder, orderTotals, piecesTotal, repairToInvoiceLines, rollRemaining, siteJobDeposits, siteJobToInvoiceLines, siteJobTotals, stoneBlockUsage, shipmentSummary, UNIT_NAMES, tailorDeposits, tailorToInvoiceLines, validateCommerceEvent, workOrderProgress, type InvoiceDraft, type InvoiceLineDraft } from './commerce';
 import { ACTIVITIES } from './activities';
 import { PARTNER_MOVE_NAMES, partnerSourceId, type PartnerMoveKind } from './partners';
 import { loadDemo } from './demo';
@@ -42,6 +42,8 @@ import type {
   StockTransfer,
   Quote,
   SiteJob,
+  Shipment,
+  StoneBlock,
   TailorOrder,
   Tax,
   User,
@@ -744,6 +746,13 @@ export class Ledger {
     } else if (src?.type === 'sitejob') {
       const j = this.state.siteJobs[src.id];
       if (j?.invoiceId === invoice.id) this.emit({ type: 'sitejob.saved', job: { ...withoutInvoice(j), status: 'done' } });
+    } else if (src?.type === 'shipment') {
+      const s = this.state.shipments?.[src.id];
+      if (s?.invoiceId === invoice.id) this.emit({ type: 'shipment.saved', shipment: { ...withoutInvoice(s), status: 'delivered' } });
+    } else if (src?.type === 'stoneblock') {
+      // إلغاء فاتورة شراء الكتلة (قبل قصّها) بيلغي الكتلة
+      const b = this.state.stoneBlocks?.[src.id];
+      if (b && !b.closed) this.emit({ type: 'stoneblock.saved', block: { ...b, closed: true, notes: [b.notes, 'انلغت فاتورة شرائها'].filter(Boolean).join(' — ') } });
     } else if (src?.type === 'workorder') {
       // إلغاء فاتورة دفعة التسليم بيرجّع القطع جاهزة للتسليم
       const o = this.state.workOrders[src.id];
@@ -1284,6 +1293,138 @@ export class Ledger {
     const invoice = this.postInvoice({ ...draft, paid });
     this.emit({ type: 'sitejob.saved', job: { ...j, status: 'invoiced', invoiceId: invoice.id } });
     return invoice;
+  }
+
+  // ───────────── النقل والتخليص الجمركي ─────────────
+
+  saveShipment(draft: Omit<Shipment, 'number' | 'invoiceId'> & { number?: number }): Shipment {
+    const existing = this.state.shipments?.[draft.id];
+    if (existing?.invoiceId) fail('الشحنة مفوترة؛ ألغِ الفاتورة أولاً لتعديلها');
+    if (draft.status === 'invoiced') fail('استخدم «فوترة» لإصدار فاتورة الشحنة');
+    const shipment: Shipment = {
+      ...draft,
+      charges: draft.charges ?? [],
+      costs: draft.costs ?? [],
+      number: existing?.number ?? (this.state.counters['shipment'] ?? 0) + 1,
+    };
+    this.emit({ type: 'shipment.saved', shipment });
+    return shipment;
+  }
+
+  /** فاتورة الشحنة: بنود الأجور كخدمات، وتفاصيل السائق والسيارة والوجهة بالملاحظات والفاتورة. */
+  invoiceShipment(id: string, opts: { date: string; paid?: number; cashAccountId?: string; rate?: number }): Invoice {
+    const s = this.state.shipments?.[id] ?? fail('الشحنة غير موجودة');
+    if (s.invoiceId) fail('الشحنة مفوترة من قبل');
+    if (s.status === 'cancelled') fail('الشحنة ملغاة');
+    const lines = s.charges.filter((c) => c.amount > 0).map((c) => ({ description: c.description, qty: 1, price: c.amount }));
+    if (!lines.length) fail('ضيف بنود الأجور أول (أجار سيارة، تخليص...)');
+    const invoice = this.postInvoice({
+      kind: 'sale',
+      date: opts.date,
+      partyId: s.partyId,
+      currency: s.currency,
+      lines,
+      paid: opts.paid ?? 0,
+      ...(opts.rate ? { rate: opts.rate } : {}),
+      ...(opts.cashAccountId ? { cashAccountId: opts.cashAccountId } : {}),
+      notes: shipmentSummary(s),
+      source: { type: 'shipment', id: s.id },
+    });
+    this.emit({ type: 'shipment.saved', shipment: { ...s, status: 'invoiced', invoiceId: invoice.id } });
+    return invoice;
+  }
+
+  // ───────────── منشرة الحجر ─────────────
+
+  /** مادة «كتل حجر خام» بالمتر المكعب (بتنعمل أول مرة). */
+  private stoneBlockItem(): string {
+    const found = this.state.items['stone-blocks'];
+    if (found) return found.id;
+    const taken = new Set(Object.values(this.state.items).filter((i) => !i.archived).map((i) => i.code));
+    let code = 'BLOCK';
+    for (let n = 2; taken.has(code); n++) code = `BLOCK-${n}`;
+    this.saveItem({ id: 'stone-blocks', code, name: 'كتل حجر خام', kind: 'stock', unit: 'م³', category: 'كتل خام', price: 0, priceCurrency: this.base.code });
+    return 'stone-blocks';
+  }
+
+  /** شراء كتلة: بتنسجّل بأبعادها وحجمها، وبتدخل المخزون بفاتورة شراء (سعر المتر المكعب). */
+  addStoneBlock(d: {
+    date: string;
+    partyId?: string;
+    stone: string;
+    quarry?: string;
+    length: number;
+    width: number;
+    height: number;
+    volume?: number; // إذا الحجم بالفاتورة غير الأبعاد
+    pricePerM3: number;
+    currency?: string;
+    rate?: number;
+    paid?: number;
+    cashAccountId?: string;
+    notes?: string;
+  }): StoneBlock {
+    const volume = Math.round((d.volume ?? d.length * d.width * d.height) * 1000) / 1000;
+    if (!(volume > 0)) fail('اكتب أبعاد الكتلة أو حجمها');
+    if (!Number.isSafeInteger(d.pricePerM3) || d.pricePerM3 <= 0) fail('اكتب سعر المتر المكعب');
+    const itemId = this.stoneBlockItem();
+    const id = crypto.randomUUID();
+    const number = (this.state.counters['stoneblock'] ?? 0) + 1;
+    const total = Math.round(volume * d.pricePerM3);
+    const invoice = this.postInvoice({
+      kind: 'purchase',
+      date: d.date,
+      ...(d.partyId ? { partyId: d.partyId } : {}),
+      ...(d.currency ? { currency: d.currency } : {}),
+      ...(d.rate ? { rate: d.rate } : {}),
+      lines: [{ itemId, qty: volume, price: d.pricePerM3, description: `كتلة ${d.stone} رقم ${number} (${volume} م³)` }],
+      paid: d.paid ?? (d.partyId ? 0 : total),
+      ...(d.cashAccountId ? { cashAccountId: d.cashAccountId } : {}),
+      notes: `كتلة رقم ${number} — ${d.stone}${d.quarry ? ` — ${d.quarry}` : ''}`,
+      source: { type: 'stoneblock', id },
+    });
+    const block: StoneBlock = {
+      id,
+      number,
+      date: d.date,
+      ...(d.partyId ? { partyId: d.partyId } : {}),
+      stone: d.stone.trim(),
+      ...(d.quarry?.trim() ? { quarry: d.quarry.trim() } : {}),
+      length: d.length,
+      width: d.width,
+      height: d.height,
+      volume,
+      itemId,
+      purchaseInvoiceId: invoice.id,
+      cuts: [],
+      ...(d.notes?.trim() ? { notes: d.notes.trim() } : {}),
+    };
+    this.emit({ type: 'stoneblock.saved', block });
+    return block;
+  }
+
+  /**
+   * قص من الكتلة: عملية إنتاج بتصرف حجم من الكتل الخام وبتدخل الألواح والبلاط بالمخزون بتكلفتها
+   * (التكلفة بتتوزع حسب حجم كل منتج إذا انكتب، وإلا حسب الكمية). close: الكتلة خلصت، والباقي هدر بينحسب عالمنتجات.
+   */
+  cutStoneBlock(blockId: string, d: { date: string; volume?: number; outputs: { itemId: string; qty: number; weight?: number }[]; close?: boolean; memo?: string; warehouseId?: string }): StoneBlock {
+    const b = this.state.stoneBlocks?.[blockId] ?? fail('الكتلة غير موجودة');
+    if (b.closed) fail('الكتلة خالصة');
+    const { left } = stoneBlockUsage(b);
+    const volume = d.close ? left : Math.round((d.volume ?? left) * 1000) / 1000;
+    if (!(volume > 0)) fail('ما بقي شي من الكتلة');
+    if (volume > left + 1e-6) fail(`الباقي من الكتلة ${left} م³ بس`);
+    const production = this.postProduction({
+      date: d.date,
+      ...(d.warehouseId ? { warehouseId: d.warehouseId } : {}),
+      inputs: [{ itemId: b.itemId, qty: volume }],
+      outputs: d.outputs,
+      memo: d.memo?.trim() || `قص الكتلة رقم ${b.number} (${b.stone})`,
+    });
+    const cuts = [...b.cuts, { productionId: production.id, date: d.date, volume }];
+    const block: StoneBlock = { ...b, cuts, ...(d.close || left - volume < 0.001 ? { closed: true } : {}) };
+    this.emit({ type: 'stoneblock.saved', block });
+    return block;
   }
 
   /** تعبئة شركة فاضية ببيانات تجريبية للعرض. */

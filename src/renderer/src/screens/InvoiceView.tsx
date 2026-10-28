@@ -110,6 +110,25 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
       </>,
     );
   }
+  const shipment = src?.type === 'shipment' ? state.shipments?.[src.id] : undefined;
+  if (shipment) {
+    const row = (label: string, v?: string | number) => (v ? <>{label}: <strong>{v}</strong></> : null);
+    for (const r of [
+      row('اسم السائق', shipment.driver),
+      row('رقم السيارة', shipment.plate),
+      row('رقم البراد', shipment.trailer),
+      shipment.driverPhone ? <>رقم السائق: <strong className="ltr">{shipment.driverPhone}</strong></> : null,
+      row('من', shipment.origin),
+      row('الوجهة', shipment.destination),
+      row('المعبر', shipment.border),
+      row('نوع البضاعة', shipment.goods ? `${shipment.goods}${shipment.refrigerated ? ' (مبرّد)' : ''}` : ''),
+      row('عدد الطرود', shipment.packages),
+      row('الوزن', shipment.weight ? `${shipment.weight} كغ` : ''),
+      row('رقم البيان', shipment.declaration),
+      row('رقم الحاوية', shipment.container),
+    ])
+      if (r) refs.push(r);
+  }
   if (order) refs.push(`طلب رقم ${order.number}${table ? ` · ${table.name}` : order.type === 'takeaway' ? ' · سفري' : order.type === 'delivery' ? ' · توصيل' : ''}`);
 
   const model: DocModel = {
@@ -158,7 +177,7 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
       ...(showUsd ? [{ label: 'المقابل بالدولار', value: money(state, Math.round(((inv.total * inv.rate) / usdRate) * 10 ** (2 - decimals)), 'USD') }] : []),
     ],
     ...(print.showAmountInWords !== false ? { words: amountInWords(inv.total, inv.currency, decimals) } : {}),
-    ...(inv.notes ? { notes: inv.notes } : {}),
+    ...(inv.notes && !shipment ? { notes: inv.notes } : shipment?.notes ? { notes: shipment.notes } : {}),
     stamp: inv.voidEntryId ? 'void' : remaining > 0 ? 'credit' : 'paid',
     qrText: [company.name, `${INVOICE_KIND_NAMES[inv.kind]} رقم ${inv.number}`, dateText(inv.date), `الإجمالي: ${m(inv.total)}`, party ? party.name : ''].filter(Boolean).join('\n'),
   };

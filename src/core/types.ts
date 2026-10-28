@@ -72,7 +72,9 @@ export type Activity =
   | 'wholesale'
   | 'clinic'
   | 'tailor'
-  | 'gypsum';
+  | 'gypsum'
+  | 'customs'
+  | 'stone';
 
 export type Paper = 'a4' | 'a5' | '80mm' | '58mm';
 
@@ -555,6 +557,61 @@ export interface SiteJob {
   invoiceId?: string;
 }
 
+// ───────────── النقل والتخليص الجمركي ─────────────
+
+export type ShipmentStatus = 'loading' | 'transit' | 'customs' | 'arrived' | 'delivered' | 'invoiced' | 'cancelled';
+
+/** شحنة (سيارة نقل): السائق والسيارة والوجهة والبضاعة، وبنود الأجور (أجار سيارة، تخليص...) اللي بتنفوتر على الزبون. */
+export interface Shipment {
+  id: string;
+  number: number;
+  partyId: string; // صاحب البضاعة (المطلوب من السيد)
+  date: string;
+  status: ShipmentStatus;
+  driver?: string;
+  driverPhone?: string;
+  plate?: string; // رقم السيارة
+  trailer?: string; // رقم البراد / المقطورة
+  origin?: string; // التحميل من
+  destination?: string; // الوجهة
+  border?: string; // المعبر / المنفذ
+  goods?: string; // نوع البضاعة
+  packages?: number; // عدد الطرود / الكراتين
+  weight?: number; // الوزن بالكيلو
+  container?: string; // رقم الحاوية
+  declaration?: string; // رقم البيان الجمركي
+  refrigerated?: boolean;
+  temperature?: string; // درجة حرارة البراد
+  currency: string;
+  /** الأجور على الزبون (أجار سيارة، تخليص، رسوم...) بأصغر وحدة من عملة الشحنة. */
+  charges: { description: string; amount: number }[];
+  /** مصاريف الشحنة علينا (أجرة السائق، رسوم دفعناها...) لحساب الربح بس، ما بتنقيد بالحسابات. */
+  costs: { description: string; amount: number }[];
+  notes?: string;
+  invoiceId?: string;
+}
+
+// ───────────── منشرة الحجر: كتل بالمتر المكعب بتنقص لألواح بالمتر المربع ─────────────
+
+/** كتلة حجر خام: أبعادها بالمتر، وحجمها بينحسب، وبتنقص على دفعات (عمليات إنتاج). */
+export interface StoneBlock {
+  id: string;
+  number: number;
+  date: string;
+  partyId?: string; // المورد / المقلع
+  stone: string; // نوع الحجر: حلبي، كركوكي، بازلت...
+  quarry?: string;
+  length: number; // متر
+  width: number;
+  height: number;
+  volume: number; // م³ (طول × عرض × ارتفاع، أو حجم بالفاتورة)
+  itemId: string; // مادة الكتل الخام بالمخزون (وحدتها م³)
+  purchaseInvoiceId?: string;
+  cuts: { productionId: string; date: string; volume: number }[];
+  closed?: boolean; // خلصت الكتلة (الباقي هدر)
+  notes?: string;
+}
+
 // ───────────── ورشة الإنتاج (قص وخياطة بالجملة لقماش الزبون) ─────────────
 
 /** وحدة طول القماش: ياردة أو متر. الأطوال مخزنة بأجزاء المئة من الوحدة (أعداد صحيحة). */
@@ -721,6 +778,8 @@ export interface CompanyState {
   appointments: Record<string, Appointment>;
   tailorOrders: Record<string, TailorOrder>;
   siteJobs: Record<string, SiteJob>;
+  shipments?: Record<string, Shipment>;
+  stoneBlocks?: Record<string, StoneBlock>;
   partners: Record<string, Partner>;
   quotes: Record<string, Quote>;
   rolls: Record<string, FabricRoll>;
@@ -755,6 +814,8 @@ export type CompanyEvent =
   | { type: 'appointment.saved'; appointment: Appointment }
   | { type: 'tailor.saved'; order: TailorOrder }
   | { type: 'sitejob.saved'; job: SiteJob }
+  | { type: 'shipment.saved'; shipment: Shipment }
+  | { type: 'stoneblock.saved'; block: StoneBlock }
   | { type: 'partner.saved'; partner: Partner }
   | { type: 'quote.saved'; quote: Quote }
   | { type: 'rolls.saved'; rolls: FabricRoll[] }

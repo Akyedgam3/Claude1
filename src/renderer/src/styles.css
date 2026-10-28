@@ -3888,3 +3888,6 @@ button.danger-soft {
 .profit-box small { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
 .profit-box.loss { background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
 @media print { .profit-box { display: none !important; } }
+
+/* عنوان قسم داخل نموذج (الشحنات، الكتل) */
+.form-grid .form-section { font-size: 14px; font-weight: 800; color: var(--primary); margin: 8px 0 -2px; padding-top: 8px; border-top: 1px dashed var(--border); }

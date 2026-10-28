@@ -209,7 +209,8 @@ export function buildTransfer(ctx: OpsContext, d: TransferDraft): StockTransfer 
 export interface ProductionDraft {
   date: string;
   warehouseId?: string;
-  outputs: { itemId: string; qty: number; batch?: string; expiry?: string }[];
+  /** weight: حصة المنتج من التكلفة (مثلاً حجمه بالمتر المكعب بالمنشرة)؛ إذا ما انحطّت بتتوزع حسب الكمية. */
+  outputs: { itemId: string; qty: number; batch?: string; expiry?: string; weight?: number }[];
   /** مواد أولية محددة يدوياً؛ إن لم تُحدد تُحسب من وصفة كل منتج. */
   inputs?: { itemId: string; qty: number }[];
   memo?: string;
@@ -242,7 +243,8 @@ export function buildProduction(ctx: OpsContext, d: ProductionDraft): Production
     return { itemId, qty, cost: res.cost, ...(res.batches ? { batches: res.batches } : {}) };
   });
   const totalCost = inputs.reduce((s, i) => s + i.cost, 0);
-  const costs = allocate(totalCost, d.outputs.map((o) => o.qty));
+  const weighted = d.outputs.every((o) => (o.weight ?? 0) > 0);
+  const costs = allocate(totalCost, d.outputs.map((o) => (weighted ? o.weight! : o.qty)));
   const outputs = d.outputs.map((o, i) => {
     const item = state.items[o.itemId] ?? fail('منتج غير موجود');
     if (item.kind !== 'stock') fail(`"${item.name}" يجب أن يكون مادة مخزنية`);

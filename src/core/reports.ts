@@ -476,7 +476,10 @@ export function invoiceProfit(state: CompanyState, inv: Invoice): { revenue: num
   const base = state.currencies[state.info!.baseCurrency]!;
   const cur = state.currencies[inv.currency] ?? base;
   const revenue = Math.round((inv.subtotal - inv.discount) * inv.rate * 10 ** (base.decimals - cur.decimals));
-  const cost = inv.lines.reduce((s, l) => s + (l.cost ?? 0), 0);
+  let cost = inv.lines.reduce((s, l) => s + (l.cost ?? 0), 0);
+  // مصاريف الشحنة (أجرة السائق، رسوم دفعناها...) بعملة الفاتورة
+  const shipment = inv.source?.type === 'shipment' ? state.shipments?.[inv.source.id] : undefined;
+  if (shipment) cost += Math.round(shipment.costs.reduce((s, c) => s + c.amount, 0) * inv.rate * 10 ** (base.decimals - cur.decimals));
   return { revenue, cost, profit: revenue - cost };
 }
 

@@ -532,6 +532,95 @@ function gypsum(l: Ledger): void {
   l.saveSiteJob({ id: 'sj-3', partyId: 'c-shop', date: day(), title: 'محل الأمانة — سقف ثانوي', status: 'survey', currency: 'USD', rate: P(6), lines: [L('محل', 'سقف', 'area', 8, 5), L('محل', 'كرنيش', 'length', 26)], extras: [], costs: [] });
 }
 
+function customs(l: Ledger): void {
+  // أجور الشحن للخليج غالباً بالريال السعودي
+  if (!l.state.currencies['SAR']) l.saveCurrency({ code: 'SAR', nameAr: 'ريال سعودي', symbol: 'ر.س', decimals: 2 });
+  l.setRate({ date: day(-30), currency: 'SAR', rate: 32.3, kind: 'market' });
+  l.saveParty({ id: 'c-madani', kind: 'customer', name: 'أحمد مداني', phone: '0982 359 366' });
+  l.saveParty({ id: 'c-fruit', kind: 'customer', name: 'شركة الشام لتصدير الفواكه', phone: '0944 120 330' });
+  l.saveParty({ id: 'c-olive', kind: 'customer', name: 'معصرة الزيتون الذهبي', phone: '0933 777 410' });
+  const base = { charges: [] as { description: string; amount: number }[], costs: [] as { description: string; amount: number }[] };
+  l.saveShipment({
+    ...base,
+    id: 'sh-1',
+    partyId: 'c-madani',
+    date: day(-6),
+    status: 'delivered',
+    driver: 'أحمد مداني بغار',
+    driverPhone: '+963 982 359 366',
+    plate: '81/41923',
+    origin: 'دمشق',
+    destination: 'جدة',
+    border: 'نصيب',
+    goods: 'تفاح',
+    packages: 1400,
+    refrigerated: true,
+    temperature: '+2°',
+    currency: 'SAR',
+    charges: [{ description: 'أجار سيارة + تخليص', amount: P(16000) }],
+    costs: [{ description: 'أجرة السائق والمازوت', amount: P(9000) }, { description: 'رسوم المعبر', amount: P(2500) }],
+  });
+  l.invoiceShipment('sh-1', { date: day(-5), paid: P(6000) });
+  l.saveShipment({
+    ...base,
+    id: 'sh-2',
+    partyId: 'c-fruit',
+    date: day(-2),
+    status: 'transit',
+    driver: 'خالد الحسن',
+    driverPhone: '+963 944 555 102',
+    plate: '72/55810',
+    trailer: 'براد 13م',
+    origin: 'اللاذقية',
+    destination: 'الرياض',
+    border: 'نصيب',
+    goods: 'برتقال',
+    packages: 1800,
+    weight: 24000,
+    refrigerated: true,
+    currency: 'SAR',
+    charges: [{ description: 'أجار سيارة', amount: P(12000) }, { description: 'تخليص جمركي', amount: P(3500) }],
+    costs: [],
+  });
+  l.saveShipment({
+    ...base,
+    id: 'sh-3',
+    partyId: 'c-olive',
+    date: day(-1),
+    status: 'customs',
+    driver: 'محمود العلي',
+    plate: '45/10277',
+    origin: 'إدلب',
+    destination: 'عمّان',
+    border: 'نصيب',
+    goods: 'زيت زيتون',
+    packages: 600,
+    declaration: 'SY-2026-88412',
+    currency: 'USD',
+    charges: [{ description: 'أجار سيارة + تخليص', amount: P(2200) }],
+    costs: [],
+  });
+}
+
+function stone(l: Ledger): void {
+  l.saveParty({ id: 'q-aleppo', kind: 'supplier', name: 'مقلع الشيخ سعيد — حلب', phone: '0944 800 120' });
+  l.saveParty({ id: 'c-contractor', kind: 'customer', name: 'المتعهد أبو سامر', phone: '0933 402 118', priceTier: 'wholesale' });
+  l.saveParty({ id: 'c-villa', kind: 'customer', name: 'فيلا أبو فراس', phone: '0988 640 225' });
+  const T = (thick: string) => ({ 'السماكة (سم)': thick, 'نوع الحجر': 'حلبي' });
+  item(l, { id: 'st-3', code: 'H3', name: 'حجر حلبي ألواح 3 سم', kind: 'stock', unit: 'م²', price: P(1500), wholesalePrice: P(1350), category: 'ألواح', attributes: T('3') });
+  item(l, { id: 'st-5', code: 'H5', name: 'حجر حلبي ألواح 5 سم', kind: 'stock', unit: 'م²', price: P(2300), wholesalePrice: P(2100), category: 'ألواح', attributes: T('5') });
+  item(l, { id: 'st-tile', code: 'B40', name: 'بلاط حلبي 40×40', kind: 'stock', unit: 'م²', price: P(1800), category: 'بلاط', attributes: T('2') });
+  item(l, { id: 'st-kor', code: 'K15', name: 'كورنيش حلبي 15 سم', kind: 'stock', unit: 'م.ط', price: P(700), category: 'كورنيش وحواف' });
+  item(l, { id: 'st-step', code: 'D', name: 'درجة حلبي', kind: 'stock', unit: 'م.ط', price: P(1200), category: 'درج وعتبات' });
+  const b1 = l.addStoneBlock({ date: day(-40), partyId: 'q-aleppo', stone: 'حلبي', quarry: 'الشيخ سعيد', length: 2.6, width: 1.5, height: 1.4, pricePerM3: P(9000) });
+  l.cutStoneBlock(b1.id, { date: day(-35), volume: 3, outputs: [{ itemId: 'st-3', qty: 60, weight: 1.8 }, { itemId: 'st-5', qty: 15, weight: 0.75 }, { itemId: 'st-kor', qty: 30, weight: 0.15 }] });
+  l.cutStoneBlock(b1.id, { date: day(-20), outputs: [{ itemId: 'st-tile', qty: 50, weight: 1 }, { itemId: 'st-step', qty: 12, weight: 0.36 }], close: true });
+  l.addStoneBlock({ date: day(-8), partyId: 'q-aleppo', stone: 'حلبي', quarry: 'الشيخ سعيد', length: 2.4, width: 1.6, height: 1.5, pricePerM3: P(9000) });
+  l.addStoneBlock({ date: day(-3), stone: 'كركوكي', length: 2, width: 1.2, height: 1.2, pricePerM3: P(7500) });
+  l.postInvoice({ kind: 'sale', date: day(-15), partyId: 'c-contractor', lines: [{ itemId: 'st-3', qty: 35, price: P(1350) }, { itemId: 'st-kor', qty: 20, price: P(650) }], paid: P(30000) });
+  l.postInvoice({ kind: 'sale', date: day(-4), partyId: 'c-villa', lines: [{ itemId: 'st-tile', qty: 22, price: P(1800) }, { itemId: 'st-step', qty: 6, price: P(1200) }] });
+}
+
 export function loadDemo(l: Ledger): void {
   const s = l.state;
   if (s.invoices.length > 0 || Object.keys(s.items).length > 0 || Object.keys(s.parties).length > 0) throw new Error('البيانات التجريبية بتنضاف لشركة فاضية بس');
@@ -541,6 +630,8 @@ export function loadDemo(l: Ledger): void {
   if (activity === 'restaurant') restaurant(l);
   else if (activity === 'tailor') tailor(l);
   else if (activity === 'gypsum') gypsum(l);
+  else if (activity === 'customs') customs(l);
+  else if (activity === 'stone') stone(l);
   else if (activity === 'mobile') mobile(l);
   else if (activity === 'sweets') sweets(l);
   else if (activity === 'supermarket') supermarket(l);

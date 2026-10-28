@@ -4,7 +4,7 @@ import type { EntryDraft, LineDraft } from './ledger';
 import { convertMinor } from './money';
 import { adjustmentMoves, applyMove, assertMovesPossible, invoiceMoves, negate, productionMoves, roundQty, StockPlanner, transferMoves } from './stock';
 import { computeTaxes } from './tax';
-import type { CompanyEvent, CompanyState, FabricRoll, Invoice, InvoiceKind, InvoiceLine, JournalEntry, LengthUnit, Order, Quote, RepairOrder, SiteJob, SiteJobLine, TailorOrder, WorkOrder, WorkStage } from './types';
+import type { CompanyEvent, CompanyState, FabricRoll, Invoice, InvoiceKind, InvoiceLine, JournalEntry, LengthUnit, Order, Quote, RepairOrder, Shipment, ShipmentStatus, SiteJob, SiteJobLine, StoneBlock, TailorOrder, WorkOrder, WorkStage } from './types';
 
 function fail(message: string): never {
   throw new Error(message);
@@ -194,6 +194,36 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       const prev = state.siteJobs[j.id];
       if (prev && prev.number !== j.number) fail('لا يمكن تغيير رقم المشروع');
       if (prev?.invoiceId && !invoiceVoided(state, prev.invoiceId) && (j.status !== 'invoiced' || j.invoiceId !== prev.invoiceId)) fail('المشروع مفوتر؛ ألغِ الفاتورة أولاً لتعديله');
+      return;
+    }
+    case 'shipment.saved': {
+      const s = event.shipment;
+      if (!state.parties[s.partyId]) fail('صاحب البضاعة غير موجود');
+      if (!DATE_RE.test(s.date)) fail('تاريخ غير صالح');
+      if (!state.currencies[s.currency]) fail('عملة غير معروفة');
+      if (!SHIPMENT_STATUSES.includes(s.status)) fail('حالة الشحنة غير معروفة');
+      for (const x of [...s.charges, ...s.costs]) {
+        if (!x.description?.trim()) fail('اكتب وصف البند');
+        if (!Number.isSafeInteger(x.amount) || x.amount < 0) fail(`مبلغ غير صالح: ${x.description}`);
+      }
+      for (const n of [s.packages, s.weight]) if (n !== undefined && !(Number.isFinite(n) && n >= 0)) fail('العدد أو الوزن غير صالح');
+      const prev = state.shipments?.[s.id];
+      if (prev && prev.number !== s.number) fail('لا يمكن تغيير رقم الشحنة');
+      if (prev?.invoiceId && !invoiceVoided(state, prev.invoiceId) && (s.status !== 'invoiced' || s.invoiceId !== prev.invoiceId)) fail('الشحنة مفوترة؛ ألغِ الفاتورة أولاً لتعديلها');
+      return;
+    }
+    case 'stoneblock.saved': {
+      const b = event.block;
+      if (!DATE_RE.test(b.date)) fail('تاريخ غير صالح');
+      if (!b.stone?.trim()) fail('اكتب نوع الحجر');
+      if (b.partyId && !state.parties[b.partyId]) fail('المورد غير موجود');
+      if (!state.items[b.itemId]) fail('مادة الكتل غير موجودة');
+      for (const n of [b.length, b.width, b.height]) if (!(Number.isFinite(n) && n >= 0 && n < 100)) fail('أبعاد الكتلة غير صالحة');
+      if (!(Number.isFinite(b.volume) && b.volume > 0 && b.volume < 10000)) fail('حجم الكتلة غير صالح');
+      const used = b.cuts.reduce((s, c) => s + c.volume, 0);
+      if (used > b.volume + 1e-6) fail('القص أكتر من حجم الكتلة');
+      const prev = state.stoneBlocks?.[b.id];
+      if (prev && prev.number !== b.number) fail('لا يمكن تغيير رقم الكتلة');
       return;
     }
     case 'rolls.saved': {
@@ -399,6 +429,14 @@ export function applyCommerceEvent(state: CompanyState, event: CompanyEvent): vo
     case 'sitejob.saved':
       state.siteJobs[event.job.id] = { ...event.job };
       bump(state, 'sitejob', event.job.number);
+      return;
+    case 'shipment.saved':
+      (state.shipments ??= {})[event.shipment.id] = { ...event.shipment };
+      bump(state, 'shipment', event.shipment.number);
+      return;
+    case 'stoneblock.saved':
+      (state.stoneBlocks ??= {})[event.block.id] = { ...event.block };
+      bump(state, 'stoneblock', event.block.number);
       return;
     case 'rolls.saved':
       for (const r of event.rolls) state.rolls[r.id] = normalizeRoll(r);
@@ -782,6 +820,51 @@ export function quoteTotals(state: CompanyState, q: Pick<Quote, 'lines' | 'disco
 }
 
 // ───────────── ورشة الإنتاج ─────────────
+
+// ───────────── الشحنات ─────────────
+
+export const SHIPMENT_STATUSES: ShipmentStatus[] = ['loading', 'transit', 'customs', 'arrived', 'delivered', 'invoiced', 'cancelled'];
+export const SHIPMENT_STATUS_NAMES: Record<ShipmentStatus, string> = {
+  loading: 'عم تتحمّل',
+  transit: 'بالطريق',
+  customs: 'بالجمرك',
+  arrived: 'وصلت',
+  delivered: 'تسلّمت',
+  invoiced: 'مفوترة',
+  cancelled: 'ملغاة',
+};
+/** بنود الأجور الجاهزة على فاتورة النقل والتخليص. */
+export const SHIPMENT_CHARGE_PRESETS = ['أجار سيارة', 'تخليص جمركي', 'أجار سيارة + تخليص', 'رسوم جمركية', 'رسوم معبر', 'تحميل وتنزيل', 'تبريد', 'مبيت', 'تأمين'];
+
+/** سطر واحد بتفاصيل الشحنة (للملاحظات والبحث). */
+export function shipmentSummary(s: Shipment): string {
+  return [
+    `شحنة رقم ${s.number}`,
+    s.goods ? `البضاعة: ${s.goods}${s.packages ? ` (${s.packages} طرد)` : ''}${s.weight ? ` ${s.weight} كغ` : ''}` : '',
+    s.origin || s.destination ? `من ${s.origin || '—'} إلى ${s.destination || '—'}` : '',
+    s.border ? `المعبر: ${s.border}` : '',
+    s.driver ? `السائق: ${s.driver}` : '',
+    s.plate ? `السيارة: ${s.plate}` : '',
+    s.declaration ? `البيان: ${s.declaration}` : '',
+  ]
+    .filter(Boolean)
+    .join(' — ');
+}
+
+export function shipmentTotals(s: Pick<Shipment, 'charges' | 'costs'>) {
+  const total = s.charges.reduce((a, x) => a + x.amount, 0);
+  const costs = s.costs.reduce((a, x) => a + x.amount, 0);
+  return { total, costs, profit: total - costs };
+}
+
+// ───────────── منشرة الحجر ─────────────
+
+/** حجم القص لحد هلق، والباقي من الكتلة (م³). */
+export function stoneBlockUsage(b: Pick<StoneBlock, 'volume' | 'cuts' | 'closed'>) {
+  const used = Math.round(b.cuts.reduce((s, c) => s + c.volume, 0) * 1000) / 1000;
+  const left = b.closed ? 0 : Math.max(0, Math.round((b.volume - used) * 1000) / 1000);
+  return { used, left };
+}
 
 export const UNIT_NAMES: Record<LengthUnit, string> = { yd: 'يارد', m: 'متر' };
 const YARD_M = 0.9144;

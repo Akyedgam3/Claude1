@@ -23,6 +23,7 @@ export const PERMISSIONS = {
   'appointments.manage': 'المواعيد',
   'tailoring.manage': 'طلبات التفصيل والقياسات',
   'sitejobs.manage': 'مشاريع التنفيذ والكشوفات',
+  'shipments.manage': 'الشحنات والتخليص',
   'reports.financial': 'التقارير المالية',
   'reports.stock': 'تقارير المخزون',
   'accounts.manage': 'دليل الحسابات',
@@ -57,7 +58,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ],
   cashier: ['sales.create', 'returns.create', 'pos.use', 'restaurant.use', 'appointments.manage', 'tailoring.manage', 'vouchers.create', 'parties.manage'],
   storekeeper: ['items.manage', 'stock.adjust', 'stock.transfer', 'production.manage', 'purchases.create', 'reports.stock'],
-  technician: ['repairs.manage', 'appointments.manage', 'tailoring.manage', 'sitejobs.manage', 'parties.manage'],
+  technician: ['repairs.manage', 'appointments.manage', 'tailoring.manage', 'sitejobs.manage', 'shipments.manage', 'parties.manage'],
   viewer: ['reports.stock'],
 };
 
@@ -124,6 +125,10 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
   convertQuote: 'sales.create',
   saveTailorOrder: 'tailoring.manage',
   saveSiteJob: 'sitejobs.manage',
+  saveShipment: 'shipments.manage',
+  invoiceShipment: 'sales.create',
+  addStoneBlock: 'purchases.create',
+  cutStoneBlock: 'production.manage',
   savePartner: 'partners.manage',
   partnerMove: 'partners.manage',
   voidPartnerMove: 'partners.manage',

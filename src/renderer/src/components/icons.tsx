@@ -1,5 +1,7 @@
 import {
   Cloud,
+  Container,
+  Mountain,
   Network,
   PaintRoller,
   Camera,
@@ -79,6 +81,8 @@ const ICONS: Record<string, LucideIcon> = {
   croissant: Croissant,
   'ice-cream': IceCreamCone,
   truck: Truck,
+  container: Container,
+  mountain: Mountain,
   stethoscope: Stethoscope,
   scissors: Scissors,
   // القائمة والأزرار
