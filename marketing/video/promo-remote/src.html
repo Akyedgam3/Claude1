@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<title>وزن — تريلر الاتصال عن بعد</title>
+<style>
+@font-face { font-family: Cairo; font-weight: 400; src: url(fonts/cairo-arabic-400-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 700; src: url(fonts/cairo-arabic-700-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 900; src: url(fonts/cairo-arabic-900-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 400; src: url(fonts/cairo-latin-400-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F; }
+@font-face { font-family: Cairo; font-weight: 700; src: url(fonts/cairo-latin-700-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F; }
+@font-face { font-family: Cairo; font-weight: 900; src: url(fonts/cairo-latin-900-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F; }
+:root { --mint: #5fe0bf; --g: #0f6e5c; --g2: #14957c; --gold: #f2c25b; --ink: #0d2a24; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; }
+body { font-family: Cairo, sans-serif; color: #fff; }
+.ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+.ic svg { width: 100%; height: 100%; display: block; }
+#stage { position: absolute; inset: 0; overflow: hidden; }
+canvas { position: absolute; inset: 0; }
+.L { position: absolute; inset: 0; pointer-events: none; }
+#words { z-index: 5; }
+
+/* كلمات ضخمة */
+.word { position: absolute; left: 0; right: 0; text-align: center; font-weight: 900; line-height: 1.05; opacity: 0; white-space: nowrap; }
+.word.huge { font-size: 210px; }
+.word.big { font-size: 150px; }
+.word.mid { font-size: 96px; }
+.word.small { font-size: 58px; font-weight: 700; color: rgba(255, 255, 255, 0.8); }
+.word em { font-style: normal; color: var(--mint); text-shadow: 0 0 60px rgba(95, 224, 191, 0.7); }
+.word .gold { color: var(--gold); text-shadow: 0 0 60px rgba(242, 194, 91, 0.6); }
+.word.pill { left: 120px; right: 120px; padding: 10px 0; border-radius: 40px; background: rgba(0, 0, 0, 0.8); }
+.chroma { text-shadow: 6px 0 0 rgba(255, 0, 80, 0.6), -6px 0 0 rgba(0, 220, 255, 0.6); }
+
+/* الأجهزة */
+#pc { position: absolute; left: 140px; top: 270px; width: 800px; height: 560px; opacity: 0; }
+#pc .mon { position: absolute; inset: 0 0 60px 0; border-radius: 26px; background: #0b100f; padding: 16px; box-shadow: 0 0 0 3px #26312e, 0 0 120px rgba(95, 224, 191, 0.25); }
+#pc .scr { width: 100%; height: 100%; border-radius: 12px; overflow: hidden; background: #f4f7f6; position: relative; color: var(--ink); }
+#pc .stand { position: absolute; left: 330px; bottom: 0; width: 140px; height: 70px; background: linear-gradient(90deg, #1b2422, #34413e, #1b2422); clip-path: polygon(20% 0, 80% 0, 100% 100%, 0 100%); }
+.side { position: absolute; right: 0; top: 0; bottom: 0; width: 150px; background: #103a32; }
+.side i { display: block; height: 16px; margin: 22px 20px; border-radius: 8px; background: rgba(255, 255, 255, 0.18); }
+.side i.on { background: var(--mint); }
+.pcmain { position: absolute; left: 20px; right: 170px; top: 20px; }
+.pcmain h5 { font: 900 30px Cairo; color: var(--g); margin-bottom: 12px; }
+.prow { display: flex; justify-content: space-between; padding: 12px 16px; margin-bottom: 8px; border-radius: 12px; background: #fff; font: 700 24px Cairo; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); }
+#pcTot { margin-top: 10px; padding: 16px; border-radius: 14px; background: var(--g); color: #fff; display: flex; justify-content: space-between; font: 900 32px Cairo; }
+#pcFlash { position: absolute; inset: 0; background: rgba(95, 224, 191, 0.4); opacity: 0; }
+
+#phone { position: absolute; left: 330px; top: 1100px; width: 420px; height: 860px; border-radius: 64px; background: #070a09; padding: 16px; opacity: 0; box-shadow: 0 0 0 3px #26312e, 0 0 140px rgba(95, 224, 191, 0.3); }
+#phone .scr { width: 100%; height: 100%; border-radius: 50px; overflow: hidden; background: #f3f6f5; position: relative; color: var(--ink); }
+#phone .top { height: 170px; background: linear-gradient(135deg, var(--g2), var(--g)); color: #fff; padding: 56px 30px 0; }
+#phone .top b { font: 900 34px Cairo; }
+#phone .top small { display: block; font: 700 20px Cairo; color: rgba(255, 255, 255, 0.85); }
+.pc2 { margin: 18px 22px 0; padding: 18px 22px; border-radius: 22px; background: #fff; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.07); }
+.pc2 span { display: block; font: 700 20px Cairo; color: #6b7c77; }
+.pc2 b { font: 900 40px Cairo; }
+#notif { position: absolute; left: 16px; right: 16px; top: 16px; padding: 16px 20px; border-radius: 26px; background: rgba(20, 30, 28, 0.92); color: #fff; display: flex; gap: 14px; align-items: center; transform: translateY(-140%); }
+#notif img { width: 54px; height: 54px; border-radius: 14px; }
+#notif b { display: block; font: 900 24px Cairo; }
+#notif small { font: 700 20px Cairo; color: var(--mint); }
+#pnotch { position: absolute; left: 50%; top: 16px; width: 110px; height: 30px; margin-left: -55px; border-radius: 15px; background: #000; z-index: 3; }
+
+/* بطاقة العنوان */
+#title { position: absolute; left: 0; right: 0; top: 700px; text-align: center; opacity: 0; }
+#title img { width: 230px; height: 230px; border-radius: 62px; box-shadow: 0 0 140px rgba(95, 224, 191, 0.6); }
+#title h1 { font: 900 170px/1.1 Cairo; margin-top: 30px; }
+#title h2 { font: 900 78px Cairo; color: var(--mint); letter-spacing: 2px; text-shadow: 0 0 50px rgba(95, 224, 191, 0.6); }
+
+/* الشبكة الآمنة */
+#shield { position: absolute; left: 540px; top: 960px; width: 360px; height: 360px; margin: -180px; opacity: 0; color: var(--mint); filter: drop-shadow(0 0 40px rgba(95, 224, 191, 0.8)); }
+
+/* المونتاج السريع */
+.card { position: absolute; left: 90px; right: 90px; top: 760px; padding: 50px 60px; border-radius: 50px; background: #fff; color: var(--ink); opacity: 0; box-shadow: 0 40px 120px rgba(0, 0, 0, 0.6); }
+.card span { display: flex; align-items: center; gap: 20px; font: 700 50px Cairo; color: #6b7c77; }
+.card span .ic { width: 64px; height: 64px; color: var(--g2); }
+.card b { display: block; font: 900 130px/1.15 Cairo; }
+.card.good b { color: #128a5c; }
+.card.bad b { color: #c0392b; }
+
+.plat { position: absolute; top: 880px; width: 300px; text-align: center; opacity: 0; font: 900 46px Cairo; }
+.plat .ic { display: block; width: 170px; height: 170px; margin: 0 auto 20px; padding: 36px; border-radius: 50px; background: rgba(95, 224, 191, 0.12); border: 3px solid rgba(95, 224, 191, 0.5); color: var(--mint); }
+
+/* النهاية */
+#end { position: absolute; inset: 0; opacity: 0; }
+#endLogo { position: absolute; left: 540px; top: 520px; width: 200px; height: 200px; margin: -100px; border-radius: 56px; box-shadow: 0 0 120px rgba(95, 224, 191, 0.5); }
+#endL1 { position: absolute; left: 0; right: 0; top: 700px; text-align: center; font: 900 120px/1.2 Cairo; }
+#endL2 { position: absolute; left: 0; right: 0; top: 860px; text-align: center; font: 900 170px/1.2 Cairo; color: var(--mint); text-shadow: 0 0 80px rgba(95, 224, 191, 0.7); }
+#endCta { position: absolute; left: 140px; right: 140px; top: 1150px; padding: 26px; border-radius: 999px; text-align: center; font: 900 54px Cairo; color: var(--ink); background: linear-gradient(90deg, var(--mint), #b8f7e6); box-shadow: 0 0 80px rgba(95, 224, 191, 0.5); }
+#endNums { position: absolute; left: 0; right: 0; top: 1330px; text-align: center; font: 900 58px/1.6 Cairo; }
+#endNums small { display: block; font: 700 36px Cairo; color: rgba(255, 255, 255, 0.7); }
+#endUrl { position: absolute; left: 0; right: 0; top: 1600px; text-align: center; font: 700 44px Cairo; color: var(--mint); }
+
+#flash { background: #fff; opacity: 0; }
+#vig { background: radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.75) 100%); }
+#bars { background: linear-gradient(#000 0 0) top/100% 0 no-repeat, linear-gradient(#000 0 0) bottom/100% 0 no-repeat; }
+#grain { opacity: 0.08; mix-blend-mode: overlay; }
+#fade { background: #000; opacity: 0; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="bg" width="1080" height="1920"></canvas>
+
+  <div class="L" id="words">
+    <div class="word small" id="w0" style="top:820px">الساعة <span class="ltr">11</span> بالليل</div>
+    <div class="word huge" id="w1" style="top:230px">إنت <em>بالبيت</em></div>
+    <div class="word huge" id="w2" style="top:230px">والمحل<span class="gold">؟</span></div>
+    <div class="word big" id="w3" style="top:70px">كل <em>بيعة</em></div>
+    <div class="word big" id="w4" style="top:70px">بنفس <em>اللحظة</em></div>
+    <div class="word big" id="w5" style="top:70px">مشفّر</div>
+    <div class="word mid pill" id="w6" style="top:1450px">من الطرفين</div>
+    <div class="word small pill" id="w7" style="top:1600px">حتى نحنا ما منشوف شي</div>
+    <div class="word big" id="w8" style="top:300px">من <em>أي</em> مكان</div>
+  </div>
+
+  <div id="pc"><div class="mon"><div class="scr">
+    <div class="side"><i class="on"></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="pcmain">
+      <h5>فاتورة مبيع · المحل</h5>
+      <div class="prow"><span>زيت دوار الشمس × 2</span><span class="ltr">4,400</span></div>
+      <div class="prow"><span>رز مصري × 3</span><span class="ltr">5,400</span></div>
+      <div class="prow"><span>شاي أسود × 2</span><span class="ltr">7,600</span></div>
+      <div id="pcTot"><span>الإجمالي</span><span class="ltr">17,400</span></div>
+    </div>
+    <div id="pcFlash"></div>
+  </div></div><div class="stand"></div></div>
+
+  <div id="phone"><div class="scr">
+    <div id="pnotch"></div>
+    <div id="notif"><img src="logo.png" alt="" /><div><b>بيعة جديدة بالمحل</b><small class="ltr">+17,400 ل.س</small></div></div>
+    <div class="top"><b>وزن · عن بعد</b><small>ماركت النور · متصل الآن</small></div>
+    <div class="pc2"><span>مبيعات اليوم</span><b class="ltr" id="phSales">108,000</b></div>
+    <div class="pc2"><span>ربح اليوم</span><b class="ltr" id="phProfit" style="color:#128a5c">27,920</b></div>
+    <div class="pc2"><span>آخر فاتورة</span><b id="phLast">#1247</b></div>
+  </div></div>
+
+  <i id="shield" class="ic">{{icon:shield-check}}</i>
+
+  <div id="title"><img src="logo.png" alt="" /><h1>وزن</h1><h2>الاتصال عن بعد</h2></div>
+
+  <div class="card good" id="k1"><span><i class="ic">{{icon:chart-column}}</i>مبيعات اليوم</span><b class="ltr">125,400</b></div>
+  <div class="card good" id="k2"><span><i class="ic">{{icon:trending-up}}</i>أرباحك</span><b class="ltr">31,850</b></div>
+  <div class="card bad" id="k3"><span><i class="ic">{{icon:hand-coins}}</i>الديون</span><b class="ltr">48,200</b></div>
+  <div class="card" id="k4"><span><i class="ic">{{icon:layers}}</i>المخزون</span><b>3 مواد قرّبت تخلص</b></div>
+  <div class="card" id="k5"><span><i class="ic">{{icon:receipt}}</i>فاتورة من الجوال</span><b>انحفظت بالمحل</b></div>
+
+  <div class="plat" id="pl1" style="left:40px"><i class="ic">{{icon:smartphone}}</i>أندرويد</div>
+  <div class="plat" id="pl2" style="left:390px"><i class="ic">{{icon:smartphone}}</i>آيفون</div>
+  <div class="plat" id="pl3" style="left:740px"><i class="ic">{{icon:laptop}}</i>كمبيوتر تاني</div>
+
+  <div id="end">
+    <img id="endLogo" src="logo.png" alt="" />
+    <div id="endL1">محلّك...</div>
+    <div id="endL2">بجيبتك.</div>
+    <div id="endCta">اطلب الاتصال عن بعد</div>
+    <div id="endNums"><small>واتساب</small><span class="ltr">+963 968 037 609</span><br /><span class="ltr">+963 980 072 891</span></div>
+    <div id="endUrl" class="ltr" style="display:block">waznsy.com</div>
+  </div>
+
+  <canvas id="fx" width="1080" height="1920"></canvas>
+  <div class="L" id="vig"></div>
+  <canvas id="grain" width="540" height="960" style="width:1080px;height:1920px"></canvas>
+  <div class="L" id="bars"></div>
+  <div class="L" id="flash"></div>
+  <div class="L" id="fade"></div>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const ease = (x) => { x = clamp(x); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+const out = (x) => 1 - Math.pow(1 - clamp(x), 3);
+const out5 = (x) => 1 - Math.pow(1 - clamp(x), 5);
+const win = (t, a, b, fi = 0.2, fo = 0.2) => Math.min(clamp((t - a) / fi), clamp((b - t) / fo));
+const lerp = (a, b, k) => a + (b - a) * k;
+function rnd(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
+
+window.DURATION = 31.5;
+// الضربات (اهتزاز + فلاش + بيس)
+const HITS = [1.9, 4.1, 6.6, 10.2, 13.0, 16.0, 19.6, 24.0, 27.0];
+const CUTS = [20.0, 20.8, 21.6, 22.4, 23.2]; // المونتاج السريع
+// كلمات: [id، بداية، نهاية، نوع الدخول]
+const WORDS = [['w0', 0.3, 1.8, 'type'], ['w1', 1.9, 4.0, 'slam'], ['w2', 4.1, 6.4, 'slam'], ['w3', 10.2, 12.9, 'slam'], ['w4', 13.0, 15.8, 'slam'], ['w5', 16.0, 19.4, 'slam'], ['w6', 16.6, 19.4, 'rise'], ['w7', 17.4, 19.4, 'rise'], ['w8', 24.0, 26.8, 'slam']];
+
+// ── المدينة بالليل (مرسومة مرة وحدة) ──
+const city = document.createElement('canvas'); city.width = 2400; city.height = 1200;
+(() => {
+  const c = city.getContext('2d'); const r = rnd(7);
+  for (let layer = 0; layer < 3; layer++) {
+    let x = 0;
+    while (x < 2400) {
+      const w = 60 + r() * 140, h = 250 + r() * (500 + layer * 250);
+      const shade = 10 + layer * 8;
+      c.fillStyle = `rgb(${shade},${shade + 8},${shade + 6})`; c.fillRect(x, 1200 - h, w, h);
+      for (let wy = 1200 - h + 20; wy < 1180; wy += 34) for (let wx = x + 12; wx < x + w - 14; wx += 26) if (r() < 0.32) { c.fillStyle = r() < 0.15 ? 'rgba(95,224,191,0.9)' : `rgba(255,${200 + r() * 40},${120 + r() * 60},${0.5 + r() * 0.4})`; c.fillRect(wx, wy, 12, 16); }
+      x += w + 6 + r() * 20;
+    }
+  }
+})();
+// نجوم/جزيئات ثابتة
+const STARS = (() => { const r = rnd(3); return Array.from({ length: 260 }, () => ({ x: r() * 1080, y: r() * 1920, s: 0.5 + r() * 2.5, p: r() * 6 })); })();
+const PACK = (() => { const r = rnd(11); return Array.from({ length: 90 }, () => ({ o: r(), sp: 0.35 + r() * 0.6, dx: (r() - 0.5) * 80, s: 3 + r() * 7, up: r() < 0.5 })); })();
+
+const bg = $('#bg').getContext('2d'), fx = $('#fx').getContext('2d'), gr = $('#grain').getContext('2d');
+const grainImg = gr.createImageData(540, 960);
+
+function shakeAt(t) { let s = 0; for (const h of HITS) { const d = t - h; if (d >= 0 && d < 0.6) s = Math.max(s, Math.exp(-d * 9)); } for (const c of CUTS) { const d = t - c; if (d >= 0 && d < 0.3) s = Math.max(s, 0.5 * Math.exp(-d * 14)); } return s; }
+function flashAt(t) { let f = 0; for (const h of HITS) f = Math.max(f, win(t, h - 0.02, h + 0.25, 0.02, 0.23)); for (const c of CUTS) f = Math.max(f, 0.5 * win(t, c - 0.02, c + 0.12, 0.02, 0.1)); return f; }
+
+window.render = function (t) {
+  // اهتزاز الكاميرا مع كل ضربة
+  const sh = shakeAt(t);
+  const r = rnd(Math.floor(t * 60) + 1);
+  $('#stage').style.transform = sh > 0.01 ? `translate(${(r() - 0.5) * 60 * sh}px, ${(r() - 0.5) * 60 * sh}px) scale(${1 + 0.04 * sh}) rotate(${(r() - 0.5) * 2 * sh}deg)` : '';
+
+  // ── الخلفية
+  bg.fillStyle = '#000'; bg.fillRect(0, 0, 1080, 1920);
+  const cityOn = win(t, 4.0, 10.4, 0.4, 0.4);
+  if (cityOn > 0) {
+    const pan = clamp((t - 4) / 6);
+    bg.globalAlpha = cityOn;
+    const sky = bg.createLinearGradient(0, 0, 0, 1920); sky.addColorStop(0, '#02100c'); sky.addColorStop(0.6, '#06261f'); sky.addColorStop(1, '#0b3a30');
+    bg.fillStyle = sky; bg.fillRect(0, 0, 1080, 1920);
+    const sc = 1.6 + pan * 0.6;
+    bg.drawImage(city, -pan * 900, 1920 - 1200 * sc + pan * 200, 2400 * sc * 0.75, 1200 * sc);
+    bg.globalAlpha = 1;
+  }
+  // نجوم وجزيئات بكل المشاهد الغامقة
+  for (const s of STARS) { const a = 0.15 + 0.35 * (0.5 + 0.5 * Math.sin(t * 2 + s.p)); bg.fillStyle = `rgba(95,224,191,${a * (1 - cityOn * 0.7)})`; bg.fillRect(s.x, (s.y - t * 20 * s.s + 1920) % 1920, s.s, s.s); }
+
+  // ── الكلمات
+  for (const [id, a, b, kind] of WORDS) {
+    const e = $('#' + id), v = win(t, a, b, kind === 'slam' ? 0.05 : 0.3, 0.2);
+    e.style.opacity = v; e.style.display = v > 0 ? '' : 'none';
+    if (v <= 0) continue;
+    if (kind === 'slam') { const p = out5((t - a) / 0.35); e.style.transform = `scale(${lerp(2.6, 1, p)})`; e.style.filter = `blur(${(1 - p) * 20}px)`; e.classList.toggle('chroma', t - a < 0.25); }
+    else if (kind === 'rise') { const p = out((t - a) / 0.5); e.style.transform = `translateY(${(1 - p) * 60}px)`; }
+    else { const txt = e.dataset.full ?? (e.dataset.full = e.textContent); const n = Math.floor(clamp((t - a) / 0.9) * txt.length); e.firstChild && (e.textContent = txt.slice(0, n) + (Math.floor(t * 4) % 2 ? '|' : '')); }
+  }
+
+  // ── الأجهزة: الكمبيوتر بالمحل والجوال بالبيت
+  const pcV = win(t, 6.6, 19.6, 0.5, 0.4), phV = win(t, 1.9, 19.6, 0.4, 0.4);
+  const pc = $('#pc'), ph = $('#phone');
+  pc.style.opacity = pcV; ph.style.opacity = phV;
+  // بالبداية الجوال لحاله بالنص، بعدين بينزل لتحت والكمبيوتر بيطلع فوق
+  const split = ease(clamp((t - 6.4) / 1.0));
+  const phAlone = t < 6.6;
+  ph.style.transform = `translateY(${lerp(-230, 0, split) + (1 - out5((t - 1.9) / 0.6)) * 400}px) scale(${lerp(1.25, 1, split)}) rotate(${Math.sin(t * 0.8) * 1.5}deg)`;
+  pc.style.transform = `translateY(${(1 - out5((t - 6.6) / 0.7)) * -500}px) scale(${lerp(0.8, 1, out5((t - 6.6) / 0.7))})`;
+  // الفاتورة بتنحفظ بالمحل → إشعار على الجوال بنفس اللحظة
+  const sold = 11.2;
+  $('#pcFlash').style.opacity = win(t, sold, sold + 0.5, 0.05, 0.4);
+  const nt = out5((t - (sold + 0.55)) / 0.4) - out5((t - (sold + 3.2)) / 0.4);
+  $('#notif').style.transform = `translateY(${lerp(-140, 0, clamp(nt))}%)`;
+  const k = ease(clamp((t - (sold + 0.7)) / 0.8));
+  $('#phSales').textContent = Math.round(lerp(108000, 125400, k)).toLocaleString('en');
+  $('#phProfit').textContent = Math.round(lerp(27920, 31750, k)).toLocaleString('en');
+  $('#phLast').textContent = k > 0.5 ? '#1248 · أبو خالد' : '#1247';
+
+  // ── بطاقة العنوان (البرام الكبير)
+  const ti = win(t, 6.65, 10.1, 0.08, 0.3);
+  $('#title').style.opacity = ti; $('#title').style.display = ti > 0 ? '' : 'none';
+  if (ti > 0) { const p = out5((t - 6.65) / 0.6); $('#title').style.transform = `scale(${lerp(1.8, 1, p)})`; $('#title').style.filter = `blur(${(1 - p) * 14}px)`; pc.style.opacity = pcV * (1 - ti); ph.style.opacity = phV * (1 - ti); }
+
+  // ── خط البيانات بين الجهازين (جزيئات مضيئة)
+  fx.clearRect(0, 0, 1080, 1920);
+  const beam = win(t, 10.2, 19.6, 0.4, 0.4) * (1 - ti);
+  if (beam > 0) {
+    const y1 = 830, y2 = 1110, cx = 540;
+    const g = fx.createLinearGradient(0, y1, 0, y2); g.addColorStop(0, 'rgba(95,224,191,0.9)'); g.addColorStop(1, 'rgba(95,224,191,0.3)');
+    fx.globalAlpha = beam;
+    fx.shadowColor = '#5fe0bf'; fx.shadowBlur = 40;
+    fx.fillStyle = g; fx.fillRect(cx - 5, y1, 10, y2 - y1);
+    for (const p of PACK) {
+      const ph2 = (p.o + t * p.sp * (t > 11 && t < 12.5 ? 3 : 1)) % 1;
+      const y = p.up ? lerp(y2, y1, ph2) : lerp(y1, y2, ph2);
+      const x = cx + p.dx * Math.sin(ph2 * Math.PI);
+      fx.fillStyle = p.up ? '#f2c25b' : '#bff8ea';
+      fx.beginPath(); fx.arc(x, y, p.s, 0, Math.PI * 2); fx.fill();
+    }
+    // موجة عند البيعة
+    const wv = clamp((t - sold) / 0.9);
+    if (wv > 0 && wv < 1) { fx.strokeStyle = `rgba(95,224,191,${1 - wv})`; fx.lineWidth = 10; fx.beginPath(); fx.arc(cx, lerp(y1, y2, wv), 40 + wv * 200, 0, Math.PI * 2); fx.stroke(); }
+    fx.shadowBlur = 0; fx.globalAlpha = 1;
+  }
+  // الدرع: حلقات تشفير حوالين الخط
+  const shv = win(t, 16.0, 19.6, 0.3, 0.3);
+  $('#shield').style.opacity = shv; $('#shield').style.transform = `scale(${lerp(2.2, 1, out5((t - 16) / 0.5))})`;
+  if (shv > 0) {
+    fx.globalAlpha = shv;
+    for (let i = 0; i < 3; i++) { const rr = 240 + i * 90 + Math.sin(t * 2 + i) * 10; fx.strokeStyle = `rgba(95,224,191,${0.5 - i * 0.12})`; fx.lineWidth = 6; fx.setLineDash([30, 22]); fx.lineDashOffset = -t * 120 * (i % 2 ? 1 : -1); fx.beginPath(); fx.arc(540, 960, rr, 0, Math.PI * 2); fx.stroke(); }
+    fx.setLineDash([]); fx.globalAlpha = 1;
+  }
+  // أشعة ضو ورا العنوان
+  if (ti > 0) {
+    fx.globalAlpha = ti * 0.5;
+    for (let i = 0; i < 14; i++) { const a = (i / 14) * Math.PI * 2 + t * 0.3; fx.fillStyle = i % 2 ? 'rgba(95,224,191,0.25)' : 'rgba(95,224,191,0.08)'; fx.beginPath(); fx.moveTo(540, 900); fx.lineTo(540 + Math.cos(a) * 1600, 900 + Math.sin(a) * 1600); fx.lineTo(540 + Math.cos(a + 0.12) * 1600, 900 + Math.sin(a + 0.12) * 1600); fx.fill(); }
+    fx.globalAlpha = 1;
+  }
+
+  // ── المونتاج السريع على الضربات
+  ['k1', 'k2', 'k3', 'k4', 'k5'].forEach((id, i) => {
+    const a = CUTS[i], b = i < 4 ? CUTS[i + 1] : 24.0;
+    const e = $('#' + id), v = t >= a && t < b ? 1 : 0;
+    e.style.opacity = v; e.style.display = v ? '' : 'none';
+    if (v) { const p = out5((t - a) / 0.25); e.style.transform = `scale(${lerp(1.4, 1, p)}) rotate(${(i % 2 ? 1 : -1) * (1 - p) * 6}deg)`; }
+  });
+  // المنصات
+  ['pl1', 'pl2', 'pl3'].forEach((id, i) => { const a = 24.3 + i * 0.35, e = $('#' + id), v = win(t, a, 26.9, 0.05, 0.2); e.style.opacity = v; e.style.display = v > 0 ? '' : 'none'; if (v) e.style.transform = `translateY(${(1 - out5((t - a) / 0.35)) * 120}px) scale(${lerp(1.3, 1, out5((t - a) / 0.35))})`; });
+
+  // ── النهاية
+  const en = clamp((t - 27.0) / 0.2);
+  $('#end').style.opacity = en; $('#end').style.display = en > 0 ? '' : 'none';
+  if (en > 0) {
+    const lt = t - 27;
+    $('#endLogo').style.transform = `scale(${lerp(0.4, 1, out5(lt / 0.5))})`;
+    $('#endL1').style.opacity = out(lt / 0.3); $('#endL1').style.transform = `scale(${lerp(1.6, 1, out5(lt / 0.4))})`;
+    const p2 = out5((lt - 0.7) / 0.4); $('#endL2').style.opacity = clamp((lt - 0.7) / 0.1); $('#endL2').style.transform = `scale(${lerp(2.4, 1, p2)})`; $('#endL2').classList.toggle('chroma', lt > 0.7 && lt < 0.95);
+    $('#endCta').style.opacity = out((lt - 1.5) / 0.4); $('#endCta').style.transform = `translateY(${(1 - out((lt - 1.5) / 0.4)) * 40}px) scale(${1 + Math.sin(lt * 5) * 0.015})`;
+    $('#endNums').style.opacity = out((lt - 2.0) / 0.4);
+    $('#endUrl').style.opacity = out((lt - 2.4) / 0.4);
+  }
+
+  $('#flash').style.opacity = flashAt(t) * 0.7 + (t > 26.95 && t < 27.15 ? 0.9 : 0);
+  $('#fade').style.opacity = Math.max(clamp((t - (window.DURATION - 0.6)) / 0.55), 1 - clamp(t / 0.3));
+  // حبيبات الفيلم
+  const rg = rnd(Math.floor(t * 30) + 99), d = grainImg.data;
+  for (let i = 0; i < d.length; i += 4) { const v = rg() * 255; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; }
+  gr.putImageData(grainImg, 0, 0);
+  // شرائط سينمائية بالمقدمة
+  const bh = (1 - ease(clamp((t - 6.4) / 0.6))) * 160;
+  $('#bars').style.backgroundSize = `100% ${bh}px, 100% ${bh}px`;
+};
+
+window.EVENTS = { hits: HITS, cuts: CUTS, sold: 11.2, title: 6.6, end: 27.0, duration: window.DURATION };
+
+(async () => {
+  await document.fonts.ready;
+  await Promise.all([...document.images].map((i) => i.decode().catch(() => undefined)));
+  window.render(0);
+  window.READY = true;
+})();
+</script>
+</body>
+</html>
