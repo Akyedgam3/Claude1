@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<title>وزن — إعلان أنميشن ثلاثي الأبعاد</title>
+<style>
+@font-face { font-family: Cairo; font-weight: 400; src: url(fonts/cairo-arabic-400-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 700; src: url(fonts/cairo-arabic-700-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 900; src: url(fonts/cairo-arabic-900-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 400; src: url(fonts/cairo-latin-400-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F; }
+@font-face { font-family: Cairo; font-weight: 700; src: url(fonts/cairo-latin-700-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F; }
+@font-face { font-family: Cairo; font-weight: 900; src: url(fonts/cairo-latin-900-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F; }
+:root { --g: #0f6e5c; --g2: #14957c; --mint: #5fe0bf; --gold: #e7b75a; --ink: #0d2a24; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; }
+body { font-family: Cairo, sans-serif; color: #fff; }
+.ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+.ic svg { width: 100%; height: 100%; display: block; }
+.scene { position: absolute; inset: 0; overflow: hidden; opacity: 0; }
+.persp { position: absolute; inset: 0; perspective: 1500px; perspective-origin: 50% 45%; }
+.p3 { transform-style: preserve-3d; }
+
+/* 0 — البداية */
+#s0 { background: radial-gradient(ellipse at 50% 46%, #0d3a31 0%, #04130f 55%, #000 100%); }
+#dot { position: absolute; left: 540px; top: 880px; width: 30px; height: 30px; margin: -15px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 60px 20px rgba(95, 224, 191, 0.6); }
+#logo0 { position: absolute; left: 540px; top: 880px; width: 300px; height: 300px; margin: -150px; border-radius: 82px; box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6), 0 0 160px rgba(95, 224, 191, 0.45); }
+.ring { position: absolute; left: 540px; top: 880px; width: 300px; height: 300px; margin: -150px; border-radius: 50%; border: 5px solid var(--mint); opacity: 0; }
+
+/* 1 — أرض المحل */
+#s1 { background: linear-gradient(180deg, #e9f1ee 0%, #f6f8f7 40%, #eef3f1 100%); }
+#cam1 { position: absolute; left: 540px; top: 1050px; }
+#floor { position: absolute; left: 0; top: 0; width: 2600px; height: 2600px; transform-origin: 0 0; background-color: #f4f7f6; background-image: linear-gradient(rgba(15, 110, 92, 0.08) 2px, transparent 2px), linear-gradient(90deg, rgba(15, 110, 92, 0.08) 2px, transparent 2px); background-size: 100px 100px; }
+.cub { position: absolute; transform-style: preserve-3d; }
+.cub > i { position: absolute; display: block; }
+#route { position: absolute; left: 0; top: 0; overflow: visible; }
+.pin { position: absolute; width: 0; height: 0; transform-style: preserve-3d; }
+.pin .bb { position: absolute; left: -60px; top: -170px; width: 120px; height: 170px; transform-origin: 60px 170px; }
+.pin .bb .head { width: 120px; height: 120px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: linear-gradient(135deg, var(--g2), var(--g)); box-shadow: 0 16px 30px rgba(0, 0, 0, 0.3); display: grid; place-items: center; }
+.pin .bb .head img { width: 74px; height: 74px; border-radius: 20px; transform: rotate(45deg); }
+.shadow { position: absolute; left: -50px; top: -18px; width: 100px; height: 36px; border-radius: 50%; background: radial-gradient(rgba(0, 0, 0, 0.35), transparent 70%); }
+.navcard { position: absolute; left: 48px; right: 48px; top: 110px; display: flex; align-items: center; gap: 26px; padding: 26px 34px; border-radius: 34px; background: var(--g); box-shadow: 0 24px 50px rgba(0, 0, 0, 0.25); opacity: 0; }
+.navcard .ic { width: 84px; height: 84px; flex: none; color: #fff; }
+.navcard b { display: block; font: 900 50px/1.2 Cairo; }
+.navcard small { display: block; font: 700 30px Cairo; color: rgba(255, 255, 255, 0.85); }
+.chip3 { position: absolute; display: inline-flex; align-items: center; gap: 16px; padding: 18px 30px; border-radius: 999px; background: #fff; color: var(--ink); font: 900 40px Cairo; box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18); opacity: 0; white-space: nowrap; }
+.chip3 .ic { width: 48px; height: 48px; color: var(--g2); }
+.chip3.dark { background: var(--ink); color: #fff; }
+.chip3.dark .ic { color: var(--mint); }
+#scanline { position: absolute; left: -200px; top: -10px; width: 400px; height: 20px; border-radius: 10px; background: linear-gradient(90deg, transparent, rgba(255, 60, 60, 0.9), transparent); box-shadow: 0 0 30px rgba(255, 60, 60, 0.8); opacity: 0; }
+
+/* 2 — الفاتورة بالجو */
+#s2 { background: radial-gradient(ellipse at 50% 40%, #12493f 0%, #072620 60%, #031310 100%); }
+#inv { position: absolute; left: 90px; top: 520px; width: 900px; border-radius: 40px; background: #fff; color: var(--ink); padding: 44px 46px 40px; box-shadow: 0 60px 120px rgba(0, 0, 0, 0.5); transform-origin: 50% 50%; }
+#inv .hd { display: flex; justify-content: space-between; align-items: center; padding-bottom: 22px; border-bottom: 3px solid #e3ebe8; }
+#inv .hd b { font: 900 52px Cairo; color: var(--g); }
+#inv .hd span { font: 700 32px Cairo; color: #6b7c77; }
+.ln { display: flex; justify-content: space-between; align-items: center; padding: 24px 0; border-bottom: 2px dashed #e5ece9; font: 700 38px Cairo; opacity: 0; }
+.ln small { display: block; font: 400 28px Cairo; color: #6b7c77; }
+.ln .amt { font: 900 40px Cairo; color: var(--ink); }
+#inv .tot { display: flex; justify-content: space-between; align-items: center; margin-top: 26px; padding: 26px 30px; border-radius: 26px; background: var(--g); color: #fff; font: 900 50px Cairo; }
+#inv .tot .num { font: 900 60px Cairo; }
+.glow { position: absolute; inset: -40px; border-radius: 60px; box-shadow: 0 0 0 4px rgba(95, 224, 191, 0.5), 0 0 120px rgba(95, 224, 191, 0.35); opacity: 0; pointer-events: none; }
+
+/* 3 — الإيصال */
+#s3 { background: linear-gradient(180deg, #0a2b25 0%, #04140f 100%); }
+#printer { position: absolute; left: 190px; top: 1180px; width: 700px; height: 300px; border-radius: 50px; background: linear-gradient(180deg, #2c3a37, #121a18); box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6), inset 0 3px 0 rgba(255, 255, 255, 0.08); }
+#printer::before { content: ''; position: absolute; left: 90px; right: 90px; top: 34px; height: 18px; border-radius: 9px; background: #050807; }
+#printer .led { position: absolute; right: 60px; bottom: 50px; width: 20px; height: 20px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 20px var(--mint); }
+#paperClip { position: absolute; left: 290px; top: 230px; width: 500px; height: 990px; overflow: hidden; }
+#paper { position: absolute; left: 0; right: 0; bottom: 0; height: 960px; background: #fff; color: #111; padding: 40px 38px; font: 700 30px Cairo; transform: translateY(100%); }
+#paper::after { content: ''; position: absolute; left: 0; right: 0; top: -18px; height: 20px; background: linear-gradient(-45deg, #fff 10px, transparent 0), linear-gradient(45deg, #fff 10px, transparent 0); background-size: 20px 20px; }
+#paper h4 { text-align: center; font: 900 44px Cairo; }
+#paper .c { text-align: center; color: #555; font: 400 26px Cairo; margin-bottom: 18px; }
+#paper .r { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 2px dotted #bbb; }
+#paper .big { display: flex; justify-content: space-between; margin-top: 18px; font: 900 44px Cairo; }
+#paper .qr { width: 170px; height: 170px; margin: 26px auto 0; background: repeating-conic-gradient(#111 0 25%, #fff 0 50%) 0 0/34px 34px; border: 12px solid #fff; outline: 4px solid #111; }
+
+/* 4 — الأرقام */
+#s4 { background: linear-gradient(180deg, #eaf2ef 0%, #f7faf9 100%); color: var(--ink); }
+#cam4 { position: absolute; left: 540px; top: 1240px; }
+#board { position: absolute; left: -600px; top: -380px; width: 1200px; height: 750px; border-radius: 30px; overflow: hidden; box-shadow: 0 60px 120px rgba(0, 0, 0, 0.25); transform-origin: 600px 380px; }
+#board img { width: 1200px; height: 750px; display: block; }
+.bar { position: absolute; bottom: 0; width: 90px; transform-style: preserve-3d; }
+.bar > i { position: absolute; display: block; }
+.stat3 { position: absolute; width: 440px; padding: 30px 34px; border-radius: 34px; background: #fff; box-shadow: 0 30px 60px rgba(13, 42, 36, 0.18); opacity: 0; }
+.stat3 span { display: block; font: 700 32px Cairo; color: #6b7c77; }
+.stat3 b { display: block; font: 900 64px/1.15 Cairo; color: var(--ink); }
+.stat3.good b { color: #128a5c; }
+.stat3.bad b { color: #c0392b; }
+
+/* 5 — الجوال */
+#s5 { background: radial-gradient(ellipse at 50% 45%, #145a4c 0%, #062a22 60%, #021410 100%); }
+#phone { position: absolute; left: 260px; top: 300px; width: 560px; height: 1150px; border-radius: 86px; background: #0b0f0e; padding: 22px; box-shadow: 0 80px 160px rgba(0, 0, 0, 0.6), inset 0 0 0 3px #2a3431; }
+#phone .scr { width: 100%; height: 100%; border-radius: 66px; overflow: hidden; background: #f3f6f5; color: var(--ink); position: relative; }
+#phone .top { height: 230px; background: linear-gradient(135deg, var(--g2), var(--g)); color: #fff; padding: 74px 40px 0; }
+#phone .top b { font: 900 46px Cairo; }
+#phone .top small { display: block; font: 700 26px Cairo; color: rgba(255, 255, 255, 0.85); }
+.pcard { margin: 26px 30px 0; padding: 26px 30px; border-radius: 30px; background: #fff; box-shadow: 0 10px 26px rgba(0, 0, 0, 0.08); opacity: 0; }
+.pcard span { display: block; font: 700 26px Cairo; color: #6b7c77; }
+.pcard b { font: 900 46px Cairo; }
+.pnav { position: absolute; left: 30px; right: 30px; bottom: 30px; height: 110px; border-radius: 40px; background: rgba(255, 255, 255, 0.85); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12); display: flex; justify-content: space-around; align-items: center; }
+.pnav i { width: 50px; height: 50px; color: var(--g); }
+#notch { position: absolute; left: 50%; top: 22px; width: 150px; height: 40px; margin-left: -75px; border-radius: 20px; background: #000; }
+
+/* 6 — النهاية */
+#s6 { background: #000; }
+#flare { position: absolute; left: 540px; top: 840px; width: 1400px; height: 1400px; margin: -700px; border-radius: 50%; background: radial-gradient(rgba(95, 224, 191, 0.35), rgba(15, 110, 92, 0.12) 35%, transparent 65%); }
+#logo6 { position: absolute; left: 540px; top: 760px; width: 260px; height: 260px; margin: -130px; border-radius: 70px; box-shadow: 0 0 120px rgba(95, 224, 191, 0.35); }
+#name6 { position: absolute; left: 0; right: 0; top: 930px; text-align: center; font: 900 150px/1 Cairo; }
+#tag6 { position: absolute; left: 0; right: 0; top: 1120px; text-align: center; font: 700 56px Cairo; color: rgba(255, 255, 255, 0.85); }
+#tag6 em { font-style: normal; color: var(--gold); }
+#url6 { position: absolute; left: 0; right: 0; top: 1250px; text-align: center; font: 700 44px Cairo; color: var(--mint); }
+
+#blur { position: absolute; inset: 0; pointer-events: none; }
+#flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+#fade { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="stage" style="position:absolute;inset:0">
+
+  <div class="scene" id="s0">
+    <i class="ring" id="r1"></i><i class="ring" id="r2"></i>
+    <div id="dot"></div>
+    <img id="logo0" src="logo.png" alt="" />
+  </div>
+
+  <div class="scene" id="s1">
+    <div class="persp"><div id="cam1" class="p3"><div id="floor" class="p3"></div></div></div>
+    <div class="navcard" id="nav1"><i class="ic">{{icon:scan-barcode}}</i><div><b>امسح الباركود</b><small>زيت دوار الشمس · 2,200 ل.س</small></div></div>
+    <div class="chip3" id="c1a" style="left:60px;top:1500px"><i class="ic">{{icon:zap}}</i>بثانية وحدة</div>
+    <div class="chip3 dark" id="c1b" style="right:60px;top:1620px"><i class="ic">{{icon:wifi-off}}</i>بدون إنترنت</div>
+  </div>
+
+  <div class="scene" id="s2">
+    <div class="persp">
+      <div id="inv" class="p3">
+        <div class="glow" id="invGlow"></div>
+        <div class="hd"><b>فاتورة مبيع</b><span class="ltr">#1248</span></div>
+        <div class="ln"><div>زيت دوار الشمس<small>2 × 2,200</small></div><span class="amt ltr">4,400</span></div>
+        <div class="ln"><div>رز مصري 1 كغ<small>3 × 1,800</small></div><span class="amt ltr">5,400</span></div>
+        <div class="ln"><div>شاي أسود 400غ<small>2 × 3,800</small></div><span class="amt ltr">7,600</span></div>
+        <div class="tot"><span>الإجمالي</span><span class="num ltr" id="invTot">0</span></div>
+      </div>
+    </div>
+    <div class="chip3" id="c2a" style="left:60px;top:300px"><i class="ic">{{icon:trending-up}}</i>ربح الفاتورة <span class="ltr" id="c2aN">+3,828</span></div>
+    <div class="chip3 dark" id="c2b" style="right:60px;top:1500px"><i class="ic">{{icon:circle-check-big}}</i>تم القبض</div>
+    <div class="chip3" id="c2c" style="left:90px;top:1640px"><i class="ic">{{icon:layers}}</i>المخزون نقص لحالو</div>
+  </div>
+
+  <div class="scene" id="s3">
+    <div class="persp"><div id="rig3" class="p3" style="position:absolute;inset:0">
+      <div id="paperClip"><div id="paper">
+        <h4>ماركت النور</h4><div class="c">فاتورة رقم 1248 · 28/10/2026</div>
+        <div class="r"><span>زيت دوار الشمس × 2</span><span class="ltr">4,400</span></div>
+        <div class="r"><span>رز مصري × 3</span><span class="ltr">5,400</span></div>
+        <div class="r"><span>شاي أسود × 2</span><span class="ltr">7,600</span></div>
+        <div class="big"><span>الإجمالي</span><span class="ltr">17,400</span></div>
+        <div class="c" style="margin-top:14px">شكراً لزيارتكم</div>
+        <div class="qr"></div>
+      </div></div>
+      <div id="printer"><i class="led"></i></div>
+    </div></div>
+    <div class="navcard" id="nav3" style="background:#1f6b57"><i class="ic">{{icon:printer}}</i><div><b>طباعة الإيصال</b><small>طابعة الكاشير أو A4 أو PDF</small></div></div>
+    <div class="chip3" id="c3a" style="left:60px;top:1600px"><i class="ic">{{icon:message-circle}}</i>انبعتت عالواتساب</div>
+  </div>
+
+  <div class="scene" id="s4">
+    <div class="persp"><div id="cam4" class="p3"><div id="board"><img src="dashboard.webp" alt="" /></div><div id="bars" class="p3"></div></div></div>
+    <div class="stat3 good" id="st1" style="right:60px;top:200px"><span>مبيعات اليوم</span><b class="ltr" id="st1n">0</b></div>
+    <div class="stat3 good" id="st2" style="left:60px;top:380px"><span>ربح اليوم</span><b class="ltr" id="st2n">0</b></div>
+    <div class="stat3 bad" id="st3" style="right:60px;top:560px"><span>لنا على الناس</span><b class="ltr" id="st3n">0</b></div>
+  </div>
+
+  <div class="scene" id="s5">
+    <div class="persp"><div id="phone" class="p3"><div class="scr">
+      <div class="top"><b>وزن</b><small>ماركت النور · من البيت</small></div>
+      <div class="pcard" id="pc1"><span>مبيعات اليوم</span><b class="ltr">125,400</b></div>
+      <div class="pcard" id="pc2"><span>ربح اليوم</span><b class="ltr" style="color:#128a5c">31,850</b></div>
+      <div class="pcard" id="pc3"><span>آخر فاتورة</span><b>#1248 · أبو خالد</b></div>
+      <div class="pnav"><i class="ic">{{icon:chart-column}}</i><i class="ic">{{icon:receipt}}</i><i class="ic">{{icon:scan-barcode}}</i><i class="ic">{{icon:wallet}}</i></div>
+      <div id="notch"></div>
+    </div></div></div>
+    <div class="chip3" id="c5a" style="left:60px;top:1560px"><i class="ic">{{icon:smartphone}}</i>محلك بجيبتك</div>
+    <div class="chip3 dark" id="c5b" style="right:60px;top:1690px"><i class="ic">{{icon:lock}}</i>مشفّر بالكامل</div>
+  </div>
+
+  <div class="scene" id="s6">
+    <div id="flare"></div>
+    <img id="logo6" src="logo.png" alt="" />
+    <div id="name6">وزن</div>
+    <div id="tag6">حساباتك صارت <em>بوزنها</em></div>
+    <div id="url6" class="ltr" style="display:block">waznsy.com</div>
+  </div>
+
+  <div id="flash"></div>
+  <div id="fade"></div>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const ease = (x) => { x = clamp(x); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+const out = (x) => 1 - Math.pow(1 - clamp(x), 3);
+const out5 = (x) => 1 - Math.pow(1 - clamp(x), 5);
+const back = (x) => { x = clamp(x); const c = 1.6; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+const win = (t, a, b, fi = 0.3, fo = 0.3) => Math.min(clamp((t - a) / fi), clamp((b - t) / fo));
+const lerp = (a, b, k) => a + (b - a) * k;
+const fmt = (n) => Math.round(n).toLocaleString('en');
+
+// المشاهد: [البداية، النهاية]
+const S = { s0: [0, 2.5], s1: [2.25, 7.7], s2: [7.45, 11.9], s3: [11.65, 15.5], s4: [15.25, 19.5], s5: [19.25, 22.2], s6: [21.95, 25.5] };
+window.DURATION = 25.5;
+
+// ── أرض المحل: رفوف ثلاثية الأبعاد ──
+const floor = $('#floor');
+function cuboid(parent, x, y, w, d, h, top, side, front) {
+  const c = document.createElement('div'); c.className = 'cub';
+  Object.assign(c.style, { left: x + 'px', top: y + 'px', width: w + 'px', height: d + 'px' });
+  const face = (l, tp, W, H, tf, bg) => { const f = document.createElement('i'); Object.assign(f.style, { left: l + 'px', top: tp + 'px', width: W + 'px', height: H + 'px', transformOrigin: '0 0', transform: tf, background: bg }); c.append(f); };
+  // الأرض z=0 وفوق = +z باتجاه الكاميرا
+  face(0, 0, w, h, 'rotateX(90deg)', side); // الخلف
+  face(0, 0, h, d, 'rotateY(-90deg)', side); // اليسار
+  face(w, 0, h, d, 'rotateY(-90deg)', side); // اليمين
+  face(0, d, w, h, 'rotateX(90deg)', front); // الواجهة
+  face(0, 0, w, d, `translateZ(${h}px)`, top); // السطح
+  parent.append(c);
+  return c;
+}
+const PROD = ['#e94e3c', '#f2b134', '#2e86de', '#14957c', '#9b59b6', '#f39c12', '#16a085', '#e67e22'];
+let pi = 0;
+for (let row = 0; row < 5; row++) {
+  for (let col = 0; col < 4; col++) {
+    const x = 380 + col * 470, y = 300 + row * 420;
+    const stripes = Array.from({ length: 6 }, (_, k) => `${PROD[(pi + k) % PROD.length]} ${k * 16.6}% ${(k + 1) * 16.6 - 3}%, #dfe7e4 ${(k + 1) * 16.6 - 3}% ${(k + 1) * 16.6}%`).join(',');
+    pi += 3;
+    cuboid(floor, x, y, 300, 90, 150, '#ffffff', '#cfdad6', `linear-gradient(90deg, ${stripes})`);
+  }
+}
+// مسار المسح (متل مسار الخريطة)
+const R = [[260, 2500], [260, 1815], [765, 1815], [765, 1395], [1235, 1395], [1235, 975], [1640, 975]];
+const svgNS = 'http://www.w3.org/2000/svg';
+const svg = document.createElementNS(svgNS, 'svg');
+svg.setAttribute('id', 'route'); svg.setAttribute('width', 2600); svg.setAttribute('height', 2600);
+const mk = (stroke, w) => { const p = document.createElementNS(svgNS, 'path'); p.setAttribute('d', 'M' + R.map((q) => q.join(' ')).join(' L')); p.setAttribute('fill', 'none'); p.setAttribute('stroke', stroke); p.setAttribute('stroke-width', w); p.setAttribute('stroke-linejoin', 'round'); p.setAttribute('stroke-linecap', 'round'); svg.append(p); return p; };
+mk('rgba(15,110,92,0.25)', 60);
+const routeP = mk('#14957c', 34);
+const routeHi = mk('#5fe0bf', 12);
+floor.append(svg);
+const RL = [0]; for (let i = 1; i < R.length; i++) RL.push(RL[i - 1] + Math.hypot(R[i][0] - R[i - 1][0], R[i][1] - R[i - 1][1]));
+const TOTAL = RL[RL.length - 1];
+[routeP, routeHi].forEach((p) => { p.style.strokeDasharray = TOTAL; });
+const along = (d) => { for (let i = 1; i < R.length; i++) if (d <= RL[i]) { const k = (d - RL[i - 1]) / (RL[i] - RL[i - 1]); return [lerp(R[i - 1][0], R[i][0], k), lerp(R[i - 1][1], R[i][1], k)]; } return R[R.length - 1]; };
+// الدبوس آخر المسار
+const pin = document.createElement('div'); pin.className = 'pin p3';
+Object.assign(pin.style, { left: R[R.length - 1][0] + 'px', top: R[R.length - 1][1] + 'px' });
+pin.innerHTML = '<div class="shadow"></div><div class="bb"><div class="head"><img src="logo.png"></div></div><div id="scanline"></div>';
+floor.append(pin);
+// المؤشر المتحرك على المسار
+const me = document.createElement('div');
+Object.assign(me.style, { position: 'absolute', width: '70px', height: '70px', margin: '-35px', borderRadius: '50%', background: '#2e86de', border: '10px solid #fff', boxShadow: '0 0 0 22px rgba(46,134,222,.18), 0 10px 20px rgba(0,0,0,.2)' });
+floor.append(me);
+
+// ── أعمدة الأرقام ──
+const bars = $('#bars');
+const BH = [180, 260, 210, 330, 290, 410, 520];
+BH.forEach((h, i) => {
+  const b = document.createElement('div'); b.className = 'bar';
+  b.style.left = -430 + i * 130 + 'px'; b.style.top = '300px';
+  b.innerHTML = `<i class="f"></i><i class="s"></i><i class="t"></i>`;
+  bars.append(b);
+});
+
+function sceneOpacity(id, t) { const [a, b] = S[id]; return win(t, a, b, 0.25, 0.25); }
+
+window.render = function (t) {
+  for (const id of Object.keys(S)) { const o = sceneOpacity(id, t); const e = $('#' + id); e.style.opacity = o; e.style.display = o > 0 ? '' : 'none'; }
+
+  // 0 — نقطة ضو بتكبر وبيطلع اللوغو
+  if (t < S.s0[1]) {
+    const d = out((t - 0.1) / 0.6), l = back((t - 0.55) / 0.7);
+    $('#dot').style.transform = `scale(${0.2 + d * 1.4})`; $('#dot').style.opacity = 1 - clamp((t - 0.7) / 0.3);
+    $('#logo0').style.opacity = clamp((t - 0.6) / 0.2);
+    $('#logo0').style.transform = `scale(${l}) rotate(${(1 - l) * -14}deg)`;
+    [['#r1', 0.75], ['#r2', 1.05]].forEach(([r, a]) => { const p = clamp((t - a) / 1.2); $(r).style.opacity = p > 0 && p < 1 ? (1 - p) * 0.9 : 0; $(r).style.transform = `scale(${1 + p * 2.6})`; });
+    const z = clamp((t - 1.9) / 0.6);
+    $('#s0').style.transform = `scale(${1 + ease(z) * 2.5})`; $('#s0').style.filter = `blur(${z * 18}px)`;
+  }
+
+  // 1 — الكاميرا بتغطس على أرض المحل وبتلحق مسار المسح
+  if (t > S.s1[0] - 0.1 && t < S.s1[1] + 0.1) {
+    const lt = t - S.s1[0];
+    const prog = ease(clamp((lt - 0.3) / 3.6));
+    const pos = along(prog * TOTAL);
+    const dive = out5(clamp(lt / 1.6));
+    const s = lerp(0.42, 1.05, dive) + 0.12 * clamp((lt - 4.2) / 1.2);
+    const rx = lerp(30, 58, dive);
+    const rz = lerp(-28, 12, ease(clamp(lt / 5)));
+    const focus = [lerp(1300, pos[0], dive), lerp(1300, pos[1], dive)];
+    floor.style.transform = `rotateX(${rx}deg) rotateZ(${rz}deg) scale(${s}) translate(${-focus[0]}px, ${-focus[1]}px)`;
+    [routeP, routeHi].forEach((p) => (p.style.strokeDashoffset = TOTAL * (1 - prog)));
+    me.style.left = pos[0] + 'px'; me.style.top = pos[1] + 'px';
+    me.style.opacity = prog < 0.985 ? 1 : 0;
+    const pp = back((lt - 3.7) / 0.5);
+    pin.querySelector('.bb').style.transform = `rotateZ(${-rz}deg) rotateX(${-rx}deg) scale(${clamp(pp, 0, 1.2)})`;
+    pin.querySelector('.shadow').style.opacity = clamp((lt - 3.7) / 0.3);
+    const sc = clamp((lt - 4.3) / 0.9);
+    const sl = $('#scanline'); sl.style.opacity = sc > 0 && sc < 1 ? 1 : 0; sl.style.transform = `rotateZ(${-rz}deg) rotateX(${-rx}deg) translateY(${-160 + sc * 170}px)`;
+    const nv = back((lt - 0.6) / 0.5);
+    $('#nav1').style.opacity = clamp((lt - 0.6) / 0.25); $('#nav1').style.transform = `translateY(${(1 - clamp(nv, 0, 1)) * -60}px) scale(${0.92 + 0.08 * clamp(nv, 0, 1.05)})`;
+    [['#c1a', 4.4], ['#c1b', 4.8]].forEach(([id, a]) => { const p = back((lt - a) / 0.45); $(id).style.opacity = clamp((lt - a) / 0.2); $(id).style.transform = `scale(${0.6 + 0.4 * p})`; });
+    const ex = clamp((lt - 5.0) / 0.45);
+    $('#s1').style.filter = `blur(${ex * 14}px)`; $('#s1').style.transform = `scale(${1 + ease(ex) * 0.25})`;
+  }
+
+  // 2 — الفاتورة عم تنبني بالجو
+  if (t > S.s2[0] - 0.1 && t < S.s2[1] + 0.1) {
+    const lt = t - S.s2[0];
+    const ent = out5(lt / 0.9);
+    const ry = lerp(-55, -14, ent) + Math.sin(lt * 0.9) * 4 + clamp((lt - 2.6) / 1.6) * 22;
+    const rx = lerp(30, 8, ent) + Math.sin(lt * 0.7) * 2;
+    const z = lerp(-900, 0, ent) + clamp((lt - 3.6) / 0.6) * 500;
+    $('#inv').style.transform = `translateZ(${z}px) rotateY(${ry}deg) rotateX(${rx}deg)`;
+    document.querySelectorAll('#inv .ln').forEach((e, i) => { const a = 0.7 + i * 0.45, p = out((lt - a) / 0.35); e.style.opacity = p; e.style.transform = `translateX(${(1 - p) * -60}px)`; });
+    $('#invTot').textContent = fmt(17400 * ease(clamp((lt - 0.8) / 1.6)));
+    $('#invGlow').style.opacity = win(lt, 2.4, 3.6, 0.2, 0.5);
+    [['#c2a', 2.5], ['#c2b', 2.9], ['#c2c', 3.25]].forEach(([id, a]) => { const p = back((lt - a) / 0.45); $(id).style.opacity = clamp((lt - a) / 0.2) * (1 - clamp((lt - 4.0) / 0.3)); $(id).style.transform = `scale(${0.6 + 0.4 * p})`; });
+    const ex = clamp((lt - 3.9) / 0.4);
+    $('#s2').style.filter = `blur(${ex * 16}px)`;
+  }
+
+  // 3 — الإيصال عم ينطبع والكاميرا بتلف حواليه
+  if (t > S.s3[0] - 0.1 && t < S.s3[1] + 0.1) {
+    const lt = t - S.s3[0];
+    const orbit = lerp(-28, 26, ease(clamp(lt / 3.8)));
+    $('#rig3').style.transform = `translateZ(${lerp(-400, 80, out5(lt / 1.2))}px) rotateY(${orbit}deg) rotateX(${lerp(14, 4, ease(lt / 3))}deg)`;
+    const pr = ease(clamp((lt - 0.4) / 2.2));
+    $('#paper').style.transform = `translateY(${(1 - pr) * 100}%)`;
+    $('#printer .led').style.opacity = pr > 0 && pr < 1 ? (Math.sin(lt * 30) > 0 ? 1 : 0.3) : 1;
+    const nv = back((lt - 0.3) / 0.5);
+    $('#nav3').style.opacity = clamp((lt - 0.3) / 0.25) * (1 - clamp((lt - 3.4) / 0.3)); $('#nav3').style.transform = `translateY(${(1 - clamp(nv, 0, 1)) * -60}px)`;
+    const p = back((lt - 2.5) / 0.45); $('#c3a').style.opacity = clamp((lt - 2.5) / 0.2) * (1 - clamp((lt - 3.5) / 0.3)); $('#c3a').style.transform = `scale(${0.6 + 0.4 * p})`;
+    const ex = clamp((lt - 3.45) / 0.4);
+    $('#s3').style.filter = `blur(${ex * 16}px)`; $('#s3').style.transform = `translateY(${-ease(ex) * 300}px)`;
+  }
+
+  // 4 — الكاميرا بترتفع فوق لوحة الأرقام والأعمدة بتطلع
+  if (t > S.s4[0] - 0.1 && t < S.s4[1] + 0.1) {
+    const lt = t - S.s4[0];
+    const up = out5(clamp(lt / 1.4));
+    const rx = lerp(10, 52, up), rz = lerp(8, -10, ease(clamp(lt / 4)));
+    $('#cam4').style.transform = `translateY(${lerp(500, 0, up)}px) rotateX(${rx}deg) rotateZ(${rz}deg) scale(${lerp(0.75, 0.95, ease(lt / 4))})`;
+    document.querySelectorAll('.bar').forEach((b, i) => {
+      const h = BH[i] * out(clamp((lt - 0.8 - i * 0.12) / 0.8));
+      const [f, s, tp] = b.children;
+      Object.assign(f.style, { left: 0, bottom: 0, width: '90px', height: h + 'px', background: 'linear-gradient(180deg,#5fe0bf,#14957c)', transformOrigin: '50% 100%', transform: 'rotateX(-90deg)' });
+      Object.assign(s.style, { left: '90px', bottom: 0, width: '60px', height: h + 'px', background: '#0f6e5c', transformOrigin: '0 100%', transform: 'rotateX(-90deg) rotateY(-90deg)' });
+      Object.assign(tp.style, { left: 0, top: '-60px', width: '90px', height: '60px', background: '#8ff0d6', transform: `translateZ(${h}px)` });
+    });
+    [['#st1', 1.0, 125400], ['#st2', 1.35, 31850], ['#st3', 1.7, 48200]].forEach(([id, a, v]) => {
+      const p = back((lt - a) / 0.45); const e = $(id); e.style.opacity = clamp((lt - a) / 0.2); e.style.transform = `scale(${0.7 + 0.3 * p})`;
+      $(id + 'n').textContent = fmt(v * ease(clamp((lt - a) / 1.3))) + ' ل.س';
+    });
+    const ex = clamp((lt - 3.95) / 0.3);
+    $('#s4').style.filter = `blur(${ex * 22}px)`; $('#s4').style.transform = `translateX(${ease(ex) * 900}px)`;
+  }
+
+  // 5 — الجوال (انتقال سريع مع ضبابية)
+  if (t > S.s5[0] - 0.1 && t < S.s5[1] + 0.1) {
+    const lt = t - S.s5[0];
+    const ent = out5(clamp(lt / 0.7));
+    $('#phone').style.transform = `translateX(${(1 - ent) * -900}px) rotateY(${lerp(-40, -12, ent) + Math.sin(lt * 1.3) * 5}deg) rotateX(${6 + Math.sin(lt) * 2}deg) rotateZ(${(1 - ent) * -10}deg)`;
+    $('#s5').style.filter = `blur(${(1 - ent) * 18}px)`;
+    ['#pc1', '#pc2', '#pc3'].forEach((id, i) => { const p = out((lt - 0.6 - i * 0.25) / 0.4); $(id).style.opacity = p; $(id).style.transform = `translateY(${(1 - p) * 40}px)`; });
+    [['#c5a', 1.2], ['#c5b', 1.55]].forEach(([id, a]) => { const p = back((lt - a) / 0.45); $(id).style.opacity = clamp((lt - a) / 0.2); $(id).style.transform = `scale(${0.6 + 0.4 * p})`; });
+    const ex = clamp((lt - 2.45) / 0.5);
+    $('#s5').style.transform = `scale(${1 - ease(ex) * 0.94})`;
+    if (ex > 0) $('#s5').style.filter = `blur(${ex * 6}px) brightness(${1 + ex * 2})`;
+  }
+
+  // 6 — نقطة ضو بالسواد وبيطلع الاسم
+  if (t > S.s6[0] - 0.1) {
+    const lt = t - S.s6[0];
+    const l = back((lt - 0.2) / 0.7);
+    $('#logo6').style.opacity = clamp((lt - 0.15) / 0.3); $('#logo6').style.transform = `scale(${l})`;
+    $('#flare').style.transform = `scale(${0.3 + out(lt / 1.5) * 0.9})`; $('#flare').style.opacity = 0.6 + Math.sin(lt * 2) * 0.15;
+    const n = out((lt - 0.6) / 0.6); $('#name6').style.opacity = n; $('#name6').style.transform = `translateY(${(1 - n) * 40}px)`; $('#name6').style.letterSpacing = `${(1 - n) * 30}px`;
+    const g = out((lt - 1.1) / 0.6); $('#tag6').style.opacity = g; $('#tag6').style.transform = `translateY(${(1 - g) * 30}px)`;
+    $('#url6').style.opacity = out((lt - 1.6) / 0.5);
+  }
+  $('#flash').style.opacity = Math.max(win(t, 7.35, 7.6, 0.08, 0.2), win(t, 21.9, 22.15, 0.08, 0.25)) * 0.55;
+  $('#fade').style.opacity = clamp((t - (window.DURATION - 0.8)) / 0.75);
+};
+
+window.EVENTS = {
+  whoosh: [2.0, 7.3, 11.55, 15.2, 19.2, 21.8],
+  pop: [2.95, 6.65, 7.05, 10.0, 10.35, 10.7, 14.2, 16.3, 16.65, 17.0, 20.5, 20.85],
+  chime: [6.05, 9.95, 22.2],
+  beep: [6.6],
+  tick: [8.2, 8.65, 9.1],
+  printer: [12.05],
+  hit: [0.65, 22.05],
+  duration: window.DURATION,
+};
+
+(async () => {
+  await document.fonts.ready;
+  await Promise.all([...document.images].map((i) => i.decode().catch(() => undefined)));
+  window.render(0);
+  window.READY = true;
+})();
+</script>
+</body>
+</html>
