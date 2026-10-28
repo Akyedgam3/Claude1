@@ -806,6 +806,8 @@ export type CompanyEvent =
   | { type: 'warehouse.saved'; warehouse: Warehouse }
   | { type: 'invoice.posted'; invoice: Invoice; entry: JournalEntry }
   | { type: 'invoice.voided'; invoiceId: string; entry: JournalEntry; deleted?: boolean }
+  /** تعديل سعر فاتورة شراء بدون ما تتحرك البضاعة (ولو انباع منها أو انتقلت): القيد القديم بينعكس والجديد بينسجّل، وفرق التكلفة على المخزون والمباع. */
+  | { type: 'invoice.repriced'; invoiceId: string; voidEntry: JournalEntry; invoice: Invoice; entry: JournalEntry; adjust: { itemId: string; warehouseId: string; value: number }[]; cogsEntry?: JournalEntry }
   | { type: 'stock.adjusted'; adjustment: StockAdjustment; entry?: JournalEntry }
   | { type: 'stock.transferred'; transfer: StockTransfer }
   | { type: 'transfer.voided'; transferId: string; date: string; by: string }

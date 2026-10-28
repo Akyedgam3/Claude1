@@ -373,6 +373,15 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       if (t.from === t.to) fail('اختر مستودعين مختلفين');
       return;
     }
+    case 'invoice.repriced': {
+      const old = state.invoices.find((i) => i.id === event.invoiceId) ?? fail('الفاتورة غير موجودة');
+      if (old.voidEntryId) fail('الفاتورة ملغاة');
+      if (event.voidEntry.voidOf !== old.entryId) fail('القيد العكسي لا يخص هذه الفاتورة');
+      if (event.invoice.replaces !== old.id || event.invoice.kind !== old.kind || event.invoice.number !== old.number) fail('الفاتورة المعدّلة لا تطابق الأصلية');
+      checkDate(state, event.invoice.date);
+      for (const a of event.adjust) if (!state.items[a.itemId] || !Number.isSafeInteger(a.value)) fail('تعديل تكلفة غير صالح');
+      return;
+    }
     case 'transfer.voided': {
       const t = state.transfers.find((x) => x.id === event.transferId) ?? fail('التحويل غير موجود');
       if (t.voided) fail('التحويل ملغى من قبل');
@@ -480,6 +489,18 @@ export function applyCommerceEvent(state: CompanyState, event: CompanyEvent): vo
       bump(state, 'adjustment', event.adjustment.number);
       for (const m of adjustmentMoves(event.adjustment)) applyMove(state, m);
       return;
+    case 'invoice.repriced': {
+      // البضاعة ما بتتحرك: بس القيود، والفاتورة الجديدة، وفرق التكلفة على قيمة المخزون
+      const old = state.invoices.find((i) => i.id === event.invoiceId)!;
+      old.voidEntryId = event.voidEntry.id;
+      state.voided[old.entryId] = event.voidEntry.id;
+      state.entries.push(event.voidEntry, event.entry);
+      if (event.cogsEntry) state.entries.push(event.cogsEntry);
+      state.invoices.push(event.invoice);
+      bump(state, event.invoice.kind, event.invoice.number);
+      for (const a of event.adjust) applyMove(state, { itemId: a.itemId, warehouseId: a.warehouseId, qty: 0, value: a.value });
+      return;
+    }
     case 'transfer.voided': {
       const t = state.transfers.find((x) => x.id === event.transferId)!;
       t.voided = { date: event.date, by: event.by };

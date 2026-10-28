@@ -5,6 +5,7 @@ import { loadDemo } from './demo';
 import { buildSchedule, installmentState } from './electronics';
 import { cashAccountFor, SYSTEM_ACCOUNTS } from './chart-templates';
 import { convertMinor, currencyProblem, type Currency } from './money';
+import { invoiceMoves } from './stock';
 import {
   buildAdjustment,
   buildCount,
@@ -238,6 +239,12 @@ export function validateEvent(state: CompanyState, event: CompanyEvent): void {
     case 'invoice.voided':
       validateCommerceEvent(state, event);
       return validateEntry(state, event.entry);
+    case 'invoice.repriced':
+      validateCommerceEvent(state, event);
+      validateEntry(state, event.voidEntry);
+      validateEntry(state, event.entry);
+      if (event.cogsEntry) validateEntry(state, event.cogsEntry);
+      return;
     case 'stock.adjusted':
       validateCommerceEvent(state, event);
       if (event.entry) validateEntry(state, event.entry);
@@ -705,9 +712,16 @@ export class Ledger {
     if (this.state.invoices.some((i) => i.replaces === old.id)) fail('هالفاتورة معدّلة من قبل');
     const next: InvoiceDraft = { ...draft };
     delete next.source;
+    // فاتورة شراء نفس البضاعة والكميات (تعديل سعر أو مورد أو ملاحظات): ما منحرّك المخزون، لأنو ممكن انباع منها أو انتقلت لمستودع تاني
+    if (old.kind === 'purchase' && this.sameStock(old, next)) return this.repriceInvoice(old, next);
     const trial = new Ledger(() => {}, structuredClone(this.state));
     trial.actor = this.actor;
-    trial.voidInvoice(old.id, old.date);
+    try {
+      trial.voidInvoice(old.id, old.date);
+    } catch (e) {
+      if (old.kind !== 'purchase') throw e;
+      fail(`${(e as Error).message}. لتعدّل السعر بس خلّي المواد والكميات متل ما هي. ولتغيّر الكمية: رجّع البضاعة للمستودع الأصلي (إلغاء التحويل)، أو اعمل مرتجع شراء بالفرق.`);
+    }
     trial.postInvoice(next, { number: old.number, replaces: old.id });
     this.voidInvoice(old.id, old.date);
     return this.postInvoice(next, { number: old.number, replaces: old.id });
@@ -722,6 +736,86 @@ export class Ledger {
     if (invoice.voidEntryId) fail('الفاتورة ملغاة مسبقاً');
     const locked = this.state.info?.lockedUntil;
     this.voidInvoice(invoiceId, locked && invoice.date <= locked ? today : invoice.date, { deleted: true });
+  }
+
+  /** نفس المواد والكميات والوحدات والأرقام التسلسلية والدفعات والمستودع؟ */
+  private sameStock(old: Invoice, d: InvoiceDraft): boolean {
+    const wh = d.warehouseId ?? Object.keys(this.state.warehouses)[0];
+    if (wh !== old.warehouseId) return false;
+    const a = old.lines.filter((l) => l.itemId);
+    const b = d.lines.filter((l) => l.itemId);
+    if (a.length !== b.length) return false;
+    const ser = (s?: string[]) => [...(s ?? [])].map((x) => x.trim()).filter(Boolean).sort().join('|');
+    return a.every((x, i) => {
+      const y = b[i]!;
+      const batch = x.batches?.[0];
+      return (
+        x.itemId === y.itemId &&
+        Math.abs(x.qty - y.qty) < 1e-9 &&
+        (x.unit ?? '') === (y.unit ?? '') &&
+        ser(x.serials) === ser(y.serials) &&
+        (batch?.batch ?? '') === (y.batch?.trim() || (batch ? y.expiry ?? '' : '')) &&
+        (batch?.expiry ?? '') === (batch ? y.expiry ?? '' : '')
+      );
+    });
+  }
+
+  /**
+   * تعديل فاتورة شراء بدون تحريك البضاعة: منحسب الفاتورة الجديدة كأنو القديمة ما كانت، ومنعكس قيدها.
+   * فرق تكلفة كل مادة بيروح على قيمة المخزون للكمية اللي لسا موجودة، والباقي (المنباع) على تكلفة المبيعات.
+   */
+  private repriceInvoice(old: Invoice, d: InvoiceDraft): Invoice {
+    const clone = structuredClone(this.state);
+    for (const m of invoiceMoves(clone, old)) {
+      const lvl = clone.stock[m.itemId];
+      if (!lvl) continue;
+      lvl.qty[m.warehouseId] = (lvl.qty[m.warehouseId] ?? 0) - m.qty;
+      lvl.totalQty -= m.qty;
+      lvl.value -= m.value;
+      for (const s of m.serials ?? []) delete lvl.serials?.[s];
+      for (const b of m.batches ?? []) {
+        const k = `${m.warehouseId}|${b.batch}`;
+        if (lvl.batches?.[k]) lvl.batches[k]!.qty -= b.qty;
+      }
+    }
+    const { invoice, entry } = buildInvoice(
+      { state: clone, baseCode: this.base.code, resolveRate: (c, dt) => this.rateFor(c, dt), buildEntry: (e) => this.buildEntry(e), partyBalance: (id) => this.partyBaseBalance(id) },
+      { ...d, createdBy: d.createdBy ?? this.actor },
+      { number: old.number, replaces: old.id },
+    );
+    const voidEntry = this.reversal(this.state.entries.find((e) => e.id === old.entryId)!, old.date);
+    const costs = new Map<string, { old: number; next: number; qty: number }>();
+    for (const l of old.lines) if (l.itemId) { const c = costs.get(l.itemId) ?? { old: 0, next: 0, qty: 0 }; c.old += l.cost ?? 0; c.qty += l.qty * (l.factor ?? 1); costs.set(l.itemId, c); }
+    for (const l of invoice.lines) if (l.itemId) { const c = costs.get(l.itemId) ?? { old: 0, next: 0, qty: 0 }; c.next += l.cost ?? 0; costs.set(l.itemId, c); }
+    const adjust: { itemId: string; warehouseId: string; value: number }[] = [];
+    let sold = 0;
+    for (const [itemId, c] of costs) {
+      const delta = c.next - c.old;
+      if (!delta) continue;
+      const now = Math.max(0, this.state.stock[itemId]?.totalQty ?? 0);
+      const inStock = c.qty > 0 && now < c.qty ? Math.round((delta * now) / c.qty) : delta;
+      if (inStock) adjust.push({ itemId, warehouseId: old.warehouseId, value: inStock });
+      sold += delta - inStock;
+    }
+    const n = this.state.entries.length;
+    voidEntry.number = n + 1;
+    entry.number = n + 2;
+    const cogsEntry = sold
+      ? {
+          ...this.buildEntry({
+            date: invoice.date,
+            memo: `فرق سعر الشراء على البضاعة المباعة — فاتورة شراء رقم ${old.number}`,
+            lines: [
+              { accountId: SYSTEM_ACCOUNTS.cogs, ...(sold > 0 ? { debit: sold } : { credit: -sold }) },
+              { accountId: SYSTEM_ACCOUNTS.inventory, ...(sold > 0 ? { credit: sold } : { debit: -sold }) },
+            ],
+            source: { type: 'reprice', id: invoice.id },
+          }),
+          number: n + 3,
+        }
+      : undefined;
+    this.emit({ type: 'invoice.repriced', invoiceId: old.id, voidEntry, invoice, entry, adjust, ...(cogsEntry ? { cogsEntry } : {}) });
+    return invoice;
   }
 
   /** إلغاء الفاتورة: قيد عكسي وإرجاع حركة المخزون كما كانت. */
