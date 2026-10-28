@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<title>وزن — دليل الوكيل وشروط الوكالة</title>
+<!-- دليل الوكيل (A4). البناء: node marketing/agent-handbook/build.mjs <ملف.pdf>
+     الشروط هون لازم تضل متوافقة مع terms.html#agents بالموقع (وهي أشد بالاسترداد والسحب). -->
+<style>
+@font-face { font-family: Cairo; font-weight: 400; src: url(img/cairo-arabic-400-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 700; src: url(img/cairo-arabic-700-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 900; src: url(img/cairo-arabic-900-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 400; src: url(img/cairo-latin-400-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F; }
+@font-face { font-family: Cairo; font-weight: 700; src: url(img/cairo-latin-700-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F; }
+@font-face { font-family: Cairo; font-weight: 900; src: url(img/cairo-latin-900-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F; }
+@page { size: A4; margin: 0; }
+:root { --g: #0f6e5c; --g2: #14957c; --gold: #e7b75a; --gold2: #f3d38d; --ink: #1d2433; --muted: #6b7385; --line: #e3e6eb; --soft: #f4f6f8; --deep: #071a17; --deep2: #0f3a33; --bad: #b3261e; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { font-family: Cairo, sans-serif; color: var(--ink); line-height: 1.7; }
+.page { width: 210mm; height: 297mm; position: relative; overflow: hidden; page-break-after: always; background: #fff; padding: 17mm 14mm 13mm; }
+.page:last-child { page-break-after: auto; }
+.ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+i.ic { display: block; font-style: normal; }
+svg.i { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; display: block; }
+
+.top { position: absolute; top: 0; left: 0; right: 0; height: 11mm; display: flex; align-items: center; justify-content: space-between; padding: 0 14mm; font-size: 9pt; color: var(--muted); border-bottom: 1px solid var(--line); }
+.top b { color: var(--g); display: flex; align-items: center; gap: 6px; font-size: 10pt; }
+.top img { width: 18px; height: 18px; border-radius: 5px; }
+.foot { position: absolute; bottom: 0; left: 0; right: 0; height: 10mm; display: flex; align-items: center; justify-content: space-between; padding: 0 14mm; font-size: 8.5pt; color: var(--muted); }
+.kick { color: var(--g2); font-weight: 900; font-size: 11pt; }
+h2 { font-size: 20pt; font-weight: 900; line-height: 1.3; margin: 1mm 0 2mm; }
+h3 { font-size: 12.5pt; font-weight: 900; }
+p.lead { font-size: 10.6pt; color: #4a5263; }
+
+/* الغلاف */
+.cover { background: radial-gradient(ellipse at 50% 15%, #145a4c 0%, var(--deep2) 38%, var(--deep) 72%, #030b0a 100%); color: #fff; padding: 0; }
+.cover .glow { position: absolute; border-radius: 50%; filter: blur(70px); }
+.cover .g1 { width: 120mm; height: 120mm; background: var(--g); opacity: .45; top: -40mm; left: -40mm; }
+.cover .g2 { width: 110mm; height: 110mm; background: var(--gold); opacity: .16; bottom: -45mm; right: -30mm; }
+.cover .grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px); background-size: 10mm 10mm; }
+.cover .inner { position: relative; height: 100%; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 26mm 18mm 16mm; }
+.cover .brand { display: flex; align-items: center; gap: 4mm; }
+.cover .brand img { width: 20mm; height: 20mm; border-radius: 5.5mm; box-shadow: 0 6mm 16mm rgba(0,0,0,.45); }
+.cover .brand b { font-size: 34pt; font-weight: 900; line-height: 1; }
+.cover .pill { margin-top: 9mm; background: var(--gold); color: #052a22; font-weight: 900; font-size: 12pt; padding: 1.5mm 6mm; border-radius: 99px; }
+.cover h1 { font-size: 40pt; font-weight: 900; line-height: 1.25; margin-top: 6mm; }
+.cover h1 span { color: var(--gold2); }
+.cover .sub { font-size: 12.5pt; color: #c4dad4; margin-top: 5mm; max-width: 160mm; }
+.cover .toc { margin-top: 12mm; width: 140mm; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.18); border-radius: 5mm; padding: 6mm 8mm; text-align: start; }
+.cover .toc div { display: flex; justify-content: space-between; padding: 1.6mm 0; border-bottom: 1px dashed rgba(255,255,255,.18); font-size: 11.5pt; font-weight: 700; }
+.cover .toc div:last-child { border-bottom: 0; }
+.cover .toc span:last-child { color: var(--gold2); font-weight: 900; }
+.cover .ver { margin-top: auto; font-size: 9.5pt; color: #9fbdb5; }
+
+/* محتوى */
+.cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3.5mm; margin-top: 4mm; }
+.card { border: 1px solid var(--line); border-radius: 4mm; padding: 4mm; background: #fff; }
+.card h3 { display: flex; align-items: center; gap: 2.5mm; margin-bottom: 1mm; }
+.card h3 .ic { flex: none; width: 8.5mm; height: 8.5mm; border-radius: 2.5mm; padding: 1.8mm; color: #fff; background: linear-gradient(135deg, var(--g2), var(--g)); }
+.card p, .card li { font-size: 9.6pt; color: #4a5263; line-height: 1.6; }
+.bal { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin-top: 3mm; }
+.bal div { background: var(--soft); border-radius: 3mm; padding: 3mm; text-align: center; }
+.bal b { display: block; font-size: 11pt; font-weight: 900; color: var(--g); }
+.bal span { font-size: 8.8pt; color: var(--muted); font-weight: 700; line-height: 1.4; display: block; }
+.steps { display: grid; gap: 2.6mm; margin-top: 3mm; }
+.step { display: flex; gap: 3mm; align-items: flex-start; }
+.step .n { flex: none; width: 7.5mm; height: 7.5mm; border-radius: 50%; background: var(--g); color: #fff; font-weight: 900; display: grid; place-items: center; font-size: 10pt; }
+.step p { font-size: 9.7pt; color: #3d4556; line-height: 1.6; }
+.step p b { color: var(--ink); }
+.split { display: grid; grid-template-columns: 1fr 62mm; gap: 6mm; margin-top: 4mm; align-items: start; }
+.mock { border-radius: 6mm; overflow: hidden; border: 1.5mm solid #0d1312; box-shadow: 0 6mm 14mm rgba(0,0,0,.18); }
+.mock img, .shot img { display: block; width: 100%; }
+.shot { border: 1px solid var(--line); border-radius: 4mm; overflow: hidden; }
+.cap { font-size: 8.5pt; color: var(--muted); font-weight: 700; text-align: center; margin-top: 1.3mm; }
+.box { border: 1px solid var(--line); border-radius: 4mm; padding: 3.5mm 4.5mm; margin-top: 3.5mm; }
+.box.tint { background: var(--soft); border-color: transparent; }
+.box.warn { background: #fff8e8; border-color: #f0d9a8; }
+.box.bad { background: #fdeeec; border-color: #f2c3be; }
+.box h3 { font-size: 11.5pt; margin-bottom: .8mm; }
+.box p, .box li { font-size: 9.5pt; color: #4a5263; line-height: 1.6; }
+ul.dot { list-style: none; display: grid; gap: 1.3mm; margin-top: 1.5mm; }
+ul.dot li { display: flex; gap: 2.3mm; font-size: 9.6pt; color: #3d4556; line-height: 1.6; }
+ul.dot li::before { content: ''; flex: none; width: 1.9mm; height: 1.9mm; border-radius: 50%; background: var(--g2); margin-top: 2.1mm; }
+ul.dot.x li::before { background: var(--bad); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 3.5mm; }
+.caps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2.5mm; margin-top: 3mm; }
+.caps div { border: 1px solid var(--line); border-radius: 3mm; padding: 2.6mm; text-align: center; }
+.caps div.hi { border: 2px solid var(--gold); background: #fff8e8; }
+.caps b { display: block; font-size: 15pt; font-weight: 900; }
+.caps span { font-size: 8.4pt; color: var(--muted); font-weight: 700; line-height: 1.4; display: block; }
+table.faq { width: 100%; border-collapse: collapse; margin-top: 3mm; }
+table.faq td { border-bottom: 1px solid var(--line); padding: 2.2mm 1.5mm; font-size: 9.3pt; vertical-align: top; line-height: 1.55; }
+table.faq td:first-child { font-weight: 900; width: 58mm; color: var(--ink); }
+table.faq td:last-child { color: #4a5263; }
+
+/* البنود الرسمية */
+.legal { font-size: 9.6pt; color: #2b3242; line-height: 1.7; }
+ol.cl { list-style: none; counter-reset: cl; display: grid; gap: 2mm; margin-top: 2.5mm; }
+ol.cl > li { counter-increment: cl; display: grid; grid-template-columns: 9mm 1fr; gap: 1.5mm; font-size: 9.55pt; color: #2b3242; line-height: 1.7; }
+ol.cl > li::before { content: attr(data-n); font-weight: 900; color: var(--g); }
+ol.cl > li b { color: var(--ink); }
+ol.sub { list-style: none; display: grid; gap: .8mm; margin-top: .8mm; }
+ol.sub li { padding-inline-start: 4mm; position: relative; }
+ol.sub li::before { content: '–'; position: absolute; inset-inline-start: 0; color: var(--muted); }
+.stamp { display: inline-block; font-size: 8pt; font-weight: 900; padding: 0 2.5mm; border-radius: 99px; background: #fdeeec; color: var(--bad); margin-inline-start: 2mm; vertical-align: middle; }
+.sign { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm 8mm; margin-top: 6mm; }
+.sign div { border-bottom: 1px solid #aab1bd; padding-bottom: 9mm; font-size: 9.5pt; color: var(--muted); font-weight: 700; }
+.contact { position: absolute; left: 14mm; right: 14mm; bottom: 13mm; background: linear-gradient(135deg, var(--deep2), var(--deep)); color: #fff; border-radius: 5mm; padding: 5mm 7mm; display: flex; align-items: center; justify-content: space-between; gap: 6mm; }
+.contact h3 { font-size: 13pt; }
+.contact .ph { display: flex; gap: 6mm; font-size: 12.5pt; font-weight: 900; margin-top: 1mm; }
+.contact p { color: #c4dad4; font-size: 9.5pt; }
+</style>
+</head>
+<body>
+
+<!-- 1. الغلاف -->
+<section class="page cover">
+  <div class="glow g1"></div><div class="glow g2"></div><div class="grid"></div>
+  <div class="inner">
+    <div class="brand"><img src="img/icon.png" alt="" /><b>وزن</b></div>
+    <div class="pill">خاص بوكلاء وزن المعتمدين</div>
+    <h1>دليل الوكيل<br /><span>وشروط الوكالة</span></h1>
+    <p class="sub">كل اللي بتحتاجه لتشتغل كوكيل: لوحتك، تفعيل الزباين وتجديدهم، دعمهم، وحقوقك وواجباتك، وشروط الاسترداد وسحب الوكالة.</p>
+    <div class="toc">
+      <div><span>كيف بتشتغل الوكالة</span><span>2</span></div>
+      <div><span>لوحة الوكيل خطوة بخطوة</span><span>3</span></div>
+      <div><span>تنصيب ودعم الزبون</span><span>4</span></div>
+      <div><span>الأسعار والسقف والممنوعات</span><span>5</span></div>
+      <div><span>شروط الوكالة</span><span>6</span></div>
+      <div><span>سياسة الاسترداد</span><span>7</span></div>
+      <div><span>سحب الوكالة وإنهاؤها</span><span>8</span></div>
+      <div><span>الإقرار والتوقيع</span><span>9</span></div>
+    </div>
+    <div class="ver">الإصدار 1 · تشرين الأول 2026 · <span class="ltr">waznsy.com</span></div>
+  </div>
+</section>
+
+<!-- 2. كيف بتشتغل الوكالة -->
+<section class="page">
+  <div class="top"><b><img src="img/icon.png" alt="" />وزن</b><span>دليل الوكيل</span></div>
+  <div class="kick">أهلاً فيك بفريق وزن</div>
+  <h2>كيف بتشتغل الوكالة؟</h2>
+  <p class="lead">إنت بتشتري رخص «وزن» بالجملة بسعر الوكلاء، وبتبيعها لأصحاب المحلات بمدينتك بالسعر اللي بتحدده (تحت السقف). كل شي بيصير من لوحة الوكيل على النت: ما في ملفات ولا مفاتيح طويلة ولا انتظار.</p>
+  <div class="steps">
+    <div class="step"><div class="n">1</div><p><b>بتختار خطة وبتدفع:</b> منضيفلك الرصيد، ومنبعتلك رابط لوحتك واسم المستخدم وكلمة السر عالواتساب.</p></div>
+    <div class="step"><div class="n">2</div><p><b>بتلاقي زبون:</b> بتنزّلّه البرنامج من <span class="ltr">waznsy.com</span> وبتخلّيه يجرّب بالبيانات التجريبية.</p></div>
+    <div class="step"><div class="n">3</div><p><b>بتفعّله من لوحتك:</b> بتنخصم رخصة وحدة من رصيدك، وبيطلعلك كود تفعيل من 16 حرف بتبعتو للزبون.</p></div>
+    <div class="step"><div class="n">4</div><p><b>بتجدّدله كل سنة</b> (للسنوي) من نفس اللوحة، وبتشوف مين قرّب ينتهي اشتراكه.</p></div>
+  </div>
+  <h3 style="margin-top:5mm">رصيدك أربع خانات منفصلة</h3>
+  <p class="lead" style="font-size:9.8pt">كل نوع رخصة إلو رصيده، وما بينخصم نوع من رصيد نوع تاني.</p>
+  <div class="bal">
+    <div><b>سنوي</b><span>كمبيوتر بس، سنة وبتتجدد</span></div>
+    <div><b>دائم</b><span>كمبيوتر بس، مدى الحياة</span></div>
+    <div><b>سنوي + جوال</b><span>كمبيوتر + تطبيق الجوال</span></div>
+    <div><b>دائم + جوال</b><span>كمبيوتر + جوال، مدى الحياة</span></div>
+  </div>
+  <div class="cards">
+    <div class="card"><h3><i class="ic" data-i="key"></i>شو بيستهلك رخصة؟</h3>
+      <ul class="dot"><li>تفعيل زبون جديد (من الرصيد المناسب لنوعه).</li><li>تجديد زبون سنوي لسنة جديدة (من السنوي).</li><li>تحويل زبون سنوي لدائم (من الدائم).</li><li>إنشاء «كود بدون بصمة»: بتنخصم وقت ما ينعمل.</li></ul></div>
+    <div class="card"><h3><i class="ic" data-i="gift"></i>شو ما بيستهلك رخصة؟</h3>
+      <ul class="dot"><li>مفتاح الجوال للزبون «كمبيوتر + جوال»: مجاني ومتجدد مع الكمبيوتر.</li><li>عرض المفتاح أو الكود مرة تانية للزبون.</li><li>إلغاء «كود بدون بصمة» قبل ما ينستعمل: بترجع رخصته لرصيدك.</li></ul></div>
+  </div>
+  <div class="box warn">
+    <h3>كل رخصة على جهازين لنفس المحل</h3>
+    <p>الرخصة مربوطة ببصمة جهاز الزبون، وبتشتغل على جهازين لنفس الشركة. إذا بدّل الزبون جهازه أو عمل فورمات، بتتواصل معنا لننقل الرخصة؛ وما بتنخصم رخصة جديدة إذا كان النقل حقيقي ولنفس المحل.</p>
+  </div>
+  <div class="foot"><span>دليل الوكيل · وزن</span><span>2</span></div>
+</section>
+
+<!-- 3. لوحة الوكيل -->
+<section class="page">
+  <div class="top"><b><img src="img/icon.png" alt="" />وزن</b><span>دليل الوكيل</span></div>
+  <div class="kick">لوحتك على النت</div>
+  <h2>لوحة الوكيل خطوة بخطوة</h2>
+  <p class="lead">بتفتحها من الجوال أو الكمبيوتر على <span class="ltr">wazn-panel.wazn.workers.dev</span> باسم المستخدم وكلمة السر اللي وصلوك.</p>
+  <div class="split">
+    <div>
+      <div class="steps">
+        <div class="step"><div class="n">1</div><p><b>أول دخول:</b> غيّر كلمة السر من زر «كلمة السر» فوق، واختار وحدة قوية ما بتستعملها بمكان تاني.</p></div>
+        <div class="step"><div class="n">2</div><p><b>تفعيل زبون بالبصمة:</b> «تفعيل زبون جديد» ← اسم المحل، موبايله، «بصمة الجهاز» من شاشة التفعيل ببرنامجه، ونوع الرخصة ← «تفعيل وإطلاع المفتاح».</p></div>
+        <div class="step"><div class="n">3</div><p><b>ابعتله الكود:</b> بيطلعلك كود من 16 حرف، اكبس «ابعت واتساب»، والزبون بيكتبه ببرنامجه وبيتفعّل لحالو.</p></div>
+        <div class="step"><div class="n">4</div><p><b>كود بدون بصمة (متل كرت الشحن):</b> «بيع كود» ← بيطلع كود بتبيعه، وأول جهاز بيكتبه بياخد الرخصة. مناسب إذا الزبون مش قدامك.</p></div>
+        <div class="step"><div class="n">5</div><p><b>مفتاح الجوال:</b> لزبون «كمبيوتر + جوال»: «+ مفتاح الجوال» ← بصمة الجوال من تطبيق وزن ← بيطلع مفتاحه ببلاش.</p></div>
+        <div class="step"><div class="n">6</div><p><b>التجديد والتحويل:</b> من بطاقة الزبون: «تجديد سنة» أو «تحويل لدائم». الزباين اللي قرّبوا ينتهو بيطلعلهم الأيام الباقية بالأحمر.</p></div>
+      </div>
+      <div class="shot" style="margin-top:4mm;width:78mm;margin-inline:auto"><img src="img/agent-code.png" alt="" /></div>
+      <div class="cap">الكود جاهز للإرسال</div>
+    </div>
+    <div><div class="mock"><img src="img/agent-panel-top.png" alt="" /></div><div class="cap">لوحة الوكيل</div></div>
+  </div>
+  <div class="box bad">
+    <h3>حسابك أمانة</h3>
+    <p>لا تعطي اسم المستخدم وكلمة السر لحدا، ولا تفوت على لوحتك من جهاز مش إلك. كل تفعيل بينسجّل باسمك، وإنت مسؤول عن أي شي بينعمل من حسابك. إذا حسّيت إنو حدا عرف كلمة السر، غيّرها فوراً وخبّرنا.</p>
+  </div>
+  <div class="foot"><span>دليل الوكيل · وزن</span><span>3</span></div>
+</section>
+
+<!-- 4. تنصيب ودعم الزبون -->
+<section class="page">
+  <div class="top"><b><img src="img/icon.png" alt="" />وزن</b><span>دليل الوكيل</span></div>
+  <div class="kick">مع الزبون</div>
+  <h2>تنصيب البرنامج ودعم الزبون</h2>
+  <div class="two" style="margin-top:3mm">
+    <div class="card"><h3><i class="ic" data-i="laptop"></i>على الكمبيوتر</h3>
+      <div class="steps">
+        <div class="step"><div class="n">1</div><p>نزّل من <span class="ltr">waznsy.com/get.html</span> ملف التنصيب (ويندوز 10 و11، 64-bit).</p></div>
+        <div class="step"><div class="n">2</div><p>إذا طلع «Windows protected your PC»: <b>More info</b> ← <b>Run anyway</b>.</p></div>
+        <div class="step"><div class="n">3</div><p>بأول شاشة بتطلع «بصمة الجهاز»: صوّرها أو انسخها، وفعّل من لوحتك.</p></div>
+        <div class="step"><div class="n">4</div><p>الزبون بيلصق الكود ← بيختار نوع شغله ← بيبلّش.</p></div>
+      </div></div>
+    <div class="card"><h3><i class="ic" data-i="phone"></i>على الجوال (أندرويد 7+)</h3>
+      <div class="steps">
+        <div class="step"><div class="n">1</div><p>نزّل <b>Wazn.apk</b> من نفس الصفحة، واسمح بالتثبيت من المتصفح إذا سأل.</p></div>
+        <div class="step"><div class="n">2</div><p>إذا طلع «التطبيق غير مثبت»: احذف النسخة القديمة أو نزّل الملف من جديد (اتبع نصايح صفحة التحميل).</p></div>
+        <div class="step"><div class="n">3</div><p>افتح التطبيق، خود بصمة الجوال، وفعّل من لوحتك (مفتاح جوال أو رخصة).</p></div>
+        <div class="step"><div class="n">4</div><p>التحديثات بتنزل من جوّا التطبيق لحالها.</p></div>
+      </div></div>
+  </div>
+  <h3 style="margin-top:4.5mm">مين بيدعم شو؟</h3>
+  <div class="two" style="margin-top:2mm">
+    <div class="box tint" style="margin-top:0"><h3>عليك إنت (الوكيل)</h3><ul class="dot"><li>التنصيب والتفعيل والشرح الأساسي، ببلاش دايماً.</li><li>الرد على أسئلة الاستخدام اليومية لزباينك.</li><li>توجيه الزبون لفيديوهات الشرح المجانية بالموقع.</li><li>متابعة التجديد قبل الانتهاء.</li></ul></div>
+    <div class="box tint" style="margin-top:0"><h3>علينا نحنا (وزن)</h3><ul class="dot"><li>أي عطل بالبرنامج نفسه، والتحديثات.</li><li>نقل الرخصة لجهاز جديد.</li><li>مشاكل التفعيل اللي ما انحلّت من اللوحة.</li><li>دعم زباينك مباشرة إذا انسحبت الوكالة.</li></ul></div>
+  </div>
+  <h3 style="margin-top:4.5mm">مشاكل شائعة وحلّها</h3>
+  <table class="faq">
+    <tr><td>«الكود غير صالح»</td><td>تأكد إنو الكود انكتب كامل (16 حرف بدون 0 ولا O ولا 1 ولا I)، وإنو البصمة اللي فعّلت فيها هي بصمة هالجهاز نفسه.</td></tr>
+    <tr><td>البرنامج وقف وطلب تفعيل</td><td>غالباً الاشتراك السنوي خلص (جدّد من اللوحة)، أو الجهاز ما اتصل بالنت أكتر من أسبوع (خلّيه يتصل دقيقة).</td></tr>
+    <tr><td>الزبون غيّر الكمبيوتر أو عمل فورمات</td><td>يرجّع النسخة الاحتياطية على الجهاز الجديد، وبتبعتلنا البصمة الجديدة لننقل الرخصة.</td></tr>
+    <tr><td>نسي كلمة سر البرنامج</td><td>برمز الاسترداد اللي طلع وقت إنشاء الشركة. بدونه نحنا ما منقدر نفتح بياناته لأنها مشفّرة.</td></tr>
+    <tr><td>بدو يشتغل من البيت</td><td>«الاتصال عن بعد» خدمة إضافية بتنفعّل من عندنا، تواصل معنا.</td></tr>
+  </table>
+  <div class="foot"><span>دليل الوكيل · وزن</span><span>4</span></div>
+</section>
+
+<!-- 5. الأسعار والسقف والممنوعات -->
+<section class="page">
+  <div class="top"><b><img src="img/icon.png" alt="" />وزن</b><span>دليل الوكيل</span></div>
+  <div class="kick">قواعد البيع</div>
+  <h2>الأسعار والسقف والممنوعات</h2>
+  <p class="lead">إنت حر تحدد سعرك وتربح، بس تحت سقف واضح بيحمي سمعة البرنامج وبيحميك من منافسة غير عادلة.</p>
+  <h3 style="margin-top:4mm">الحد الأعلى للسعر على الزبون</h3>
+  <div class="caps">
+    <div class="hi"><b class="ltr">60$</b><span>الرخصة السنوية (مع الجوال أو بدونه)</span></div>
+    <div class="hi"><b class="ltr">120$</b><span>الرخصة الدائمة (مع الجوال أو بدونه)</span></div>
+    <div><b class="ltr">15$</b><span>تدريب أونلاين، للساعة</span></div>
+    <div><b class="ltr">25$</b><span>دورة بالمحل، ساعة ونص</span></div>
+    <div><b class="ltr">10$</b><span>إدخال المواد، لكل 250 مادة</span></div>
+  </div>
+  <p style="font-size:9pt;color:var(--muted);margin-top:2mm">أو ما يعادلها بالليرة السورية بسعر السوق يوم البيع. الخدمات اختيارية بالكامل، والفيديوهات والتنصيب والتفعيل والشرح الأساسي <b>مجانية دايماً</b>.</p>
+  <div class="two" style="margin-top:4mm">
+    <div class="box" style="margin-top:0"><h3 style="color:var(--g)">مسموح</h3><ul class="dot">
+      <li>تحدد سعرك بحرية تحت السقف، وتعمل عروض وخصومات.</li>
+      <li>تبيع خدمات تدريب وإدخال مواد بحدود السقف، إذا الزبون طلبها.</li>
+      <li>تعمل إعلاناتك الخاصة باسم «وكيل وزن المعتمد بمدينة كذا».</li>
+      <li>تستعمل صور وفيديوهات البرنامج الرسمية من الموقع بالترويج.</li>
+    </ul></div>
+    <div class="box bad" style="margin-top:0"><h3 style="color:var(--bad)">ممنوع</h3><ul class="dot x">
+      <li>البيع بأعلى من السقف، أو إضافة «رسوم» تخلّي المجموع فوق السقف.</li>
+      <li>إجبار الزبون على خدمة مدفوعة لحتى تبيعه أو تفعّله أو تجدّدله.</li>
+      <li>بيع مدد غير السنوي والدائم (شهري، 3 و6 أشهر بتنباع من وزن مباشرة).</li>
+      <li>وعود بميزات مش موجودة، أو تقديم حالك كموظف أو ممثل رسمي لوزن.</li>
+      <li>نسخ المفاتيح أو مشاركتها، أو محاولة كسر الترخيص أو التلاعب بالبصمة.</li>
+      <li>تسجيل زبون ببيانات وهمية، أو بيع رخصة وحدة لأكتر من محل.</li>
+    </ul></div>
+  </div>
+  <div class="box warn">
+    <h3>الإبلاغ مفتوح لأي زبون</h3>
+    <p>أي زبون بيقدر يبلّغنا عن سعر مخالف أو تصرّف سيء. منتحقق من كل بلاغ، والمخالفة الثابتة بتنطبّق عليها شروط سحب الوكالة (صفحة 8).</p>
+  </div>
+  <div class="foot"><span>دليل الوكيل · وزن</span><span>5</span></div>
+</section>
+
+<!-- 6. شروط الوكالة -->
+<section class="page">
+  <div class="top"><b><img src="img/icon.png" alt="" />وزن</b><span>دليل الوكيل</span></div>
+  <div class="kick">البنود الملزمة</div>
+  <h2>شروط الوكالة</h2>
+  <p class="lead" style="font-size:9.8pt">تُكمّل هذه الشروط شروط استخدام وزن المنشورة على <span class="ltr">waznsy.com/terms.html</span>، وعند التعارض تُطبّق الأشد على الوكيل.</p>
+  <ol class="cl">
+    <li data-n="1."><span><b>صفة الوكيل:</b> الوكيل جهة مستقلة، وليس موظفاً لدى وزن ولا شريكاً ولا ممثلاً قانونياً عنها، ولا يحق له التعاقد أو التعهد أو تحصيل أي مبلغ باسم وزن.</span></li>
+    <li data-n="2."><span><b>الرصيد:</b> يشتري الوكيل الرخص على شكل باقات مدفوعة مسبقاً بسعر الوكلاء، ولا يُضاف أي رصيد قبل استلام كامل المبلغ. وتُخصم رخصة من الرصيد المناسب عند كل تفعيل أو تجديد سنوي أو تحويل لدائم أو إنشاء كود بدون بصمة.</span></li>
+    <li data-n="3."><span><b>صلاحية الرصيد:</b> يبقى الرصيد صالحاً للاستخدام ما دام حساب الوكيل فعّالاً، ولا يُحوَّل إلى نقد، ولا يُنقل لشخص آخر إلا بموافقة خطية من وزن.</span></li>
+    <li data-n="4."><span><b>الأسعار:</b> يحق لوزن تعديل أسعار الباقات للوكلاء في أي وقت، ويُطبّق السعر الجديد على الباقات التي تُشترى بعد التعديل فقط، دون أن يؤثر على الرصيد القائم.</span></li>
+    <li data-n="5."><span><b>سقف البيع:</b> يلتزم الوكيل بالحد الأعلى لسعر البيع وأسعار الخدمات المذكورة في هذا الدليل وفي شروط الاستخدام، ويُعدّ أي مبلغ يُطلب من العميل مقابل البرنامج أو تفعيله أو تجديده جزءاً من سعر البيع.</span></li>
+    <li data-n="6."><span><b>صحة البيانات:</b> يلتزم الوكيل بإدخال اسم العميل الحقيقي وبصمة جهازه الصحيحة، ويتحمّل وحده نتيجة أي خطأ في البيانات التي يُدخلها، ولا تُعاد الرخصة المستخدمة بسبب خطأ منه.</span></li>
+    <li data-n="7."><span><b>حماية الحساب:</b> الوكيل مسؤول عن سرية بيانات دخوله وعن كل عملية تتم من حسابه، ولا تتحمل وزن أي خسارة ناتجة عن مشاركة كلمة السر أو إهمال حمايتها.</span></li>
+    <li data-n="8."><span><b>العلاقة مع العميل:</b> العقد على سعر البيع والخدمات قائم بين الوكيل وعميله، ويتحمّل الوكيل وحده أي خلاف مالي معه. وتلتزم وزن تجاه العميل بتشغيل الرخصة وفق شروط الاستخدام فقط.</span></li>
+    <li data-n="9."><span><b>تقديم البرنامج:</b> يلتزم الوكيل بتقديم البرنامج بصدق، وبإبلاغ العميل بشروط الاستخدام، وبعدم الوعد بميزات أو خدمات غير موجودة.</span></li>
+    <li data-n="10."><span><b>العلامة التجارية:</b> يحق للوكيل استخدام اسم «وزن» وشعاره بصفة «وكيل معتمد» فقط، ولا يحق له تسجيل نطاقات أو صفحات أو حسابات توحي بأنها رسمية لوزن، أو تعديل البرنامج أو إعادة تسميته.</span></li>
+    <li data-n="11."><span><b>البرنامج والتحديثات:</b> يحق لوزن تطوير البرنامج وتعديل ميزاته وطريقة تفعيله في أي وقت، ولا يُعدّ ذلك سبباً لأي مطالبة أو استرداد.</span></li>
+    <li data-n="12."><span><b>تعديل الشروط:</b> يحق لوزن تعديل هذه الشروط، ويُبلَّغ الوكيل بالتعديل عبر الواتساب أو اللوحة، ويُعدّ استمراره في استخدام اللوحة أو شراء باقات بعد التبليغ موافقة عليه.</span></li>
+    <li data-n="13."><span><b>القانون:</b> تخضع هذه الشروط لقوانين الجمهورية العربية السورية، ويُحاول الطرفان حل أي خلاف ودياً قبل اللجوء إلى المحاكم المختصة.</span></li>
+  </ol>
+  <div class="foot"><span>دليل الوكيل · وزن</span><span>6</span></div>
+</section>
+
+<!-- 7. الاسترداد -->
+<section class="page">
+  <div class="top"><b><img src="img/icon.png" alt="" />وزن</b><span>دليل الوكيل</span></div>
+  <div class="kick">اقرأها منيح قبل ما تدفع</div>
+  <h2>سياسة الاسترداد <span class="stamp">لا استرداد كقاعدة عامة</span></h2>
+  <div class="box bad" style="margin-top:2mm">
+    <h3>القاعدة: كل مبلغ مدفوع للباقات نهائي وغير قابل للاسترداد</h3>
+    <p>بمجرد إضافة الرصيد إلى حساب الوكيل، يُعدّ المبلغ المدفوع نهائياً، ولا يُسترد كلياً ولا جزئياً، نقداً أو تحويلاً، تحت أي ظرف غير الحالتين الاستثنائيتين المذكورتين أدناه حصراً. ولهذا ننصح كل وكيل بالبدء بأصغر خطة («انطلاقة») قبل شراء الخطط الأكبر.</p>
+  </div>
+  <h3 style="margin-top:4mm">لا تُعدّ من أسباب الاسترداد (على سبيل المثال لا الحصر):</h3>
+  <ul class="dot x" style="grid-template-columns:1fr 1fr;display:grid;column-gap:5mm">
+    <li>عدم بيع الرخص أو ضعف الطلب أو تغيّر السوق.</li>
+    <li>تغيّر رأي الوكيل أو ظروفه الشخصية أو سفره.</li>
+    <li>تغيّر سعر الصرف أو أسعار الباقات لاحقاً.</li>
+    <li>خلاف بين الوكيل وأحد عملائه، أو استرداد العميل منه.</li>
+    <li>إنهاء الوكالة بطلب الوكيل نفسه.</li>
+    <li>سحب الوكالة أو إيقافها بسبب مخالفة.</li>
+    <li>أعطال أجهزة أو إنترنت لدى الوكيل أو عملائه.</li>
+    <li>تحديثات البرنامج أو تغيير ميزاته أو شكله.</li>
+    <li>خطأ الوكيل في نوع الرخصة أو البصمة أو اسم العميل.</li>
+    <li>الأكواد بدون بصمة التي أُنشئت ولم تُبع بعد.</li>
+  </ul>
+  <h3 style="margin-top:4mm">الحالتان الاستثنائيتان الوحيدتان</h3>
+  <ol class="cl">
+    <li data-n="أ."><span><b>دفع مكرر أو زائد بخطأ واضح:</b> إذا دفع الوكيل المبلغ نفسه مرتين، أو دفع أكثر من سعر الخطة، يُسترد الفرق الزائد فقط، بشرط إثباته بإيصال الدفع والإبلاغ عنه كتابياً خلال <b>7 أيام</b> من الدفع، وقبل استخدام الرصيد الزائد.</span></li>
+    <li data-n="ب."><span><b>توقف الخدمة كلياً من جهة وزن:</b> إذا تعذّر على الوكيل تفعيل أي رخصة جديدة بسبب عطل من جهة وزن حصراً، واستمر ذلك أكثر من <b>30 يوماً متتالية</b> بعد إبلاغه الخطي لنا دون حل أو بديل، يحق له طلب استرداد قيمة الرصيد <b>غير المستخدم فقط</b>.</span></li>
+  </ol>
+  <h3 style="margin-top:3.5mm">شروط تطبيق الاستثناء</h3>
+  <ol class="cl">
+    <li data-n="1."><span>يُقدَّم الطلب كتابياً من رقم الوكيل المسجّل، مع إيصال الدفع وسبب الطلب، خلال المدد المذكورة، وإلا سقط الحق فيه.</span></li>
+    <li data-n="2."><span>تُحسب القيمة على أساس سعر الرخصة الواحدة في الباقة نفسها التي دُفعت (المبلغ ÷ عدد الرخص)، وتُعدّ كل رخصة مستخدمة أو مجدّدة أو محوّلة، وكل كود أُنشئ ولم يُلغَ، رخصة مستهلكة.</span></li>
+    <li data-n="3."><span>تُخصم من المبلغ أي رسوم تحويل أو صرف، ويُعاد بنفس طريقة الدفع والعملة التي دُفع بها، خلال 30 يوم عمل من الموافقة.</span></li>
+    <li data-n="4."><span>يحق لوزن بدلاً من الاسترداد النقدي تعويض الوكيل برصيد إضافي أو تمديد مكافئ، ويكون قرار وزن بعد المراجعة نهائياً.</span></li>
+    <li data-n="5."><span>لا يُسترد أي مبلغ لوكيل سُحبت وكالته أو أُوقف حسابه بسبب مخالفة، ولو كان طلبه ضمن الحالتين السابقتين.</span></li>
+  </ol>
+  <div class="foot"><span>دليل الوكيل · وزن</span><span>7</span></div>
+</section>
+
+<!-- 8. السحب والإنهاء -->
+<section class="page">
+  <div class="top"><b><img src="img/icon.png" alt="" />وزن</b><span>دليل الوكيل</span></div>
+  <div class="kick">لحماية الزباين والسوق</div>
+  <h2>سحب الوكالة وإنهاؤها</h2>
+  <h3 style="margin-top:3mm">مخالفات بتسحب الوكالة فوراً ونهائياً <span class="stamp">بدون إنذار</span></h3>
+  <ol class="cl">
+    <li data-n="1."><span>البيع بأعلى من السقف المحدد، بأي شكل كان (رسوم، خدمات إجبارية، فرق عملة).</span></li>
+    <li data-n="2."><span>نسخ المفاتيح أو مشاركتها، أو محاولة كسر الترخيص أو التحايل على البصمة، أو بيع رخصة واحدة لأكثر من محل.</span></li>
+    <li data-n="3."><span>تسجيل عملاء أو بصمات وهمية، أو التلاعب بالرصيد أو باللوحة أو محاولة اختراقها.</span></li>
+    <li data-n="4."><span>انتحال صفة موظف أو ممثل رسمي لوزن، أو إنشاء صفحات أو حسابات توحي بأنها رسمية.</span></li>
+    <li data-n="5."><span>الاحتيال على العملاء أو أخذ مبالغ منهم دون تفعيلهم.</span></li>
+  </ol>
+  <h3 style="margin-top:3.5mm">مخالفات بإنذار أولاً</h3>
+  <ol class="cl">
+    <li data-n="1."><span>جعل خدمة مدفوعة شرطاً للبيع أو التفعيل أو التجديد، أو تجاوز سقف أسعار الخدمات.</span></li>
+    <li data-n="2."><span>الوعد بميزات غير موجودة، أو الإساءة لسمعة البرنامج أو للوكلاء الآخرين.</span></li>
+    <li data-n="3."><span>إهمال دعم العملاء أو عدم التعاون في حل شكاوى ثابتة.</span></li>
+    <li data-n="4."><span>مشاركة بيانات دخول اللوحة مع أي شخص.</span></li>
+  </ol>
+  <p class="legal" style="margin-top:1.5mm">الإنذار الأول كتابي عبر الواتساب. وتكرار المخالفة نفسها، أو مخالفة ثانية من أي نوع خلال 12 شهراً، يؤدي إلى سحب الوكالة.</p>
+  <div class="box bad">
+    <h3>نتائج سحب الوكالة</h3>
+    <ul class="dot x"><li>يُوقف حساب الوكيل ويُطرد من اللوحة فوراً.</li><li>يسقط حقه في <b>كامل الرصيد المتبقي</b> دون أي تعويض أو استرداد.</li><li>لا يحق له التقدّم لوكالة جديدة باسمه أو باسم غيره.</li><li>تبقى رخص عملائه سارية حتى نهاية مدتها، وينتقل دعمهم وتجديدهم إلى وزن مباشرة أو لوكيل آخر.</li><li>يحق لوزن إبلاغ عملائه بانتهاء الوكالة والمطالبة بأي ضرر لحق بها.</li></ul>
+  </div>
+  <div class="two">
+    <div class="box tint"><h3>إنهاء الوكالة بطلب الوكيل</h3><p>يحق للوكيل إنهاء الوكالة بإبلاغ كتابي. يبقى حسابه فعّالاً <b>30 يوماً</b> ليستخدم رصيده ويسلّم عملاءه، ثم يُغلق ويسقط الرصيد المتبقي. ويجوز بموافقة وزن نقل الرصيد غير المستخدم لوكيل معتمد آخر.</p></div>
+    <div class="box tint"><h3>عدم النشاط</h3><p>إذا لم يُفعّل الوكيل أي رخصة خلال <b>12 شهراً</b>، يحق لوزن تجميد حسابه بعد إبلاغه. ويُعاد تفعيله عند طلبه خلال 6 أشهر، وبعدها يُعدّ منتهياً ويسقط الرصيد المتبقي.</p></div>
+  </div>
+  <div class="foot"><span>دليل الوكيل · وزن</span><span>8</span></div>
+</section>
+
+<!-- 9. الإقرار -->
+<section class="page">
+  <div class="top"><b><img src="img/icon.png" alt="" />وزن</b><span>دليل الوكيل</span></div>
+  <div class="kick">الخطوة الأخيرة</div>
+  <h2>إقرار وموافقة الوكيل</h2>
+  <p class="legal" style="margin-top:3mm">أقرّ أنا الموقّع أدناه بأنني قرأت «دليل الوكيل وشروط الوكالة» هذا بكامل صفحاته، وشروط استخدام وزن المنشورة على <span class="ltr">waznsy.com/terms.html</span>، وفهمتها ووافقت عليها، وألتزم بما يلي:</p>
+  <ol class="cl">
+    <li data-n="1."><span>الالتزام بالحد الأعلى لسعر البيع وأسعار الخدمات، وعدم جعل أي خدمة شرطاً للبيع.</span></li>
+    <li data-n="2."><span>أن كل مبلغ أدفعه مقابل الباقات <b>نهائي وغير قابل للاسترداد</b> إلا في الحالتين الاستثنائيتين المحددتين في سياسة الاسترداد وبشروطها.</span></li>
+    <li data-n="3."><span>أن مخالفة الشروط قد تؤدي إلى سحب الوكالة وسقوط حقي في كامل الرصيد المتبقي دون تعويض.</span></li>
+    <li data-n="4."><span>حماية بيانات دخول لوحتي، وتحمّل مسؤولية كل عملية تتم من حسابي.</span></li>
+    <li data-n="5."><span>تقديم البرنامج للعملاء بصدق، وإدخال بياناتهم الصحيحة، ودعمهم في التنصيب والاستخدام الأساسي مجاناً.</span></li>
+  </ol>
+  <div class="sign">
+    <div>اسم الوكيل الثلاثي:</div>
+    <div>اسم المحل / النشاط:</div>
+    <div>المدينة والعنوان:</div>
+    <div>رقم الموبايل (واتساب):</div>
+    <div>الخطة الأولى والمبلغ المدفوع:</div>
+    <div>التاريخ:</div>
+    <div>توقيع الوكيل:</div>
+    <div>عن وزن (الاسم والتوقيع):</div>
+  </div>
+  <p style="font-size:9pt;color:var(--muted);margin-top:5mm">يُوقّع نسختان: نسخة للوكيل ونسخة لوزن. وتُعدّ الموافقة عبر الواتساب على هذا الدليل، أو استخدام اللوحة بعد استلامه، موافقة ملزمة حتى بدون توقيع ورقي.</p>
+  <div class="contact">
+    <div><h3>للتواصل مع إدارة الوكلاء</h3><div class="ph"><span class="ltr">+963 968 037 609</span><span class="ltr">+963 980 072 891</span></div><p><span class="ltr">info@waznsy.com</span> · <span class="ltr">waznsy.com/agents.html</span></p></div>
+  </div>
+  <div class="foot" style="bottom:0"><span>دليل الوكيل · وزن</span><span>9</span></div>
+</section>
+
+<script>
+const I = {
+  key: '<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/>',
+  gift: '<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/>',
+  laptop: '<path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16"/>',
+  phone: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
+};
+for (const el of document.querySelectorAll('[data-i]')) el.innerHTML = `<svg class="i" viewBox="0 0 24 24">${I[el.dataset.i] ?? ''}</svg>`;
+</script>
+</body>
+</html>
