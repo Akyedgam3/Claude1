@@ -1,6 +1,6 @@
 {
   "name": "mizan",
-  "version": "1.2.27",
+  "version": "1.2.28",
   "private": true,
   "description": "وزن - نظام محاسبة لسطح المكتب يعمل بدون إنترنت",
   "type": "module",
