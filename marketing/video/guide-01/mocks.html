@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="ar">
+<head>
+<meta charset="utf-8" />
+<!-- شاشات ويندوز (المتصفح، تحذير SmartScreen، ملف التنصيب) للقطات فيديو الشرح الأول. كل شاشة 1600×1000، والشاشة بتنختار بـ #اسمها -->
+<style>
+@font-face { font-family: Cairo; font-weight: 400; src: url(fonts/cairo-arabic-400-normal.woff2), url(fonts/cairo-latin-400-normal.woff2); }
+@font-face { font-family: Cairo; font-weight: 700; src: url(fonts/cairo-arabic-700-normal.woff2), url(fonts/cairo-latin-700-normal.woff2); }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1600px; height: 1000px; overflow: hidden; font-family: 'Segoe UI', Cairo, sans-serif; }
+.scr { position: absolute; inset: 0; display: none; }
+.desk { background: radial-gradient(ellipse at 30% 20%, #1d6f8f 0%, #0d3b57 45%, #071d2e 100%); }
+.taskbar { position: absolute; left: 0; right: 0; bottom: 0; height: 48px; background: rgba(20, 28, 38, 0.92); display: flex; align-items: center; justify-content: center; gap: 10px; }
+.taskbar i { width: 34px; height: 34px; border-radius: 7px; background: rgba(255, 255, 255, 0.14); display: block; }
+.taskbar i.app { background: url(logo.png) center / 28px no-repeat, rgba(255, 255, 255, 0.22); }
+
+/* المتصفح */
+.browser { position: absolute; inset: 0 0 48px 0; background: #fff; display: flex; flex-direction: column; }
+.bbar { height: 46px; background: #dee1e6; display: flex; align-items: flex-end; padding: 0 10px; gap: 6px; }
+.tab { height: 36px; width: 260px; background: #fff; border-radius: 9px 9px 0 0; display: flex; align-items: center; gap: 8px; padding: 0 12px; font-size: 14px; color: #222; }
+.tab img { width: 18px; height: 18px; border-radius: 4px; }
+.addr { height: 46px; background: #fff; display: flex; align-items: center; gap: 12px; padding: 0 14px; border-bottom: 1px solid #ddd; }
+.addr .nav { color: #666; font-size: 20px; width: 70px; letter-spacing: 8px; }
+.url { flex: 1; height: 32px; border-radius: 16px; background: #f1f3f4; display: flex; align-items: center; padding: 0 16px; font-size: 16px; color: #202124; }
+.url b { color: #188038; margin-right: 8px; font-weight: 400; }
+.dlbtn { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; color: #1a73e8; font-size: 20px; }
+.page { flex: 1; position: relative; overflow: hidden; }
+.page iframe { width: 1600px; height: 860px; border: 0; display: block; }
+.dlpanel { position: absolute; right: 18px; top: 92px; width: 420px; background: #fff; border-radius: 10px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3); padding: 14px; direction: ltr; z-index: 5; }
+.dlpanel h4 { font-size: 15px; font-weight: 600; color: #202124; margin-bottom: 10px; }
+.dlrow { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 8px; background: #e8f0fe; }
+.dlrow .fi { width: 40px; height: 40px; border-radius: 8px; background: url(logo.png) center / 32px no-repeat #0f6e5c; }
+.dlrow b { display: block; font-size: 15px; color: #202124; }
+.dlrow small { font-size: 13px; color: #5f6368; }
+.dlrow a { margin-left: auto; color: #1a73e8; font-size: 14px; font-weight: 600; text-decoration: none; }
+
+/* SmartScreen */
+.ss { position: absolute; left: 50%; top: 50%; width: 760px; height: 560px; margin: -300px 0 0 -380px; background: #0f5aa8; color: #fff; padding: 44px 52px; direction: ltr; box-shadow: 0 20px 70px rgba(0, 0, 0, 0.6); }
+.ss .x { position: absolute; right: 18px; top: 10px; font-size: 22px; opacity: 0.8; }
+.ss h1 { font-size: 38px; font-weight: 300; margin-bottom: 26px; font-family: 'Segoe UI Light', 'Segoe UI', Arial, sans-serif; }
+.ss p { font-size: 17px; line-height: 1.6; max-width: 620px; }
+.ss .more { display: inline-block; margin-top: 18px; font-size: 17px; text-decoration: underline; color: #fff; }
+.ss .meta { margin-top: 26px; font-size: 17px; line-height: 2; }
+.ss .meta span { display: inline-block; width: 110px; opacity: 0.85; }
+.ss .btns { position: absolute; right: 52px; bottom: 40px; display: flex; gap: 12px; }
+.ss .btn { min-width: 140px; padding: 9px 24px; border: 2px solid #fff; font-size: 17px; text-align: center; background: transparent; color: #fff; }
+.ss .btn.run { background: transparent; }
+
+/* ملف التنصيب (NSIS) */
+.inst { position: absolute; left: 50%; top: 50%; width: 760px; height: 560px; margin: -300px 0 0 -380px; background: #f0f0f0; box-shadow: 0 20px 70px rgba(0, 0, 0, 0.6); border: 1px solid #7a7a7a; font-family: Cairo, 'Segoe UI', sans-serif; }
+.inst .tt { height: 36px; background: #fff; display: flex; align-items: center; gap: 10px; padding: 0 12px; font-size: 14px; color: #222; direction: ltr; border-bottom: 1px solid #ddd; }
+.inst .tt img { width: 18px; height: 18px; }
+.inst .tt .xx { margin-left: auto; letter-spacing: 18px; color: #555; }
+.inst .body { position: absolute; top: 36px; left: 0; right: 0; bottom: 64px; background: #fff; direction: rtl; }
+.inst .side { position: absolute; right: 0; top: 0; bottom: 0; width: 246px; background: url(side.bmp) center / cover no-repeat; }
+.inst .wtxt { position: absolute; right: 270px; left: 26px; top: 26px; }
+.inst .wtxt h2 { font-size: 24px; font-weight: 700; margin-bottom: 14px; color: #111; }
+.inst .wtxt p { font-size: 15px; line-height: 1.75; color: #222; white-space: pre-line; }
+.inst .hdr { height: 86px; background: #fff; border-bottom: 1px solid #ccc; display: flex; align-items: center; padding: 0 22px; gap: 16px; }
+.inst .hdr .hi { width: 160px; height: 62px; background: url(head.bmp) center / contain no-repeat; margin-right: auto; }
+.inst .hdr h3 { font-size: 17px; font-weight: 700; color: #111; }
+.inst .hdr small { display: block; font-size: 13px; color: #444; font-weight: 400; }
+.inst .content { padding: 18px 26px; font-size: 14px; color: #222; }
+.inst .lic { height: 250px; overflow: hidden; border: 1px solid #aaa; background: #fff; padding: 10px 14px; font-size: 13.5px; line-height: 1.7; white-space: pre-line; margin-top: 8px; }
+.inst .field { margin-top: 14px; display: flex; gap: 8px; direction: ltr; }
+.inst .field input { flex: 1; height: 30px; border: 1px solid #999; padding: 0 8px; font-size: 14px; }
+.inst .field button { width: 110px; height: 30px; border: 1px solid #adadad; background: #e1e1e1; font-size: 14px; }
+.inst .bar { margin-top: 26px; height: 24px; border: 1px solid #bcbcbc; background: #e6e6e6; }
+.inst .bar i { display: block; height: 100%; width: 68%; background: #06b025; }
+.inst .log { margin-top: 18px; height: 150px; border: 1px solid #aaa; padding: 8px 10px; font-size: 12.5px; line-height: 1.6; direction: ltr; text-align: left; color: #333; font-family: Consolas, monospace; overflow: hidden; }
+.inst .run { margin-top: 22px; display: flex; align-items: center; gap: 10px; font-size: 15px; }
+.inst .run i { width: 18px; height: 18px; border: 1px solid #333; display: grid; place-items: center; font-style: normal; font-size: 13px; background: #fff; }
+.inst .foot { position: absolute; left: 0; right: 0; bottom: 0; height: 64px; border-top: 1px solid #ccc; display: flex; align-items: center; gap: 10px; padding: 0 18px; direction: rtl; }
+.inst .foot .brand { margin-left: auto; font-size: 12px; color: #888; }
+.inst .b { min-width: 104px; height: 32px; border: 1px solid #adadad; background: #e1e1e1; font-size: 14px; font-family: Cairo, sans-serif; display: grid; place-items: center; }
+.inst .b.def { border: 2px solid #0078d7; }
+.inst .b.dis { color: #999; }
+</style>
+</head>
+<body>
+<div class="scr" id="site">
+  <div class="browser">
+    <div class="bbar"><div class="tab"><img src="logo.png" alt="" />وزن — تحميل البرنامج</div></div>
+    <div class="addr"><span class="nav">← → ⟳</span><div class="url"><b>🔒</b>waznsy.com/get.html</div><span class="dlbtn" id="dlicon">⤓</span></div>
+    <div class="page"><iframe id="frame" src="about:blank"></iframe></div>
+    <div class="dlpanel" id="dlpanel" style="display:none">
+      <h4>Recent download history</h4>
+      <div class="dlrow" id="dlrow"><span class="fi"></span><span><b>Wazn-Setup.exe</b><small>96.0 MB • Done</small></span><a id="openfile">Open file</a></div>
+    </div>
+  </div>
+  <div class="taskbar"><i></i><i></i><i class="app"></i><i></i></div>
+</div>
+
+<div class="scr desk" id="smart">
+  <div class="ss" id="ss">
+    <span class="x">✕</span>
+    <h1>Windows protected your PC</h1>
+    <p>Microsoft Defender SmartScreen prevented an unrecognized app from starting. Running this app might put your PC at risk.</p>
+    <a class="more" id="more">More info</a>
+    <div class="meta" id="meta" style="display:none"><div><span>App:</span>Wazn-Setup.exe</div><div><span>Publisher:</span>Unknown publisher</div></div>
+    <div class="btns"><span class="btn run" id="run" style="display:none">Run anyway</span><span class="btn">Don't run</span></div>
+  </div>
+  <div class="taskbar"><i></i><i></i><i class="app"></i><i></i></div>
+</div>
+
+<div class="scr desk" id="inst">
+  <div class="inst" id="instwin">
+    <div class="tt"><img src="logo.png" alt="" />Wazn Setup<span class="xx">— ☐ ✕</span></div>
+    <div class="body" id="pg-welcome">
+      <div class="side"></div>
+      <div class="wtxt"><h2>أهلاً بك في وزن</h2><p>برنامج المحاسبة وإدارة المحلات اللي بيشتغل بدون إنترنت.
+
+•  أكتر من 14 مجال عمل: ميني ماركت، مطاعم، خياطة، موبايلات وكمبيوتر، صيدليات...
+•  بيع وفواتير ومخزون وحسابات بمكان واحد
+•  ليرة ودولار، وطباعة حرارية و A4
+•  بياناتك مشفّرة وبتضل على جهازك
+
+اكبس «التالي» لنكمّل.</p></div>
+    </div>
+    <div class="body" id="pg-license" style="display:none">
+      <div class="hdr"><div><h3>اتفاقية الترخيص<small>اقرأ شروط الاستخدام قبل تنصيب وزن.</small></h3></div><span class="hi"></span></div>
+      <div class="content">اكبس «موافق» إذا قبلت الشروط، لازم توافق لتنصّب وزن.<div class="lic" id="lic">{{LICENSE}}</div></div>
+    </div>
+    <div class="body" id="pg-dir" style="display:none">
+      <div class="hdr"><div><h3>اختيار مكان التنصيب<small>اختار المجلد اللي بدك تنصّب وزن فيه.</small></h3></div><span class="hi"></span></div>
+      <div class="content">رح ينتصب وزن بالمجلد التالي. لتغيير المجلد اكبس «استعراض».<div class="field"><input value="C:\Users\User\AppData\Local\Programs\Wazn" readonly /><button>استعراض...</button></div><p style="margin-top:22px">المساحة المطلوبة: 310 MB</p></div>
+    </div>
+    <div class="body" id="pg-progress" style="display:none">
+      <div class="hdr"><div><h3>عم ننصّب وزن...<small>فكرة: وقت إنشاء شركتك اختار «بيانات تجريبية» لتشوف البرنامج شغّال من أول دقيقة.</small></h3></div><span class="hi"></span></div>
+      <div class="content">Extract: Wazn.exe<div class="bar"><i></i></div><div class="log">Output folder: C:\Users\User\AppData\Local\Programs\Wazn
+Extract: Wazn.exe... 100%
+Extract: resources.pak... 100%
+Extract: app.asar... 68%</div></div>
+    </div>
+    <div class="body" id="pg-finish" style="display:none">
+      <div class="side"></div>
+      <div class="wtxt"><h2>وزن جاهز!</h2><p>خلص التنصيب بنجاح.
+
+الخطوة الجاية:
+1.  أول ما يفتح البرنامج بيطلعلك «بصمة الجهاز».
+2.  ابعتها للبائع أو للوكيل تبعك.
+3.  الصق كود التفعيل اللي بيوصلك، واختار نوع شغلك.</p><div class="run" id="runnow"><i>✓</i>شغّل وزن الآن</div></div>
+    </div>
+    <div class="foot">
+      <span class="b" id="btn-cancel">إلغاء</span>
+      <span class="b def" id="btn-main">التالي &lt;</span>
+      <span class="b" id="btn-back">&gt; رجوع</span>
+      <span class="brand">Wazn 1.2.26</span>
+    </div>
+  </div>
+  <div class="taskbar"><i></i><i></i><i class="app"></i><i></i></div>
+</div>
+
+<script>
+// الحالة من الرابط: #screen:page
+window.show = (screen, page) => {
+  document.querySelectorAll('.scr').forEach((s) => (s.style.display = s.id === screen ? 'block' : 'none'));
+  if (screen === 'site') document.getElementById('dlpanel').style.display = page === 'dl' ? 'block' : 'none';
+  if (screen === 'smart') {
+    const on = page === 'more';
+    document.getElementById('meta').style.display = on ? 'block' : 'none';
+    document.getElementById('more').style.display = on ? 'none' : 'inline-block';
+    document.getElementById('run').style.display = on ? 'inline-block' : 'none';
+  }
+  if (screen === 'inst') {
+    for (const p of ['welcome', 'license', 'dir', 'progress', 'finish']) document.getElementById('pg-' + p).style.display = p === page ? 'block' : 'none';
+    const main = document.getElementById('btn-main'), back = document.getElementById('btn-back'), cancel = document.getElementById('btn-cancel');
+    main.className = 'b def'; back.className = 'b'; cancel.className = 'b';
+    main.textContent = { welcome: 'التالي <', license: 'موافق', dir: 'تنصيب', progress: 'التالي <', finish: 'إنهاء' }[page];
+    if (page === 'progress') { main.className = 'b dis'; back.className = 'b dis'; }
+    if (page === 'welcome' || page === 'finish') back.className = 'b dis';
+    if (page === 'finish') cancel.className = 'b dis';
+  }
+};
+</script>
+</body>
+</html>
