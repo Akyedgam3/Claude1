@@ -12,7 +12,7 @@ export function StockOps({ tab: initial }: { tab?: string }) {
   const [tab, setTab] = useState<Tab>((initial as Tab) ?? (can('stock.adjust') ? 'count' : 'transfer'));
   return (
     <div className="page">
-      <PageHeader title="عمليات المخزون" />
+      <PageHeader title="الجرد وعمليات المخزون" />
       <Tabs<Tab>
         value={tab}
         onChange={setTab}

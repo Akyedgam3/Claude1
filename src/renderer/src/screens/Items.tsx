@@ -6,7 +6,7 @@ import { CameraScanButton, ColorPicker, ConfirmButton, CurrencySelect, ItemName,
 import { Icon } from '../components/icons';
 
 export function Items({ initialQuery }: { initialQuery?: string } = {}) {
-  const { state, profile, feature, can, call, notify } = useCompany();
+  const { state, profile, feature, can, call, notify, navigate } = useCompany();
   const [query, setQuery] = useState(initialQuery ?? '');
   const [category, setCategory] = useState('');
   const [editing, setEditing] = useState<Item | 'new' | null>(null);
@@ -104,6 +104,11 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
             {feature('variants') && <button onClick={() => setVariants(true)}>+ موديل بمقاسات وألوان</button>}
             <button onClick={importExcel}>استيراد من Excel</button>
           </>
+        )}
+        {can('stock.adjust') && (
+          <button onClick={() => navigate('stock', 'count')}>
+            <Icon name="check" size={16} /> جرد المواد
+          </button>
         )}
         <button onClick={() => setLabels(items.filter((i) => i.barcode || i.code).slice(0, 60))}>طباعة ملصقات</button>
         <ExportButtons

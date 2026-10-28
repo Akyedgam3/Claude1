@@ -84,7 +84,7 @@ const NAV: (NavItem | string)[] = [
   { key: 'invoices', label: 'سجل الفواتير', icon: 'receipt' },
   'المخزون والبطاقات',
   { key: 'items', label: 'المواد', icon: 'package' },
-  { key: 'stock', label: 'عمليات المخزون', icon: 'transfer', perms: ['stock.adjust', 'stock.transfer'] },
+  { key: 'stock', label: 'الجرد وعمليات المخزون', icon: 'transfer', perms: ['stock.adjust', 'stock.transfer'] },
   { key: 'production', label: 'الإنتاج', icon: 'factory', feature: 'production', perm: 'production.manage' },
   { key: 'parties', label: 'العملاء والموردون', icon: 'users' },
   { key: 'vehicles', label: 'السيارات والأجهزة', icon: 'car', features: ['vehicles', 'devices'], perm: 'repairs.manage' },
