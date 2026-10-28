@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { ADJUSTMENT_NAMES, expiringBatches, type Item } from '../../../core';
 import { dateText, major, money, parseAmount, qtyText, today, uid, useCompany } from '../api';
 import { ExportButtons, PrintButtons, DocHeader } from '../components/print';
-import { CurrencySelect, Empty, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, SearchBox, Tabs } from '../components/ui';
+import { ConfirmButton, CurrencySelect, Empty, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, SearchBox, Tabs } from '../components/ui';
 import { Icon } from '../components/icons';
 
 type Tab = 'opening' | 'count' | 'damage' | 'transfer' | 'expiry' | 'history';
@@ -483,9 +483,54 @@ function Transfer() {
               تحويل
             </button>
           </div>
+          <RecentTransfers />
         </>
       )}
     </section>
+  );
+}
+
+/** آخر التحويلات تحت شاشة التحويل: إذا غلطت، إلغاء التحويل بكبسة بيرجّع البضاعة لمكانها. */
+function RecentTransfers() {
+  const { state, call, notify, can } = useCompany();
+  const wh = (id: string) => state.warehouses[id]?.name ?? '';
+  const list = [...state.transfers].sort((a, b) => b.date.localeCompare(a.date) || b.number - a.number).slice(0, 8);
+  if (!list.length) return null;
+  return (
+    <>
+      <h4 style={{ marginTop: 18 }}>آخر التحويلات</h4>
+      <p className="muted">غلطت بتحويل؟ اكبس «إلغاء» جنبه، والبضاعة بترجع للمستودع اللي طلعت منه.</p>
+      <table className="table compact">
+        <tbody>
+          {list.map((t) => (
+            <tr key={t.id} className={t.voided ? 'voided' : ''}>
+              <td className="mono">#{t.number}</td>
+              <td>{dateText(t.date)}</td>
+              <td>
+                {wh(t.from)} ← {wh(t.to)}
+              </td>
+              <td className="muted ellipsis">{t.lines.map((l) => `${state.items[l.itemId]?.name ?? ''} × ${qtyText(l.qty)}`).join('، ')}</td>
+              <td>
+                {t.voided ? (
+                  <span className="tag bad">ملغى</span>
+                ) : (
+                  can('stock.transfer') && (
+                    <ConfirmButton
+                      className="small"
+                      label="إلغاء"
+                      confirmLabel="رجّعها؟"
+                      onConfirm={async () => {
+                        if (await call('voidTransfer', t.id, today())) notify(`انلغى التحويل رقم ${t.number} ورجعت البضاعة لـ ${wh(t.from)}`);
+                      }}
+                    />
+                  )
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
   );
 }
 
@@ -549,17 +594,17 @@ function Expiry() {
 }
 
 type HistLine = { itemId: string; qty: number; cost?: number; serials?: string[] };
-type HistRow = { id: string; kind: 'adjust' | 'transfer' | 'production'; number: number; date: string; type: string; place: string; memo: string; lines: HistLine[]; value: number; by: string };
+type HistRow = { id: string; kind: 'adjust' | 'transfer' | 'production'; number: number; date: string; type: string; place: string; memo: string; lines: HistLine[]; value: number; by: string; voided?: { date: string; by: string } };
 
 function History() {
-  const { state, can } = useCompany();
+  const { state, can, call, notify } = useCompany();
   const showCost = can('costs.view');
   const [kind, setKind] = useState<'' | HistRow['kind']>('');
   const [open, setOpen] = useState<HistRow | null>(null);
   const wh = (id: string) => state.warehouses[id]?.name ?? '';
   const rows: HistRow[] = [
     ...state.adjustments.map((a) => ({ id: a.id, kind: 'adjust' as const, number: a.number, date: a.date, type: ADJUSTMENT_NAMES[a.kind], place: wh(a.warehouseId), memo: a.memo, lines: a.lines, value: a.lines.reduce((s, l) => s + l.cost, 0), by: a.createdBy })),
-    ...state.transfers.map((t) => ({ id: t.id, kind: 'transfer' as const, number: t.number, date: t.date, type: 'تحويل', place: `${wh(t.from)} ← ${wh(t.to)}`, memo: t.memo, lines: t.lines, value: 0, by: t.createdBy })),
+    ...state.transfers.map((t) => ({ id: t.id, kind: 'transfer' as const, number: t.number, date: t.date, type: 'تحويل', place: `${wh(t.from)} ← ${wh(t.to)}`, memo: t.memo, lines: t.lines, value: 0, by: t.createdBy, ...(t.voided ? { voided: t.voided } : {}) })),
     ...state.productions.map((p) => ({ id: p.id, kind: 'production' as const, number: p.number, date: p.date, type: 'إنتاج', place: '', memo: p.memo, lines: p.outputs, value: p.outputs.reduce((s, o) => s + o.cost, 0), by: p.createdBy })),
   ]
     .filter((r) => !kind || r.kind === kind)
@@ -596,6 +641,7 @@ function History() {
                 <td>{dateText(r.date)}</td>
                 <td>
                   {r.type} <span className="muted">#{r.number}</span>
+                  {r.voided && <span className="tag bad">ملغى</span>}
                 </td>
                 <td>{r.place}</td>
                 <td>{r.memo}</td>
@@ -611,7 +657,24 @@ function History() {
         <Modal title={`${open.type} رقم ${open.number}`} onClose={() => setOpen(null)} width={760}>
           <div className="toolbar no-print">
             <PrintButtons kind="report" name={`${open.type} ${open.number}`} papers={['a4', 'a5', '80mm']} />
+            {open.kind === 'transfer' && !open.voided && can('stock.transfer') && (
+              <ConfirmButton
+                label="إلغاء التحويل (رجّع البضاعة)"
+                confirmLabel="متأكد؟ رجّعها"
+                onConfirm={async () => {
+                  if (await call('voidTransfer', open.id, today())) {
+                    notify('انلغى التحويل ورجعت البضاعة للمستودع الأصلي');
+                    setOpen(null);
+                  }
+                }}
+              />
+            )}
           </div>
+          {open.voided && (
+            <div className="banner bad no-print">
+              هالتحويل ملغى بتاريخ {dateText(open.voided.date)}{state.users[open.voided.by] ? ` (${state.users[open.voided.by]!.displayName})` : ''}، والبضاعة رجعت للمستودع الأصلي.
+            </div>
+          )}
           <div className="print-area">
             <DocHeader title={`${open.type} رقم ${open.number}`}>
               <div className="ltr">{dateText(open.date)}</div>

@@ -914,6 +914,12 @@ export class Ledger {
     return transfer;
   }
 
+  /** إلغاء تحويل انعمل بالغلط: البضاعة بترجع للمستودع الأصلي بنفس كمياتها ودفعاتها وأرقامها. */
+  voidTransfer(transferId: string, date: string): StockTransfer {
+    this.emit({ type: 'transfer.voided', transferId, date, by: this.actor });
+    return this.state.transfers.find((t) => t.id === transferId)!;
+  }
+
   postProduction(d: ProductionDraft): Production {
     const production = buildProduction(this.ops(), d);
     this.emit({ type: 'production.posted', production });

@@ -357,6 +357,8 @@ export interface StockTransfer {
   lines: { itemId: string; qty: number; batches?: BatchMove[]; serials?: string[] }[];
   memo: string;
   createdBy: string;
+  /** إلغاء التحويل: البضاعة رجعت للمستودع الأصلي بهالتاريخ، ومين لغاه. */
+  voided?: { date: string; by: string };
 }
 
 /** تصنيع: تحويل مواد أولية إلى منتج جاهز (مخبز، حلويات). */
@@ -806,6 +808,7 @@ export type CompanyEvent =
   | { type: 'invoice.voided'; invoiceId: string; entry: JournalEntry; deleted?: boolean }
   | { type: 'stock.adjusted'; adjustment: StockAdjustment; entry?: JournalEntry }
   | { type: 'stock.transferred'; transfer: StockTransfer }
+  | { type: 'transfer.voided'; transferId: string; date: string; by: string }
   | { type: 'production.posted'; production: Production }
   | { type: 'vehicle.saved'; vehicle: Vehicle }
   | { type: 'repair.saved'; repair: RepairOrder }

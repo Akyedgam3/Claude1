@@ -116,3 +116,24 @@ describe('shipment profit on the invoice', () => {
     expect(invoiceProfit(l.state, inv)).toEqual({ revenue: 500_000, cost: 300_000, profit: 200_000 });
   });
 });
+
+describe('cancel a warehouse transfer', () => {
+  it('returns the goods to the source warehouse, and refuses if they were sold', () => {
+    const l = company('general');
+    l.saveWarehouse({ id: 'back', name: 'المستودع الخلفي' });
+    l.saveItem({ id: 'x', code: 'X', name: 'مادة', kind: 'stock', unit: 'قطعة', price: 1000, priceCurrency: 'SYP' });
+    l.adjustStock({ kind: 'opening', date: '2026-10-01', warehouseId: 'main', lines: [{ itemId: 'x', qty: 10, unitCost: 500 }] });
+    const t = l.transferStock({ date: '2026-10-02', from: 'main', to: 'back', lines: [{ itemId: 'x', qty: 6 }] });
+    expect(l.state.stock['x']!.qty).toEqual({ main: 4, back: 6 });
+    l.voidTransfer(t.id, '2026-10-03');
+    expect(l.state.stock['x']!.qty).toEqual({ main: 10, back: 0 });
+    expect(l.state.stock['x']!.value).toBe(5000);
+    expect(() => l.voidTransfer(t.id, '2026-10-03')).toThrow(/ملغى/);
+    // تحويل تاني انباع منه: ما بيتلغى لأنو البضاعة ما عادت موجودة
+    const t2 = l.transferStock({ date: '2026-10-04', from: 'main', to: 'back', lines: [{ itemId: 'x', qty: 5 }] });
+    l.postInvoice({ kind: 'sale', date: '2026-10-05', warehouseId: 'back', lines: [{ itemId: 'x', qty: 4, price: 1000 }] });
+    expect(() => l.voidTransfer(t2.id, '2026-10-05')).toThrow();
+    expect(l.state.transfers.find((x) => x.id === t2.id)!.voided).toBeUndefined();
+    balanced(l);
+  });
+});

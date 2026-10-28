@@ -373,6 +373,14 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       if (t.from === t.to) fail('اختر مستودعين مختلفين');
       return;
     }
+    case 'transfer.voided': {
+      const t = state.transfers.find((x) => x.id === event.transferId) ?? fail('التحويل غير موجود');
+      if (t.voided) fail('التحويل ملغى من قبل');
+      checkDate(state, event.date);
+      // البضاعة لازم تكون لسا بالمستودع اللي انتقلت عليه (ما انباعت أو انتقلت لمكان تاني)
+      assertMovesPossible(state, transferMoves(t).map(negate));
+      return;
+    }
     case 'production.posted':
       checkDate(state, event.production.date);
       if (!state.warehouses[event.production.warehouseId]) fail('المستودع غير موجود');
@@ -472,6 +480,12 @@ export function applyCommerceEvent(state: CompanyState, event: CompanyEvent): vo
       bump(state, 'adjustment', event.adjustment.number);
       for (const m of adjustmentMoves(event.adjustment)) applyMove(state, m);
       return;
+    case 'transfer.voided': {
+      const t = state.transfers.find((x) => x.id === event.transferId)!;
+      t.voided = { date: event.date, by: event.by };
+      for (const m of transferMoves(t)) applyMove(state, negate(m));
+      return;
+    }
     case 'stock.transferred':
       state.transfers.push(event.transfer);
       bump(state, 'transfer', event.transfer.number);
