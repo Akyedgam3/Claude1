@@ -782,6 +782,52 @@ function weddingHall(l: Ledger): void {
   l.addBookingDeposit(b4.id, { date: day(-2), amount: P(20000) });
 }
 
+function solar(l: Ledger): void {
+  l.saveParty({ id: 'c-abuali', kind: 'customer', name: 'أبو علي الشامي', phone: '0944 610 225' });
+  l.saveParty({ id: 'c-farm', kind: 'customer', name: 'مزرعة الريّان', phone: '0933 470 118' });
+  l.saveParty({ id: 'c-clinic', kind: 'customer', name: 'عيادة د. سمر', phone: '0988 302 557' });
+  l.saveParty({ id: 's-solar', kind: 'supplier', name: 'شركة الشمس للاستيراد', phone: '0955 100 300' });
+  // [id، الاسم، التصنيف، السعر، الجملة، الكمية، التكلفة، الحد الأدنى، الوحدة]
+  const goods: [string, string, string, number, number, number, number, number, string][] = [
+    ['s-p550', 'لوح شمسي 550 واط', 'ألواح شمسية', 9000, 8500, 60, 7200, 12, 'لوح'],
+    ['s-p620', 'لوح شمسي 620 واط', 'ألواح شمسية', 11000, 10400, 30, 8800, 8, 'لوح'],
+    ['s-inv36', 'انفرتر هايبرد 3.6 كيلو', 'انفرترات', 36000, 34000, 8, 29000, 2, 'قطعة'],
+    ['s-inv6', 'انفرتر هايبرد 6 كيلو', 'انفرترات', 60000, 57000, 5, 49000, 2, 'قطعة'],
+    ['s-lith5', 'بطارية ليثيوم 5.12 كيلو', 'بطاريات', 90000, 86000, 10, 74000, 2, 'قطعة'],
+    ['s-gel200', 'بطارية جل 200 أمبير', 'بطاريات', 25000, 23500, 12, 19500, 4, 'قطعة'],
+    ['s-mount', 'حامل ألواح (للوح)', 'حوامل وقواعد', 1500, 1300, 120, 900, 20, 'قطعة'],
+    ['s-cable6', 'كبل DC 6 ملم', 'كبلات', 150, 130, 600, 95, 100, 'متر'],
+    ['s-breaker', 'قاطع DC وحماية', 'قواطع وحمايات', 1200, 1000, 40, 700, 10, 'قطعة'],
+  ];
+  for (const [id, name, category, price, whole, , , minStock, unit] of goods) item(l, { id, code: id.slice(2).toUpperCase(), name, kind: 'stock', unit, price: P(price), wholesalePrice: P(whole), category, minStock });
+  item(l, { id: 's-install', code: 'INST', name: 'تركيب منظومة', kind: 'service', unit: 'قطعة', price: P(15000), category: 'تركيب وصيانة' });
+  item(l, { id: 's-visit', code: 'VISIT', name: 'زيارة صيانة', kind: 'service', unit: 'قطعة', price: P(3000), category: 'تركيب وصيانة' });
+  l.adjustStock({ kind: 'opening', date: day(-40), lines: goods.map(([id, , , , , qty, cost]) => ({ itemId: id, qty, unitCost: P(cost) })), memo: 'بضاعة أول المدة (تجريبي)' });
+  const L = (id: string, name: string, watts: number, qty: number, dayHours: number, nightHours: number) => ({ id, name, watts, qty, dayHours, nightHours });
+  const home = [L('1', 'براد', 150, 1, 8, 6), L('2', 'ليدات إنارة', 10, 12, 0, 6), L('3', 'تلفزيون', 100, 1, 3, 4), L('4', 'راوتر إنترنت', 15, 1, 12, 12), L('5', 'غسالة', 500, 1, 1, 0), L('6', 'مروحة', 60, 2, 6, 6)];
+  const ln = (id: string, part: 'panel' | 'inverter' | 'battery' | 'other' | 'labor', itemId: string | undefined, name: string, qty: number, price: number, warrantyMonths?: number, serials?: string[]) => ({ id, part, ...(itemId ? { itemId } : {}), name, qty, price: P(price), ...(warrantyMonths ? { warrantyMonths } : {}), ...(serials ? { serials } : {}) });
+  const p1 = l.saveSolarProject({
+    id: 'sp-1', partyId: 'c-abuali', date: day(-20), title: 'بيت أبو علي — 3.6 كيلو', address: 'المزة، جانب الجامع', status: 'installed', installDate: day(-14), currency: 'SYP',
+    loads: home, design: { sunHours: 5, panelWatts: 550, batteryKwh: 5.12 },
+    lines: [ln('a', 'panel', 's-p550', 'لوح شمسي 550 واط', 4, 9000, 120), ln('b', 'inverter', 's-inv36', 'انفرتر هايبرد 3.6 كيلو', 1, 36000, 24, ['INV36-2410-0087']), ln('c', 'battery', 's-lith5', 'بطارية ليثيوم 5.12 كيلو', 1, 90000, 60, ['LB5-77120']), ln('d', 'other', 's-mount', 'حامل ألواح (للوح)', 4, 1500), ln('e', 'other', 's-cable6', 'كبل DC 6 ملم', 30, 150), ln('f', 'labor', undefined, 'تركيب وتشغيل', 1, 15000)],
+  });
+  l.addSolarDeposit(p1.id, { date: day(-19), amount: P(80000) });
+  l.invoiceSolarProject(p1.id, { date: day(-14) });
+  const p2 = l.saveSolarProject({
+    id: 'sp-2', partyId: 'c-farm', date: day(-5), title: 'مضخة مي ومزرعة — 6 كيلو', address: 'الريّان، طريق المطار', status: 'accepted', currency: 'SYP',
+    loads: [L('1', 'مضخة مي', 1500, 1, 5, 0), L('2', 'براد', 150, 1, 8, 6), L('3', 'ليدات إنارة', 10, 10, 0, 5)], design: { sunHours: 5, panelWatts: 620, batteryKwh: 5.12 },
+    lines: [ln('a', 'panel', 's-p620', 'لوح شمسي 620 واط', 6, 11000, 120), ln('b', 'inverter', 's-inv6', 'انفرتر هايبرد 6 كيلو', 1, 60000, 24), ln('c', 'battery', 's-lith5', 'بطارية ليثيوم 5.12 كيلو', 1, 90000, 60), ln('d', 'other', 's-mount', 'حامل ألواح (للوح)', 6, 1500), ln('e', 'labor', undefined, 'تركيب وتشغيل', 1, 20000)],
+  });
+  l.addSolarDeposit(p2.id, { date: day(-4), amount: P(100000) });
+  l.saveSolarProject({
+    id: 'sp-3', partyId: 'c-clinic', date: day(-1), title: 'عيادة — تشغيل نهاري', status: 'quote', currency: 'SYP',
+    loads: [L('1', 'مكيف 1 طن', 1000, 1, 6, 0), L('2', 'لابتوب / كمبيوتر', 100, 2, 7, 0), L('3', 'ليدات إنارة', 10, 8, 7, 0)], design: { sunHours: 5, panelWatts: 550, batteryKwh: 5.12 },
+    lines: [ln('a', 'panel', 's-p550', 'لوح شمسي 550 واط', 4, 9000, 120), ln('b', 'inverter', 's-inv36', 'انفرتر هايبرد 3.6 كيلو', 1, 36000, 24), ln('c', 'battery', 's-gel200', 'بطارية جل 200 أمبير', 2, 25000, 12), ln('d', 'labor', undefined, 'تركيب وتشغيل', 1, 15000)],
+  });
+  l.postInvoice({ kind: 'sale', date: day(-2), lines: [{ itemId: 's-cable6', qty: 20, price: P(150) }, { itemId: 's-breaker', qty: 2, price: P(1200) }] });
+  l.postInvoice({ kind: 'sale', date: day(), lines: [{ itemId: 's-p550', qty: 2, price: P(9000) }] });
+}
+
 export function loadDemo(l: Ledger): void {
   const s = l.state;
   if (s.invoices.length > 0 || Object.keys(s.items).length > 0 || Object.keys(s.parties).length > 0) throw new Error('البيانات التجريبية بتنضاف لشركة فاضية بس');
@@ -797,6 +843,7 @@ export function loadDemo(l: Ledger): void {
   else if (activity === 'printshop') printshop(l);
   else if (activity === 'pharmacydealers') pharmacyDealers(l);
   else if (activity === 'weddinghall') weddingHall(l);
+  else if (activity === 'solar') solar(l);
   else if (activity === 'mobile') mobile(l);
   else if (activity === 'sweets') sweets(l);
   else if (activity === 'supermarket') supermarket(l);

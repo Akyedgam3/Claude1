@@ -10,6 +10,7 @@ import { POULTRY_CUTS } from './poultry';
 import { dealerStock, dealerUnitCost } from './dealers';
 import { HALL_PERIODS, bookingDeposits, bookingToInvoiceLines, bookingTotals } from './halls';
 import { printJobDeposits, printJobToInvoiceLines, printJobTotals } from './printshop';
+import { solarDeposits, solarToInvoiceLines, solarTotals } from './solar';
 import {
   buildAdjustment,
   buildCount,
@@ -31,6 +32,7 @@ import type {
   DealerSale,
   DealerSaleLine,
   PrintJob,
+  SolarProject,
   Account,
   Appointment,
   CompanyEvent,
@@ -856,6 +858,12 @@ export class Ledger {
         const { invoiceId: _i, ...rest } = b;
         this.emit({ type: 'booking.saved', booking: { ...rest, status: 'done' } });
       }
+    } else if (src?.type === 'solar') {
+      const p = this.state.solarProjects?.[src.id];
+      if (p?.invoiceId === invoice.id) {
+        const { invoiceId: _i, ...rest } = p;
+        this.emit({ type: 'solar.saved', project: { ...rest, status: 'installed' } });
+      }
     } else if (src?.type === 'printjob') {
       const j = this.state.printJobs?.[src.id];
       if (j?.invoiceId === invoice.id) {
@@ -1490,6 +1498,80 @@ export class Ledger {
     }
     const invoice = this.postInvoice({ ...draft, paid });
     this.emit({ type: 'booking.saved', booking: { ...b, status: 'invoiced', invoiceId: invoice.id } });
+    return invoice;
+  }
+
+  // ───────────── الطاقة الشمسية: منظومات ─────────────
+
+  saveSolarProject(draft: Omit<SolarProject, 'number' | 'deposits' | 'invoiceId' | 'createdAt'>): SolarProject {
+    const existing = this.state.solarProjects?.[draft.id];
+    if (existing?.invoiceId) fail('المنظومة مفوترة؛ ألغِ الفاتورة أولاً لتعديلها');
+    if (draft.status === 'invoiced') fail('استخدم «فوترة» لإصدار فاتورة المنظومة');
+    const paid = existing ? solarDeposits(this.state, existing) : 0;
+    if (existing && existing.status !== 'cancelled' && draft.status === 'cancelled' && paid > 0) fail('على المنظومة عربون؛ رجّعه (ألغِ سند القبض) قبل الإلغاء');
+    if (paid > 0 && (draft.currency !== existing!.currency || draft.partyId !== existing!.partyId)) fail('على المنظومة عربون؛ ما بيصير تغيّر الزبون أو العملة');
+    const project: SolarProject = {
+      ...draft,
+      ...(draft.status === 'installed' && !draft.installDate ? { installDate: draft.date } : {}),
+      number: existing?.number ?? (this.state.counters['solar'] ?? 0) + 1,
+      deposits: existing?.deposits ?? [],
+      createdAt: existing?.createdAt ?? new Date().toISOString(),
+    };
+    this.emit({ type: 'solar.saved', project });
+    return project;
+  }
+
+  /** عربون المنظومة: سند قبض على حساب الزبون، بينخصم من الفاتورة. */
+  addSolarDeposit(projectId: string, d: { date: string; amount: number; cashAccountId?: string; rate?: number }): SolarProject {
+    const p = this.state.solarProjects?.[projectId] ?? fail('المنظومة غير موجودة');
+    if (p.invoiceId || p.status === 'cancelled') fail('ما بيصير عربون على منظومة مفوترة أو ملغاة');
+    const entry = this.postVoucher({
+      kind: 'receipt',
+      date: d.date,
+      amount: d.amount,
+      currency: p.currency,
+      partyId: p.partyId,
+      memo: `عربون منظومة طاقة شمسية رقم ${p.number}${p.title ? ` (${p.title})` : ''}`,
+      ...(d.cashAccountId ? { cashAccountId: d.cashAccountId } : {}),
+      ...(d.rate ? { rate: d.rate } : {}),
+      createdBy: this.actor,
+    });
+    const project: SolarProject = { ...p, status: p.status === 'quote' ? 'accepted' : p.status, deposits: [...p.deposits, { entryId: entry.id, amount: d.amount, date: d.date }] };
+    this.emit({ type: 'solar.saved', project });
+    return project;
+  }
+
+  /** فوترة المنظومة: فاتورة مبيع، الألواح والانفرتر والبطاريات بتنصرف من المخزون، والعربون بينخصم. */
+  invoiceSolarProject(projectId: string, opts: TailorDeliverOptions): Invoice {
+    const p = this.state.solarProjects?.[projectId] ?? fail('المنظومة غير موجودة');
+    if (p.invoiceId) fail('المنظومة مفوترة من قبل');
+    if (p.status === 'cancelled') fail('المنظومة ملغاة');
+    const lines = solarToInvoiceLines(p);
+    if (!lines.length) fail('ضيف بند واحد عالأقل');
+    const discount = (opts.discount ?? 0) + solarTotals(p).discount;
+    const draft: InvoiceDraft = {
+      kind: 'sale',
+      date: opts.date,
+      partyId: p.partyId,
+      currency: p.currency,
+      lines,
+      ...(opts.rate ? { rate: opts.rate } : {}),
+      ...(discount ? { discount } : {}),
+      ...(opts.taxIds ? { taxIds: opts.taxIds } : {}),
+      ...(opts.cashAccountId ? { cashAccountId: opts.cashAccountId } : {}),
+      notes: `منظومة طاقة شمسية رقم ${p.number}${p.title ? ` — ${p.title}` : ''}${p.address ? ` · ${p.address}` : ''}`,
+      source: { type: 'solar', id: p.id },
+    };
+    let paid = opts.paid;
+    if (paid === undefined) {
+      const { invoice: preview } = buildInvoice(
+        { state: this.state, baseCode: this.base.code, resolveRate: (c, dt) => this.rateFor(c, dt), buildEntry: (e) => this.buildEntry(e), partyBalance: () => -Infinity },
+        { ...draft, paid: 0 },
+      );
+      paid = Math.max(0, preview.total - solarDeposits(this.state, p));
+    }
+    const invoice = this.postInvoice({ ...draft, paid });
+    this.emit({ type: 'solar.saved', project: { ...p, status: 'invoiced', invoiceId: invoice.id, installDate: p.installDate ?? opts.date } });
     return invoice;
   }
 

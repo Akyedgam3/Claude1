@@ -140,6 +140,11 @@ export function Dashboard() {
             <Icon name="users" size={20} /> الموردين
           </button>
         )}
+        {feature('solar') && can('solar.manage') && (
+          <button className="primary big accent" onClick={() => navigate('solar')}>
+            <Icon name="sun" size={20} /> منظومات الطاقة الشمسية
+          </button>
+        )}
         {feature('printjobs') && can('printjobs.manage') && (
           <button className="primary big accent" onClick={() => navigate('printjobs')}>
             <Icon name="printer" size={20} /> طلبات الطباعة

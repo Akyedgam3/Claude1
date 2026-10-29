@@ -277,6 +277,33 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       if (m.voided) fail('الحركة ملغاة من قبل');
       return;
     }
+    case 'solar.saved': {
+      const p = event.project;
+      if (!state.parties[p.partyId]) fail('الزبون غير موجود');
+      if (!DATE_RE.test(p.date) || (p.installDate && !DATE_RE.test(p.installDate))) fail('تاريخ غير صالح');
+      if (!state.currencies[p.currency]) fail('عملة غير معروفة');
+      if (!['quote', 'accepted', 'installed', 'invoiced', 'cancelled'].includes(p.status)) fail('الحالة غير صالحة');
+      for (const l of p.loads) {
+        if (!l.name?.trim()) fail('اكتب اسم الجهاز');
+        const ok = [l.watts, l.qty, l.dayHours, l.nightHours].every((x) => Number.isFinite(x) && x >= 0) && l.watts < 1e6 && l.qty < 1e4 && l.dayHours + l.nightHours <= 24;
+        if (!ok) fail(`أرقام غير صالحة: ${l.name}`);
+      }
+      if (p.design && ![p.design.sunHours, p.design.panelWatts, p.design.batteryKwh].every((x) => Number.isFinite(x) && x > 0 && x < 1e5)) fail('معطيات الحساب غير صالحة');
+      for (const l of p.lines) {
+        if (!l.name?.trim()) fail('اكتب اسم البند');
+        if (!['panel', 'inverter', 'battery', 'other', 'labor'].includes(l.part)) fail(`نوع غير معروف: ${l.name}`);
+        if (l.itemId && !state.items[l.itemId]) fail(`المادة غير موجودة: ${l.name}`);
+        if (!(Number.isFinite(l.qty) && l.qty >= 0 && l.qty < 1e6) || !Number.isSafeInteger(l.price) || l.price < 0) fail(`كمية أو سعر غير صالح: ${l.name}`);
+        if (l.warrantyMonths !== undefined && !(Number.isInteger(l.warrantyMonths) && l.warrantyMonths >= 0 && l.warrantyMonths <= 600)) fail(`مدة الكفالة غير صالحة: ${l.name}`);
+        if (l.serials && (l.serials.length > 500 || l.serials.some((x) => !x.trim() || x.length > 80))) fail(`أرقام تسلسلية غير صالحة: ${l.name}`);
+      }
+      for (const v of p.visits ?? []) if (!DATE_RE.test(v.date) || !v.note.trim()) fail('زيارة صيانة غير صالحة');
+      if (p.discount !== undefined && (!Number.isSafeInteger(p.discount) || p.discount < 0)) fail('خصم غير صالح');
+      const prev = state.solarProjects?.[p.id];
+      if (prev && prev.number !== p.number) fail('لا يمكن تغيير رقم المنظومة');
+      if (prev?.invoiceId && !invoiceVoided(state, prev.invoiceId) && (p.status !== 'invoiced' || p.invoiceId !== prev.invoiceId)) fail('المنظومة مفوترة؛ ألغِ الفاتورة أولاً لتعديلها');
+      return;
+    }
     case 'printjob.saved': {
       const j = event.job;
       if (!state.parties[j.partyId]) fail('الزبون غير موجود');
@@ -579,6 +606,10 @@ export function applyCommerceEvent(state: CompanyState, event: CompanyEvent): vo
       m.voided = { date: event.date, by: event.by };
       return;
     }
+    case 'solar.saved':
+      (state.solarProjects ??= {})[event.project.id] = { ...event.project };
+      bump(state, 'solar', event.project.number);
+      return;
     case 'printjob.saved':
       (state.printJobs ??= {})[event.job.id] = { ...event.job };
       bump(state, 'printjob', event.job.number);

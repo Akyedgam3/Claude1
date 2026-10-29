@@ -78,7 +78,8 @@ export type Activity =
   | 'poultry'
   | 'printshop'
   | 'pharmacydealers'
-  | 'weddinghall';
+  | 'weddinghall'
+  | 'solar';
 
 export type Paper = 'a4' | 'a5' | '80mm' | '58mm';
 
@@ -665,6 +666,55 @@ export interface HallBooking {
   createdAt: string;
 }
 
+// ───────────── الطاقة الشمسية: منظومات ─────────────
+
+export type SolarStatus = 'quote' | 'accepted' | 'installed' | 'invoiced' | 'cancelled';
+export type SolarPart = 'panel' | 'inverter' | 'battery' | 'other' | 'labor';
+
+/** جهاز بالبيت لحساب الأحمال: الاستطاعة × العدد × ساعات النهار والليل. */
+export interface SolarLoad {
+  id: string;
+  name: string;
+  watts: number;
+  qty: number;
+  dayHours: number;
+  nightHours: number;
+}
+
+/** بند بالمنظومة: مادة من المخزون (ألواح، انفرتر، بطاريات...) أو أجور تركيب. */
+export interface SolarLine {
+  id: string;
+  part: SolarPart;
+  itemId?: string;
+  name: string;
+  qty: number;
+  price: number;
+  warrantyMonths?: number;
+  serials?: string[];
+}
+
+export interface SolarProject {
+  id: string;
+  number: number;
+  partyId: string;
+  date: string;
+  title?: string;
+  address?: string;
+  status: SolarStatus;
+  currency: string;
+  loads: SolarLoad[];
+  /** معطيات الحساب: ساعات الشمس، استطاعة اللوح، سعة البطارية الوحدة. */
+  design?: { sunHours: number; panelWatts: number; batteryKwh: number };
+  lines: SolarLine[];
+  discount?: number;
+  installDate?: string;
+  visits?: { date: string; note: string }[];
+  notes?: string;
+  deposits: { entryId: string; amount: number; date: string }[];
+  invoiceId?: string;
+  createdAt: string;
+}
+
 // ───────────── صيدلية مع موردين مستقلين ─────────────
 
 /** مورّد مستقل بيبيع من أدوية الصيدلية بسعره، وبيتسجّل عليه سعر الصيدلية دين. إلو صندوقه وبضاعته الخاصة. */
@@ -946,6 +996,7 @@ export interface CompanyState {
   printJobs?: Record<string, PrintJob>;
   dealers?: Record<string, Dealer>;
   bookings?: Record<string, HallBooking>;
+  solarProjects?: Record<string, SolarProject>;
   dealerSales?: DealerSale[];
   dealerMoves?: DealerMove[];
   partners: Record<string, Partner>;
@@ -989,6 +1040,7 @@ export type CompanyEvent =
   | { type: 'stoneblock.saved'; block: StoneBlock }
   | { type: 'priceboard.saved'; board: PriceBoard }
   | { type: 'printjob.saved'; job: PrintJob }
+  | { type: 'solar.saved'; project: SolarProject }
   | { type: 'dealer.saved'; dealer: Dealer }
   | { type: 'booking.saved'; booking: HallBooking }
   | { type: 'dealersale.posted'; sale: DealerSale }

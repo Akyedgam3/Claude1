@@ -17,4 +17,5 @@ export * from './poultry';
 export * from './printshop';
 export * from './dealers';
 export * from './halls';
+export * from './solar';
 export * from './whatsapp';
