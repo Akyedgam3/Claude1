@@ -3,6 +3,7 @@ import { cashAccountFor, SYSTEM_ACCOUNTS } from './chart-templates';
 import type { EntryDraft, LineDraft } from './ledger';
 import { convertMinor } from './money';
 import { adjustmentMoves, applyMove, assertMovesPossible, invoiceMoves, negate, productionMoves, roundQty, StockPlanner, transferMoves } from './stock';
+import { bookingConflicts } from './halls';
 import { cleanWeighing, weighingNet } from './poultry';
 import { computeTaxes } from './tax';
 import type { CompanyEvent, CompanyState, FabricRoll, Invoice, InvoiceKind, InvoiceLine, JournalEntry, LengthUnit, Order, Quote, RepairOrder, Shipment, ShipmentStatus, SiteJob, SiteJobLine, StoneBlock, TailorOrder, Weighing, WorkOrder, WorkStage } from './types';
@@ -212,6 +213,26 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       const prev = state.shipments?.[s.id];
       if (prev && prev.number !== s.number) fail('لا يمكن تغيير رقم الشحنة');
       if (prev?.invoiceId && !invoiceVoided(state, prev.invoiceId) && (s.status !== 'invoiced' || s.invoiceId !== prev.invoiceId)) fail('الشحنة مفوترة؛ ألغِ الفاتورة أولاً لتعديلها');
+      return;
+    }
+    case 'booking.saved': {
+      const b = event.booking;
+      if (!state.parties[b.partyId]) fail('الزبون غير موجود');
+      if (!DATE_RE.test(b.date)) fail('تاريخ غير صالح');
+      if (!b.hall?.trim()) fail('اختار الصالة');
+      if (!['morning', 'evening', 'full'].includes(b.period)) fail('الفترة غير صالحة');
+      if (!state.currencies[b.currency]) fail('عملة غير معروفة');
+      if (b.guests !== undefined && !(Number.isInteger(b.guests) && b.guests >= 0 && b.guests < 100000)) fail('عدد الضيوف غير صالح');
+      for (const l of b.lines) {
+        if (!l.name?.trim()) fail('اكتب اسم الخدمة');
+        if (!(Number.isFinite(l.qty) && l.qty >= 0 && l.qty < 1e6) || !Number.isSafeInteger(l.price) || l.price < 0) fail(`كمية أو سعر غير صالح: ${l.name}`);
+      }
+      if (b.discount !== undefined && (!Number.isSafeInteger(b.discount) || b.discount < 0)) fail('خصم غير صالح');
+      const clash = bookingConflicts(state, b)[0];
+      if (clash) fail(`${b.hall} محجوزة بهاليوم (${clash.eventType}${clash.title ? ` — ${clash.title}` : ''}، حجز رقم ${clash.number})`);
+      const prev = state.bookings?.[b.id];
+      if (prev && prev.number !== b.number) fail('لا يمكن تغيير رقم الحجز');
+      if (prev?.invoiceId && !invoiceVoided(state, prev.invoiceId) && (b.status !== 'invoiced' || b.invoiceId !== prev.invoiceId)) fail('الحجز مفوتر؛ ألغِ الفاتورة أولاً لتعديله');
       return;
     }
     case 'dealer.saved': {
@@ -531,6 +552,10 @@ export function applyCommerceEvent(state: CompanyState, event: CompanyEvent): vo
     case 'shipment.saved':
       (state.shipments ??= {})[event.shipment.id] = { ...event.shipment };
       bump(state, 'shipment', event.shipment.number);
+      return;
+    case 'booking.saved':
+      (state.bookings ??= {})[event.booking.id] = { ...event.booking };
+      bump(state, 'booking', event.booking.number);
       return;
     case 'dealer.saved':
       (state.dealers ??= {})[event.dealer.id] = { ...event.dealer };

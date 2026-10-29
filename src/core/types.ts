@@ -77,7 +77,8 @@ export type Activity =
   | 'stone'
   | 'poultry'
   | 'printshop'
-  | 'pharmacydealers';
+  | 'pharmacydealers'
+  | 'weddinghall';
 
 export type Paper = 'a4' | 'a5' | '80mm' | '58mm';
 
@@ -157,6 +158,8 @@ export interface CompanyInfo {
   customize?: ActivityCustomization;
   /** نسب الربح المقترحة عند إدخال البضاعة: سعر الصيدلية وسعر المورّد من سعر الشراء. */
   pricing?: { retailMargin?: number; dealerMargin?: number };
+  /** أسماء الصالات (صالة أفراح). */
+  halls?: string[];
 }
 
 /** تخصيص النشاط من قبل المستخدم: تشغيل/إيقاف ميزات، وقوائم خاصة به. */
@@ -632,6 +635,33 @@ export interface PrintJob {
   invoiceId?: string;
 }
 
+// ───────────── صالات الأفراح والمناسبات ─────────────
+
+export type HallPeriod = 'morning' | 'evening' | 'full';
+export type BookingStatus = 'tentative' | 'confirmed' | 'done' | 'invoiced' | 'cancelled';
+
+/** حجز صالة لمناسبة: التاريخ والفترة، عدد الضيوف، الخدمات (ضيافة بالراس، DJ، تصوير...)، العربون والفاتورة. */
+export interface HallBooking {
+  id: string;
+  number: number;
+  partyId: string;
+  hall: string; // اسم الصالة
+  date: string;
+  period: HallPeriod;
+  eventType: string; // عرس، خطوبة، تخرج...
+  title?: string; // أسماء العرسان أو اسم المناسبة
+  guests?: number;
+  status: BookingStatus;
+  currency: string;
+  /** perGuest: بالراس (الكمية = عدد الضيوف). */
+  lines: { id: string; name: string; perGuest?: boolean; qty: number; price: number }[];
+  discount?: number;
+  notes?: string;
+  deposits: { entryId: string; amount: number; date: string }[];
+  invoiceId?: string;
+  createdAt: string;
+}
+
 // ───────────── صيدلية مع موردين مستقلين ─────────────
 
 /** مورّد مستقل بيبيع من أدوية الصيدلية بسعره، وبيتسجّل عليه سعر الصيدلية دين. إلو صندوقه وبضاعته الخاصة. */
@@ -912,6 +942,7 @@ export interface CompanyState {
   priceBoards?: Record<string, PriceBoard>;
   printJobs?: Record<string, PrintJob>;
   dealers?: Record<string, Dealer>;
+  bookings?: Record<string, HallBooking>;
   dealerSales?: DealerSale[];
   dealerMoves?: DealerMove[];
   partners: Record<string, Partner>;
@@ -956,6 +987,7 @@ export type CompanyEvent =
   | { type: 'priceboard.saved'; board: PriceBoard }
   | { type: 'printjob.saved'; job: PrintJob }
   | { type: 'dealer.saved'; dealer: Dealer }
+  | { type: 'booking.saved'; booking: HallBooking }
   | { type: 'dealersale.posted'; sale: DealerSale }
   | { type: 'dealersale.voided'; saleId: string; date: string; by: string }
   | { type: 'dealermove.posted'; move: DealerMove }

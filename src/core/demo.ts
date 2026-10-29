@@ -753,6 +753,35 @@ function pharmacyDealers(l: Ledger): void {
   l.postInvoice({ kind: 'sale', date: day(), lines: [{ itemId: 'm-augmentin', qty: 1, price: P(8500) }, { itemId: 'm-brufen', qty: 3, price: P(1700) }] });
 }
 
+function weddingHall(l: Ledger): void {
+  l.updateCompany({ halls: ['الصالة الكبرى', 'صالة الحديقة'] });
+  l.saveParty({ id: 'c-ahmad', kind: 'customer', name: 'أحمد الخطيب', phone: '0944 512 300' });
+  l.saveParty({ id: 'c-samer', kind: 'customer', name: 'سامر الحلبي', phone: '0933 801 742' });
+  l.saveParty({ id: 'c-uni', kind: 'customer', name: 'جامعة الشام — دفعة الهندسة', phone: '0988 210 115' });
+  l.saveParty({ id: 'c-rima', kind: 'customer', name: 'ريما العلي', phone: '0955 640 318' });
+  const L = (name: string, qty: number, price: number, perGuest = false) => ({ id: name, name, qty, price: P(price), ...(perGuest ? { perGuest: true } : {}) });
+  const b1 = l.saveBooking({
+    id: 'b-1', partyId: 'c-ahmad', hall: 'الصالة الكبرى', date: day(-5), period: 'evening', eventType: 'عرس', title: 'أحمد ♥ سلمى', guests: 300, status: 'confirmed', currency: 'SYP',
+    lines: [L('أجار الصالة', 1, 15000), L('ضيافة (بالراس)', 300, 75, true), L('كوشة وتزيين', 1, 4000), L('DJ وصوت', 1, 2500), L('تصوير فوتو وفيديو', 1, 3500)],
+  });
+  l.addBookingDeposit(b1.id, { date: day(-40), amount: P(10000) });
+  l.invoiceBooking(b1.id, { date: day(-5) });
+  const b2 = l.saveBooking({
+    id: 'b-2', partyId: 'c-samer', hall: 'الصالة الكبرى', date: day(3), period: 'evening', eventType: 'خطوبة', title: 'سامر ♥ نور', guests: 150, status: 'confirmed', currency: 'SYP',
+    lines: [L('أجار الصالة', 1, 10000), L('ضيافة (بالراس)', 150, 75, true), L('كيك', 1, 1500), L('DJ وصوت', 1, 2500)],
+  });
+  l.addBookingDeposit(b2.id, { date: day(-10), amount: P(5000) });
+  l.saveBooking({
+    id: 'b-3', partyId: 'c-uni', hall: 'صالة الحديقة', date: day(7), period: 'morning', eventType: 'تخرج', title: 'حفلة تخرج الهندسة', guests: 220, status: 'tentative', currency: 'SYP',
+    lines: [L('أجار الصالة', 1, 8000), L('عشاء (بالراس)', 220, 120, true), L('إضاءة وليزر', 1, 2000)],
+  });
+  const b4 = l.saveBooking({
+    id: 'b-4', partyId: 'c-rima', hall: 'الصالة الكبرى', date: day(12), period: 'full', eventType: 'عرس', title: 'عرس ريما', guests: 400, status: 'confirmed', currency: 'SYP',
+    lines: [L('أجار الصالة', 1, 20000), L('عشاء (بالراس)', 400, 120, true), L('فرقة / زفة', 1, 6000), L('ورد طبيعي', 1, 3000)],
+  });
+  l.addBookingDeposit(b4.id, { date: day(-2), amount: P(20000) });
+}
+
 export function loadDemo(l: Ledger): void {
   const s = l.state;
   if (s.invoices.length > 0 || Object.keys(s.items).length > 0 || Object.keys(s.parties).length > 0) throw new Error('البيانات التجريبية بتنضاف لشركة فاضية بس');
@@ -767,6 +796,7 @@ export function loadDemo(l: Ledger): void {
   else if (activity === 'poultry') poultry(l);
   else if (activity === 'printshop') printshop(l);
   else if (activity === 'pharmacydealers') pharmacyDealers(l);
+  else if (activity === 'weddinghall') weddingHall(l);
   else if (activity === 'mobile') mobile(l);
   else if (activity === 'sweets') sweets(l);
   else if (activity === 'supermarket') supermarket(l);

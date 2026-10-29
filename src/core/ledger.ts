@@ -8,6 +8,7 @@ import { convertMinor, currencyProblem, type Currency } from './money';
 import { invoiceMoves } from './stock';
 import { POULTRY_CUTS } from './poultry';
 import { dealerStock, dealerUnitCost } from './dealers';
+import { HALL_PERIODS, bookingDeposits, bookingToInvoiceLines, bookingTotals } from './halls';
 import { printJobDeposits, printJobToInvoiceLines, printJobTotals } from './printshop';
 import {
   buildAdjustment,
@@ -23,6 +24,7 @@ import {
 import type {
   Partner,
   PriceBoard,
+  HallBooking,
   Dealer,
   DealerMove,
   DealerMoveKind,
@@ -848,6 +850,12 @@ export class Ledger {
     } else if (src?.type === 'tailor') {
       const o = this.state.tailorOrders[src.id];
       if (o?.invoiceId === invoice.id) this.emit({ type: 'tailor.saved', order: { ...withoutInvoice(o), status: 'ready' } });
+    } else if (src?.type === 'booking') {
+      const b = this.state.bookings?.[src.id];
+      if (b?.invoiceId === invoice.id) {
+        const { invoiceId: _i, ...rest } = b;
+        this.emit({ type: 'booking.saved', booking: { ...rest, status: 'done' } });
+      }
     } else if (src?.type === 'printjob') {
       const j = this.state.printJobs?.[src.id];
       if (j?.invoiceId === invoice.id) {
@@ -1409,6 +1417,79 @@ export class Ledger {
     }
     const invoice = this.postInvoice({ ...draft, paid });
     this.emit({ type: 'sitejob.saved', job: { ...j, status: 'invoiced', invoiceId: invoice.id } });
+    return invoice;
+  }
+
+  // ───────────── صالات الأفراح ─────────────
+
+  saveBooking(draft: Omit<HallBooking, 'number' | 'deposits' | 'invoiceId' | 'createdAt'>): HallBooking {
+    const existing = this.state.bookings?.[draft.id];
+    if (existing?.invoiceId) fail('الحجز مفوتر؛ ألغِ الفاتورة أولاً لتعديله');
+    if (draft.status === 'invoiced') fail('استخدم «فوترة» لإصدار فاتورة الحجز');
+    const paid = existing ? bookingDeposits(this.state, existing) : 0;
+    if (existing && existing.status !== 'cancelled' && draft.status === 'cancelled' && paid > 0) fail('على الحجز عربون؛ رجّعه (ألغِ سند القبض) قبل إلغاء الحجز');
+    if (paid > 0 && (draft.currency !== existing!.currency || draft.partyId !== existing!.partyId)) fail('على الحجز عربون؛ ما بيصير تغيّر الزبون أو العملة');
+    const booking: HallBooking = {
+      ...draft,
+      number: existing?.number ?? (this.state.counters['booking'] ?? 0) + 1,
+      deposits: existing?.deposits ?? [],
+      createdAt: existing?.createdAt ?? new Date().toISOString(),
+    };
+    this.emit({ type: 'booking.saved', booking });
+    return booking;
+  }
+
+  /** عربون الحجز: سند قبض على حساب الزبون، بينخصم من الفاتورة. */
+  addBookingDeposit(bookingId: string, d: { date: string; amount: number; cashAccountId?: string; rate?: number }): HallBooking {
+    const b = this.state.bookings?.[bookingId] ?? fail('الحجز غير موجود');
+    if (b.invoiceId || b.status === 'cancelled') fail('ما بيصير عربون على حجز مفوتر أو ملغى');
+    const entry = this.postVoucher({
+      kind: 'receipt',
+      date: d.date,
+      amount: d.amount,
+      currency: b.currency,
+      partyId: b.partyId,
+      memo: `عربون حجز رقم ${b.number} — ${b.eventType} ${b.date}`,
+      ...(d.cashAccountId ? { cashAccountId: d.cashAccountId } : {}),
+      ...(d.rate ? { rate: d.rate } : {}),
+      createdBy: this.actor,
+    });
+    const booking: HallBooking = { ...b, status: b.status === 'tentative' ? 'confirmed' : b.status, deposits: [...b.deposits, { entryId: entry.id, amount: d.amount, date: d.date }] };
+    this.emit({ type: 'booking.saved', booking });
+    return booking;
+  }
+
+  /** فاتورة الحجز: الخدمات كلها، والعربون بينخصم من المطلوب. */
+  invoiceBooking(bookingId: string, opts: TailorDeliverOptions): Invoice {
+    const b = this.state.bookings?.[bookingId] ?? fail('الحجز غير موجود');
+    if (b.invoiceId) fail('الحجز مفوتر من قبل');
+    if (b.status === 'cancelled') fail('الحجز ملغى');
+    const lines = bookingToInvoiceLines(b);
+    if (!lines.length) fail('ضيف خدمة وحدة عالأقل');
+    const discount = (opts.discount ?? 0) + bookingTotals(b).discount;
+    const draft: InvoiceDraft = {
+      kind: 'sale',
+      date: opts.date,
+      partyId: b.partyId,
+      currency: b.currency,
+      lines,
+      ...(opts.rate ? { rate: opts.rate } : {}),
+      ...(discount ? { discount } : {}),
+      ...(opts.taxIds ? { taxIds: opts.taxIds } : {}),
+      ...(opts.cashAccountId ? { cashAccountId: opts.cashAccountId } : {}),
+      notes: `${b.eventType}${b.title ? ` — ${b.title}` : ''} · ${b.hall} · ${b.date} (${HALL_PERIODS[b.period]})${b.guests ? ` · ${b.guests} ضيف` : ''}`,
+      source: { type: 'booking', id: b.id },
+    };
+    let paid = opts.paid;
+    if (paid === undefined) {
+      const { invoice: preview } = buildInvoice(
+        { state: this.state, baseCode: this.base.code, resolveRate: (c, dt) => this.rateFor(c, dt), buildEntry: (e) => this.buildEntry(e), partyBalance: () => -Infinity },
+        { ...draft, paid: 0 },
+      );
+      paid = Math.max(0, preview.total - bookingDeposits(this.state, b));
+    }
+    const invoice = this.postInvoice({ ...draft, paid });
+    this.emit({ type: 'booking.saved', booking: { ...b, status: 'invoiced', invoiceId: invoice.id } });
     return invoice;
   }
 

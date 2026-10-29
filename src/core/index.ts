@@ -16,3 +16,4 @@ export * from './partners';
 export * from './poultry';
 export * from './printshop';
 export * from './dealers';
+export * from './halls';
