@@ -1,11 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   BOOKING_STATUS_NAMES,
   EVENT_TYPES,
   HALL_EXPENSES,
   bookingHours,
-  bookingMessage,
-  bookingsTableText,
+  compareBookings,
   monthExpenses,
   HALL_PERIODS,
   HALL_SERVICES,
@@ -18,13 +17,14 @@ import {
   type HallPeriod,
   type Invoice,
 } from '../../../core';
-import { addDays, api, dateText, major, money, parseAmount, toInput, today, uid, useCompany } from '../api';
+import { addDays, api, dateText, IS_MOBILE, major, money, parseAmount, toInput, today, uid, useCompany } from '../api';
 import { cashAccounts } from './InvoiceEditor';
 import { DocHeader, ExportButtons, PrintButtons } from '../components/print';
 import { Icon } from '../components/icons';
 import { ConfirmButton, CurrencySelect, Empty, Field, matches, Modal, PageHeader, partyOptions, Picker, SearchBox, Tabs } from '../components/ui';
 import { PartyForm } from './Parties';
 import { DeliverDialog, DepositDialog } from './Tailor';
+import { bookingImage, bookingsTableImage, type ShareImage } from './hall-images';
 
 const EDIT_STATUS: BookingStatus[] = ['tentative', 'confirmed', 'done', 'cancelled'];
 const MONTHS = ['كانون الثاني', 'شباط', 'آذار', 'نيسان', 'أيار', 'حزيران', 'تموز', 'آب', 'أيلول', 'تشرين الأول', 'تشرين الثاني', 'كانون الأول'];
@@ -138,7 +138,7 @@ function Calendar({ onOpen }: { onOpen: (b: HallBooking | null, date?: string) =
         ))}
         {Array.from({ length: days }, (_, i) => {
           const date = `${ym}-${String(i + 1).padStart(2, '0')}`;
-          const list = (byDate[date] ?? []).sort((a, b) => a.hall.localeCompare(b.hall) || a.period.localeCompare(b.period));
+          const list = (byDate[date] ?? []).sort(compareBookings);
           const full = halls.every((h) => list.some((b) => b.hall === h && (b.period === 'full' || (list.some((x) => x.hall === h && x.period === 'morning') && list.some((x) => x.hall === h && x.period === 'evening')))));
           return (
             <div key={date} className={`cal-day${date === t ? ' today' : ''}${date < t ? ' past' : ''}${full ? ' full' : ''}`} onClick={() => can('bookings.manage') && date >= t && onOpen(null, date)}>
@@ -184,7 +184,7 @@ function BookingList({ onOpen }: { onOpen: (b: HallBooking) => void }) {
       Object.values(state.bookings ?? {})
         .filter((b) => (!from || b.date >= from) && (!to || b.date <= to) && (!hall || b.hall === hall) && (cancelled || b.status !== 'cancelled'))
         .filter((b) => matches(query, b.number, b.title, b.eventType, b.hall, state.parties[b.partyId]?.name, state.parties[b.partyId]?.phone, b.groomPhone))
-        .sort((a, b) => a.date.localeCompare(b.date) || a.period.localeCompare(b.period) || a.hall.localeCompare(b.hall)),
+        .sort(compareBookings),
     [state, from, to, hall, cancelled, query],
   );
   const sum = rows.filter((b) => b.status !== 'cancelled' && b.currency === state.info!.baseCurrency);
@@ -216,7 +216,7 @@ function BookingList({ onOpen }: { onOpen: (b: HallBooking) => void }) {
           <input type="checkbox" checked={prices} onChange={(e) => setPrices(e.target.checked)} /> إظهار الأسعار
         </label>
         <div className="spacer" />
-        {rows.length > 0 && <ShareTableButton rows={rows} title={`جدول الحجوزات ${range}${hall ? ` · ${hall}` : ''}`} prices={prices} />}
+        {rows.length > 0 && <ShareTableButton rows={rows} title={`جدول الحجوزات ${range}${hall ? ` · ${hall}` : ''}`} />}
         <PrintButtons kind="report" name={`جدول الحجوزات ${range}`} papers={['a4']} />
         <ExportButtons
           name="جدول الحجوزات"
@@ -264,7 +264,7 @@ function BookingList({ onOpen }: { onOpen: (b: HallBooking) => void }) {
         <table className="table">
           <thead>
             <tr>
-              <th>الرقم</th>
+              <th>#</th>
               <th>التاريخ</th>
               <th>المناسبة</th>
               <th>الصالة</th>
@@ -276,9 +276,9 @@ function BookingList({ onOpen }: { onOpen: (b: HallBooking) => void }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((b) => (
+            {rows.map((b, i) => (
               <tr key={b.id} className="clickable" onClick={() => onOpen(b)}>
-                <td className="mono">{b.number}</td>
+                <td className="mono" title={`حجز رقم ${b.number}`}>{i + 1}</td>
                 <td>
                   {dateText(b.date)}
                   <div className="muted">
@@ -640,37 +640,93 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
   );
 }
 
-async function sendWhatsApp(phone: string, text: string, notify: (m: string, kind?: 'error') => void) {
-  try {
-    await api.whatsapp(phone, text);
-  } catch (e) {
-    // إذا ما انفتح (رقم غلط أو ما في واتساب) منحط الرسالة بالحافظة
-    await navigator.clipboard.writeText(text).catch(() => undefined);
-    notify(`${(e as Error).message}. نسخت الرسالة، الصقها بالواتساب`, 'error');
-  }
-}
-
-/** زر واتساب للحجز: رسالة تأكيد (أو تذكير إذا المناسبة قريبة) لرقم العريس بس، بدون أسعار. */
+/** زر واتساب للحجز: صورة الحجز (تأكيد أو تذكير، مع القيمة والعربون والباقي) لرقم العريس. */
 function WhatsAppButton({ booking, small }: { booking: HallBooking; small?: boolean }) {
-  const { state, notify } = useCompany();
+  const { state } = useCompany();
+  const [open, setOpen] = useState(false);
   const phone = booking.groomPhone;
   if (!phone) return small ? null : <span className="muted">حط رقم العريس واحفظ لتبعتلو واتساب</span>;
-  const send = () => sendWhatsApp(phone, bookingMessage(state, booking, { today: today(), greet: booking.title ?? '', withPrices: false }), notify);
   return (
-    <button type="button" className={`whatsapp${small ? ' small' : ''}`} title={`رسالة واتساب للعريس ${phone}`} onClick={() => void send()}>
-      <Icon name="message" size={small ? 14 : 16} /> واتساب{small ? '' : ' العريس'}
-    </button>
+    <>
+      <button type="button" className={`whatsapp${small ? ' small' : ''}`} title={`صورة الحجز بالواتساب للعريس ${phone}`} onClick={() => setOpen(true)}>
+        <Icon name="message" size={small ? 14 : 16} /> واتساب{small ? '' : ' العريس'}
+      </button>
+      {open && (
+        <ImageShareDialog
+          title={`صورة الحجز رقم ${booking.number}`}
+          phone={phone}
+          fileName={`حجز ${booking.number}`}
+          caption={`${booking.eventType}${booking.title ? ` — ${booking.title}` : ''}`}
+          make={(amounts) => bookingImage(state, booking, { today: today(), amounts, fmt: (m) => money(state, m, booking.currency) })}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </>
   );
 }
 
-/** إرسال جدول الحجوزات (المعروض) بالواتساب: بيفتح الواتساب وبتختار لمين تبعته. */
-function ShareTableButton({ rows, title, prices }: { rows: HallBooking[]; title: string; prices: boolean }) {
-  const { state, notify } = useCompany();
-  const send = () => sendWhatsApp('', bookingsTableText(state, rows, { title, withPrices: prices, fmt: (b, m) => money(state, m, b.currency) }), notify);
+/** إرسال جدول الحجوزات (المعروض، مرتّب بالتاريخ) كصورة بالواتساب. */
+function ShareTableButton({ rows, title }: { rows: HallBooking[]; title: string }) {
+  const { state } = useCompany();
+  const [open, setOpen] = useState(false);
   return (
-    <button type="button" className="whatsapp" title="بيفتح الواتساب وبتختار لمين تبعت الجدول" onClick={() => void send()}>
-      <Icon name="message" size={16} /> إرسال الجدول بالواتس
-    </button>
+    <>
+      <button type="button" className="whatsapp" title="صورة الجدول للواتساب" onClick={() => setOpen(true)}>
+        <Icon name="message" size={16} /> إرسال الجدول بالواتس
+      </button>
+      {open && (
+        <ImageShareDialog
+          title="صورة جدول الحجوزات"
+          phone=""
+          fileName="جدول الحجوزات"
+          caption={title}
+          make={(amounts) => bookingsTableImage(state, rows, { title, amounts, fmt: (b, m) => money(state, m, b.currency) })}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </>
+  );
+}
+
+/** معاينة الصورة قبل الإرسال، مع خيار المبالغ. بالكمبيوتر بتنتسخ وبينفتح الواتساب، وبالجوال قائمة المشاركة. */
+function ImageShareDialog(p: { title: string; phone: string; fileName: string; caption: string; amountsDefault?: boolean; make: (amounts: boolean) => Promise<ShareImage>; onClose: () => void }) {
+  const { notify } = useCompany();
+  const [amounts, setAmounts] = useState(p.amountsDefault ?? true);
+  const [img, setImg] = useState<ShareImage | null>(null);
+  useEffect(() => {
+    let live = true;
+    setImg(null);
+    p.make(amounts).then((x) => live && setImg(x), (e: Error) => notify(e.message, 'error'));
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [amounts]);
+  const send = async () => {
+    if (!img) return;
+    try {
+      const r = await api.whatsappImage(p.phone, img.png, p.fileName, p.caption);
+      if (r === 'clipboard') notify('نسخت الصورة وفتحت الواتساب: الصقها بالمحادثة (Ctrl+V) وابعت');
+      if (r) p.onClose();
+    } catch (e) {
+      notify((e as Error).message, 'error');
+    }
+  };
+  return (
+    <Modal title={p.title} onClose={p.onClose} width={720}>
+      <label className="check" style={{ marginBottom: 10 }}>
+        <input type="checkbox" checked={amounts} onChange={(e) => setAmounts(e.target.checked)} /> مع المبالغ (القيمة والعربون المدفوع والباقي)
+      </label>
+      <div className="share-preview">{img ? <img src={img.dataUrl} alt="" /> : <p className="muted">عم جهّز الصورة...</p>}</div>
+      <div className="form-actions">
+        <button type="button" onClick={p.onClose}>
+          إلغاء
+        </button>
+        <button type="button" className="whatsapp" disabled={!img} onClick={() => void send()}>
+          <Icon name="message" size={16} /> {IS_MOBILE ? 'مشاركة بالواتساب' : 'إرسال بالواتساب'}
+        </button>
+      </div>
+    </Modal>
   );
 }
 

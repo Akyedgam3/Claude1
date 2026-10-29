@@ -82,6 +82,8 @@ export const api = {
   openUpdate: () => inv<boolean | 'installing' | 'permission' | 'browser'>('app:openUpdate'),
   openUpdatePage: () => inv<boolean>('app:openUpdatePage'),
   whatsapp: (phone: string, text: string) => inv<boolean>('app:whatsapp', phone, text),
+  /** صورة للواتساب: بالكمبيوتر بتنتسخ وبتنفتح المحادثة ('clipboard')، وبالجوال قائمة المشاركة ('shared'). */
+  whatsappImage: (phone: string, png: Uint8Array, name: string, caption = '') => inv<'clipboard' | 'shared' | null>('app:whatsappImage', phone, png, name, caption),
   createCompany: (o: Record<string, string>) => inv<{ dir: string; recoveryCode: string }>('company:create', o),
   peek: (dir?: string) => inv<CompanyPeek | null>('company:peek', dir),
   login: (dir: string, creds: { username?: string; password?: string; recoveryCode?: string }) => inv<SessionInfo>('company:login', dir, creds),

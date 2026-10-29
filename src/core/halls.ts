@@ -83,6 +83,12 @@ export function monthExpenses(state: CompanyState, ym: string): { entry: Journal
 }
 
 /** رسالة واتساب للزبون: تأكيد الحجز، أو تذكير إذا المناسبة قريبة. */
+const PERIOD_RANK: Record<string, number> = { morning: 0, full: 1, evening: 2 };
+/** ترتيب الحجوزات بالجدول: بالتاريخ، وبنفس اليوم بالساعة ثم الفترة (صباحي قبل المسائي) ثم الصالة. */
+export function compareBookings(a: HallBooking, b: HallBooking): number {
+  return a.date.localeCompare(b.date) || (a.startTime ?? '99').localeCompare(b.startTime ?? '99') || (PERIOD_RANK[a.period] ?? 9) - (PERIOD_RANK[b.period] ?? 9) || a.hall.localeCompare(b.hall);
+}
+
 /** ساعات الحفل كنص: «20:00 – 23:30» أو «من 20:00» أو فاضي. */
 export function bookingHours(b: Pick<HallBooking, 'startTime' | 'endTime'>): string {
   if (b.startTime && b.endTime) return `${b.startTime} – ${b.endTime}`;

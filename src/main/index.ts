@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, screen, session as electronSession, shell, type IpcMainInvokeEvent, type WebContents } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeImage, screen, session as electronSession, shell, type IpcMainInvokeEvent, type WebContents } from 'electron';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -331,6 +331,15 @@ function registerIpc(): void {
   handle('app:whatsapp', async (phone: unknown, text: unknown) => {
     await shell.openExternal(whatsappUrl(String(phone ?? ''), String(text ?? '')));
     return true;
+  });
+
+  // صورة للواتساب: الواتساب ما بيقبل صورة من رابط، فمننسخها للحافظة ومنفتح المحادثة والمستخدم بيلصقها
+  handle('app:whatsappImage', async (phone: unknown, png: unknown, _name: unknown, caption: unknown) => {
+    if (!(png instanceof Uint8Array) || png.length > 15_000_000 || png[0] !== 0x89 || png[1] !== 0x50) throw new Error('صورة غير صالحة');
+    const url = whatsappUrl(String(phone ?? ''), String(caption ?? ''));
+    clipboard.writeImage(nativeImage.createFromBuffer(Buffer.from(png)));
+    await shell.openExternal(url);
+    return 'clipboard';
   });
 
   handle('app:activities', () => Object.values(ACTIVITIES).map((a) => ({ id: a.id, name: a.name, description: a.description, icon: a.icon })), { allowLocked: true });

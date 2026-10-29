@@ -3951,3 +3951,7 @@ button.whatsapp:hover { background: #1ebe5b; }
 .tag.sol-quote { background: rgba(231, 183, 90, 0.18); color: #9a6b12; }
 .tag.sol-accepted { background: rgba(59, 91, 219, 0.12); color: #3b5bdb; }
 .tag.sol-cancelled { background: rgba(192, 57, 43, 0.12); color: #c0392b; }
+
+/* معاينة صورة الواتساب */
+.share-preview { max-height: 62vh; overflow: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2, #f4f6f8); text-align: center; }
+.share-preview img { display: block; width: 100%; height: auto; }

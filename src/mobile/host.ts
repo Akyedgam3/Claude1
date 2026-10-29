@@ -16,6 +16,7 @@ import { buildCsv, buildWorkbook, readWorkbook, type ExportSheet } from '../main
 import { CompanyStore, peekCompany, type Credentials } from '../storage/company-store';
 import { flushVfs } from './shims/fs';
 import fs from './shims/fs';
+import { Capacitor } from '@capacitor/core';
 import { native } from './native';
 
 
@@ -268,6 +269,20 @@ function registerHandlers(): void {
   handle('app:whatsapp', async (phone: unknown, text: unknown) => {
     await native.openUrl(whatsappUrl(String(phone ?? ''), String(text ?? '')));
     return true;
+  });
+
+  // صورة للواتساب: قائمة المشاركة (بتختار واتساب وبعدين المحادثة)، وبالويب مشاركة المتصفح أو تنزيل
+  handle('app:whatsappImage', async (_phone: unknown, png: unknown, name: unknown, caption: unknown) => {
+    if (!(png instanceof Uint8Array) || png.length > 15_000_000) throw new Error('صورة غير صالحة');
+    const file = `${String(name ?? 'wazn').replace(/[^\p{L}\p{N} _-]/gu, '').slice(0, 60) || 'wazn'}.png`;
+    if (!Capacitor.isNativePlatform()) {
+      const f = new File([png as BlobPart], file, { type: 'image/png' });
+      if (navigator.canShare?.({ files: [f] })) {
+        await navigator.share({ files: [f], text: String(caption ?? '') }).catch((e: Error) => { if (e.name !== 'AbortError') throw e; });
+        return 'shared';
+      }
+    }
+    return (await native.shareFile(file, png, 'image/png')) ? 'shared' : null;
   });
 
   handle('app:openUpdatePage', async () => {
