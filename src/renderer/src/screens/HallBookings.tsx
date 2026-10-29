@@ -3,7 +3,9 @@ import {
   BOOKING_STATUS_NAMES,
   EVENT_TYPES,
   HALL_EXPENSES,
+  bookingHours,
   bookingMessage,
+  bookingsTableText,
   monthExpenses,
   HALL_PERIODS,
   HALL_SERVICES,
@@ -155,6 +157,7 @@ function Calendar({ onOpen }: { onOpen: (b: HallBooking | null, date?: string) =
                   <small>
                     {halls.length > 1 ? `${b.hall} · ` : ''}
                     {HALL_PERIODS[b.period]}
+                    {b.startTime ? ` · ${bookingHours(b)}` : ''}
                   </small>
                 </button>
               ))}
@@ -180,7 +183,7 @@ function BookingList({ onOpen }: { onOpen: (b: HallBooking) => void }) {
     () =>
       Object.values(state.bookings ?? {})
         .filter((b) => (!from || b.date >= from) && (!to || b.date <= to) && (!hall || b.hall === hall) && (cancelled || b.status !== 'cancelled'))
-        .filter((b) => matches(query, b.number, b.title, b.eventType, b.hall, state.parties[b.partyId]?.name, state.parties[b.partyId]?.phone))
+        .filter((b) => matches(query, b.number, b.title, b.eventType, b.hall, state.parties[b.partyId]?.name, state.parties[b.partyId]?.phone, b.groomPhone))
         .sort((a, b) => a.date.localeCompare(b.date) || a.period.localeCompare(b.period) || a.hall.localeCompare(b.hall)),
     [state, from, to, hall, cancelled, query],
   );
@@ -213,6 +216,7 @@ function BookingList({ onOpen }: { onOpen: (b: HallBooking) => void }) {
           <input type="checkbox" checked={prices} onChange={(e) => setPrices(e.target.checked)} /> إظهار الأسعار
         </label>
         <div className="spacer" />
+        {rows.length > 0 && <ShareTableButton rows={rows} title={`جدول الحجوزات ${range}${hall ? ` · ${hall}` : ''}`} prices={prices} />}
         <PrintButtons kind="report" name={`جدول الحجوزات ${range}`} papers={['a4']} />
         <ExportButtons
           name="جدول الحجوزات"
@@ -224,10 +228,12 @@ function BookingList({ onOpen }: { onOpen: (b: HallBooking) => void }) {
                 { header: 'الرقم', key: 'n', type: 'number' },
                 { header: 'التاريخ', key: 'date', type: 'date' },
                 { header: 'الفترة', key: 'period' },
+                { header: 'الساعة', key: 'hours' },
                 { header: 'الصالة', key: 'hall' },
                 { header: 'المناسبة', key: 'event' },
                 { header: 'الزبون', key: 'party' },
                 { header: 'الهاتف', key: 'phone' },
+                { header: 'رقم العريس', key: 'groom' },
                 { header: 'الضيوف', key: 'guests', type: 'number' },
                 { header: 'الحالة', key: 'status' },
                 ...(prices
@@ -240,7 +246,7 @@ function BookingList({ onOpen }: { onOpen: (b: HallBooking) => void }) {
               ],
               rows: rows.map((b) => {
                 const t = bookingTotals(b).total, dep = bookingDeposits(state, b);
-                return { n: b.number, date: b.date, period: HALL_PERIODS[b.period], hall: b.hall, event: `${b.eventType}${b.title ? ` — ${b.title}` : ''}`, party: state.parties[b.partyId]?.name, phone: state.parties[b.partyId]?.phone, guests: b.guests ?? null, status: BOOKING_STATUS_NAMES[b.status], total: major(state, t, b.currency), dep: major(state, dep, b.currency), left: major(state, Math.max(0, t - dep), b.currency) };
+                return { n: b.number, date: b.date, period: HALL_PERIODS[b.period], hours: bookingHours(b), hall: b.hall, event: `${b.eventType}${b.title ? ` — ${b.title}` : ''}`, party: state.parties[b.partyId]?.name, phone: state.parties[b.partyId]?.phone, groom: b.groomPhone ?? '', guests: b.guests ?? null, status: BOOKING_STATUS_NAMES[b.status], total: major(state, t, b.currency), dep: major(state, dep, b.currency), left: major(state, Math.max(0, t - dep), b.currency) };
               }),
             },
           ]}
@@ -275,7 +281,10 @@ function BookingList({ onOpen }: { onOpen: (b: HallBooking) => void }) {
                 <td className="mono">{b.number}</td>
                 <td>
                   {dateText(b.date)}
-                  <div className="muted">{HALL_PERIODS[b.period]}</div>
+                  <div className="muted">
+                    {HALL_PERIODS[b.period]}
+                    {b.startTime || b.endTime ? ` · ${bookingHours(b)}` : ''}
+                  </div>
                 </td>
                 <td>
                   <strong>
@@ -335,6 +344,9 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
     eventType: booking?.eventType ?? 'عرس',
     title: booking?.title ?? '',
     guests: booking?.guests ? String(booking.guests) : '',
+    groomPhone: booking?.groomPhone ?? '',
+    startTime: booking?.startTime ?? '',
+    endTime: booking?.endTime ?? '',
     status: booking?.status ?? ('tentative' as BookingStatus),
     currency: booking?.currency ?? base,
     discount: booking?.discount ? toInput(state, booking.discount, booking.currency) : '',
@@ -367,6 +379,9 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
         eventType: f.eventType.trim() || 'مناسبة',
         ...(f.title.trim() ? { title: f.title.trim() } : {}),
         ...(guests > 0 ? { guests } : {}),
+        ...(f.groomPhone.trim() ? { groomPhone: f.groomPhone.trim() } : {}),
+        ...(f.startTime ? { startTime: f.startTime } : {}),
+        ...(f.endTime ? { endTime: f.endTime } : {}),
         status: booking?.invoiceId ? booking.status : f.status,
         currency: f.currency,
         lines: lines.filter((l) => l.name.trim()).map((l) => ({ id: l.id, name: l.name.trim(), ...(l.perGuest ? { perGuest: true } : {}), qty: num(l.qty), price: parseAmount(state, l.price, f.currency) })),
@@ -441,6 +456,15 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
               </option>
             ))}
           </select>
+        </Field>
+        <Field label="ساعة بداية الحفل">
+          <input type="time" value={f.startTime} onChange={(e) => set('startTime', e.target.value)} disabled={locked} />
+        </Field>
+        <Field label="ساعة انتهاء الحفل">
+          <input type="time" value={f.endTime} onChange={(e) => set('endTime', e.target.value)} disabled={locked} />
+        </Field>
+        <Field label="رقم العريس">
+          <input type="tel" dir="ltr" placeholder="09xx xxx xxx" value={f.groomPhone} onChange={(e) => set('groomPhone', e.target.value)} disabled={locked} />
         </Field>
         <Field label="عدد الضيوف">
           <input inputMode="numeric" value={f.guests} onChange={(e) => setGuests(e.target.value)} disabled={locked} />
@@ -616,24 +640,42 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
   );
 }
 
-/** زر واتساب للحجز: رسالة تأكيد (أو تذكير إذا المناسبة قريبة) لرقم الزبون. */
+async function sendWhatsApp(phone: string, text: string, notify: (m: string, kind?: 'error') => void) {
+  try {
+    await api.whatsapp(phone, text);
+  } catch (e) {
+    // إذا ما انفتح (رقم غلط أو ما في واتساب) منحط الرسالة بالحافظة
+    await navigator.clipboard.writeText(text).catch(() => undefined);
+    notify(`${(e as Error).message}. نسخت الرسالة، الصقها بالواتساب`, 'error');
+  }
+}
+
+/** زر واتساب للحجز: رسالة تأكيد (أو تذكير إذا المناسبة قريبة) لرقم العريس، وإذا ما في فلرقم الزبون (مع الأسعار). */
 function WhatsAppButton({ booking, small }: { booking: HallBooking; small?: boolean }) {
   const { state, notify } = useCompany();
-  const phone = state.parties[booking.partyId]?.phone;
+  const groom = booking.groomPhone;
+  const phone = groom || state.parties[booking.partyId]?.phone;
   if (!phone) return null;
-  const send = async () => {
-    const text = bookingMessage(state, booking, { today: today(), fmt: (m) => money(state, m, booking.currency) });
-    try {
-      await api.whatsapp(phone, text);
-    } catch (e) {
-      // إذا ما انفتح (رقم غلط أو ما في واتساب) منحط الرسالة بالحافظة
-      await navigator.clipboard.writeText(text).catch(() => undefined);
-      notify(`${(e as Error).message}. نسخت الرسالة، الصقها بالواتساب`, 'error');
-    }
-  };
+  const send = () =>
+    sendWhatsApp(
+      phone,
+      bookingMessage(state, booking, { today: today(), fmt: (m) => money(state, m, booking.currency), ...(groom ? { greet: booking.title ?? '', withPrices: false } : {}) }),
+      notify,
+    );
   return (
-    <button type="button" className={`whatsapp${small ? ' small' : ''}`} title={`رسالة واتساب لـ ${phone}`} onClick={() => void send()}>
-      <Icon name="message" size={small ? 14 : 16} /> واتساب
+    <button type="button" className={`whatsapp${small ? ' small' : ''}`} title={`رسالة واتساب ${groom ? 'للعريس' : 'للزبون'} ${phone}`} onClick={() => void send()}>
+      <Icon name="message" size={small ? 14 : 16} /> واتساب{groom && !small ? ' العريس' : ''}
+    </button>
+  );
+}
+
+/** إرسال جدول الحجوزات (المعروض) بالواتساب: بيفتح الواتساب وبتختار لمين تبعته. */
+function ShareTableButton({ rows, title, prices }: { rows: HallBooking[]; title: string; prices: boolean }) {
+  const { state, notify } = useCompany();
+  const send = () => sendWhatsApp('', bookingsTableText(state, rows, { title, withPrices: prices, fmt: (b, m) => money(state, m, b.currency) }), notify);
+  return (
+    <button type="button" className="whatsapp" title="بيفتح الواتساب وبتختار لمين تبعت الجدول" onClick={() => void send()}>
+      <Icon name="message" size={16} /> إرسال الجدول بالواتس
     </button>
   );
 }

@@ -223,6 +223,8 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       if (!['morning', 'evening', 'full'].includes(b.period)) fail('الفترة غير صالحة');
       if (!state.currencies[b.currency]) fail('عملة غير معروفة');
       if (b.guests !== undefined && !(Number.isInteger(b.guests) && b.guests >= 0 && b.guests < 100000)) fail('عدد الضيوف غير صالح');
+      for (const t of [b.startTime, b.endTime]) if (t !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/.test(t)) fail('ساعة غير صالحة');
+      if (b.groomPhone !== undefined && !(b.groomPhone.trim() && b.groomPhone.length <= 30)) fail('رقم العريس غير صالح');
       for (const l of b.lines) {
         if (!l.name?.trim()) fail('اكتب اسم الخدمة');
         if (!(Number.isFinite(l.qty) && l.qty >= 0 && l.qty < 1e6) || !Number.isSafeInteger(l.price) || l.price < 0) fail(`كمية أو سعر غير صالح: ${l.name}`);

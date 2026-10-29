@@ -10,9 +10,10 @@ export function whatsappNumber(phone: string, countryCode = '963'): string | nul
   return /^\d{8,15}$/.test(d) ? d : null;
 }
 
+/** بدون رقم (phone فاضي) بيفتح الواتساب لتختار مين تبعتله. */
 export function whatsappUrl(phone: string, text: string): string {
-  const n = whatsappNumber(phone);
-  if (!n) throw new Error('رقم الهاتف غير صالح للواتساب');
-  if (text.length > 3000) throw new Error('الرسالة طويلة');
+  const n = phone.trim() ? whatsappNumber(phone) : '';
+  if (n === null) throw new Error('رقم الهاتف غير صالح للواتساب');
+  if (text.length > 6000) throw new Error('الرسالة طويلة');
   return `https://wa.me/${n}?text=${encodeURIComponent(text)}`;
 }

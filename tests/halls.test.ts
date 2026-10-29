@@ -69,6 +69,23 @@ describe('hall extras', () => {
     expect(near).not.toContain('قيمة');
   });
 
+  it('groom phone, party hours and the table as a message', async () => {
+    const { whatsappUrl, bookingMessage, bookingsTableText } = await import('../src/core');
+    expect(whatsappUrl('', 'جدول')).toBe('https://wa.me/?text=%D8%AC%D8%AF%D9%88%D9%84');
+    expect(() => whatsappUrl('12', 'x')).toThrow();
+    const l = hall();
+    const b = l.saveBooking({ ...base, id: 'b', partyId: 'c', date: '2026-11-20', period: 'evening', title: 'أحمد ♥ سلمى', groomPhone: '0944 111 222', startTime: '20:00', endTime: '23:30', guests: 200, lines: [{ id: '1', name: 'أجار', qty: 1, price: 1_000_000 }] });
+    expect(l.state.bookings!.b!.groomPhone).toBe('0944 111 222');
+    expect(() => l.saveBooking({ ...base, id: 'x', partyId: 'c', date: '2026-11-21', period: 'evening', startTime: '25:00', lines: [] })).toThrow('ساعة');
+    const msg = bookingMessage(l.state, b, { today: '2026-10-29', greet: b.title!, withPrices: false });
+    expect(msg).toContain('مرحباً أحمد ♥ سلمى');
+    expect(msg).toContain('(مسائي، 20:00 – 23:30)');
+    const table = bookingsTableText(l.state, [b], { title: 'جدول الحجوزات', withPrices: true, fmt: (_b, m) => String(m / 100) });
+    expect(table).toContain('📅 الجمعة 20/11/2026 · مسائي (20:00 – 23:30)');
+    expect(table).toContain('القيمة 10000');
+    expect(bookingsTableText(l.state, [b], { title: 't' })).not.toContain('القيمة');
+  });
+
   it('records monthly expenses and lists them by item', async () => {
     const { monthExpenses } = await import('../src/core');
     const l = hall();

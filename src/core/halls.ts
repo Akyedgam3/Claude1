@@ -83,14 +83,25 @@ export function monthExpenses(state: CompanyState, ym: string): { entry: Journal
 }
 
 /** رسالة واتساب للزبون: تأكيد الحجز، أو تذكير إذا المناسبة قريبة. */
-export function bookingMessage(state: CompanyState, b: HallBooking, opts: { today: string; withPrices?: boolean; fmt?: (minor: number) => string }): string {
+/** ساعات الحفل كنص: «20:00 – 23:30» أو «من 20:00» أو فاضي. */
+export function bookingHours(b: Pick<HallBooking, 'startTime' | 'endTime'>): string {
+  if (b.startTime && b.endTime) return `${b.startTime} – ${b.endTime}`;
+  if (b.startTime) return `من ${b.startTime}`;
+  if (b.endTime) return `لـ ${b.endTime}`;
+  return '';
+}
+
+/** رسالة الحجز. greet: اسم اللي منبعتله (افتراضياً اسم الزبون). */
+export function bookingMessage(state: CompanyState, b: HallBooking, opts: { today: string; withPrices?: boolean; fmt?: (minor: number) => string; greet?: string }): string {
   const days = Math.round((Date.parse(b.date) - Date.parse(opts.today)) / 864e5);
   const party = state.parties[b.partyId];
   const [y, m, d] = b.date.split('-');
   const dayName = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'][new Date(b.date + 'T12:00:00Z').getUTCDay()];
-  const when = `${dayName} ${d}/${m}/${y} (${HALL_PERIODS[b.period]})`;
+  const hours = bookingHours(b);
+  const when = `${dayName} ${d}/${m}/${y} (${HALL_PERIODS[b.period]}${hours ? `، ${hours}` : ''})`;
   const what = `${b.eventType}${b.title ? ` — ${b.title}` : ''}`;
-  const lines = [`مرحباً ${party?.name ?? ''} 🌹`];
+  const name = opts.greet ?? party?.name ?? '';
+  const lines = [`مرحباً ${name ? `${name} ` : ''}🌹`];
   if (days >= 0 && days <= 3) lines.push(`تذكير بموعد ${what} ${days === 0 ? 'اليوم' : days === 1 ? 'بكرا' : `بعد ${days} أيام`}، ${when} بـ${b.hall}.`);
   else lines.push(`تم تأكيد حجز ${what} بـ${b.hall} يوم ${when}.`);
   if (b.guests) lines.push(`عدد الضيوف: ${b.guests}`);
@@ -101,4 +112,25 @@ export function bookingMessage(state: CompanyState, b: HallBooking, opts: { toda
   }
   lines.push('', `${state.info?.name ?? ''}${state.info?.phone ? ` · ${state.info.phone}` : ''}`, 'نتمنى لكم مناسبة سعيدة 🎉');
   return lines.join('\n');
+}
+
+/** جدول الحجوزات كرسالة واتساب: سطر لكل حجز (التاريخ، الفترة والساعات، الصالة، المناسبة، الزبون، الضيوف). */
+export function bookingsTableText(state: CompanyState, rows: HallBooking[], opts: { title: string; withPrices?: boolean; fmt?: (b: HallBooking, minor: number) => string }): string {
+  const out = [`📋 ${opts.title}`, `${state.info?.name ?? ''}`, ''];
+  for (const b of rows) {
+    const [y, m, d] = b.date.split('-');
+    const dayName = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'][new Date(b.date + 'T12:00:00Z').getUTCDay()];
+    const hours = bookingHours(b);
+    out.push(`📅 ${dayName} ${d}/${m}/${y} · ${HALL_PERIODS[b.period]}${hours ? ` (${hours})` : ''}`);
+    out.push(`${b.eventType}${b.title ? ` — ${b.title}` : ''}${hallNames(state).length > 1 ? ` · ${b.hall}` : ''}`);
+    const who = [state.parties[b.partyId]?.name, b.guests ? `${b.guests} ضيف` : '', b.status === 'cancelled' || b.status === 'tentative' ? BOOKING_STATUS_NAMES[b.status] : ''].filter(Boolean);
+    if (who.length) out.push(who.join(' · '));
+    if (opts.withPrices && opts.fmt) {
+      const t = bookingTotals(b).total, dep = bookingDeposits(state, b);
+      out.push(`القيمة ${opts.fmt(b, t)} · العربون ${opts.fmt(b, dep)} · الباقي ${opts.fmt(b, Math.max(0, t - dep))}`);
+    }
+    out.push('');
+  }
+  out.push(`المجموع: ${rows.length} حجز`);
+  return out.join('\n');
 }
