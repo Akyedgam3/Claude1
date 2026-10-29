@@ -456,12 +456,14 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
                 </Field>
               </>
             )}
-            <Field label={feature('dealers') ? (f.dealerId ? 'سعر المبيع (مفرق) — مش مستعمل' : 'سعر الصيدلية (للزبون، وبيتحاسب فيه المورّد)') : 'سعر المبيع (مفرق)'}>
-              <input value={f.price} onChange={set('price')} inputMode="decimal" />
-            </Field>
+            {!(feature('dealers') && f.dealerId) && (
+              <Field label={feature('dealers') ? 'سعر الصيدلية (للزبون، وبيتحاسب فيه المورّد)' : 'سعر المبيع (مفرق)'}>
+                <input value={f.price} onChange={set('price')} inputMode="decimal" />
+              </Field>
+            )}
             {feature('dealers') && (
               <>
-                <Field label="سعر المورّد (بيبيع فيه المورّد)">
+                <Field label={f.dealerId ? 'سعر البيع (بضاعة المورّد، بيبيع فيه)' : 'سعر المورّد (بيبيع فيه المورّد، أغلى من سعر الصيدلية)'}>
                   <input value={f.dealerPrice} onChange={set('dealerPrice')} inputMode="decimal" />
                 </Field>
                 <Field label="بضاعة مين؟">
