@@ -54,7 +54,7 @@ export function cashAccounts(state: CompanyState, currency?: string) {
 }
 
 /** سعر المادة حسب شريحة العميل والوحدة، محوّلاً لعملة الفاتورة. */
-export function itemPrice(state: CompanyState, item: Item, opts: { party?: Party | null; unit?: string; currency: string; date: string; purchase?: boolean; rates?: Record<string, number> }): string {
+export function itemPrice(state: CompanyState, item: Item, opts: { party?: Party | null; unit?: string; currency: string; date: string; purchase?: boolean; rates?: Record<string, number>; dealer?: boolean }): string {
   const rates = opts.rates ?? fxRates(state, opts.date);
   if (opts.purchase) {
     const unitCost = state.stock[item.id]?.lastCost ?? 0;
@@ -65,7 +65,10 @@ export function itemPrice(state: CompanyState, item: Item, opts: { party?: Party
   const unit = item.units?.find((u) => u.name === opts.unit);
   const tier = opts.party?.priceTier;
   let price = tier === 'wholesale' ? (item.wholesalePrice ?? item.price) : tier === 'special' ? (item.specialPrice ?? item.wholesalePrice ?? item.price) : item.price;
-  if (unit) price = unit.price ?? Math.round(price * unit.factor);
+  // المورد (صندوقه الخاص) بيبيع أدوية الصيدلية بسعره الأعلى إذا محطوط
+  const dealerPrice = opts.dealer && !item.hidden && item.dealerPrice ? item.dealerPrice : undefined;
+  if (dealerPrice) price = dealerPrice;
+  if (unit) price = !dealerPrice && unit.price !== undefined ? unit.price : Math.round(price * unit.factor);
   const v = convertPrice(state, price, item.priceCurrency, opts.currency, rates);
   return v === null ? '' : toInput(state, v, opts.currency);
 }
@@ -188,7 +191,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
     return r;
   };
   const priceFor = (item: Item, unit = '', p: Party | null | undefined = party, cur = currency, rates = ratesFor(currency, rateText)) =>
-    itemPrice(state, item, { party: p, unit, currency: cur, date, rates, purchase: kind === 'purchase' || kind === 'purchase_return' });
+    itemPrice(state, item, { party: p, unit, currency: cur, date, rates, purchase: kind === 'purchase' || kind === 'purchase_return', dealer: user.cashAccountId === '11019' });
   /** يحوّل مبلغ مكتوب من عملة لعملة (إذا ما في سعر صرف بيضل متل ما هو). */
   const convertText = (text: string, from: string, to: string, rates: Record<string, number>) => {
     if (!text.trim() || from === to) return text;

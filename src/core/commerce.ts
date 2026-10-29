@@ -340,6 +340,10 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       if (prev?.invoiceId && !invoiceVoided(state, prev.invoiceId) && (j.status !== 'invoiced' || j.invoiceId !== prev.invoiceId)) fail('الطلب مفوتر؛ ألغِ الفاتورة أولاً لتعديله');
       return;
     }
+    case 'dealerdue.set':
+      if (!state.invoices.some((i) => i.id === event.invoiceId)) fail('الفاتورة غير موجودة');
+      if (!Number.isSafeInteger(event.amount)) fail('مبلغ غير صالح');
+      return;
     case 'priceboard.saved': {
       const b = event.board;
       if (!DATE_RE.test(b.date)) fail('تاريخ غير صالح');
@@ -623,6 +627,9 @@ export function applyCommerceEvent(state: CompanyState, event: CompanyEvent): vo
     case 'printjob.saved':
       (state.printJobs ??= {})[event.job.id] = { ...event.job };
       bump(state, 'printjob', event.job.number);
+      return;
+    case 'dealerdue.set':
+      (state.dealerDues ??= {})[event.invoiceId] = event.amount;
       return;
     case 'priceboard.saved':
       (state.priceBoards ??= {})[event.board.date] = { ...event.board };

@@ -539,6 +539,11 @@ export class Ledger {
     return account;
   }
 
+  /** دين المورد للصيدلية عن فاتورة (داخلي، بينادى بعد فاتورة المورد). */
+  setDealerDue(invoiceId: string, amount: number): void {
+    this.emit({ type: 'dealerdue.set', invoiceId, amount });
+  }
+
   /** تحويل مصاري بين صندوقين (متل حصة الصيدلية من صندوق المورد للصندوق المشترك). */
   transferBox(t: { date: string; from: string; to: string; amount: number; memo?: string; sourceId?: string }): JournalEntry {
     if (!(t.amount > 0) || !Number.isSafeInteger(t.amount)) fail('المبلغ يجب أن يكون أكبر من صفر');

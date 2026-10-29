@@ -110,7 +110,7 @@ export function Pos() {
 
   /** السعر بعملة البيع، أو null إن كانت المادة مسعّرة بعملة تانية وما في سعر صرف. */
   const priceOf = (item: Item, unit = ''): number | null => {
-    const text = itemPrice(state, item, { party, unit, currency: cur, date: today() });
+    const text = itemPrice(state, item, { party, unit, currency: cur, date: today(), dealer: user.cashAccountId === '11019' });
     return text ? parseAmount(state, text, cur) : null;
   };
   const switchCurrency = (next: string) => {

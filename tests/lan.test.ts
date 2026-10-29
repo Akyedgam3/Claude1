@@ -193,5 +193,12 @@ describe('dealer box', () => {
     expect(accountBalance(st, '1101').balance).toBe(4000);
     expect(dueToShared(st, DEALER_BOX_ID, '1101')).toBe(0);
     void credit;
+    // المورد بيبيع أغلى (1600 بدل 1000): بيتحوّل للصيدلية سعرها بس، والفرق إله
+    const before = accountBalance(store.ledger.state, DEALER_BOX_ID).balance;
+    execute(store, me, 'postInvoice', [{ kind: 'sale', date: '2026-01-06', lines: [{ itemId: 'i', qty: 1, price: 1600 }] }]);
+    st = store.ledger.state;
+    expect(accountBalance(st, '1101').balance).toBe(5000);
+    expect(accountBalance(st, DEALER_BOX_ID).balance - before).toBe(600);
+    expect(dueToShared(st, DEALER_BOX_ID, '1101')).toBe(0);
   });
 });

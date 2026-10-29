@@ -55,7 +55,7 @@ export function DealerBoxCard() {
         <span>باقي عليك للصيدلية (أدوية بعتها بالدين أو ما تحوّل حقها)</span>
         <strong className={due > 0 ? 'bad' : 'good'}>{money(state, Math.max(0, due))}</strong>
       </div>
-      <p className="muted">كل فاتورة بتسكّرها فيها أدوية الصيدلية، المقبوض منها بسعر الصيدلية بيتحوّل لحاله لصندوقها. اللي ببيعه بالدين بيضل عليك هون لحتى تسدّده.</p>
+      <p className="muted">بتبيع أدوية الصيدلية بسعرك (سعر المورّد)، وبيصير عليك سعر الصيدلية بس. مع كل فاتورة بتسكّرها، حق الصيدلية بيتحوّل لحاله لصندوقها والفرق بيضل إلك. اللي ببيعه بالدين بيضل عليك هون لحتى تسدّده.</p>
       {can('vouchers.create') && (
         <div className="with-button" style={{ marginTop: 10 }}>
           {shared.length > 1 && (

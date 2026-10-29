@@ -1006,6 +1006,8 @@ export interface CompanyState {
   dealers?: Record<string, Dealer>;
   bookings?: Record<string, HallBooking>;
   solarProjects?: Record<string, SolarProject>;
+  /** صندوق المورد: شقد صار عليه للصيدلية عن كل فاتورة (أدويتها بسعر بيعها). */
+  dealerDues?: Record<string, number>;
   dealerSales?: DealerSale[];
   dealerMoves?: DealerMove[];
   partners: Record<string, Partner>;
@@ -1050,6 +1052,7 @@ export type CompanyEvent =
   | { type: 'priceboard.saved'; board: PriceBoard }
   | { type: 'printjob.saved'; job: PrintJob }
   | { type: 'solar.saved'; project: SolarProject }
+  | { type: 'dealerdue.set'; invoiceId: string; amount: number }
   | { type: 'dealer.saved'; dealer: Dealer }
   | { type: 'booking.saved'; booking: HallBooking }
   | { type: 'booking.deleted'; bookingId: string }

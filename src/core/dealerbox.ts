@@ -27,22 +27,31 @@ export function sharedBoxOf(state: CompanyState): string {
   return '1101';
 }
 
-/** حصة أدوية الصيدلية (المواد المشتركة) من فاتورة على صندوق المورد: القيمة كاملة والمقبوض منها. */
+/** حصة الفاتورة من المواد المشتركة بسعر الفاتورة (المورد ممكن يبيع أغلى). */
 export function sharedPart(state: CompanyState, inv: Invoice): { amount: number; paid: number } {
   const share = sharedShare(state, inv.lines);
   return { amount: Math.round(inv.total * share), paid: Math.round(inv.paid * share) };
 }
 
-/** الباقي على المورد للصيدلية: قيمة أدوية الصيدلية اللي باعها (بسعر الصيدلية) ناقص المرتجع وناقص اللي تحوّل لصندوقها. */
-export function dueToShared(state: CompanyState, boxId: string, sharedId: string): number {
-  const base = state.info?.baseCurrency;
-  let due = 0;
-  for (const inv of state.invoices) {
-    if (inv.voidEntryId || inv.cashAccountId !== boxId || inv.currency !== base) continue;
-    if (inv.kind !== 'sale' && inv.kind !== 'sale_return') continue;
-    const part = sharedPart(state, inv).amount;
-    due += inv.kind === 'sale' ? part : -part;
+/** قيمة أدوية الصيدلية بالفاتورة بسعر بيع الصيدلية (مش بسعر المورد). */
+export function pharmacyValue(state: CompanyState, inv: Invoice): number {
+  let v = 0;
+  for (const l of inv.lines) {
+    const it = l.itemId ? state.items[l.itemId] : undefined;
+    if (!it || it.hidden) continue;
+    const unit = l.unit ? it.units?.find((u) => u.name === l.unit) : undefined;
+    const sameCur = it.priceCurrency === inv.currency;
+    const unitPrice = sameCur ? (unit?.price ?? Math.round(it.price * (l.factor ?? 1))) : l.price;
+    v += Math.round(unitPrice * l.qty);
   }
+  return v;
+}
+
+/** الباقي على المورد للصيدلية: أدويتها اللي باعها بسعر بيعها، ناقص اللي تحوّل لصندوقها. */
+export function dueToShared(state: CompanyState, boxId: string, sharedId: string): number {
+  let due = 0;
+  const live = new Set(state.invoices.filter((i) => !i.voidEntryId).map((i) => i.id));
+  for (const [id, amount] of Object.entries(state.dealerDues ?? {})) if (live.has(id)) due += amount;
   for (const e of state.entries) {
     if (e.source?.type !== 'boxtransfer' || state.voided[e.id] || e.voidOf) continue;
     const out = e.lines.find((l) => l.accountId === boxId && l.credit > 0);
@@ -55,15 +64,18 @@ export function dueToShared(state: CompanyState, boxId: string, sharedId: string
   return due;
 }
 
-/** بعد ما المورد يسكّر فاتورة: المقبوض عن أدوية الصيدلية بيتحوّل لحاله لصندوقها (والباقي بيضل دين عليه). */
+/** بعد ما المورد يسكّر فاتورة: بيصير عليه للصيدلية سعر بيعها لأدويتها، والمقبوض (لحد هالمبلغ) بيتحوّل لحاله لصندوقها. فرق السعر إله. */
 export function settleDealerInvoice(ledger: Ledger, inv: Invoice): void {
   const st = ledger.state;
-  if (inv.cashAccountId !== DEALER_BOX_ID || inv.kind !== 'sale' || inv.currency !== st.info?.baseCurrency) return;
-  const { paid } = sharedPart(st, inv);
-  if (paid <= 0) return;
+  if (inv.cashAccountId !== DEALER_BOX_ID || (inv.kind !== 'sale' && inv.kind !== 'sale_return')) return;
+  const owed = pharmacyValue(st, inv);
+  if (owed <= 0) return;
+  ledger.setDealerDue(inv.id, inv.kind === 'sale' ? owed : -owed);
+  if (inv.kind !== 'sale') return;
+  const pay = Math.min(owed, sharedPart(st, inv).paid);
   const to = sharedBoxOf(st);
-  if (to === DEALER_BOX_ID) return;
-  ledger.transferBox({ date: inv.date, from: DEALER_BOX_ID, to, amount: paid, memo: `حصة الصيدلية من فاتورة مبيع رقم ${inv.number}`, sourceId: `inv:${inv.id}` });
+  if (pay <= 0 || to === DEALER_BOX_ID) return;
+  ledger.transferBox({ date: inv.date, from: DEALER_BOX_ID, to, amount: pay, memo: `حق الصيدلية من فاتورة مبيع رقم ${inv.number}`, sourceId: `inv:${inv.id}` });
 }
 
 /** إلغاء الفاتورة: التحويل التلقائي إلها بيتلغى معها. */
