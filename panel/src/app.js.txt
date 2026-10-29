@@ -130,15 +130,180 @@ function render() {
   $('#pw').onclick = changePassword;
   const m = $('#m');
   if (!owner) return renderAgent(m);
-  const tabs = [['home', 'الرئيسية'], ['agents', 'الوكلاء'], ['customers', 'الزباين'], ['updates', 'التحديثات'], ['settings', 'الإعدادات']];
+  const tabs = [['home', 'الرئيسية'], ['agents', 'الوكلاء'], ['customers', 'الزباين'], ['invoices', 'فواتير الاشتراك'], ['updates', 'التحديثات'], ['settings', 'الإعدادات']];
   m.innerHTML = `<nav class="tabs">${tabs.map(([k, n]) => `<button class="${tab === k ? 'on' : ''}" data-t="${k}">${n}</button>`).join('')}</nav><div id="body"></div>`;
   m.querySelectorAll('[data-t]').forEach((b) => (b.onclick = () => { tab = b.dataset.t; q = ''; render(); }));
-  ({ home: ownerHome, agents: ownerAgents, customers: ownerCustomers, updates: ownerUpdates, settings: ownerSettings })[tab]($('#body'));
+  ({ home: ownerHome, agents: ownerAgents, customers: ownerCustomers, invoices: ownerInvoices, updates: ownerUpdates, settings: ownerSettings })[tab]($('#body'));
 }
 function changePassword() {
   const m = modal(`<h2>تغيير كلمة السر</h2><form class="list" id="f"><label>كلمة السر الحالية<input name="old" type="password" required /></label><label>كلمة السر الجديدة<input name="new" type="password" required minlength="8" /></label><div class="row"><button class="primary">حفظ</button><button type="button" id="x">إلغاء</button></div></form>`);
   $('#x', m).onclick = m.close;
   $('#f', m).onsubmit = async (e) => { e.preventDefault(); const r = await run(() => api('/api/password', Object.fromEntries(new FormData(e.target))), 'تغيّرت كلمة السر'); if (r) m.close(); };
+}
+
+// ───────────── فواتير الاشتراك ─────────────
+// الأسعار المقترحة بالدولار (بتتغيّر بالخانة)
+const INV_PRICES = { monthly: 4.99, quarterly: 11.99, semiannual: 19.99, annual: 29.99, lifetime: 59.99 };
+const today = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+const addDaysTo = (d, n) => { const x = new Date(d + 'T12:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
+const dmy = (d) => (d ? d.split('-').reverse().join('/') : '');
+const invMoney = (v) => (v.currency === 'SYP' ? Number(v.price).toLocaleString('en-US') + ' ل.س' : '$' + Number(v.price).toFixed(2));
+
+function ownerInvoices(el) {
+  const plans = Object.entries(S.plans ?? {});
+  el.innerHTML = `<div class="card"><h2>فاتورة اشتراك جديدة</h2>
+    <form id="inv" class="grid">
+      <label>من الزباين (اختياري)<select name="customerId"><option value="">— عميل جديد —</option>${S.customers.filter((c) => !c.phoneOf && c.status !== 'revoked').slice().reverse().map((c) => `<option value="${esc(c.id)}">${esc(c.name)}${c.phone ? ' · ' + esc(c.phone) : ''}</option>`).join('')}</select></label>
+      <label>اسم العميل<input name="name" required /></label>
+      <label>رقم العميل (واتساب)<input name="phone" dir="ltr" inputmode="tel" placeholder="09xx xxx xxx" /></label>
+      <label>نوع الاشتراك<select name="plan">${plans.map(([k, p]) => `<option value="${k}" ${k === 'annual' ? 'selected' : ''}>${esc(p.nameAr)}</option>`).join('')}</select></label>
+      <label>الأجهزة<select name="mobile"><option value="">كمبيوتر</option><option value="1">كمبيوتر + جوال</option></select></label>
+      <label>عدد الأجهزة<input name="devices" type="number" min="1" max="20" value="2" /></label>
+      <label>السعر<input name="price" inputmode="decimal" value="${INV_PRICES.annual}" required /></label>
+      <label>العملة<select name="currency"><option value="USD">دولار $</option><option value="SYP">ليرة سورية</option></select></label>
+      <label>تاريخ الفاتورة<input name="date" type="date" value="${today()}" required /></label>
+      <label>صالح لغاية<input name="until" type="date" value="${addDaysTo(today(), 365)}" /></label>
+      <label>الدفع<select name="paid"><option value="1">مدفوع</option><option value="">غير مدفوع</option></select></label>
+      <label>كود التفعيل (اختياري)<input name="code" dir="ltr" /></label>
+      <label style="grid-column:1/-1">ملاحظة (اختياري)<input name="note" /></label>
+      <button class="primary">إنشاء الفاتورة والصورة</button>
+    </form></div>
+    <input id="iq" placeholder="بحث بالفواتير..." value="${esc(q)}" style="margin-bottom:10px" />
+    <div class="list" id="il"></div>`;
+  const f = $('#inv');
+  const untilFor = () => { const d = S.plans?.[f.plan.value]?.days; f.until.value = d ? addDaysTo(f.date.value || today(), d) : ''; };
+  f.plan.onchange = () => { f.price.value = f.currency.value === 'USD' ? INV_PRICES[f.plan.value] ?? '' : f.price.value; untilFor(); };
+  f.date.onchange = untilFor;
+  f.customerId.onchange = () => {
+    const c = S.customers.find((x) => x.id === f.customerId.value);
+    if (!c) return;
+    f.name.value = c.name; f.phone.value = c.phone ?? ''; f.plan.value = c.plan; f.devices.value = c.devices ?? 2;
+    f.mobile.value = c.mobile ? '1' : ''; f.code.value = c.code ?? '';
+    f.price.value = INV_PRICES[c.plan] ?? f.price.value;
+    f.until.value = c.expiresAt ? String(c.expiresAt).slice(0, 10) : '';
+  };
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    const v = Object.fromEntries(new FormData(f));
+    const body = { ...v, planName: S.plans?.[v.plan]?.nameAr ?? v.plan, mobile: !!v.mobile, paid: !!v.paid, price: Number(String(v.price).replace(/[,،]/g, '')) };
+    try {
+      const r = await api('/api/invoices', body);
+      S.invoices = [r.invoice, ...(S.invoices ?? [])];
+      toast(`انعملت الفاتورة رقم ${r.invoice.n}`);
+      showInvoice(r.invoice);
+      f.reset(); f.date.value = today(); untilFor(); f.price.value = INV_PRICES.annual;
+      list();
+    } catch (err) { toast(err.message, true); }
+  };
+  const list = () => {
+    const rows = (S.invoices ?? []).filter((v) => !q || [v.n, v.name, v.phone, v.planName, v.code].some((x) => String(x ?? '').toLowerCase().includes(q.toLowerCase())));
+    $('#il').innerHTML = rows.map((v) => `<div class="item"><div class="top"><div><b class="name">#${v.n} · ${esc(v.name)}</b> ${v.void ? '<span class="tag off">ملغاة</span>' : v.paid ? '<span class="tag">مدفوع</span>' : '<span class="tag suspended">غير مدفوع</span>'}
+      <div class="muted">${esc(v.planName)}${v.mobile ? ' + جوال' : ''} · ${esc(invMoney(v))} · ${esc(dmy(v.date))}${v.phone ? ' · <span class="mono">' + esc(v.phone) + '</span>' : ''}</div></div>
+      <div class="row"><button class="small" data-i="show" data-n="${v.n}">الصورة وإرسال</button>${v.void ? '' : `<button class="small danger" data-i="void" data-n="${v.n}">إلغاء</button>`}</div></div></div>`).join('') || '<p class="muted">لسا ما في فواتير</p>';
+    $('#il').querySelectorAll('[data-i]').forEach((b) => (b.onclick = async () => {
+      const v = S.invoices.find((x) => String(x.n) === b.dataset.n);
+      if (b.dataset.i === 'show') return showInvoice(v);
+      if (confirm(`إلغاء الفاتورة رقم ${v.n} (${v.name})؟`)) await run(() => api(`/api/invoices/${v.n}/void`, {}), 'انلغت الفاتورة');
+    }));
+  };
+  $('#iq').oninput = (e) => { q = e.target.value; list(); };
+  list();
+}
+
+/** صورة الفاتورة (PNG) مرسومة على canvas بخط Cairo. */
+async function invoiceImage(v) {
+  await Promise.all(['400', '700', '900'].map((w) => document.fonts.load(`${w} 40px Cairo`).catch(() => null)));
+  const rows = [
+    ['نوع الاشتراك', `${v.planName}${v.mobile ? ' (كمبيوتر + جوال)' : ''}`],
+    ['تاريخ الاشتراك', dmy(v.date)],
+    ['صالح لغاية', v.until ? dmy(v.until) : 'دائم بدون انتهاء'],
+    ['عدد الأجهزة', String(v.devices)],
+  ];
+  if (v.code) rows.push(['كود التفعيل', v.code]);
+  const W = 1080, P = 70, H = 515 + rows.length * 92 + 15 + 45 + 150 + (v.note ? 50 : 0) + 290 + 130;
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const x = cv.getContext('2d');
+  const font = (w, s) => (x.font = `${w} ${s}px Cairo, sans-serif`);
+  const text = (t, px, py, o = {}) => {
+    x.save(); font(o.w ?? 700, o.s ?? 34); x.fillStyle = o.c ?? '#1d2433'; x.textAlign = o.a ?? 'right'; x.direction = o.ltr ? 'ltr' : 'rtl'; x.fillText(String(t), px, py, o.max); x.restore();
+  };
+  const rr = (px, py, w, h, r) => { x.beginPath(); x.roundRect(px, py, w, h, r); };
+  const R = W - P;
+  // الخلفية والرأس
+  x.fillStyle = '#f4f6f8'; x.fillRect(0, 0, W, H);
+  const g = x.createLinearGradient(0, 0, W, 360); g.addColorStop(0, '#0b5546'); g.addColorStop(1, '#14957c');
+  x.fillStyle = g; x.fillRect(0, 0, W, 360);
+  x.globalAlpha = 0.08; x.fillStyle = '#fff';
+  for (let i = 0; i < 6; i++) { x.beginPath(); x.arc(120 + i * 40, 60 + i * 30, 160 + i * 50, 0, Math.PI * 2); x.fill(); }
+  x.globalAlpha = 1;
+  rr(R - 120, 70, 120, 120, 30); x.fillStyle = '#fff'; x.fill();
+  text('وزن', R - 60, 150, { s: 54, w: 900, c: '#0f6e5c', a: 'center' });
+  text('برنامج وزن', R - 150, 122, { s: 40, w: 900, c: '#fff' });
+  text('للمحاسبة وإدارة المحلات', R - 150, 170, { s: 26, w: 700, c: 'rgba(255,255,255,.85)' });
+  text('فاتورة اشتراك', P, 125, { s: 50, w: 900, c: '#fff', a: 'left' });
+  text(`رقم ${v.n}  ·  ${dmy(v.date)}`, P, 175, { s: 28, w: 700, c: 'rgba(255,255,255,.85)', a: 'left' });
+  // بطاقة العميل
+  rr(P, 250, W - 2 * P, 190, 28); x.fillStyle = '#fff'; x.shadowColor = 'rgba(15,40,30,.12)'; x.shadowBlur = 30; x.shadowOffsetY = 8; x.fill(); x.shadowColor = 'transparent';
+  text('العميل', R - 40, 310, { s: 26, c: '#6b7385' });
+  text(v.name, R - 40, 370, { s: 46, w: 900, max: v.phone ? 520 : 860 });
+  if (v.phone) text(v.phone, P + 40, 370, { s: 34, w: 700, c: '#0f6e5c', a: 'left', ltr: true });
+  if (v.phone) text('الرقم', P + 40, 310, { s: 26, c: '#6b7385', a: 'left' });
+  // البنود
+  let y = 500;
+  rr(P, y, W - 2 * P, rows.length * 92 + 30, 28); x.fillStyle = '#fff'; x.fill();
+  y += 15;
+  rows.forEach(([k, val], i) => {
+    if (i) { x.fillStyle = '#e3e6eb'; x.fillRect(P + 40, y, W - 2 * P - 80, 2); }
+    text(k, R - 40, y + 60, { s: 30, w: 700, c: '#6b7385' });
+    const isCode = k === 'كود التفعيل';
+    text(val, P + 40, y + 60, { s: 34, w: 900, max: 600, a: 'left', ltr: isCode, c: isCode ? '#0f6e5c' : '#1d2433' });
+    y += 92;
+  });
+  y += 45;
+  // المجموع
+  rr(P, y, W - 2 * P, 150, 28); x.fillStyle = '#e3f2ee'; x.fill();
+  text('المبلغ', R - 40, y + 92, { s: 36, w: 900, c: '#0f6e5c' });
+  text(invMoney(v), P + 40, y + 98, { s: 60, w: 900, c: '#0f6e5c', a: 'left', ltr: v.currency !== 'SYP' });
+  y += 150;
+  if (v.note) { text(v.note, R - 10, y + 60, { s: 28, w: 400, c: '#6b7385', max: W - 2 * P }); y += 50; }
+  // ختم الدفع
+  x.save();
+  x.translate(W / 2 - 40, y + 150); x.rotate(-0.18);
+  const col = v.void ? '#c0392b' : v.paid ? '#14957c' : '#b7791f';
+  x.strokeStyle = col; x.lineWidth = 7; rr(-170, -62, 340, 124, 20); x.stroke();
+  x.lineWidth = 2.5; rr(-156, -48, 312, 96, 14); x.stroke();
+  x.globalAlpha = 0.9; text(v.void ? 'ملغاة' : v.paid ? 'مدفوع' : 'غير مدفوع', 0, 22, { s: 56, w: 900, c: col, a: 'center' });
+  x.restore();
+  // التذييل
+  x.fillStyle = '#0f6e5c'; x.fillRect(0, H - 130, W, 130);
+  text('شكراً لثقتكم بـ وزن', R, H - 55, { s: 34, w: 900, c: '#fff' });
+  text('waznsy.com', P, H - 55, { s: 34, w: 700, c: '#fff', a: 'left', ltr: true });
+  // data: مش blob: لأن CSP الصفحة بيسمح بـ data: بس للصور
+  const dataUrl = cv.toDataURL('image/png');
+  return { dataUrl, blob: await new Promise((ok) => cv.toBlob(ok, 'image/png')) };
+}
+
+const invoiceText = (v) => `فاتورة اشتراك وزن رقم ${v.n}\nالعميل: ${v.name}\nالاشتراك: ${v.planName}${v.mobile ? ' (كمبيوتر + جوال)' : ''}\n${v.until ? 'صالح لغاية: ' + dmy(v.until) : 'دائم'}\nالمبلغ: ${invMoney(v)} (${v.paid ? 'مدفوع' : 'غير مدفوع'})${v.code ? '\nكود التفعيل: ' + v.code : ''}\n\nشكراً لثقتكم 🌿`;
+
+async function showInvoice(v) {
+  const { blob, dataUrl: url } = await invoiceImage(v);
+  const file = new File([blob], `Wazn-Invoice-${v.n}.png`, { type: 'image/png' });
+  const canShare = !!navigator.canShare?.({ files: [file] });
+  const m = modal(`<h2>فاتورة رقم ${v.n}: ${esc(v.name)}</h2>
+    <img src="${url}" alt="الفاتورة" style="width:100%;border-radius:12px;border:1px solid var(--line)" />
+    <p class="muted">${canShare ? '«مشاركة الصورة» بيفتحلك قائمة المشاركة، اختار واتساب وبعدها العميل.' : 'على الكمبيوتر: «نسخ الصورة وفتح الواتساب» بينسخ الصورة وبيفتح محادثة العميل، الصقها (Ctrl+V) وابعت.'}</p>
+    <div class="row" style="margin-top:8px">
+      ${canShare ? '<button class="wa" id="sh">مشاركة الصورة (واتساب)</button>' : ''}
+      ${v.phone ? '<button class="wa" id="cw">نسخ الصورة وفتح الواتساب</button>' : ''}
+      <button id="dl">تنزيل الصورة</button><button id="x">سكّر</button></div>`);
+  if (canShare) $('#sh', m).onclick = () => navigator.share({ files: [file], text: invoiceText(v) }).catch((e) => e.name !== 'AbortError' && toast(e.message, true));
+  if (v.phone) $('#cw', m).onclick = async () => {
+    try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]); toast('نسخت الصورة، الصقها بالمحادثة'); } catch { toast('ما قدرت انسخ الصورة، نزّلها وابعتها', true); }
+    window.open(waLink(v.phone.replace(/^0/, '963'), invoiceText(v)), '_blank', 'noopener');
+  };
+  $('#dl', m).onclick = () => { const a = document.createElement('a'); a.href = url; a.download = file.name; a.click(); };
+  $('#x', m).onclick = m.close;
 }
 
 // ───────────── المدير ─────────────

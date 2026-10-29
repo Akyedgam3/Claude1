@@ -200,6 +200,7 @@ export class RegistryDO extends DurableObject<Env> {
     this.sql.exec(`CREATE TABLE IF NOT EXISTS log (id INTEGER PRIMARY KEY AUTOINCREMENT, v TEXT NOT NULL)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, role TEXT NOT NULL, agent_id TEXT, hash TEXT NOT NULL, salt TEXT NOT NULL, disabled INTEGER NOT NULL DEFAULT 0, created TEXT NOT NULL)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, username TEXT NOT NULL, expires INTEGER NOT NULL)`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS invoices (n INTEGER PRIMARY KEY AUTOINCREMENT, v TEXT NOT NULL)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS fails (k TEXT PRIMARY KEY, n INTEGER NOT NULL, until INTEGER NOT NULL)`);
     try {
       this.sql.exec(`ALTER TABLE users ADD COLUMN totp TEXT`);
@@ -388,6 +389,10 @@ export class RegistryDO extends DurableObject<Env> {
   private publishStatus(ok: boolean, message: string): { ok: boolean; message: string } {
     this.kvSet('publishStatus', JSON.stringify({ ok, message, at: new Date().toISOString() }));
     return { ok, message };
+  }
+
+  private invoices(): Record<string, unknown>[] {
+    return this.sql.exec<{ n: number; v: string }>(`SELECT n, v FROM invoices ORDER BY n DESC LIMIT 300`).toArray().map((r) => ({ n: r.n, ...(JSON.parse(r.v) as object) }));
   }
 
   // ── الطلبات ──
@@ -632,7 +637,47 @@ export class RegistryDO extends DurableObject<Env> {
         publish: JSON.parse(this.kvGet('publishStatus') ?? 'null'),
         pending: this.kvGet('dirty') === '1',
         settings: { hasKey: canSign, hasGithub: !!this.kvGet('secret:github'), feedRepo: this.env.FEED_REPO },
+        invoices: this.invoices(),
       });
+    }
+
+    // فواتير الاشتراك: رقم متسلسل وسجل، والصورة بتنرسم بالمتصفح
+    if (path === '/api/invoices' && req.method === 'POST') {
+      const price = num('price') ?? NaN;
+      const inv = {
+        name: str('name'),
+        phone: str('phone'),
+        plan: str('plan'),
+        planName: str('planName'),
+        mobile: body.mobile === true,
+        devices: Math.max(1, Math.min(20, Math.round(num('devices') ?? 2))),
+        price,
+        currency: str('currency') === 'SYP' ? 'SYP' : 'USD',
+        date: str('date'),
+        until: str('until'),
+        paid: body.paid !== false,
+        code: str('code'),
+        note: str('note'),
+        customerId: str('customerId'),
+        createdAt: new Date().toISOString(),
+      };
+      if (!inv.name) throw new HttpError(400, 'اكتب اسم العميل');
+      if (!inv.planName) throw new HttpError(400, 'اختار نوع الاشتراك');
+      if (!(Number.isFinite(price) && price >= 0 && price < 1e9)) throw new HttpError(400, 'السعر غير صالح');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(inv.date) || (inv.until && !/^\d{4}-\d{2}-\d{2}$/.test(inv.until))) throw new HttpError(400, 'تاريخ غير صالح');
+      const n = this.sql.exec<{ n: number }>(`INSERT INTO invoices (v) VALUES (?) RETURNING n`, JSON.stringify(inv)).one().n;
+      reg.record(`فاتورة اشتراك رقم ${n}: ${inv.name} (${inv.planName})`, inv.customerId ? { customerId: inv.customerId } : {});
+      return json({ invoice: { n, ...inv } });
+    }
+    const im = /^\/api\/invoices\/(\d+)\/void$/.exec(path);
+    if (im && req.method === 'POST') {
+      const row = this.sql.exec<{ v: string }>(`SELECT v FROM invoices WHERE n = ?`, Number(im[1])).toArray()[0];
+      if (!row) throw new HttpError(404, 'الفاتورة مش موجودة');
+      const inv = JSON.parse(row.v) as { name: string; void?: string };
+      inv.void = new Date().toISOString();
+      this.sql.exec(`UPDATE invoices SET v = ? WHERE n = ?`, JSON.stringify(inv), Number(im[1]));
+      reg.record(`إلغاء فاتورة اشتراك رقم ${im[1]}: ${inv.name}`);
+      return json({ ok: true });
     }
 
     const touch = <T>(v: T) => {
