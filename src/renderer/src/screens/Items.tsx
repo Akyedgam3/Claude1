@@ -4,6 +4,7 @@ import { api, major, money, parseAmount, qtyText, toInput, today, uid, useCompan
 import { Barcode, ExportButtons, usePrinter } from '../components/print';
 import { CameraScanButton, ColorPicker, ConfirmButton, CurrencySelect, ItemName, Empty, Field, itemMatches, itemOptions, Modal, PageHeader, Picker, SearchBox, Tabs } from '../components/ui';
 import { Icon } from '../components/icons';
+import { DealerForm } from './Dealers';
 
 export function Items({ initialQuery }: { initialQuery?: string } = {}) {
   const { state, profile, feature, can, call, notify, navigate } = useCompany();
@@ -228,6 +229,7 @@ type FormTab = 'basic' | 'prices' | 'tracking' | 'recipe';
 
 export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClose: () => void; onSaved?: (item: Item) => void }) {
   const { state, call, notify, feature, profile, can } = useCompany();
+  const [newDealer, setNewDealer] = useState(false);
   const base = state.info!.baseCurrency;
   const [tab, setTab] = useState<FormTab>('basic');
   const [f, setF] = useState(() => ({
@@ -463,15 +465,22 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
                   <input value={f.dealerPrice} onChange={set('dealerPrice')} inputMode="decimal" />
                 </Field>
                 <Field label="بضاعة مين؟">
-                  <select value={f.dealerId} onChange={(e) => setF({ ...f, dealerId: e.target.value })} disabled={!!item && (state.stock[item.id]?.totalQty ?? 0) !== 0}>
-                    <option value="">بضاعة الصيدلية</option>
-                    {Object.values(state.dealers ?? {}).map((d) => (
-                      <option key={d.id} value={d.id}>
-                        بضاعة خاصة بالمورّد {d.name}
-                      </option>
-                    ))}
-                  </select>
-                  {Object.keys(state.dealers ?? {}).length === 0 && <small className="muted">لتطلع بضاعة المورّد هون: ضيف المورّد أول من قسم «الموردين».</small>}
+                  <div className="with-button">
+                    <select value={f.dealerId} onChange={(e) => setF({ ...f, dealerId: e.target.value })} disabled={!!item && (state.stock[item.id]?.totalQty ?? 0) !== 0}>
+                      <option value="">بضاعة الصيدلية</option>
+                      {Object.values(state.dealers ?? {}).map((d) => (
+                        <option key={d.id} value={d.id}>
+                          بضاعة خاصة بالمورّد {d.name}
+                        </option>
+                      ))}
+                    </select>
+                    {can('dealers.manage') && !(item && (state.stock[item.id]?.totalQty ?? 0) !== 0) && (
+                      <button type="button" className="icon" title="مورّد جديد" onClick={() => setNewDealer(true)}>
+                        <Icon name="plus" size={16} />
+                      </button>
+                    )}
+                  </div>
+                  {Object.keys(state.dealers ?? {}).length === 0 && <small className="muted">ما في موردين بهالشركة لسا. اكبس + وضيفه هون، أو من قسم «الموردين» (مش «العملاء والموردون»).</small>}
                   {!!item && (state.stock[item.id]?.totalQty ?? 0) !== 0 && <small className="muted">ما بيتغيّر وعليها رصيد ({state.stock[item.id]!.totalQty}). صفّر رصيدها (إلغاء فاتورة الشراء أو جرد) أو اعمل مادة جديدة للمورّد.</small>}
                 </Field>
               </>
@@ -611,6 +620,7 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
           <button className="primary">حفظ</button>
         </div>
       </form>
+      {newDealer && <DealerForm dealer={null} onClose={() => setNewDealer(false)} onSaved={(d) => (setF((x) => ({ ...x, dealerId: d.id })), setNewDealer(false))} />}
     </Modal>
   );
 }

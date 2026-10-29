@@ -191,7 +191,7 @@ export function Dealers() {
   );
 }
 
-function DealerForm({ dealer, onClose, onSaved }: { dealer: Dealer | null; onClose: () => void; onSaved: (d: Dealer) => void }) {
+export function DealerForm({ dealer, onClose, onSaved }: { dealer: Dealer | null; onClose: () => void; onSaved: (d: Dealer) => void }) {
   const { call, notify } = useCompany();
   const [name, setName] = useState(dealer?.name ?? '');
   const [phone, setPhone] = useState(dealer?.phone ?? '');
