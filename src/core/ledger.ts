@@ -1495,7 +1495,7 @@ export class Ledger {
       ...(discount ? { discount } : {}),
       ...(opts.taxIds ? { taxIds: opts.taxIds } : {}),
       ...(opts.cashAccountId ? { cashAccountId: opts.cashAccountId } : {}),
-      notes: `${b.eventType}${b.title ? ` — ${b.title}` : ''} · ${b.hall} · ${b.date} (${HALL_PERIODS[b.period]})${b.guests ? ` · ${b.guests} ضيف` : ''}`,
+      notes: `${b.eventType}${b.title ? ` — ${b.title}` : ''} · ${b.hall} · ${b.date} (${HALL_PERIODS[b.period]})${b.extras ? ` · ${b.extras}` : ''}${b.guests ? ` · ${b.guests} ضيف` : ''}`,
       source: { type: 'booking', id: b.id },
     };
     let paid = opts.paid;

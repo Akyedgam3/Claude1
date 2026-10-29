@@ -110,6 +110,7 @@ export function bookingMessage(state: CompanyState, b: HallBooking, opts: { toda
   const lines = [`مرحباً ${name ? `${name} ` : ''}🌹`];
   if (days >= 0 && days <= 3) lines.push(`تذكير بموعد ${what} ${days === 0 ? 'اليوم' : days === 1 ? 'بكرا' : `بعد ${days} أيام`}، ${when} بـ${b.hall}.`);
   else lines.push(`تم تأكيد حجز ${what} بـ${b.hall} يوم ${when}.`);
+  if (b.extras) lines.push(`الإضافات: ${b.extras}`);
   if (b.guests) lines.push(`عدد الضيوف: ${b.guests}`);
   if (opts.withPrices !== false && opts.fmt) {
     const t = bookingTotals(b).total, dep = bookingDeposits(state, b);
@@ -129,7 +130,7 @@ export function bookingsTableText(state: CompanyState, rows: HallBooking[], opts
     const hours = bookingHours(b);
     out.push(`📅 ${dayName} ${d}/${m}/${y} · ${HALL_PERIODS[b.period]}${hours ? ` (${hours})` : ''}`);
     out.push(`${b.eventType}${b.title ? ` — ${b.title}` : ''}${hallNames(state).length > 1 ? ` · ${b.hall}` : ''}`);
-    const who = [state.parties[b.partyId]?.name, b.guests ? `${b.guests} ضيف` : '', b.status === 'cancelled' || b.status === 'tentative' ? BOOKING_STATUS_NAMES[b.status] : ''].filter(Boolean);
+    const who = [state.parties[b.partyId]?.name, b.extras ?? '', b.guests ? `${b.guests} ضيف` : '', b.status === 'cancelled' || b.status === 'tentative' ? BOOKING_STATUS_NAMES[b.status] : ''].filter(Boolean);
     if (who.length) out.push(who.join(' · '));
     if (opts.withPrices && opts.fmt) {
       const t = bookingTotals(b).total, dep = bookingDeposits(state, b);

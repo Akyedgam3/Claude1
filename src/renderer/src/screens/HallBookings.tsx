@@ -234,7 +234,7 @@ function BookingList({ onOpen }: { onOpen: (b: HallBooking) => void }) {
                 { header: 'الزبون', key: 'party' },
                 { header: 'الهاتف', key: 'phone' },
                 { header: 'رقم العريس', key: 'groom' },
-                { header: 'الضيوف', key: 'guests', type: 'number' },
+                { header: 'الإضافات', key: 'extras' },
                 { header: 'الحالة', key: 'status' },
                 ...(prices
                   ? [
@@ -246,7 +246,7 @@ function BookingList({ onOpen }: { onOpen: (b: HallBooking) => void }) {
               ],
               rows: rows.map((b) => {
                 const t = bookingTotals(b).total, dep = bookingDeposits(state, b);
-                return { n: b.number, date: b.date, period: HALL_PERIODS[b.period], hours: bookingHours(b), hall: b.hall, event: `${b.eventType}${b.title ? ` — ${b.title}` : ''}`, party: state.parties[b.partyId]?.name, phone: state.parties[b.partyId]?.phone, groom: b.groomPhone ?? '', guests: b.guests ?? null, status: BOOKING_STATUS_NAMES[b.status], total: major(state, t, b.currency), dep: major(state, dep, b.currency), left: major(state, Math.max(0, t - dep), b.currency) };
+                return { n: b.number, date: b.date, period: HALL_PERIODS[b.period], hours: bookingHours(b), hall: b.hall, event: `${b.eventType}${b.title ? ` — ${b.title}` : ''}`, party: state.parties[b.partyId]?.name, phone: state.parties[b.partyId]?.phone, groom: b.groomPhone ?? '', extras: b.extras ?? '', status: BOOKING_STATUS_NAMES[b.status], total: major(state, t, b.currency), dep: major(state, dep, b.currency), left: major(state, Math.max(0, t - dep), b.currency) };
               }),
             },
           ]}
@@ -268,7 +268,7 @@ function BookingList({ onOpen }: { onOpen: (b: HallBooking) => void }) {
               <th>التاريخ</th>
               <th>المناسبة</th>
               <th>الصالة</th>
-              <th className="num">الضيوف</th>
+              <th>الإضافات</th>
               <th>الحالة</th>
               {prices && <th className="num">القيمة</th>}
               {prices && <th className="num">العربون</th>}
@@ -294,7 +294,7 @@ function BookingList({ onOpen }: { onOpen: (b: HallBooking) => void }) {
                   <div className="muted">{state.parties[b.partyId]?.name}</div>
                 </td>
                 <td>{b.hall}</td>
-                <td className="num">{b.guests ?? '—'}</td>
+                <td className="muted">{b.extras || '—'}</td>
                 <td>
                   <span className={`tag bk-${b.status}`}>{BOOKING_STATUS_NAMES[b.status]}</span>
                 </td>
@@ -320,7 +320,7 @@ function BookingList({ onOpen }: { onOpen: (b: HallBooking) => void }) {
           <tfoot>
             <tr>
               <th colSpan={4}>{sum.length} حجز</th>
-              <th className="num">{sum.reduce((a, b) => a + (b.guests ?? 0), 0)}</th>
+              <th />
               <th />
               {prices && <th className="num">{money(state, sum.reduce((a, b) => a + bookingTotals(b).total, 0))}</th>}
               {prices && <th className="num">{money(state, sum.reduce((a, b) => a + bookingDeposits(state, b), 0))}</th>}
@@ -349,7 +349,7 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
     period: booking?.period ?? ('evening' as HallPeriod),
     eventType: booking?.eventType ?? 'عرس',
     title: booking?.title ?? '',
-    guests: booking?.guests ? String(booking.guests) : '',
+    extras: booking?.extras ?? '',
     groomPhone: booking?.groomPhone ?? '',
     startTime: booking?.startTime ?? '',
     endTime: booking?.endTime ?? '',
@@ -364,13 +364,7 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
   const [depositing, setDepositing] = useState(false);
   const [invoicing, setInvoicing] = useState(false);
   const locked = !!booking?.invoiceId;
-  const guests = Math.round(num(f.guests));
   const setLine = (i: number, patch: Partial<LineForm>) => setLines((ls) => ls.map((x, j) => (j === i ? { ...x, ...patch } : x)));
-  // عدد الضيوف بيتعبّى لحالو ببنود «بالراس»
-  const setGuests = (v: string) => {
-    set('guests', v);
-    setLines((ls) => ls.map((l) => (l.perGuest ? { ...l, qty: String(Math.round(num(v))) } : l)));
-  };
 
   const build = (): Omit<HallBooking, 'number' | 'deposits' | 'invoiceId' | 'createdAt'> | string => {
     if (!f.partyId) return 'اختار الزبون (أو ضيف زبون جديد)';
@@ -384,7 +378,8 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
         period: f.period,
         eventType: f.eventType.trim() || 'مناسبة',
         ...(f.title.trim() ? { title: f.title.trim() } : {}),
-        ...(guests > 0 ? { guests } : {}),
+        ...(f.extras.trim() ? { extras: f.extras.trim() } : {}),
+        ...(booking?.guests ? { guests: booking.guests } : {}),
         ...(f.groomPhone.trim() ? { groomPhone: f.groomPhone.trim() } : {}),
         ...(f.startTime ? { startTime: f.startTime } : {}),
         ...(f.endTime ? { endTime: f.endTime } : {}),
@@ -472,8 +467,8 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
         <Field label="رقم العريس">
           <input type="tel" dir="ltr" placeholder="09xx xxx xxx" value={f.groomPhone} onChange={(e) => set('groomPhone', e.target.value)} disabled={locked} />
         </Field>
-        <Field label="عدد الضيوف">
-          <input inputMode="numeric" value={f.guests} onChange={(e) => setGuests(e.target.value)} disabled={locked} />
+        <Field label="الإضافات">
+          <input placeholder="جلسة تصوير، زفة، كيك..." value={f.extras} onChange={(e) => set('extras', e.target.value)} disabled={locked} />
         </Field>
         <Field label="الحالة">
           <select value={f.status} onChange={(e) => set('status', e.target.value as BookingStatus)} disabled={locked}>
@@ -498,7 +493,7 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
         {!locked && (
           <div className="wide preset-row">
             {HALL_SERVICES.map((p) => (
-              <button key={p.name} type="button" className="small" onClick={() => setLines((ls) => [...ls, { id: uid(), name: p.name, perGuest: !!p.perGuest, qty: p.perGuest ? String(guests || '') : '1', price: '' }])}>
+              <button key={p.name} type="button" className="small" onClick={() => setLines((ls) => [...ls, { id: uid(), name: p.name, perGuest: !!p.perGuest, qty: p.perGuest ? '' : '1', price: '' }])}>
                 + {p.name}
               </button>
             ))}
@@ -530,7 +525,7 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
                       <input value={l.name} onChange={(e) => setLine(i, { name: e.target.value })} disabled={locked} />
                     </td>
                     <td>
-                      <input type="checkbox" checked={l.perGuest} onChange={(e) => setLine(i, { perGuest: e.target.checked, ...(e.target.checked && guests ? { qty: String(guests) } : {}) })} disabled={locked} />
+                      <input type="checkbox" checked={l.perGuest} onChange={(e) => setLine(i, { perGuest: e.target.checked,  })} disabled={locked} />
                     </td>
                     <td>
                       <input className="num-input" inputMode="decimal" value={l.qty} onChange={(e) => setLine(i, { qty: e.target.value })} disabled={locked} />
@@ -741,9 +736,16 @@ function ImageShareDialog(p: { title: string; phone: string; fileName: string; c
   };
   return (
     <Modal title={p.title} onClose={p.onClose} width={720}>
-      <label className="check" style={{ marginBottom: 10 }}>
-        <input type="checkbox" checked={amounts} onChange={(e) => setAmounts(e.target.checked)} /> مع المبالغ (القيمة والعربون المدفوع والباقي)
-      </label>
+      <div style={{ marginBottom: 10 }}>
+        <Tabs
+          value={amounts ? 'with' : 'without'}
+          onChange={(v) => setAmounts(v === 'with')}
+          tabs={[
+            { key: 'with', label: 'مع الأسعار (القيمة والعربون والباقي)' },
+            { key: 'without', label: 'بدون أسعار' },
+          ]}
+        />
+      </div>
       <div className="share-preview">{img ? <img src={img.dataUrl} alt="" /> : <p className="muted">عم جهّز الصورة...</p>}</div>
       <div className="form-actions">
         <button type="button" onClick={p.onClose}>

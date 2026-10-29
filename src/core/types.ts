@@ -652,6 +652,7 @@ export interface HallBooking {
   eventType: string; // عرس، خطوبة، تخرج...
   title?: string; // أسماء العرسان أو اسم المناسبة
   guests?: number;
+  extras?: string; // إضافات مكتوبة: جلسة تصوير، زفة، كيك...
   groomPhone?: string; // رقم العريس (غير رقم الزبون) — رسائل الواتساب بتروح عليه
   startTime?: string; // ساعة بداية الحفل HH:MM
   endTime?: string; // ساعة انتهاء الحفل HH:MM

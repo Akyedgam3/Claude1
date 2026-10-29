@@ -767,7 +767,7 @@ function weddingHall(l: Ledger): void {
   l.addBookingDeposit(b1.id, { date: day(-40), amount: P(10000) });
   l.invoiceBooking(b1.id, { date: day(-5) });
   const b2 = l.saveBooking({
-    id: 'b-2', partyId: 'c-samer', hall: 'الصالة الكبرى', date: day(3), period: 'evening', eventType: 'خطوبة', title: 'سامر ♥ نور', groomPhone: '0944 318 552', startTime: '19:30', endTime: '23:00', guests: 150, status: 'confirmed', currency: 'SYP',
+    id: 'b-2', partyId: 'c-samer', hall: 'الصالة الكبرى', date: day(3), period: 'evening', eventType: 'خطوبة', title: 'سامر ♥ نور', extras: 'جلسة تصوير وكيك', groomPhone: '0944 318 552', startTime: '19:30', endTime: '23:00', guests: 150, status: 'confirmed', currency: 'SYP',
     lines: [L('أجار الصالة', 1, 10000), L('ضيافة (بالراس)', 150, 75, true), L('كيك', 1, 1500), L('DJ وصوت', 1, 2500)],
   });
   l.addBookingDeposit(b2.id, { date: day(-10), amount: P(5000) });
@@ -776,7 +776,7 @@ function weddingHall(l: Ledger): void {
     lines: [L('أجار الصالة', 1, 8000), L('عشاء (بالراس)', 220, 120, true), L('إضاءة وليزر', 1, 2000)],
   });
   const b4 = l.saveBooking({
-    id: 'b-4', partyId: 'c-rima', hall: 'الصالة الكبرى', date: day(12), period: 'full', eventType: 'عرس', title: 'عرس ريما', startTime: '20:00', endTime: '01:00', guests: 400, status: 'confirmed', currency: 'SYP',
+    id: 'b-4', partyId: 'c-rima', hall: 'الصالة الكبرى', date: day(12), period: 'full', eventType: 'عرس', title: 'عرس ريما', extras: 'زفة وفرقة', startTime: '20:00', endTime: '01:00', guests: 400, status: 'confirmed', currency: 'SYP',
     lines: [L('أجار الصالة', 1, 20000), L('عشاء (بالراس)', 400, 120, true), L('فرقة / زفة', 1, 6000), L('ورد طبيعي', 1, 3000)],
   });
   l.addBookingDeposit(b4.id, { date: day(-2), amount: P(20000) });

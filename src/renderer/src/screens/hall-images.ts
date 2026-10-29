@@ -65,6 +65,7 @@ export async function bookingImage(state: CompanyState, b: HallBooking, o: { tod
     ['الموعد', `${HALL_PERIODS[b.period]}${hours ? ` · ${hours}` : ''}`],
     ['الصالة', b.hall],
   ];
+  if (b.extras) rows.push(['الإضافات', b.extras]);
   if (b.guests) rows.push(['عدد الضيوف', String(b.guests)]);
   rows.push(['باسم', party?.name ?? ''], ['رقم الحجز', String(b.number)]);
   const t = bookingTotals(b).total, dep = bookingDeposits(state, b), left = Math.max(0, t - dep);
@@ -143,7 +144,7 @@ export async function bookingsTableImage(state: CompanyState, list: HallBooking[
     ...(many ? [{ h: 'الصالة', w: 190, v: (b: HallBooking) => b.hall }] : []),
     { h: 'المناسبة', w: 380, v: (b) => `${b.eventType}${b.title ? ` — ${b.title}` : ''}` },
     { h: 'الزبون', w: 260, v: (b) => state.parties[b.partyId]?.name ?? '' },
-    { h: 'الضيوف', w: 120, v: (b) => (b.guests ? String(b.guests) : '—') },
+    { h: 'الإضافات', w: 260, v: (b) => b.extras || '—' },
     { h: 'الحالة', w: 150, v: (b) => BOOKING_STATUS_NAMES[b.status], c: (b) => (b.status === 'cancelled' ? '#c0392b' : b.status === 'tentative' ? '#9a6b12' : '#128a5c') },
     ...(o.amounts
       ? [
@@ -200,7 +201,7 @@ export async function bookingsTableImage(state: CompanyState, list: HallBooking[
     const sum = (f: (b: HallBooking) => number) => live.reduce((s, b) => s + f(b), 0);
     const base = live[0]!;
     box(P, y + 14, W - 2 * P, 62, 14, '#f3e6ed');
-    text(`المجموع (${live.length} حجز، ${sum((b) => b.guests ?? 0)} ضيف)`, W - P - 14, y + 56, { s: 26, c: PINK });
+    text(`المجموع (${live.length} حجز)`, W - P - 14, y + 56, { s: 26, c: PINK });
     const amt = cols.slice(-3).map((c) => c.w);
     const xs = [P + amt[2]! + amt[1]!, P + amt[2]!, P];
     const vals = [sum((b) => bookingTotals(b).total), sum((b) => bookingDeposits(state, b)), sum((b) => Math.max(0, bookingTotals(b).total - bookingDeposits(state, b)))];
