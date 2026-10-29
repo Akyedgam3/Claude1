@@ -3937,3 +3937,5 @@ button.danger-soft {
 .tag.bk-tentative { background: rgba(231, 183, 90, 0.2); color: #9a6b12; }
 .tag.bk-confirmed { background: var(--primary-soft); color: var(--primary); }
 .tag.bk-cancelled { background: rgba(192, 57, 43, 0.12); color: #c0392b; }
+button.whatsapp { background: #25d366; color: #fff; border-color: #25d366; display: inline-flex; align-items: center; gap: 6px; }
+button.whatsapp:hover { background: #1ebe5b; }

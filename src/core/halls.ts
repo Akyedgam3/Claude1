@@ -1,5 +1,5 @@
 import type { InvoiceLineDraft } from './commerce';
-import type { BookingStatus, CompanyState, HallBooking, HallPeriod } from './types';
+import type { BookingStatus, CompanyState, HallBooking, HallPeriod, JournalEntry } from './types';
 
 // صالات الأفراح: حجز بالتاريخ والفترة، خدمات بالراس أو مقطوعة، عربون، ومنع الحجز المزدوج.
 
@@ -52,4 +52,53 @@ export function bookingToInvoiceLines(b: HallBooking): InvoiceLineDraft[] {
 export function hallNames(state: CompanyState): string[] {
   const set = new Set([...(state.info?.halls?.length ? state.info.halls : DEFAULT_HALLS), ...Object.values(state.bookings ?? {}).map((b) => b.hall)]);
   return [...set];
+}
+
+/** مصاريف الصالة الجاهزة: الاسم وحساب المصروف. */
+export const HALL_EXPENSES: { name: string; accountId: string }[] = [
+  { name: 'مازوت المولدة', accountId: '5204' },
+  { name: 'كهرباء ومي', accountId: '5203' },
+  { name: 'رواتب العمال', accountId: '5201' },
+  { name: 'أجار', accountId: '5202' },
+  { name: 'قهوة', accountId: '5209' },
+  { name: 'سكر', accountId: '5209' },
+  { name: 'شاي', accountId: '5209' },
+  { name: 'مي شرب', accountId: '5209' },
+  { name: 'غاز', accountId: '5209' },
+  { name: 'منظفات ومحارم', accountId: '5209' },
+  { name: 'صيانة', accountId: '5207' },
+];
+
+/** المصاريف المدفوعة بالشهر (سندات دفع على حسابات المصاريف 5xxx)، مع اسم البند من أول البيان. */
+export function monthExpenses(state: CompanyState, ym: string): { entry: JournalEntry; name: string; note: string; amount: number }[] {
+  const out: { entry: JournalEntry; name: string; note: string; amount: number }[] = [];
+  for (const e of state.entries) {
+    if (!e.date.startsWith(ym) || e.voidOf || state.voided[e.id] || e.source?.type !== 'payment') continue;
+    const amount = e.lines.filter((l) => l.accountId.startsWith('5') && !l.partyId).reduce((s, l) => s + l.baseDebit, 0);
+    if (!amount) continue;
+    const [name, ...rest] = e.memo.replace(/^سند (?:دفع|قبض) رقم \d+:\s*/, '').split(':');
+    out.push({ entry: e, name: (name ?? '').trim() || 'مصروف', note: rest.join(':').trim(), amount });
+  }
+  return out.sort((a, b) => b.entry.date.localeCompare(a.entry.date));
+}
+
+/** رسالة واتساب للزبون: تأكيد الحجز، أو تذكير إذا المناسبة قريبة. */
+export function bookingMessage(state: CompanyState, b: HallBooking, opts: { today: string; withPrices?: boolean; fmt?: (minor: number) => string }): string {
+  const days = Math.round((Date.parse(b.date) - Date.parse(opts.today)) / 864e5);
+  const party = state.parties[b.partyId];
+  const [y, m, d] = b.date.split('-');
+  const dayName = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'][new Date(b.date + 'T12:00:00Z').getUTCDay()];
+  const when = `${dayName} ${d}/${m}/${y} (${HALL_PERIODS[b.period]})`;
+  const what = `${b.eventType}${b.title ? ` — ${b.title}` : ''}`;
+  const lines = [`مرحباً ${party?.name ?? ''} 🌹`];
+  if (days >= 0 && days <= 3) lines.push(`تذكير بموعد ${what} ${days === 0 ? 'اليوم' : days === 1 ? 'بكرا' : `بعد ${days} أيام`}، ${when} بـ${b.hall}.`);
+  else lines.push(`تم تأكيد حجز ${what} بـ${b.hall} يوم ${when}.`);
+  if (b.guests) lines.push(`عدد الضيوف: ${b.guests}`);
+  if (opts.withPrices !== false && opts.fmt) {
+    const t = bookingTotals(b).total, dep = bookingDeposits(state, b);
+    lines.push(`قيمة الحجز: ${opts.fmt(t)}`);
+    if (dep) lines.push(`العربون المقبوض: ${opts.fmt(dep)}`, `الباقي: ${opts.fmt(Math.max(0, t - dep))}`);
+  }
+  lines.push('', `${state.info?.name ?? ''}${state.info?.phone ? ` · ${state.info.phone}` : ''}`, 'نتمنى لكم مناسبة سعيدة 🎉');
+  return lines.join('\n');
 }

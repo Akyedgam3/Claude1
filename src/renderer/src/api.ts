@@ -81,6 +81,7 @@ export const api = {
   /** بالجوال: 'installing' أو 'permission' (لازم يسمح بالتنصيب ويرجع يضغط) أو 'browser'. */
   openUpdate: () => inv<boolean | 'installing' | 'permission' | 'browser'>('app:openUpdate'),
   openUpdatePage: () => inv<boolean>('app:openUpdatePage'),
+  whatsapp: (phone: string, text: string) => inv<boolean>('app:whatsapp', phone, text),
   createCompany: (o: Record<string, string>) => inv<{ dir: string; recoveryCode: string }>('company:create', o),
   peek: (dir?: string) => inv<CompanyPeek | null>('company:peek', dir),
   login: (dir: string, creds: { username?: string; password?: string; recoveryCode?: string }) => inv<SessionInfo>('company:login', dir, creds),

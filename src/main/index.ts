@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ACTIVITIES, can, chartFor, DEFAULT_CURRENCIES, defaultTaxes, PERMISSIONS, type Activity, type Permission } from '../core';
+import { ACTIVITIES, can, chartFor, DEFAULT_CURRENCIES, defaultTaxes, PERMISSIONS, whatsappUrl, type Activity, type Permission } from '../core';
 import { CloudSessions, CLOUD_MIN_DEVICES } from '../app/cloud-sessions';
 import { BACKUP_FILES, unpackBackup } from '../app/backup-pack';
 import { hostCompanyFor } from '../app/host-company';
@@ -326,6 +326,12 @@ function registerIpc(): void {
     await shell.openExternal(u.url);
     return true;
   }, { allowLocked: true });
+
+  // واتساب: بس روابط wa.me لرقم ورسالة، الواجهة ما بتفتح أي رابط تاني
+  handle('app:whatsapp', async (phone: unknown, text: unknown) => {
+    await shell.openExternal(whatsappUrl(String(phone ?? ''), String(text ?? '')));
+    return true;
+  });
 
   handle('app:activities', () => Object.values(ACTIVITIES).map((a) => ({ id: a.id, name: a.name, description: a.description, icon: a.icon })), { allowLocked: true });
 

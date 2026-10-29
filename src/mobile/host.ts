@@ -3,7 +3,7 @@
 // الموبايل نسخة مستقلة: ما في شبكة محلية ولا شاشة زبون، والطباعة والتصدير عبر أندرويد.
 import { Buffer } from 'buffer';
 import path from 'path-browserify';
-import { ACTIVITIES, can, chartFor, DEFAULT_CURRENCIES, defaultTaxes, PERMISSIONS, type Activity, type CompanyEvent, type Permission, type User } from '../core';
+import { ACTIVITIES, can, chartFor, DEFAULT_CURRENCIES, defaultTaxes, PERMISSIONS, whatsappUrl, type Activity, type CompanyEvent, type Permission, type User } from '../core';
 import { CloudSessions, CLOUD_MIN_DEVICES } from '../app/cloud-sessions';
 import { execute } from '../app/executor';
 import { OFFLINE, type CloudClient } from '../cloud/client';
@@ -264,6 +264,11 @@ function registerHandlers(): void {
     const r = await native.installUpdate();
     return r.needPermission ? 'permission' : 'installing';
   }, { allowLocked: true });
+
+  handle('app:whatsapp', async (phone: unknown, text: unknown) => {
+    await native.openUrl(whatsappUrl(String(phone ?? ''), String(text ?? '')));
+    return true;
+  });
 
   handle('app:openUpdatePage', async () => {
     await native.openUrl(UPDATE_PAGE);

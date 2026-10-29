@@ -50,3 +50,34 @@ describe('wedding hall bookings', () => {
     expect(Object.keys(fresh.state.bookings!).length).toBe(4);
   });
 });
+
+describe('hall extras', () => {
+  it('whatsapp numbers and booking message', async () => {
+    const { whatsappNumber, whatsappUrl, bookingMessage } = await import('../src/core');
+    expect(whatsappNumber('0944 512 300')).toBe('963944512300');
+    expect(whatsappNumber('+963 980 072 891')).toBe('963980072891');
+    expect(whatsappNumber('00971501234567')).toBe('971501234567');
+    expect(whatsappNumber('12')).toBeNull();
+    expect(whatsappUrl('0944512300', 'مرحبا')).toBe('https://wa.me/963944512300?text=%D9%85%D8%B1%D8%AD%D8%A8%D8%A7');
+    const l = hall();
+    const b = l.saveBooking({ ...base, id: 'b', partyId: 'c', date: '2026-11-20', period: 'evening', guests: 200, lines: [{ id: '1', name: 'أجار', qty: 1, price: 1_000_000 }] });
+    const far = bookingMessage(l.state, b, { today: '2026-10-29', fmt: (m) => String(m / 100) });
+    expect(far).toContain('تم تأكيد حجز عرس بـالصالة الكبرى يوم الجمعة 20/11/2026 (مسائي)');
+    expect(far).toContain('قيمة الحجز: 10000');
+    const near = bookingMessage(l.state, b, { today: '2026-11-19', withPrices: false });
+    expect(near).toContain('بكرا');
+    expect(near).not.toContain('قيمة');
+  });
+
+  it('records monthly expenses and lists them by item', async () => {
+    const { monthExpenses } = await import('../src/core');
+    const l = hall();
+    l.postVoucher({ kind: 'payment', date: '2026-10-05', amount: 500_000, accountId: '5204', memo: 'مازوت المولدة: 50 ليتر' });
+    l.postVoucher({ kind: 'payment', date: '2026-10-07', amount: 80_000, accountId: '5209', memo: 'قهوة' });
+    const e = l.postVoucher({ kind: 'payment', date: '2026-10-08', amount: 30_000, accountId: '5209', memo: 'سكر' });
+    l.voidEntry(e.id, '2026-10-08');
+    l.postVoucher({ kind: 'payment', date: '2026-11-01', amount: 1, accountId: '5209', memo: 'شهر تاني' });
+    const rows = monthExpenses(l.state, '2026-10');
+    expect(rows.map((r) => [r.name, r.note, r.amount])).toEqual([['قهوة', '', 80_000], ['مازوت المولدة', '50 ليتر', 500_000]]);
+  });
+});

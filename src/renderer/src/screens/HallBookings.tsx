@@ -2,6 +2,9 @@ import { useMemo, useState } from 'react';
 import {
   BOOKING_STATUS_NAMES,
   EVENT_TYPES,
+  HALL_EXPENSES,
+  bookingMessage,
+  monthExpenses,
   HALL_PERIODS,
   HALL_SERVICES,
   bookingConflicts,
@@ -13,10 +16,11 @@ import {
   type HallPeriod,
   type Invoice,
 } from '../../../core';
-import { addDays, dateText, major, money, parseAmount, toInput, today, uid, useCompany } from '../api';
+import { addDays, api, dateText, major, money, parseAmount, toInput, today, uid, useCompany } from '../api';
+import { cashAccounts } from './InvoiceEditor';
 import { DocHeader, ExportButtons, PrintButtons } from '../components/print';
 import { Icon } from '../components/icons';
-import { CurrencySelect, Empty, Field, matches, Modal, PageHeader, partyOptions, Picker, SearchBox, Tabs } from '../components/ui';
+import { ConfirmButton, CurrencySelect, Empty, Field, matches, Modal, PageHeader, partyOptions, Picker, SearchBox, Tabs } from '../components/ui';
 import { PartyForm } from './Parties';
 import { DeliverDialog, DepositDialog } from './Tailor';
 
@@ -25,7 +29,7 @@ const MONTHS = ['كانون الثاني', 'شباط', 'آذار', 'نيسان',
 const DAYS = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
 const num = (s: string) => Number(s.replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/[٫،,]/g, '.').trim() || 0);
 
-type View = 'calendar' | 'list';
+type View = 'calendar' | 'list' | 'expenses';
 
 /** صالة الأفراح: تقويم الحجوزات، قائمة المناسبات، والحجز بخدماته وعربونه. */
 export function HallBookings() {
@@ -74,13 +78,16 @@ export function HallBookings() {
         <Tabs<View>
           tabs={[
             { key: 'calendar', label: 'التقويم' },
-            { key: 'list', label: 'كل الحجوزات' },
+            { key: 'list', label: 'جدول الحجوزات' },
+            { key: 'expenses', label: 'المصاريف وربح الشهر', hidden: !can('vouchers.create') },
           ]}
           value={view}
           onChange={setView}
         />
       </div>
-      {view === 'calendar' ? <Calendar onOpen={(b, date) => setEditing({ booking: b, ...(date ? { date } : {}) })} /> : <BookingList onOpen={(b) => setEditing({ booking: b })} />}
+      {view === 'calendar' && <Calendar onOpen={(b, date) => setEditing({ booking: b, ...(date ? { date } : {}) })} />}
+      {view === 'list' && <BookingList onOpen={(b) => setEditing({ booking: b })} />}
+      {view === 'expenses' && <HallExpenses />}
       {editing && <BookingForm booking={editing.booking} date={editing.date} onClose={() => setEditing(null)} />}
       {hallsOpen && <HallsForm onClose={() => setHallsOpen(false)} />}
     </div>
@@ -167,6 +174,7 @@ function BookingList({ onOpen }: { onOpen: (b: HallBooking) => void }) {
   const [to, setTo] = useState(addDays(today(), 60));
   const [hall, setHall] = useState('');
   const [cancelled, setCancelled] = useState(false);
+  const [prices, setPrices] = useState(false);
   const halls = hallNames(state);
   const rows = useMemo(
     () =>
@@ -201,6 +209,9 @@ function BookingList({ onOpen }: { onOpen: (b: HallBooking) => void }) {
         <label className="check">
           <input type="checkbox" checked={cancelled} onChange={(e) => setCancelled(e.target.checked)} /> مع الملغاة
         </label>
+        <label className="check">
+          <input type="checkbox" checked={prices} onChange={(e) => setPrices(e.target.checked)} /> إظهار الأسعار
+        </label>
         <div className="spacer" />
         <PrintButtons kind="report" name={`جدول الحجوزات ${range}`} papers={['a4']} />
         <ExportButtons
@@ -219,9 +230,13 @@ function BookingList({ onOpen }: { onOpen: (b: HallBooking) => void }) {
                 { header: 'الهاتف', key: 'phone' },
                 { header: 'الضيوف', key: 'guests', type: 'number' },
                 { header: 'الحالة', key: 'status' },
-                { header: 'القيمة', key: 'total', type: 'money' },
-                { header: 'العربون', key: 'dep', type: 'money' },
-                { header: 'الباقي', key: 'left', type: 'money' },
+                ...(prices
+                  ? [
+                      { header: 'القيمة', key: 'total', type: 'money' as const },
+                      { header: 'العربون', key: 'dep', type: 'money' as const },
+                      { header: 'الباقي', key: 'left', type: 'money' as const },
+                    ]
+                  : []),
               ],
               rows: rows.map((b) => {
                 const t = bookingTotals(b).total, dep = bookingDeposits(state, b);
@@ -249,8 +264,8 @@ function BookingList({ onOpen }: { onOpen: (b: HallBooking) => void }) {
               <th>الصالة</th>
               <th className="num">الضيوف</th>
               <th>الحالة</th>
-              <th className="num">القيمة</th>
-              <th className="num">العربون</th>
+              {prices && <th className="num">القيمة</th>}
+              {prices && <th className="num">العربون</th>}
               <th className="no-print" />
             </tr>
           </thead>
@@ -274,9 +289,10 @@ function BookingList({ onOpen }: { onOpen: (b: HallBooking) => void }) {
                 <td>
                   <span className={`tag bk-${b.status}`}>{BOOKING_STATUS_NAMES[b.status]}</span>
                 </td>
-                <td className="num">{money(state, bookingTotals(b).total, b.currency)}</td>
-                <td className="num">{money(state, bookingDeposits(state, b), b.currency)}</td>
+                {prices && <td className="num">{money(state, bookingTotals(b).total, b.currency)}</td>}
+                {prices && <td className="num">{money(state, bookingDeposits(state, b), b.currency)}</td>}
                 <td onClick={(e) => e.stopPropagation()} className="no-print">
+                  <WhatsAppButton booking={b} small />
                   {b.invoiceId && (
                     <button className="small" onClick={() => navigate('invoice', b.invoiceId)}>
                       الفاتورة
@@ -291,9 +307,9 @@ function BookingList({ onOpen }: { onOpen: (b: HallBooking) => void }) {
               <th colSpan={4}>{sum.length} حجز</th>
               <th className="num">{sum.reduce((a, b) => a + (b.guests ?? 0), 0)}</th>
               <th />
-              <th className="num">{money(state, sum.reduce((a, b) => a + bookingTotals(b).total, 0))}</th>
-              <th className="num">{money(state, sum.reduce((a, b) => a + bookingDeposits(state, b), 0))}</th>
-              <th className="num">الباقي {money(state, sum.reduce((a, b) => a + Math.max(0, bookingTotals(b).total - bookingDeposits(state, b)), 0))}</th>
+              {prices && <th className="num">{money(state, sum.reduce((a, b) => a + bookingTotals(b).total, 0))}</th>}
+              {prices && <th className="num">{money(state, sum.reduce((a, b) => a + bookingDeposits(state, b), 0))}</th>}
+              <th className="num">{prices ? `الباقي ${money(state, sum.reduce((a, b) => a + Math.max(0, bookingTotals(b).total - bookingDeposits(state, b)), 0))}` : ''}</th>
             </tr>
           </tfoot>
         </table>
@@ -527,6 +543,7 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
           </div>
         )}
         <div className="form-actions wide">
+          {booking && <WhatsAppButton booking={booking} />}
           {booking?.invoiceId ? (
             <button type="button" className="primary" onClick={() => navigate('invoice', booking.invoiceId)}>
               عرض الفاتورة
@@ -596,6 +613,182 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
         />
       )}
     </Modal>
+  );
+}
+
+/** زر واتساب للحجز: رسالة تأكيد (أو تذكير إذا المناسبة قريبة) لرقم الزبون. */
+function WhatsAppButton({ booking, small }: { booking: HallBooking; small?: boolean }) {
+  const { state, notify } = useCompany();
+  const phone = state.parties[booking.partyId]?.phone;
+  if (!phone) return null;
+  const send = async () => {
+    const text = bookingMessage(state, booking, { today: today(), fmt: (m) => money(state, m, booking.currency) });
+    try {
+      await api.whatsapp(phone, text);
+    } catch (e) {
+      // إذا ما انفتح (رقم غلط أو ما في واتساب) منحط الرسالة بالحافظة
+      await navigator.clipboard.writeText(text).catch(() => undefined);
+      notify(`${(e as Error).message}. نسخت الرسالة، الصقها بالواتساب`, 'error');
+    }
+  };
+  return (
+    <button type="button" className={`whatsapp${small ? ' small' : ''}`} title={`رسالة واتساب لـ ${phone}`} onClick={() => void send()}>
+      <Icon name="message" size={small ? 14 : 16} /> واتساب
+    </button>
+  );
+}
+
+/** مصاريف الصالة بالشهر (مازوت، قهوة، سكر...) وربح الشهر: الحجوزات ناقص المصاريف. */
+function HallExpenses() {
+  const { state, call, notify, can } = useCompany();
+  const base = state.info!.baseCurrency;
+  const [ym, setYm] = useState(today().slice(0, 7));
+  const [name, setName] = useState(HALL_EXPENSES[0]!.name);
+  const [amount, setAmount] = useState('');
+  const [date, setDate] = useState(today());
+  const [note, setNote] = useState('');
+  const boxes = cashAccounts(state, base);
+  const [cash, setCash] = useState(boxes[0]?.id ?? '');
+  const rows = monthExpenses(state, ym);
+  const groups = new Map<string, number>();
+  for (const r of rows) groups.set(r.name, (groups.get(r.name) ?? 0) + r.amount);
+  const totalExp = rows.reduce((s, r) => s + r.amount, 0);
+  const books = Object.values(state.bookings ?? {}).filter((b) => b.status !== 'cancelled' && b.date.startsWith(ym) && b.currency === base);
+  const revenue = books.reduce((s, b) => s + bookingTotals(b).total, 0);
+  const add = async () => {
+    try {
+      const a = parseAmount(state, amount, base);
+      if (!(a > 0)) return notify('اكتب المبلغ', 'error');
+      const accountId = HALL_EXPENSES.find((x) => x.name === name)?.accountId ?? '5209';
+      const res = await call('postVoucher', { kind: 'payment', date, amount: a, accountId: state.accounts[accountId] ? accountId : '5209', ...(cash ? { cashAccountId: cash } : {}), memo: `${name.trim() || 'مصروف'}${note.trim() ? `: ${note.trim()}` : ''}` });
+      if (res) {
+        notify(`انسجّل مصروف ${name}`);
+        setAmount('');
+        setNote('');
+      }
+    } catch (e) {
+      notify((e as Error).message, 'error');
+    }
+  };
+  const [y, m] = ym.split('-').map(Number) as [number, number];
+  return (
+    <>
+      <section className="card form-grid">
+        <h3 className="wide form-section">مصروف جديد</h3>
+        <div className="wide preset-row">
+          {HALL_EXPENSES.map((x) => (
+            <button key={x.name} type="button" className={`small${name === x.name ? ' primary' : ''}`} onClick={() => setName(x.name)}>
+              {x.name}
+            </button>
+          ))}
+        </div>
+        <Field label="البند">
+          <input value={name} onChange={(e) => setName(e.target.value)} />
+        </Field>
+        <Field label="المبلغ">
+          <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void add()} />
+        </Field>
+        <Field label="التاريخ">
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </Field>
+        {boxes.length > 1 && (
+          <Field label="من صندوق">
+            <select value={cash} onChange={(e) => setCash(e.target.value)}>
+              {boxes.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+        <Field label="ملاحظة (اختياري)">
+          <input placeholder="مثلاً: 20 ليتر، كيلو..." value={note} onChange={(e) => setNote(e.target.value)} />
+        </Field>
+        <div className="form-actions wide">
+          <button type="button" className="primary" onClick={() => void add()}>
+            تسجيل المصروف
+          </button>
+        </div>
+      </section>
+
+      <div className="toolbar">
+        <strong>
+          شهر {MONTHS[m - 1]} <span className="ltr">{y}</span>
+        </strong>
+        <input type="month" style={{ width: 200 }} value={ym} onChange={(e) => e.target.value && setYm(e.target.value)} />
+        <div className="spacer" />
+        <PrintButtons kind="report" name={`مصاريف وربح ${MONTHS[m - 1]} ${y}`} papers={['a4']} />
+      </div>
+      <div className="print-area">
+        <div className="print-only">
+          <DocHeader title="مصاريف وربح الشهر">
+            <div>
+              {MONTHS[m - 1]} {y}
+            </div>
+          </DocHeader>
+        </div>
+        <div className="stats">
+          <div className="stat">
+            <span>حجوزات الشهر ({books.length})</span>
+            <strong>{money(state, revenue)}</strong>
+          </div>
+          <div className="stat">
+            <span>المصاريف</span>
+            <strong className="bad">{money(state, totalExp)}</strong>
+          </div>
+          <div className="stat">
+            <span>الصافي</span>
+            <strong className={revenue - totalExp >= 0 ? 'good' : 'bad'}>{money(state, revenue - totalExp)}</strong>
+          </div>
+        </div>
+        {groups.size > 0 && (
+          <table className="table compact">
+            <thead>
+              <tr>
+                <th>البند</th>
+                <th className="num">المجموع</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...groups].sort((a, b) => b[1] - a[1]).map(([k, v]) => (
+                <tr key={k}>
+                  <td>{k}</td>
+                  <td className="num">{money(state, v)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {rows.length === 0 ? (
+          <Empty>ما في مصاريف بهالشهر.</Empty>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>التاريخ</th>
+                <th>البند</th>
+                <th>ملاحظة</th>
+                <th className="num">المبلغ</th>
+                <th className="no-print" />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.entry.id}>
+                  <td>{dateText(r.entry.date)}</td>
+                  <td>{r.name}</td>
+                  <td className="muted">{r.note}</td>
+                  <td className="num">{money(state, r.amount)}</td>
+                  <td className="no-print">{can('vouchers.void') && <ConfirmButton label="إلغاء" confirmLabel="أكيد؟" onConfirm={() => call('voidEntry', r.entry.id, today())} />}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <p className="muted">الصافي هون = قيمة حجوزات الشهر ناقص المصاريف المسجّلة. الربح الكامل (مع المواد والفواتير) بالتقارير ← الأرباح والخسائر.</p>
+      </div>
+    </>
   );
 }
 
