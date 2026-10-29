@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<title>وزن — سكّر الدفتر</title>
+<style>
+@font-face { font-family: Cairo; font-weight: 400; src: url(fonts/cairo-arabic-400-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 700; src: url(fonts/cairo-arabic-700-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 900; src: url(fonts/cairo-arabic-900-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 400; src: url(fonts/cairo-latin-400-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F; }
+@font-face { font-family: Cairo; font-weight: 700; src: url(fonts/cairo-latin-700-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F; }
+@font-face { font-family: Cairo; font-weight: 900; src: url(fonts/cairo-latin-900-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F; }
+:root { --mint: #5fe0bf; --g: #0f6e5c; --g2: #14957c; --gold: #f2c25b; --red: #ff5a4e; --ink: #0d2a24; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+body { font-family: Cairo, sans-serif; color: #fff; }
+.ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+.ic svg { width: 100%; height: 100%; display: block; }
+#stage { position: absolute; inset: 0; overflow: hidden; }
+canvas { position: absolute; inset: 0; }
+.L { position: absolute; inset: 0; pointer-events: none; }
+.hide { display: none; }
+
+/* الكلمات */
+.word { position: absolute; font-weight: 900; line-height: 1.1; opacity: 0; white-space: nowrap; text-align: center; left: 0; right: 0; z-index: 6; }
+.word.side { left: auto; right: 90px; width: 640px; text-align: right; white-space: normal; }
+.word.huge { font-size: 190px; }
+.word.big { font-size: 130px; }
+.word.mid { font-size: 92px; }
+.word.small { font-size: 60px; font-weight: 700; color: rgba(255, 255, 255, 0.85); }
+.word em { font-style: normal; color: var(--mint); text-shadow: 0 0 60px rgba(95, 224, 191, 0.7); }
+.word .red { color: var(--red); text-shadow: 0 0 60px rgba(255, 90, 78, 0.6); }
+.chroma { text-shadow: 6px 0 0 rgba(255, 0, 80, 0.6), -6px 0 0 rgba(0, 220, 255, 0.6) !important; }
+
+/* الدفتر */
+#desk { position: absolute; inset: 0; opacity: 0; }
+#book { position: absolute; left: 50%; top: 640px; width: 1240px; height: 760px; margin: -380px 0 0 -620px; perspective: 2600px; transform-style: preserve-3d; }
+.page { position: absolute; top: 0; width: 620px; height: 760px; background: repeating-linear-gradient(#f3ead2 0 52px, #9fb6d6 52px 54px); border: 1px solid #c9bb95; box-shadow: inset 0 0 60px rgba(120, 90, 40, 0.25); }
+#pR { right: 0; border-radius: 6px 18px 18px 6px; }
+#pL { left: 0; transform-origin: 100% 50%; transform-style: preserve-3d; border: 0; background: none; box-shadow: none; }
+#pL .f, #pL .b { position: absolute; inset: 0; backface-visibility: hidden; border-radius: 18px 6px 6px 18px; }
+#pL .f { background: repeating-linear-gradient(#f3ead2 0 52px, #9fb6d6 52px 54px); border: 1px solid #c9bb95; box-shadow: inset 0 0 60px rgba(120, 90, 40, 0.25); }
+#pL .b { transform: rotateY(180deg); background: radial-gradient(circle at 30% 30%, #5b2c1c, #2a120a); border: 6px solid #1a0b06; display: grid; place-items: center; }
+#pL .b span { font: 900 74px Cairo; color: #d8b56a; border: 4px solid #d8b56a; padding: 10px 40px; border-radius: 14px; }
+.hand { position: absolute; right: 60px; left: 50px; font: 700 40px/54px Cairo; color: #23408e; }
+.hand div { height: 54px; display: flex; justify-content: space-between; }
+.hand .x { text-decoration: line-through; text-decoration-color: #c0392b; text-decoration-thickness: 4px; }
+.hand .q { color: #c0392b; }
+.hand h4 { font: 900 46px/54px Cairo; color: #7a1c13; text-align: center; height: 108px; padding-top: 30px; }
+#calc { position: absolute; left: 130px; top: 610px; width: 260px; height: 360px; border-radius: 26px; background: #22272a; transform: rotate(-12deg); box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6); padding: 22px; }
+#calc .s { height: 80px; border-radius: 10px; background: #a9c3a0; font: 900 46px Cairo; color: #263; text-align: left; padding: 8px 16px; direction: ltr; }
+#calc .k { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 16px; }
+#calc .k i { height: 46px; border-radius: 10px; background: #3b4247; }
+#lamp { position: absolute; inset: 0; background: radial-gradient(ellipse 900px 650px at 50% 45%, rgba(255, 200, 120, 0.22), transparent 70%); }
+
+/* اللوغو */
+#logoHit { position: absolute; left: 0; right: 0; top: 160px; text-align: center; opacity: 0; z-index: 5; }
+#logoHit img { width: 300px; height: 300px; border-radius: 80px; box-shadow: 0 0 160px rgba(95, 224, 191, 0.7); }
+#logoHit h1 { font: 900 150px/1.2 Cairo; margin-top: 30px; }
+#logoHit h1 em { font-style: normal; color: var(--mint); text-shadow: 0 0 80px rgba(95, 224, 191, 0.7); }
+
+/* اللابتوب */
+#lap { position: absolute; left: 70px; top: 120px; width: 1180px; height: 820px; opacity: 0; z-index: 3; }
+#lap .lid { position: absolute; left: 40px; right: 40px; top: 0; height: 740px; border-radius: 30px; background: #0b100f; padding: 22px; box-shadow: 0 0 0 3px #2b3633, 0 40px 140px rgba(95, 224, 191, 0.25); }
+#lap .scr { position: relative; width: 100%; height: 100%; border-radius: 12px; overflow: hidden; background: #f4f7f6; }
+#lap .scr img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top right; opacity: 0; }
+#lap .base { position: absolute; left: 0; right: 0; bottom: 30px; height: 50px; border-radius: 0 0 40px 40px; background: linear-gradient(#3a4643, #1c2321); }
+#lap .glow { position: absolute; inset: 0; background: rgba(95, 224, 191, 0.35); opacity: 0; }
+
+/* الجوال */
+#phone { position: absolute; left: 860px; top: 90px; width: 440px; height: 900px; border-radius: 66px; background: #070a09; padding: 16px; opacity: 0; z-index: 4; box-shadow: 0 0 0 3px #26312e, 0 0 140px rgba(95, 224, 191, 0.35); }
+#phone .scr { width: 100%; height: 100%; border-radius: 52px; overflow: hidden; background: #f3f6f5; }
+#phone img { width: 100%; display: block; }
+#house { position: absolute; left: 1560px; top: 600px; width: 150px; height: 150px; color: var(--mint); opacity: 0; filter: drop-shadow(0 0 30px rgba(95, 224, 191, 0.8)); z-index: 4; }
+
+/* المصالح */
+.chip { position: absolute; padding: 18px 36px; border-radius: 999px; background: #fff; color: var(--ink); font: 900 56px Cairo; display: flex; gap: 18px; align-items: center; opacity: 0; z-index: 6; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5); }
+.chip .ic { width: 60px; height: 60px; color: var(--g2); }
+.badge { position: absolute; padding: 16px 38px; border-radius: 26px; border: 3px solid rgba(95, 224, 191, 0.6); background: rgba(95, 224, 191, 0.12); font: 900 64px Cairo; display: flex; gap: 18px; align-items: center; opacity: 0; z-index: 6; }
+.badge .ic { width: 64px; height: 64px; color: var(--mint); }
+
+/* الشعار */
+#tag { position: absolute; inset: 0; opacity: 0; text-align: center; z-index: 6; }
+#tag img { position: absolute; left: 50%; top: 250px; width: 230px; height: 230px; margin-left: -115px; border-radius: 62px; box-shadow: 0 0 140px rgba(95, 224, 191, 0.6); }
+#tag h1 { position: absolute; left: 0; right: 0; top: 520px; font: 900 180px/1.1 Cairo; }
+#tag h2 { position: absolute; left: 0; right: 0; top: 740px; font: 900 96px/1.1 Cairo; color: var(--mint); text-shadow: 0 0 60px rgba(95, 224, 191, 0.6); }
+
+/* التحميل والنهاية */
+#cta { position: absolute; right: 90px; top: 300px; width: 640px; opacity: 0; z-index: 6; text-align: right; }
+#cta b { display: block; font: 900 120px/1.15 Cairo; }
+#cta .url { display: inline-block; margin-top: 30px; padding: 20px 44px; border-radius: 999px; font: 900 64px Cairo; color: var(--ink); background: linear-gradient(90deg, var(--mint), #b8f7e6); box-shadow: 0 0 80px rgba(95, 224, 191, 0.5); }
+#cta .pl { margin-top: 36px; display: flex; gap: 26px; justify-content: flex-end; font: 700 40px Cairo; color: rgba(255, 255, 255, 0.8); }
+#cta .pl span { display: flex; gap: 12px; align-items: center; }
+#cta .pl .ic { width: 48px; height: 48px; color: var(--mint); }
+
+#end { position: absolute; inset: 0; opacity: 0; z-index: 7; }
+#endLogo { position: absolute; right: 200px; top: 250px; width: 300px; height: 300px; border-radius: 80px; box-shadow: 0 0 140px rgba(95, 224, 191, 0.55); }
+#endName { position: absolute; right: 120px; width: 460px; top: 580px; text-align: center; font: 900 140px/1.1 Cairo; }
+#endSub { position: absolute; right: 120px; width: 460px; top: 760px; text-align: center; font: 900 54px Cairo; color: var(--mint); }
+#endBox { position: absolute; left: 140px; top: 210px; width: 980px; padding: 50px 60px; border-radius: 50px; background: rgba(255, 255, 255, 0.06); border: 2px solid rgba(95, 224, 191, 0.35); }
+#endBox .h { display: flex; align-items: center; gap: 24px; font: 900 64px Cairo; }
+#endBox .h .ic { width: 90px; height: 90px; padding: 16px; border-radius: 26px; background: #25d366; color: #fff; }
+.num { margin-top: 34px; font: 900 96px/1.2 Cairo; text-align: center; letter-spacing: 2px; opacity: 0; }
+#endUrl { margin-top: 40px; text-align: center; font: 900 60px Cairo; color: var(--mint); opacity: 0; }
+
+#flash { background: #fff; opacity: 0; z-index: 9; }
+#vig { background: radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.75) 100%); z-index: 8; }
+#bars { background: linear-gradient(#000 0 0) top/100% 0 no-repeat, linear-gradient(#000 0 0) bottom/100% 0 no-repeat; z-index: 8; }
+#grain { opacity: 0.07; mix-blend-mode: overlay; z-index: 8; }
+#fade { background: #000; opacity: 0; z-index: 10; }
+#fx { z-index: 2; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="bg" width="1920" height="1080"></canvas>
+
+  <div id="desk">
+    <div id="lamp"></div>
+    <div id="book">
+      <div class="page" id="pR"><div class="hand" style="top:0">
+        <h4>دفتر الديون</h4>
+        <div><span>أبو خالد</span><span class="ltr">12,500</span></div>
+        <div class="x"><span>أم محمد</span><span class="ltr">6,400</span></div>
+        <div><span>مطعم الضيعة</span><span class="ltr q">30,000 ؟</span></div>
+        <div><span>سمانة الحارة</span><span class="ltr">8,750</span></div>
+        <div class="x"><span>أبو سامر</span><span class="ltr">3,200</span></div>
+        <div><span>جارنا أبو علي</span><span class="ltr q">؟؟</span></div>
+        <div><span>المجموع</span><span class="ltr q">61,850 ✗</span></div>
+      </div></div>
+      <div class="page" id="pL"><div class="f"><div class="hand" style="top:0">
+        <h4>آخر الشهر</h4>
+        <div><span>المبيعات</span><span class="ltr">؟</span></div>
+        <div><span>البضاعة</span><span class="ltr x">240,000</span></div>
+        <div><span>أجار المحل</span><span class="ltr">75,000</span></div>
+        <div><span>كهربا ومولدة</span><span class="ltr">28,000</span></div>
+        <div class="x"><span>الربح</span><span class="ltr">35,000</span></div>
+        <div><span>الربح؟</span><span class="ltr q">؟؟؟</span></div>
+      </div></div><div class="b"><span>دفتر الديون</span></div></div>
+    </div>
+    <div id="calc"><div class="s">ERR</div><div class="k"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+  </div>
+
+  <div class="word mid" id="w1" style="top:120px">لسا عم تكتب <span class="red">الديون</span> بالدفتر؟</div>
+  <div class="word big" id="w2" style="top:110px">آخر الشهر...</div>
+  <div class="word big" id="w3" style="top:110px"><em>ربحت؟</em> ولا <span class="red">خسرت؟</span></div>
+  <div class="word small" id="w4" style="top:900px">خلص...</div>
+  <div class="word huge" id="w5" style="top:400px;text-shadow:0 10px 60px #000">سكّر الدفتر.</div>
+
+  <div id="logoHit"><img src="logo.png" alt="" /><h1>صار عندك <em>وزن</em></h1></div>
+
+  <div id="lap"><div class="lid"><div class="scr">
+    <img id="s_pos" src="pos.png" alt="" /><img id="s_debts" src="debts.png" alt="" /><img id="s_dash" src="dash.png" alt="" />
+    <img id="s_activities" src="activities.png" alt="" /><img id="s_halls" src="halls.png" alt="" /><img id="s_invoice" src="invoice.png" alt="" />
+    <div class="glow" id="lapGlow"></div>
+  </div></div><div class="base"></div></div>
+
+  <div id="phone"><div class="scr"><img src="phone.png" alt="" /></div></div>
+  <i id="house" class="ic">{{icon:store}}</i>
+
+  <div class="word big side" id="m1" style="top:300px">فواتير <em>بثانية</em></div>
+  <div class="word big side" id="m2" style="top:300px">ديونك <em>مرتّبة</em></div>
+  <div class="word big side" id="m3" style="top:300px">أرباحك <em>قدّامك</em></div>
+  <div class="word big side" id="m4" style="top:230px;width:700px;white-space:nowrap">محلّك <em>بجيبتك</em></div>
+  <div class="word mid side" id="m5" style="top:420px;width:700px;white-space:nowrap">وانت بالبيت</div>
+
+  <div class="badge" id="b1" style="right:90px;top:200px"><i class="ic">{{icon:wifi-off}}</i>بلا نت</div>
+  <div class="badge" id="b2" style="right:90px;top:360px"><i class="ic">{{icon:sparkles}}</i>بالعربي</div>
+  <div class="badge" id="b3" style="right:90px;top:520px"><i class="ic">{{icon:layers}}</i>لكل المصالح</div>
+  <div class="chip" id="c1" style="right:120px;top:720px"><i class="ic">{{icon:shopping-cart}}</i>سوبرماركت</div>
+  <div class="chip" id="c2" style="right:580px;top:720px"><i class="ic">{{icon:pill}}</i>صيدلية</div>
+  <div class="chip" id="c3" style="right:120px;top:860px"><i class="ic">{{icon:utensils}}</i>مطعم</div>
+  <div class="chip" id="c4" style="right:420px;top:860px"><i class="ic">{{icon:shirt}}</i>ألبسة</div>
+  <div class="word big side" id="m6" style="top:240px">وحتى <em>صالات الأفراح</em></div>
+
+  <div id="tag"><img src="logo.png" alt="" /><h1>وزن...</h1><h2>حسابك موزون.</h2></div>
+
+  <div id="cta"><b>حمّله هلّق</b><span class="url ltr">waznsy.com</span>
+    <div class="pl"><span><i class="ic">{{icon:monitor}}</i>كمبيوتر</span><span><i class="ic">{{icon:smartphone}}</i>جوال</span></div></div>
+
+  <div id="end">
+    <div id="endBox">
+      <div class="h"><i class="ic">{{icon:message-circle}}</i>راسلنا عالواتساب</div>
+      <div class="num ltr" id="n1" style="display:block">+963 968 037 609</div>
+      <div class="num ltr" id="n2" style="display:block">+963 980 072 891</div>
+      <div id="endUrl" class="ltr" style="display:block">waznsy.com</div>
+    </div>
+    <img id="endLogo" src="logo.png" alt="" />
+    <div id="endName">وزن</div>
+    <div id="endSub">حسابك موزون</div>
+  </div>
+
+  <canvas id="fx" width="1920" height="1080"></canvas>
+  <div class="L" id="vig"></div>
+  <canvas id="grain" width="960" height="540" style="width:1920px;height:1080px"></canvas>
+  <div class="L" id="bars"></div>
+  <div class="L" id="flash"></div>
+  <div class="L" id="fade"></div>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const ease = (x) => { x = clamp(x); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+const out = (x) => 1 - Math.pow(1 - clamp(x), 3);
+const out5 = (x) => 1 - Math.pow(1 - clamp(x), 5);
+const win = (t, a, b, fi = 0.2, fo = 0.2) => Math.min(clamp((t - a) / fi), clamp((b - t) / fo));
+const lerp = (a, b, k) => a + (b - a) * k;
+function rnd(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
+const show = (e, v) => { e.style.opacity = v; e.style.display = v > 0 ? '' : 'none'; };
+
+// التوقيت مأخوذ من مقاطع الصوت (silencedetect)
+window.DURATION = 43.3;
+const SLAM = 8.10, LOGO = 10.84, TAG = 27.92, CTA = 30.32, END = 34.1;
+const HITS = [SLAM, LOGO, 12.70, 13.75, 15.09, 16.70, 19.83, 26.15, TAG, CTA, END];
+const CUTS = [21.0, 22.1, 23.3, 23.9, 24.5, 25.1];
+// كلمات: [id، بداية، نهاية، نوع]
+const WORDS = [['w1', 0.27, 2.6, 'type'], ['w2', 3.0, 4.75, 'rise'], ['w3', 5.32, 6.45, 'slam'], ['w4', 6.49, 7.9, 'rise'], ['w5', SLAM, 9.95, 'slam'],
+  ['m1', 12.70, 13.7, 'slam'], ['m2', 13.75, 15.0, 'slam'], ['m3', 15.09, 16.6, 'slam'], ['m4', 16.70, 19.7, 'slam'], ['m5', 17.71, 19.7, 'rise'], ['m6', 26.15, 27.8, 'slam']];
+const BADGES = [['b1', 19.83], ['b2', 21.0], ['b3', 22.1]];
+const CHIPS = [['c1', 23.3], ['c2', 23.9], ['c3', 24.5], ['c4', 25.1]];
+// لقطات اللابتوب: [id، بداية، نهاية]
+const SHOTS = [['s_pos', 12.70, 13.75], ['s_debts', 13.75, 15.09], ['s_dash', 15.09, 16.70], ['s_activities', 19.83, 26.15], ['s_halls', 26.15, 27.92], ['s_invoice', CTA, END + 0.3]];
+
+const PAPERS = (() => { const r = rnd(5); return Array.from({ length: 34 }, () => ({ x: r() * 1920, d: r() * 1.4, sp: 380 + r() * 420, rot: r() * 6, w: 90 + r() * 90, h: 120 + r() * 80, vr: (r() - 0.5) * 6, dx: (r() - 0.5) * 300 })); })();
+const DUST = (() => { const r = rnd(9); return Array.from({ length: 220 }, () => ({ x: r() * 1920, y: r() * 1080, s: 0.6 + r() * 2.4, p: r() * 6 })); })();
+const SPARK = (() => { const r = rnd(13); return Array.from({ length: 160 }, () => ({ a: r() * Math.PI * 2, v: 500 + r() * 1300, s: 2 + r() * 6 })); })();
+
+const bg = $('#bg').getContext('2d'), fx = $('#fx').getContext('2d'), gr = $('#grain').getContext('2d');
+const grainImg = gr.createImageData(960, 540);
+function shakeAt(t) { let s = 0; for (const h of HITS) { const d = t - h; if (d >= 0 && d < 0.6) s = Math.max(s, (h === SLAM || h === LOGO ? 1.4 : 0.8) * Math.exp(-d * 9)); } for (const c of CUTS) { const d = t - c; if (d >= 0 && d < 0.3) s = Math.max(s, 0.4 * Math.exp(-d * 14)); } return s; }
+function flashAt(t) { let f = 0; for (const h of HITS) f = Math.max(f, (h === SLAM || h === LOGO ? 1 : 0.55) * win(t, h - 0.02, h + 0.25, 0.02, 0.23)); for (const c of CUTS) f = Math.max(f, 0.35 * win(t, c - 0.02, c + 0.12, 0.02, 0.1)); return f; }
+
+window.render = function (t) {
+  const sh = shakeAt(t), r = rnd(Math.floor(t * 60) + 1);
+  $('#stage').style.transform = sh > 0.01 ? `translate(${(r() - 0.5) * 70 * sh}px, ${(r() - 0.5) * 50 * sh}px) scale(${1 + 0.04 * sh}) rotate(${(r() - 0.5) * 1.6 * sh}deg)` : '';
+
+  // ── الخلفية: غرفة غامقة بالبداية، وبعدها أخضر غامق
+  bg.fillStyle = '#000'; bg.fillRect(0, 0, 1920, 1080);
+  const greenBg = clamp((t - LOGO) / 0.4);
+  if (greenBg > 0) {
+    bg.globalAlpha = greenBg;
+    const g = bg.createRadialGradient(960, 540, 100, 960, 540, 1300); g.addColorStop(0, '#0d3d33'); g.addColorStop(1, '#020c0a');
+    bg.fillStyle = g; bg.fillRect(0, 0, 1920, 1080); bg.globalAlpha = 1;
+  }
+  for (const s of DUST) { const a = 0.12 + 0.3 * (0.5 + 0.5 * Math.sin(t * 2 + s.p)); bg.fillStyle = greenBg > 0 ? `rgba(95,224,191,${a * greenBg})` : `rgba(255,210,150,${a * 0.6})`; bg.fillRect((s.x + t * 12 * s.s) % 1920, (s.y - t * 9 * s.s + 1080) % 1080, s.s, s.s); }
+
+  // ── المشهد 1: الدفتر
+  const dk = win(t, 0, 9.95, 0.6, 0.15);
+  show($('#desk'), dk);
+  if (dk > 0) {
+    const push = ease(clamp(t / 8));
+    $('#book').style.filter = t > SLAM ? `brightness(${lerp(1, 0.35, clamp((t - SLAM) / 0.3))})` : '';
+    $('#book').style.transform = `scale(${lerp(0.72, 0.86, push)}) rotateX(${lerp(26, 18, push)}deg) rotateZ(${lerp(-3, 0, push)}deg)`;
+    // الدفتر بيسكّر بضربة
+    const cl = clamp((t - (SLAM - 0.22)) / 0.22);
+    $('#pL').style.transform = `rotateY(${180 * cl * cl}deg)`;
+    $('#calc').style.transform = `rotate(${-12 + Math.sin(t * 1.3) * 1.5}deg) translateY(${t > SLAM ? Math.min(200, (t - SLAM) * 900) : 0}px)`;
+    $('#calc .s').textContent = t < 5.3 ? (Math.floor(t * 3) % 2 ? '61850' : '61,8?') : 'ERR';
+    $('#lamp').style.opacity = 0.7 + 0.3 * Math.sin(t * 9) * (t > 5.3 && t < 8 ? 1 : 0.2);
+  }
+  // ── الكلمات
+  for (const [id, a, b, kind] of WORDS) {
+    const e = $('#' + id), v = win(t, a, b, kind === 'slam' ? 0.05 : 0.3, 0.2);
+    show(e, v); if (v <= 0) continue;
+    if (kind === 'slam') { const p = out5((t - a) / 0.35); e.style.transform = `scale(${lerp(2.4, 1, p)})`; e.style.filter = `blur(${(1 - p) * 18}px)`; e.classList.toggle('chroma', t - a < 0.25); }
+    else if (kind === 'rise') { const p = out((t - a) / 0.5); e.style.transform = `translateY(${(1 - p) * 50}px)`; }
+    else { const full = e.dataset.full ?? (e.dataset.full = e.innerHTML); const txt = e.textContent; const n = Math.floor(clamp((t - a) / 1.3) * 40); e.style.clipPath = `inset(0 0 0 ${100 - clamp(n / 40) * 100}%)`; }
+  }
+
+  // ── اللوغو
+  const lg = win(t, LOGO, 12.55, 0.05, 0.25);
+  show($('#logoHit'), lg);
+  if (lg > 0) { const p = out5((t - LOGO) / 0.6); $('#logoHit').style.transform = `scale(${lerp(2, 1, p)})`; $('#logoHit').style.filter = `blur(${(1 - p) * 16}px)`; }
+
+  // ── اللابتوب واللقطات
+  const lapV = Math.max(win(t, 12.6, 16.8, 0.25, 0.3), win(t, 19.7, 27.95, 0.3, 0.2), win(t, CTA - 0.1, END + 0.2, 0.3, 0.25));
+  show($('#lap'), lapV);
+  if (lapV > 0) {
+    const seg = t < 17 ? 12.6 : t < 28 ? 19.7 : CTA - 0.1;
+    const p = out5((t - seg) / 0.7);
+    $('#lap').style.transform = `perspective(2200px) translateY(${(1 - p) * 260}px) rotateY(${lerp(-18, -6, p) + Math.sin(t * 0.7) * 1.2}deg) scale(${lerp(0.85, 1, p) * (t > 22 && t < 26.2 ? lerp(1, 0.84, clamp((t - 22.6) / 0.5)) : 1)}) translateX(${t > 22 && t < 26.2 ? -lerp(0, 120, clamp((t - 22.6) / 0.5)) : 0}px)`;
+    for (const [id, a, b] of SHOTS) { const e = $('#' + id); const v = win(t, a, b, 0.08, 0.08); e.style.opacity = v; if (v > 0) e.style.transform = `scale(${lerp(1.08, 1, out5((t - a) / 0.5)) + (t - a) * 0.006})`; }
+    let gl = 0; for (const h of HITS) gl = Math.max(gl, win(t, h, h + 0.35, 0.03, 0.3)); $('#lapGlow').style.opacity = gl * 0.8;
+  }
+  // ── الجوال
+  const phV = Math.max(win(t, 16.70, 19.75, 0.05, 0.3), win(t, CTA + 0.4, END + 0.2, 0.3, 0.25));
+  show($('#phone'), phV);
+  if (phV > 0) {
+    const inCta = t > CTA;
+    const a = inCta ? CTA + 0.4 : 16.70, p = out5((t - a) / 0.6);
+    $('#phone').style.left = inCta ? '40px' : '560px';
+    $('#phone').style.top = inCta ? '170px' : '90px';
+    $('#phone').style.transform = `translateY(${(1 - p) * 700}px) rotate(${lerp(14, inCta ? 6 : -3, p) + Math.sin(t * 0.9) * 1.2}deg) scale(${inCta ? 0.8 : 1})`;
+    if (!inCta) { const sc = clamp((t - 17.0) / 2.5); $('#phone img').style.transform = `translateY(${-ease(sc) * 300}px)`; }
+    else $('#phone img').style.transform = '';
+  }
+  const hv = win(t, 17.71, 19.7, 0.3, 0.3); show($('#house'), hv); if (hv > 0) $('#house').style.transform = `scale(${lerp(0.4, 1, out5((t - 17.71) / 0.5))})`;
+
+  // ── المصالح
+  for (const [id, a] of BADGES) { const e = $('#' + id), v = win(t, a, 26.0, 0.05, 0.25); show(e, v); if (v > 0) { const p = out5((t - a) / 0.4); e.style.transform = `translateX(${-(1 - p) * 300}px) scale(${lerp(1.5, 1, p)})`; } }
+  for (const [id, a] of CHIPS) { const e = $('#' + id), v = win(t, a, 26.0, 0.05, 0.25); show(e, v); if (v > 0) { const p = out5((t - a) / 0.35); e.style.transform = `translateY(${(1 - p) * 140}px) scale(${lerp(1.6, 1, p)}) rotate(${(1 - p) * 8}deg)`; } }
+
+  // ── الشعار
+  const tg = win(t, TAG, CTA - 0.05, 0.05, 0.25);
+  show($('#tag'), tg);
+  if (tg > 0) {
+    const lt = t - TAG;
+    $('#tag img').style.transform = `scale(${lerp(0.3, 1, out5(lt / 0.5))})`;
+    $('#tag h1').style.transform = `scale(${lerp(1.8, 1, out5(lt / 0.4))})`;
+    const p2 = out5((lt - 0.9) / 0.4); $('#tag h2').style.opacity = clamp((lt - 0.9) / 0.1); $('#tag h2').style.transform = `scale(${lerp(2.2, 1, p2)})`; $('#tag h2').classList.toggle('chroma', lt > 0.9 && lt < 1.15);
+  }
+  // ── حمّله
+  const ct = win(t, CTA, END + 0.1, 0.05, 0.25);
+  show($('#cta'), ct);
+  if (ct > 0) { const lt = t - CTA; $('#cta b').style.transform = `scale(${lerp(1.8, 1, out5(lt / 0.4))})`; $('#cta .url').style.opacity = out((lt - 0.8) / 0.3); $('#cta .url').style.transform = `scale(${1 + Math.sin(lt * 5) * 0.02})`; $('#cta .pl').style.opacity = out((lt - 1.4) / 0.4); }
+  // ── النهاية
+  const en = clamp((t - END) / 0.25);
+  show($('#end'), en);
+  if (en > 0) {
+    const lt = t - END;
+    $('#endLogo').style.transform = `scale(${lerp(0.4, 1, out5(lt / 0.5))})`;
+    $('#endBox').style.transform = `translateX(${-(1 - out5(lt / 0.6)) * 300}px)`;
+    // الرقمين بيطلعوا مع قراءتهم
+    $('#n1').style.opacity = out((t - 35.4) / 0.4); $('#n1').style.transform = `scale(${lerp(1.3, 1, out5((t - 35.4) / 0.4))})`;
+    $('#n2').style.opacity = out((t - 37.9) / 0.4); $('#n2').style.transform = `scale(${lerp(1.3, 1, out5((t - 37.9) / 0.4))})`;
+    $('#endUrl').style.opacity = out((t - 40.2) / 0.5);
+  }
+
+  // ── المؤثرات: أوراق طايرة، شرار
+  fx.clearRect(0, 0, 1920, 1080);
+  const pv = win(t, 5.2, SLAM + 0.6, 0.3, 0.4);
+  if (pv > 0) {
+    fx.globalAlpha = pv;
+    for (const q of PAPERS) {
+      const lt = t - 5.2 - q.d; if (lt < 0) continue;
+      const y = -200 + lt * q.sp, x = q.x + Math.sin(lt * 2 + q.rot) * 80 + q.dx * lt * 0.3;
+      fx.save(); fx.translate(x, y); fx.rotate(q.rot + lt * q.vr);
+      fx.fillStyle = '#efe6cc'; fx.fillRect(-q.w / 2, -q.h / 2, q.w, q.h);
+      fx.fillStyle = 'rgba(35,64,142,0.5)'; for (let k = 0; k < 4; k++) fx.fillRect(-q.w / 2 + 12, -q.h / 2 + 18 + k * 22, q.w - 30, 4);
+      fx.restore();
+    }
+    fx.globalAlpha = 1;
+  }
+  for (const h of [LOGO, TAG]) {
+    const lt = t - h;
+    if (lt > 0 && lt < 1.4) {
+      fx.globalAlpha = 1 - lt / 1.4; fx.fillStyle = '#9ff3dc'; fx.shadowColor = '#5fe0bf'; fx.shadowBlur = 20;
+      for (const s of SPARK) { const d = s.v * out(lt / 1.4); fx.beginPath(); fx.arc(960 + Math.cos(s.a) * d, (h === LOGO ? 330 : 365) + Math.sin(s.a) * d * 0.7, s.s, 0, Math.PI * 2); fx.fill(); }
+      fx.shadowBlur = 0; fx.globalAlpha = 1;
+    }
+  }
+  // أشعة ضو ورا اللوغو
+  const rays = Math.max(lg, tg);
+  if (rays > 0) {
+    fx.globalAlpha = rays * 0.45; const cy = lg > 0 ? 330 : 365;
+    for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2 + t * 0.25; fx.fillStyle = i % 2 ? 'rgba(95,224,191,0.25)' : 'rgba(95,224,191,0.07)'; fx.beginPath(); fx.moveTo(960, cy); fx.lineTo(960 + Math.cos(a) * 2200, cy + Math.sin(a) * 2200); fx.lineTo(960 + Math.cos(a + 0.11) * 2200, cy + Math.sin(a + 0.11) * 2200); fx.fill(); }
+    fx.globalAlpha = 1;
+  }
+
+  $('#flash').style.opacity = flashAt(t) * 0.75;
+  // سواد قبل اللوغو (السكتة)
+  const blk = win(t, 9.95, LOGO, 0.15, 0.02);
+  $('#fade').style.opacity = Math.max(blk * 0.92, clamp((t - (window.DURATION - 0.7)) / 0.65), 1 - clamp(t / 0.4));
+  const rg = rnd(Math.floor(t * 30) + 99), d = grainImg.data;
+  for (let i = 0; i < d.length; i += 4) { const v = rg() * 255; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; }
+  gr.putImageData(grainImg, 0, 0);
+  const bh = (1 - ease(clamp((t - LOGO) / 0.6))) * 110;
+  $('#bars').style.backgroundSize = `100% ${bh}px, 100% ${bh}px`;
+};
+
+window.EVENTS = { hits: HITS, cuts: CUTS, slam: SLAM, logo: LOGO, tag: TAG, cta: CTA, end: END, duration: window.DURATION };
+
+(async () => {
+  await document.fonts.ready;
+  await Promise.all([...document.images].map((i) => i.decode().catch(() => undefined)));
+  window.render(0);
+  window.READY = true;
+})();
+</script>
+</body>
+</html>
