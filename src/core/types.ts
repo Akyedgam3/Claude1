@@ -1054,6 +1054,7 @@ export type CompanyEvent =
   | { type: 'solar.saved'; project: SolarProject }
   | { type: 'dealerdue.set'; invoiceId: string; amount: number }
   | { type: 'dealer.saved'; dealer: Dealer }
+  | { type: 'dealer.deleted'; dealerId: string }
   | { type: 'booking.saved'; booking: HallBooking }
   | { type: 'booking.deleted'; bookingId: string }
   | { type: 'dealersale.posted'; sale: DealerSale }

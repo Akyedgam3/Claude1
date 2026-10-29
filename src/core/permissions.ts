@@ -155,6 +155,7 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
   addSolarDeposit: 'vouchers.create',
   invoiceSolarProject: 'sales.create',
   saveDealer: 'dealers.manage',
+  deleteDealer: 'dealers.manage',
   postDealerSale: 'dealers.manage',
   voidDealerSale: 'dealers.manage',
   postDealerMove: 'dealers.manage',

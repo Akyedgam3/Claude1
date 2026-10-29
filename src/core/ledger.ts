@@ -1644,6 +1644,11 @@ export class Ledger {
     return dealer;
   }
 
+  /** حذف مورّد ما إلو حركات (الغلط بالإضافة). اللي إلو حركات بيتوقّف بدل الحذف. */
+  deleteDealer(dealerId: string): void {
+    this.emit({ type: 'dealer.deleted', dealerId });
+  }
+
   /** سعر الصيدلية للمادة بالعملة الأساسية (للمحاسبة مع المورّد). */
   private pharmacyPrice(itemId: string, date: string): number {
     const it = this.state.items[itemId]!;

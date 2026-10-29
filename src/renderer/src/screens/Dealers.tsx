@@ -31,7 +31,7 @@ type Tab = 'sell' | 'goods' | 'account';
 
 /** صيدلية مع موردين: كل مورّد بيبيع من أدوية الصيدلية بسعره، إلو صندوقه وبضاعته، وبيتسجّل عليه سعر الصيدلية دين. */
 export function Dealers() {
-  const { state, can, notify } = useCompany();
+  const { state, can, notify, call } = useCompany();
   const dealers = useMemo(() => Object.values(state.dealers ?? {}).sort((a, b) => a.name.localeCompare(b.name, 'ar')), [state.dealers]);
   const [fixed, setFixed] = useState(deviceDealer);
   const [sel, setSel] = useState<string>(() => (fixed && state.dealers?.[fixed] ? fixed : ''));
@@ -120,9 +120,12 @@ export function Dealers() {
                         فتح
                       </button>
                       {can('dealers.manage') && (
-                        <button className="small" onClick={() => setEditing(x)}>
-                          تعديل
-                        </button>
+                        <>
+                          <button className="small" onClick={() => setEditing(x)}>
+                            تعديل
+                          </button>
+                          <ConfirmButton className="small" label="حذف" confirmLabel="متأكد؟ احذف" onConfirm={async () => (await call('deleteDealer', x.id)) && notify(`انحذف المورّد ${x.name}`)} />
+                        </>
                       )}
                     </td>
                   </tr>
@@ -150,9 +153,22 @@ export function Dealers() {
               </button>
             )}
             {can('dealers.manage') && (
-              <button className="small" onClick={() => setEditing(dealer)}>
-                تعديل المورّد
-              </button>
+              <>
+                <button className="small" onClick={() => setEditing(dealer)}>
+                  تعديل المورّد
+                </button>
+                <ConfirmButton
+                  className="small"
+                  label="حذف المورّد"
+                  confirmLabel="متأكد؟ احذف"
+                  onConfirm={async () => {
+                    if (await call('deleteDealer', dealer.id)) {
+                      notify(`انحذف المورّد ${dealer.name}`);
+                      setSel('');
+                    }
+                  }}
+                />
+              </>
             )}
           </div>
           {tab === 'sell' && <DealerSell key={dealer.id} dealer={dealer} />}

@@ -244,6 +244,12 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       if (b.deposits.some((d) => !state.voided[d.entryId])) fail('على الحجز عربون؛ رجّعه أولاً');
       return;
     }
+    case 'dealer.deleted': {
+      const d = state.dealers?.[event.dealerId] ?? fail('المورّد غير موجود');
+      if ((state.dealerSales ?? []).some((s) => s.dealerId === d.id && !s.voided) || (state.dealerMoves ?? []).some((m) => m.dealerId === d.id && !m.voided)) fail('على المورّد مبيعات أو حركات؛ ألغِها أول، أو خلّيه «موقوف»');
+      if (Object.values(state.items).some((i) => i.dealerId === d.id && !i.archived)) fail('في مواد خاصة بهالمورّد؛ احذفها أو حوّلها أول');
+      return;
+    }
     case 'dealer.saved': {
       const d = event.dealer;
       if (!d.name.trim()) fail('اكتب اسم المورّد');
@@ -599,6 +605,9 @@ export function applyCommerceEvent(state: CompanyState, event: CompanyEvent): vo
       return;
     case 'booking.deleted':
       delete state.bookings![event.bookingId];
+      return;
+    case 'dealer.deleted':
+      delete state.dealers![event.dealerId];
       return;
     case 'dealer.saved':
       (state.dealers ??= {})[event.dealer.id] = { ...event.dealer };

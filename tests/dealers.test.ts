@@ -74,3 +74,19 @@ describe('pharmacy with dealers demo', () => {
     expect(dealerCash(l.state, 'd-samer')).toBeGreaterThan(0);
   });
 });
+
+describe('delete dealer', () => {
+  it('deletes a dealer without history and refuses one with sales', async () => {
+    const { Ledger, DEFAULT_CURRENCIES, chartFor, defaultTaxes } = await import('../src/core');
+    const l = new Ledger(() => {});
+    l.createCompany({ name: 'ص', activity: 'pharmacydealers', baseCurrency: 'SYP', fiscalYearStart: '01-01' }, DEFAULT_CURRENCIES, chartFor('pharmacydealers'), defaultTaxes());
+    const d = l.saveDealer({ id: 'd1', name: 'رامي' });
+    l.deleteDealer(d.id);
+    expect(l.state.dealers?.['d1']).toBeUndefined();
+    const m = new Ledger(() => {});
+    m.createCompany({ name: 'ص', activity: 'pharmacydealers', baseCurrency: 'SYP', fiscalYearStart: '01-01' }, DEFAULT_CURRENCIES, chartFor('pharmacydealers'), defaultTaxes());
+    m.loadDemoData();
+    const busy = Object.values(m.state.dealers!).find((x) => (m.state.dealerSales ?? []).some((s) => s.dealerId === x.id))!;
+    expect(() => m.deleteDealer(busy.id)).toThrow('موقوف');
+  });
+});
