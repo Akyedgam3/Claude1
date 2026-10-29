@@ -24,7 +24,8 @@ import { Icon } from '../components/icons';
 import { ConfirmButton, CurrencySelect, Empty, Field, matches, Modal, PageHeader, partyOptions, Picker, SearchBox, Tabs } from '../components/ui';
 import { PartyForm } from './Parties';
 import { DeliverDialog, DepositDialog } from './Tailor';
-import { bookingImage, bookingsTableImage, type ShareImage } from './hall-images';
+import { bookingImage, bookingsTableImage } from './hall-images';
+import { ImageShareDialog } from '../components/ImageShareDialog';
 
 const EDIT_STATUS: BookingStatus[] = ['tentative', 'confirmed', 'done', 'cancelled'];
 const MONTHS = ['كانون الثاني', 'شباط', 'آذار', 'نيسان', 'أيار', 'حزيران', 'تموز', 'آب', 'أيلول', 'تشرين الأول', 'تشرين الثاني', 'كانون الأول'];
@@ -707,55 +708,6 @@ function ShareTableButton({ rows, title }: { rows: HallBooking[]; title: string 
         />
       )}
     </>
-  );
-}
-
-/** معاينة الصورة قبل الإرسال، مع خيار المبالغ. بالكمبيوتر بتنتسخ وبينفتح الواتساب، وبالجوال قائمة المشاركة. */
-function ImageShareDialog(p: { title: string; phone: string; fileName: string; caption: string; amountsDefault?: boolean; make: (amounts: boolean) => Promise<ShareImage>; onClose: () => void }) {
-  const { notify } = useCompany();
-  const [amounts, setAmounts] = useState(p.amountsDefault ?? true);
-  const [img, setImg] = useState<ShareImage | null>(null);
-  useEffect(() => {
-    let live = true;
-    setImg(null);
-    p.make(amounts).then((x) => live && setImg(x), (e: Error) => notify(e.message, 'error'));
-    return () => {
-      live = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [amounts]);
-  const send = async () => {
-    if (!img) return;
-    try {
-      const r = await api.whatsappImage(p.phone, img.png, p.fileName, p.caption);
-      if (r === 'clipboard') notify('نسخت الصورة وفتحت الواتساب: الصقها بالمحادثة (Ctrl+V) وابعت');
-      if (r) p.onClose();
-    } catch (e) {
-      notify((e as Error).message, 'error');
-    }
-  };
-  return (
-    <Modal title={p.title} onClose={p.onClose} width={720}>
-      <div style={{ marginBottom: 10 }}>
-        <Tabs
-          value={amounts ? 'with' : 'without'}
-          onChange={(v) => setAmounts(v === 'with')}
-          tabs={[
-            { key: 'with', label: 'مع الأسعار (القيمة والعربون والباقي)' },
-            { key: 'without', label: 'بدون أسعار' },
-          ]}
-        />
-      </div>
-      <div className="share-preview">{img ? <img src={img.dataUrl} alt="" /> : <p className="muted">عم جهّز الصورة...</p>}</div>
-      <div className="form-actions">
-        <button type="button" onClick={p.onClose}>
-          إلغاء
-        </button>
-        <button type="button" className="whatsapp" disabled={!img} onClick={() => void send()}>
-          <Icon name="message" size={16} /> {IS_MOBILE ? 'مشاركة بالواتساب' : 'إرسال بالواتساب'}
-        </button>
-      </div>
-    </Modal>
   );
 }
 

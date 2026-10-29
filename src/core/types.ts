@@ -79,7 +79,8 @@ export type Activity =
   | 'printshop'
   | 'pharmacydealers'
   | 'weddinghall'
-  | 'solar';
+  | 'solar'
+  | 'foodstuff';
 
 export type Paper = 'a4' | 'a5' | '80mm' | '58mm';
 

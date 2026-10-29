@@ -140,6 +140,11 @@ export function Dashboard() {
             <Icon name="users" size={20} /> الموردين
           </button>
         )}
+        {feature('priceList') && (
+          <button className="primary big accent" onClick={() => navigate('pricelist')}>
+            <Icon name="file" size={20} /> نشرة الأسعار
+          </button>
+        )}
         {feature('solar') && can('solar.manage') && (
           <button className="primary big accent" onClick={() => navigate('solar')}>
             <Icon name="sun" size={20} /> منظومات الطاقة الشمسية

@@ -35,6 +35,7 @@ import { StoneBlocks } from './screens/StoneBlocks';
 import { Poultry } from './screens/Poultry';
 import { PrintJobs } from './screens/PrintJobs';
 import { Solar } from './screens/Solar';
+import { PriceList } from './screens/PriceList';
 import { Dealers } from './screens/Dealers';
 import { HallBookings } from './screens/HallBookings';
 import { QuoteEditor, Quotes } from './screens/Quotes';
@@ -94,6 +95,7 @@ const NAV: (NavItem | string)[] = [
   { key: 'invoices', label: 'سجل الفواتير', icon: 'receipt' },
   'المخزون والبطاقات',
   { key: 'items', label: 'المواد', icon: 'package' },
+  { key: 'pricelist', label: 'نشرة الأسعار', icon: 'file', feature: 'priceList' },
   { key: 'stock', label: 'الجرد وعمليات المخزون', icon: 'transfer', perms: ['stock.adjust', 'stock.transfer'] },
   { key: 'production', label: 'الإنتاج', icon: 'factory', feature: 'production', perm: 'production.manage' },
   { key: 'parties', label: 'العملاء والموردون', icon: 'users' },
@@ -511,6 +513,8 @@ function Screen({ screen }: { screen: { key: string; param?: string } }) {
       return <WorkOrderEditor key={p ?? 'new'} {...(p ? { id: p } : {})} />;
     case 'vehicles':
       return <Vehicles />;
+    case 'pricelist':
+      return <PriceList />;
     case 'items':
       return <Items key={p ?? ''} {...(p ? { initialQuery: p } : {})} />;
     case 'stock':

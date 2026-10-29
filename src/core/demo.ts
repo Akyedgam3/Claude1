@@ -782,6 +782,39 @@ function weddingHall(l: Ledger): void {
   l.addBookingDeposit(b4.id, { date: day(-2), amount: P(20000) });
 }
 
+function foodstuff(l: Ledger): void {
+  l.saveParty({ id: 'c-shop1', kind: 'customer', name: 'سمانة أبو أحمد', phone: '0944 201 118', priceTier: 'wholesale' });
+  l.saveParty({ id: 'c-shop2', kind: 'customer', name: 'ماركت الحارة', phone: '0933 774 205', priceTier: 'wholesale' });
+  l.saveParty({ id: 'c-home', kind: 'customer', name: 'أم سليم', phone: '0955 310 660' });
+  l.saveParty({ id: 's-grain', kind: 'supplier', name: 'تجار الحبوب — الهال', phone: '0944 100 900' });
+  // [id، الاسم، التصنيف، الوحدة، المفرق، الجملة، الكمية، التكلفة، الحد الأدنى، الوحدة الكبيرة، كم فيها، صلاحية]
+  const goods: [string, string, string, string, number, number, number, number, number, string, number, boolean][] = [
+    ['f-rice', 'رز مصري', 'حبوب وبقوليات', 'كيلو', 1700, 1550, 900, 1350, 100, 'كيس 25 كغ', 25, false],
+    ['f-rice-b', 'رز بسمتي', 'حبوب وبقوليات', 'كيلو', 2600, 2400, 400, 2100, 50, 'كيس 10 كغ', 10, false],
+    ['f-bulgur', 'برغل ناعم', 'حبوب وبقوليات', 'كيلو', 1100, 980, 600, 820, 60, 'شوال 50 كغ', 50, false],
+    ['f-lentil', 'عدس مجروش', 'حبوب وبقوليات', 'كيلو', 1500, 1380, 350, 1150, 40, 'شوال 50 كغ', 50, false],
+    ['f-chickpea', 'حمص حب', 'حبوب وبقوليات', 'كيلو', 1800, 1650, 300, 1400, 40, 'شوال 50 كغ', 50, false],
+    ['f-sugar', 'سكر', 'سكر وطحين', 'كيلو', 1150, 1060, 1200, 950, 150, 'شوال 50 كغ', 50, false],
+    ['f-flour', 'طحين زيرو', 'سكر وطحين', 'كيلو', 900, 820, 800, 700, 100, 'كيس 25 كغ', 25, false],
+    ['f-oil', 'زيت دوار الشمس 1 لتر', 'زيوت وسمون', 'قطعة', 2200, 2050, 240, 1800, 24, 'كرتونة 12', 12, false],
+    ['f-ghee', 'سمنة نباتية 2 كغ', 'زيوت وسمون', 'قطعة', 5200, 4900, 60, 4300, 10, 'كرتونة 6', 6, true],
+    ['f-tea', 'شاي سيلاني 400غ', 'شاي وقهوة', 'قطعة', 3800, 3550, 96, 3100, 24, 'كرتونة 24', 24, false],
+    ['f-pasta', 'معكرونة 500غ', 'معكرونة وشعيرية', 'قطعة', 650, 590, 400, 480, 40, 'كرتونة 20', 20, false],
+    ['f-tomato', 'رب بندورة 800غ', 'معلبات', 'قطعة', 1900, 1750, 120, 1500, 24, 'كرتونة 12', 12, true],
+  ];
+  for (const [id, name, category, unit, price, whole, , , minStock, box, n, expiry] of goods)
+    item(l, { id, code: id.slice(2).toUpperCase(), name, kind: 'stock', unit, price: P(price), wholesalePrice: P(whole), category, minStock, units: [{ name: box, factor: n }], ...(expiry ? { trackExpiry: true } : {}) });
+  l.adjustStock({
+    kind: 'opening',
+    date: day(-30),
+    lines: goods.map(([id, , , , , , qty, cost, , , , expiry]) => ({ itemId: id, qty, unitCost: P(cost), ...(expiry ? { batch: 'B1', expiry: day(200) } : {}) })),
+    memo: 'بضاعة أول المدة (تجريبي)',
+  });
+  l.postInvoice({ kind: 'sale', date: day(-3), partyId: 'c-shop1', lines: [{ itemId: 'f-rice', qty: 50, price: P(1550) }, { itemId: 'f-sugar', qty: 100, price: P(1060) }], paid: P(100000) });
+  l.postInvoice({ kind: 'sale', date: day(-1), partyId: 'c-shop2', lines: [{ itemId: 'f-oil', qty: 24, price: P(2050) }, { itemId: 'f-tea', qty: 24, price: P(3550) }, { itemId: 'f-bulgur', qty: 50, price: P(980) }] });
+  l.postInvoice({ kind: 'sale', date: day(), lines: [{ itemId: 'f-rice', qty: 5, price: P(1700) }, { itemId: 'f-lentil', qty: 2, price: P(1500) }, { itemId: 'f-pasta', qty: 4, price: P(650) }] });
+}
+
 function solar(l: Ledger): void {
   l.saveParty({ id: 'c-abuali', kind: 'customer', name: 'أبو علي الشامي', phone: '0944 610 225' });
   l.saveParty({ id: 'c-farm', kind: 'customer', name: 'مزرعة الريّان', phone: '0933 470 118' });
@@ -844,6 +877,7 @@ export function loadDemo(l: Ledger): void {
   else if (activity === 'pharmacydealers') pharmacyDealers(l);
   else if (activity === 'weddinghall') weddingHall(l);
   else if (activity === 'solar') solar(l);
+  else if (activity === 'foodstuff') foodstuff(l);
   else if (activity === 'mobile') mobile(l);
   else if (activity === 'sweets') sweets(l);
   else if (activity === 'supermarket') supermarket(l);

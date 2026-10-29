@@ -70,3 +70,17 @@ describe('solar', () => {
     expect(solarWarranties(d.state).length).toBe(3);
   });
 });
+
+describe('foodstuff price list', () => {
+  it('lists items by category with unit prices', async () => {
+    const { priceList } = await import('../src/core');
+    const d = new Ledger(() => {});
+    d.createCompany({ name: 'مواد', activity: 'foodstuff', baseCurrency: 'SYP', fiscalYearStart: '01-01' }, DEFAULT_CURRENCIES, chartFor('foodstuff'), defaultTaxes());
+    d.loadDemoData();
+    const groups = priceList(d.state);
+    const grains = groups.find((g) => g.category === 'حبوب وبقوليات')!;
+    const rice = grains.rows.filter((r) => r.itemId === 'f-rice');
+    expect(rice.map((r) => [r.name, r.retail, r.wholesale])).toEqual([['رز مصري', 170000, 155000], ['كيس 25 كغ (25 كيلو)', 4250000, 3875000]]);
+    expect(priceList(d.state, { categories: ['زيوت وسمون'] }).map((g) => g.category)).toEqual(['زيوت وسمون']);
+  });
+});
