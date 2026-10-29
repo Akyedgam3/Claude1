@@ -426,9 +426,6 @@ export function App() {
         <Tour />
         <main className="content">
           {lic.message && !lic.locked && <div className="banner">{lic.message}</div>}
-          {ctx.session.kind === 'local' && lic.onlineEnabled && lic.offlineDaysLeft !== undefined && lic.offlineDaysLeft <= 2 && (
-            <div className="banner bad">اتصل بالإنترنت للتحقق من الاشتراك خلال {lic.offlineDaysLeft} يوم وإلا سيتوقف البرنامج.</div>
-          )}
           {ctx.session.cloud?.offline && (
             <div className="banner">
               الجهاز الرئيسي مطفي حالياً. عم تشتغل على آخر نسخة وصلت{ctx.session.cloud.syncedAt ? ` (${new Date(ctx.session.cloud.syncedAt).toLocaleString('ar-SY', { dateStyle: 'short', timeStyle: 'short' })})` : ''}. العمليات الجديدة بتنحفظ وبتتنفّذ عليه لما يرجع

@@ -397,6 +397,8 @@ export class RegistryCore {
       c.expiresAt = new Date(from + days * DAY).toISOString();
     }
     c.plan = plan;
+    // التجربة كانت بيوم واحد بدون نت؛ الاشتراك المدفوع بياخد الأيام العادية
+    if (c.offlineDays < 7) c.offlineDays = 7;
     delete c.trial;
     c.status = 'active';
     delete c.message;

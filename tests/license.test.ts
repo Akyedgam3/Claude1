@@ -74,6 +74,13 @@ describe('remote status feed', () => {
     expect(parseFeed('{"v":1}', pub)).toBeNull();
   });
 
+  it('never allows less than 7 offline days (old trial keys upgraded to paid)', () => {
+    const k = issueLicense({ customer: 'x', machineId: MACHINE, plan: 'lifetime', issuedAt: at('2026-01-01'), offlineDays: 1 }, priv);
+    const opts = { machineId: MACHINE, onlineRequired: true };
+    expect(checkLicense(k, pub, { ...opts, now: at('2026-01-05'), lastOnline: at('2026-01-01') })).toMatchObject({ status: 'valid' });
+    expect(checkLicense(k, pub, { ...opts, now: at('2026-01-10'), lastOnline: at('2026-01-01') })).toMatchObject({ status: 'locked', reason: 'offline' });
+  });
+
   it('locks after the offline grace period', () => {
     const opts = { machineId: MACHINE, onlineRequired: true };
     expect(checkLicense(key, pub, { ...opts, now: at('2026-01-07'), lastOnline: null })).toMatchObject({ status: 'valid' });

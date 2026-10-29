@@ -2,7 +2,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:
 import fs from 'node:fs';
 import path from 'node:path';
 import { normalizeShortCode } from './format';
-import { checkLicense, machineIds as readMachineIds, parseFeed, parseLicense, PLANS, updateFor, type LicenseCheck, type LicenseFeed, type UpdateInfo } from './license';
+import { checkLicense, machineIds as readMachineIds, offlineDaysOf, parseFeed, parseLicense, PLANS, updateFor, type LicenseCheck, type LicenseFeed, type UpdateInfo } from './license';
 
 // يحفظ مفتاح الترخيص وآخر قائمة حالة ووقت آخر تحقق في ملف مشفّر على الجهاز.
 // التلاعب بالملف يجعله غير صالح فيُعامل كأنه لم يتم أي تحقق.
@@ -140,7 +140,7 @@ export class LicenseManager {
     };
     if (check.status === 'locked') return { ...base, reason: check.reason, message: check.message };
     const offlineDaysLeft = this.onlineEnabled
-      ? Math.max(0, Math.ceil(((data.lastOnline ? new Date(data.lastOnline).getTime() : new Date(check.payload.issuedAt).getTime()) + check.payload.offlineDays * DAY - now.getTime()) / DAY))
+      ? Math.max(0, Math.ceil(((data.lastOnline ? new Date(data.lastOnline).getTime() : new Date(check.payload.issuedAt).getTime()) + offlineDaysOf(check.payload) * DAY - now.getTime()) / DAY))
       : undefined;
     return {
       ...base,

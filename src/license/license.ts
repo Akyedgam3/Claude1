@@ -20,6 +20,11 @@ export const PLANS: Record<Plan, { nameAr: string; days: number | null }> = {
 
 export const DEFAULT_OFFLINE_DAYS = 7;
 
+/** أيام العمل بدون نت فعلياً: ما بتنزل عن 7 (التجربة كانت تنعمل بيوم، وبعد الشراء كان اليوم يضل بالمفتاح). */
+export function offlineDaysOf(payload: { offlineDays: number }): number {
+  return Math.max(payload.offlineDays, DEFAULT_OFFLINE_DAYS);
+}
+
 export interface LicensePayload {
   v: 2;
   id: string;
@@ -260,12 +265,12 @@ export function checkLicense(key: string | undefined, publicKeyPem: string, opts
 
   if (opts.onlineRequired) {
     const last = opts.lastOnline?.getTime() ?? 0;
-    const graceEnds = (last || new Date(payload.issuedAt).getTime()) + payload.offlineDays * DAY;
+    const graceEnds = (last || new Date(payload.issuedAt).getTime()) + offlineDaysOf(payload) * DAY;
     if (now.getTime() > graceEnds) {
       return {
         status: 'locked',
         reason: 'offline',
-        message: `لم يتم التحقق من الاشتراك منذ أكثر من ${payload.offlineDays} أيام. اتصل بالإنترنت ليتم التحقق تلقائياً.`,
+        message: `لم يتم التحقق من الاشتراك منذ أكثر من ${offlineDaysOf(payload)} أيام. اتصل بالإنترنت ليتم التحقق تلقائياً.`,
         payload,
       };
     }
