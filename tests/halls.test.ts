@@ -86,6 +86,22 @@ describe('hall extras', () => {
     expect(bookingsTableText(l.state, [b], { title: 't' })).not.toContain('القيمة');
   });
 
+  it('deletes a booking and refunds its deposit', () => {
+    const l = hall();
+    l.saveBooking({ ...base, id: 'b', partyId: 'c', date: '2026-11-20', period: 'evening', lines: [{ id: '1', name: 'أجار', qty: 1, price: 1_000_000 }] });
+    l.addBookingDeposit('b', { date: '2026-10-29', amount: 300_000 });
+    expect(() => l.deleteBooking('b', { date: '2026-10-30' })).toThrow('عربون');
+    l.deleteBooking('b', { date: '2026-10-30', voidDeposits: true });
+    expect(l.state.bookings!['b']).toBeUndefined();
+    expect(partyBalance(l.state, 'c').base).toBe(0);
+    l.saveBooking({ ...base, id: 'x', partyId: 'c', date: '2026-11-20', period: 'evening', lines: [{ id: '1', name: 'أجار', qty: 1, price: 1_000_000 }] });
+    const inv = l.invoiceBooking('x', { date: '2026-11-20' });
+    expect(() => l.deleteBooking('x', { date: '2026-11-20' })).toThrow('مفوتر');
+    l.voidInvoice(inv.id, '2026-11-20');
+    l.deleteBooking('x', { date: '2026-11-20' });
+    expect(Object.keys(l.state.bookings!)).toEqual([]);
+  });
+
   it('records monthly expenses and lists them by item', async () => {
     const { monthExpenses } = await import('../src/core');
     const l = hall();

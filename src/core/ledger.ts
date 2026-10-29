@@ -1447,6 +1447,16 @@ export class Ledger {
     return booking;
   }
 
+  /** حذف حجز (غلط أو انلغى نهائياً). إذا عليه عربون ولازم يرجع: voidDeposits بيلغي سندات القبض. */
+  deleteBooking(bookingId: string, opts: { date: string; voidDeposits?: boolean }): void {
+    const b = this.state.bookings?.[bookingId] ?? fail('الحجز غير موجود');
+    const live = b.deposits.filter((d) => !this.state.voided[d.entryId]);
+    if (b.invoiceId && !this.state.invoices.find((i) => i.id === b.invoiceId)?.voidEntryId) fail('الحجز مفوتر؛ ألغِ الفاتورة أولاً لتحذفه');
+    if (live.length && !opts.voidDeposits) fail('على الحجز عربون؛ لازم يرجع (إلغاء سند القبض) قبل الحذف');
+    for (const d of live) this.voidEntry(d.entryId, opts.date);
+    this.emit({ type: 'booking.deleted', bookingId });
+  }
+
   /** عربون الحجز: سند قبض على حساب الزبون، بينخصم من الفاتورة. */
   addBookingDeposit(bookingId: string, d: { date: string; amount: number; cashAccountId?: string; rate?: number }): HallBooking {
     const b = this.state.bookings?.[bookingId] ?? fail('الحجز غير موجود');

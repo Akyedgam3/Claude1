@@ -237,6 +237,12 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       if (prev?.invoiceId && !invoiceVoided(state, prev.invoiceId) && (b.status !== 'invoiced' || b.invoiceId !== prev.invoiceId)) fail('الحجز مفوتر؛ ألغِ الفاتورة أولاً لتعديله');
       return;
     }
+    case 'booking.deleted': {
+      const b = state.bookings?.[event.bookingId] ?? fail('الحجز غير موجود');
+      if (b.invoiceId && !invoiceVoided(state, b.invoiceId)) fail('الحجز مفوتر؛ ألغِ الفاتورة أولاً لتحذفه');
+      if (b.deposits.some((d) => !state.voided[d.entryId])) fail('على الحجز عربون؛ رجّعه أولاً');
+      return;
+    }
     case 'dealer.saved': {
       const d = event.dealer;
       if (!d.name.trim()) fail('اكتب اسم المورّد');
@@ -585,6 +591,9 @@ export function applyCommerceEvent(state: CompanyState, event: CompanyEvent): vo
     case 'booking.saved':
       (state.bookings ??= {})[event.booking.id] = { ...event.booking };
       bump(state, 'booking', event.booking.number);
+      return;
+    case 'booking.deleted':
+      delete state.bookings![event.bookingId];
       return;
     case 'dealer.saved':
       (state.dealers ??= {})[event.dealer.id] = { ...event.dealer };

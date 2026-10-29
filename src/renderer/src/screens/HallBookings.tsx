@@ -171,7 +171,7 @@ function Calendar({ onOpen }: { onOpen: (b: HallBooking | null, date?: string) =
 }
 
 function BookingList({ onOpen }: { onOpen: (b: HallBooking) => void }) {
-  const { state, navigate } = useCompany();
+  const { state, navigate, can } = useCompany();
   const [query, setQuery] = useState('');
   const [from, setFrom] = useState(today());
   const [to, setTo] = useState(addDays(today(), 60));
@@ -302,6 +302,12 @@ function BookingList({ onOpen }: { onOpen: (b: HallBooking) => void }) {
                 {prices && <td className="num">{money(state, bookingDeposits(state, b), b.currency)}</td>}
                 <td onClick={(e) => e.stopPropagation()} className="no-print">
                   <WhatsAppButton booking={b} small />
+                  {can('bookings.manage') && !b.invoiceId && (
+                    <button className="small" onClick={() => onOpen(b)}>
+                      تعديل
+                    </button>
+                  )}
+                  {can('bookings.manage') && !b.invoiceId && <DeleteBooking booking={b} small />}
                   {b.invoiceId && (
                     <button className="small" onClick={() => navigate('invoice', b.invoiceId)}>
                       الفاتورة
@@ -568,6 +574,7 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
         )}
         <div className="form-actions wide">
           {booking && <WhatsAppButton booking={booking} />}
+          {booking && !booking.invoiceId && can('bookings.manage') && <DeleteBooking booking={booking} onDone={onClose} />}
           {booking?.invoiceId ? (
             <button type="button" className="primary" onClick={() => navigate('invoice', booking.invoiceId)}>
               عرض الفاتورة
@@ -637,6 +644,26 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
         />
       )}
     </Modal>
+  );
+}
+
+/** حذف الحجز: إذا عليه عربون، السند بيتلغى (المصاري بترجع للزبون). */
+function DeleteBooking({ booking, small, onDone }: { booking: HallBooking; small?: boolean; onDone?: () => void }) {
+  const { state, call, notify, can } = useCompany();
+  const dep = bookingDeposits(state, booking);
+  if (dep > 0 && !can('vouchers.void')) return null;
+  return (
+    <ConfirmButton
+      className={small ? 'small' : ''}
+      label="حذف"
+      confirmLabel={dep > 0 ? `حذف وإرجاع العربون ${money(state, dep, booking.currency)}؟` : 'متأكد؟ احذف'}
+      onConfirm={async () => {
+        if (await call('deleteBooking', booking.id, { date: today(), ...(dep > 0 ? { voidDeposits: true } : {}) })) {
+          notify(`انحذف الحجز رقم ${booking.number}${dep > 0 ? ' وانلغى سند العربون' : ''}`);
+          onDone?.();
+        }
+      }}
+    />
   );
 }
 

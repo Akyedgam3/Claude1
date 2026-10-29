@@ -1043,6 +1043,7 @@ export type CompanyEvent =
   | { type: 'solar.saved'; project: SolarProject }
   | { type: 'dealer.saved'; dealer: Dealer }
   | { type: 'booking.saved'; booking: HallBooking }
+  | { type: 'booking.deleted'; bookingId: string }
   | { type: 'dealersale.posted'; sale: DealerSale }
   | { type: 'dealersale.voided'; saleId: string; date: string; by: string }
   | { type: 'dealermove.posted'; move: DealerMove }

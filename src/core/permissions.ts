@@ -145,6 +145,7 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
   addPrintDeposit: 'vouchers.create',
   deliverPrintJob: 'sales.create',
   saveBooking: 'bookings.manage',
+  deleteBooking: (args) => ((args[1] as { voidDeposits?: boolean } | undefined)?.voidDeposits ? 'vouchers.void' : 'bookings.manage'),
   addBookingDeposit: 'vouchers.create',
   invoiceBooking: 'sales.create',
   saveSolarProject: 'solar.manage',
