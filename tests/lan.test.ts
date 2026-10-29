@@ -173,13 +173,25 @@ describe('dealer box', () => {
     // الصيدلية: حتى لو طلبت صندوق المورد، بتنزل بالمشترك
     const ph = store.ledger.state.users[cashier.id]!;
     expect(() => execute(store, ph, 'postInvoice', [{ kind: 'sale', date: '2026-01-02', cashAccountId: DEALER_BOX_ID, lines: [{ itemId: 'i', qty: 1, price: 1000 }] }])).not.toThrow();
-    const st = store.ledger.state;
-    expect(accountBalance(st, DEALER_BOX_ID).balance).toBe(4000);
-    expect(accountBalance(st, '1101').balance).toBe(1000);
-    expect(dueToShared(st, DEALER_BOX_ID, '1101')).toBe(1000);
+    // فاتورة المورد النقدية: حصة الصيدلية (1000) بتتحوّل لحالها
+    let st = store.ledger.state;
+    expect(accountBalance(st, DEALER_BOX_ID).balance).toBe(3000);
+    expect(accountBalance(st, '1101').balance).toBe(2000);
+    expect(dueToShared(st, DEALER_BOX_ID, '1101')).toBe(0);
     expect(() => execute(store, ph, 'transferBox', [{ date: '2026-01-03', from: DEALER_BOX_ID, to: '1101', amount: 1000 }])).toThrow();
-    execute(store, me, 'transferBox', [{ date: '2026-01-03', from: DEALER_BOX_ID, to: '1101', amount: 1000 }]);
+    // بالدين: بيضل على المورد لحتى يسدّد
+    execute(store, store.user, 'saveParty', [{ id: 'c', kind: 'customer', name: 'زبون' }]);
+    const credit = execute(store, me, 'postInvoice', [{ kind: 'sale', date: '2026-01-03', partyId: 'c', paid: 0, lines: [{ itemId: 'i', qty: 2, price: 1000 }] }]).value as { id: string };
+    expect(dueToShared(store.ledger.state, DEALER_BOX_ID, '1101')).toBe(2000);
+    execute(store, me, 'transferBox', [{ date: '2026-01-04', from: DEALER_BOX_ID, to: '1101', amount: 2000 }]);
     expect(dueToShared(store.ledger.state, DEALER_BOX_ID, '1101')).toBe(0);
-    expect(accountBalance(store.ledger.state, '1101').balance).toBe(2000);
+    // إلغاء فاتورة نقدية بيلغي تحويلها
+    const cash = execute(store, me, 'postInvoice', [{ kind: 'sale', date: '2026-01-05', lines: [{ itemId: 'i', qty: 1, price: 1000 }] }]).value as { id: string };
+    expect(accountBalance(store.ledger.state, '1101').balance).toBe(5000);
+    execute(store, me, 'voidInvoice', [cash.id, '2026-01-05']);
+    st = store.ledger.state;
+    expect(accountBalance(st, '1101').balance).toBe(4000);
+    expect(dueToShared(st, DEALER_BOX_ID, '1101')).toBe(0);
+    void credit;
   });
 });

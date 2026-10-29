@@ -37,8 +37,8 @@ export function DealerBoxCard() {
   const bal = (id: string) => accountBalance(state, id).balance;
   const send = async (minor: number) => {
     if (!(minor > 0)) return notify('اكتب المبلغ', 'error');
-    if (await call('transferBox', { date: today(), from: box.id, to, amount: minor, memo: `تحويل حصة المواد المشتركة من ${box.name}` })) {
-      notify('تم التحويل للصندوق المشترك');
+    if (await call('transferBox', { date: today(), from: box.id, to, amount: minor, memo: `تسديد للصيدلية من ${box.name}` })) {
+      notify('تم التسديد لصندوق الصيدلية');
       setAmount('');
     }
   };
@@ -52,9 +52,10 @@ export function DealerBoxCard() {
         <strong>{money(state, bal(box.id))}</strong>
         <span>{state.accounts[to]?.name ?? 'الصندوق المشترك'}</span>
         <strong>{money(state, bal(to))}</strong>
-        <span>مستحق للصندوق المشترك (مواد مشتركة بعتها)</span>
+        <span>باقي عليك للصيدلية (أدوية بعتها بالدين أو ما تحوّل حقها)</span>
         <strong className={due > 0 ? 'bad' : 'good'}>{money(state, Math.max(0, due))}</strong>
       </div>
+      <p className="muted">كل فاتورة بتسكّرها فيها أدوية الصيدلية، المقبوض منها بسعر الصيدلية بيتحوّل لحاله لصندوقها. اللي ببيعه بالدين بيضل عليك هون لحتى تسدّده.</p>
       {can('vouchers.create') && (
         <div className="with-button" style={{ marginTop: 10 }}>
           {shared.length > 1 && (
@@ -73,7 +74,7 @@ export function DealerBoxCard() {
             </button>
           ) : (
             <button className="primary" disabled={due <= 0} onClick={() => void send(due)}>
-              تحويل المستحق ({money(state, Math.max(0, due))})
+              تسديد للصيدلية ({money(state, Math.max(0, due))})
             </button>
           )}
         </div>

@@ -540,7 +540,7 @@ export class Ledger {
   }
 
   /** تحويل مصاري بين صندوقين (متل حصة الصيدلية من صندوق المورد للصندوق المشترك). */
-  transferBox(t: { date: string; from: string; to: string; amount: number; memo?: string }): JournalEntry {
+  transferBox(t: { date: string; from: string; to: string; amount: number; memo?: string; sourceId?: string }): JournalEntry {
     if (!(t.amount > 0) || !Number.isSafeInteger(t.amount)) fail('المبلغ يجب أن يكون أكبر من صفر');
     if (t.from === t.to) fail('اختار صندوقين مختلفين');
     for (const id of [t.from, t.to]) {
@@ -555,7 +555,7 @@ export class Ledger {
         { accountId: t.to, debit: t.amount },
         { accountId: t.from, credit: t.amount },
       ],
-      source: { type: 'boxtransfer', id: crypto.randomUUID() },
+      source: { type: 'boxtransfer', id: t.sourceId ?? crypto.randomUUID() },
       createdBy: this.actor,
     });
   }
@@ -626,7 +626,7 @@ export class Ledger {
   /** لا يُحذف أي قيد؛ الإلغاء يكون بقيد عكسي يحفظ أثر العملية. */
   voidEntry(entryId: string, date: string): JournalEntry {
     const original = this.state.entries.find((e) => e.id === entryId) ?? fail('القيد غير موجود');
-    if (original.source && !['receipt', 'payment', 'manual', 'opening', 'work-adjust', 'debt'].includes(original.source.type)) {
+    if (original.source && !['receipt', 'payment', 'manual', 'opening', 'work-adjust', 'debt', 'boxtransfer'].includes(original.source.type)) {
       fail('هذا القيد تابع لمستند؛ ألغِ المستند نفسه');
     }
     const entry = this.reversal(original, date);

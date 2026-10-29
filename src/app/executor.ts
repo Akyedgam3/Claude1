@@ -1,6 +1,7 @@
 import { can, permissionFor, PERMISSIONS, type Permission } from '../core/permissions';
 import type { InvoiceDraft } from '../core/commerce';
-import type { User } from '../core/types';
+import type { Invoice, User } from '../core/types';
+import { settleDealerInvoice, unsettleDealerInvoice } from '../core/dealerbox';
 import type { CompanyStore } from '../storage/company-store';
 
 // كل عملية من الواجهة (أو من جهاز على الشبكة) تمر من هنا:
@@ -117,6 +118,7 @@ export function execute(store: CompanyStore, actor: User, method: string, args: 
     const st = store.ledger.state;
     const touches = (x: unknown) => x && typeof x === 'object' && ['cashAccountId', 'from', 'to', 'accountId'].some((k) => { const v = (x as Record<string, unknown>)[k]; return typeof v === 'string' && !!st.accounts[v]?.hidden; });
     if (args.some(touches)) fail('الصندوق غير موجود');
+    if (method === 'voidEntry' && st.entries.find((e) => e.id === args[0])?.lines.some((l) => st.accounts[l.accountId]?.hidden)) fail('القيد غير موجود');
   }
   // الاستبدال فيه شراء كمان
   if (method === 'tradeIn') requirePermission(user, 'purchases.create');
@@ -136,5 +138,11 @@ export function execute(store: CompanyStore, actor: User, method: string, args: 
   const fn = (store.ledger as unknown as Record<string, (...a: unknown[]) => unknown>)[method];
   if (typeof fn !== 'function') fail(`عملية غير معروفة: ${method}`);
   const value = fn.apply(store.ledger, args);
+  // فواتير المورد: إلغاء القديمة بيلغي تحويلها، والجديدة بيتحوّل المقبوض عن أدوية الصيدلية لصندوقها
+  if ((method === 'voidInvoice' || method === 'replaceInvoice' || method === 'deleteInvoice') && typeof args[0] === 'string') {
+    const d = typeof args[1] === 'string' ? args[1] : ((args[1] as { date?: string } | undefined)?.date ?? new Date().toISOString().slice(0, 10));
+    unsettleDealerInvoice(store.ledger, args[0], d);
+  }
+  if ((method === 'postInvoice' || method === 'replaceInvoice') && value && typeof value === 'object' && 'cashAccountId' in value) settleDealerInvoice(store.ledger, value as Invoice);
   return { value, seq: store.lastSeq };
 }
