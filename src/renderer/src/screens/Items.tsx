@@ -443,6 +443,8 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
                       </option>
                     ))}
                   </select>
+                  {Object.keys(state.dealers ?? {}).length === 0 && <small className="muted">لتطلع بضاعة المورّد هون: ضيف المورّد أول من قسم «الموردين».</small>}
+                  {!!item && (state.stock[item.id]?.totalQty ?? 0) !== 0 && <small className="muted">ما بيتغيّر وعليها رصيد ({state.stock[item.id]!.totalQty}). صفّر رصيدها (إلغاء فاتورة الشراء أو جرد) أو اعمل مادة جديدة للمورّد.</small>}
                 </Field>
               </>
             )}

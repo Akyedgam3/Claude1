@@ -115,8 +115,15 @@ export function Dealers() {
                     <td className="num">{money(state, t.sales)}</td>
                     <td className="num good">{money(state, t.profit)}</td>
                     <td className="num">{money(state, m.profit - m.expenses)}</td>
-                    <td>
-                      <button className="small">فتح</button>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <button className="small" onClick={() => setSel(x.id)}>
+                        فتح
+                      </button>
+                      {can('dealers.manage') && (
+                        <button className="small" onClick={() => setEditing(x)}>
+                          تعديل
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );
