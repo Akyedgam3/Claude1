@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { ALL_PERMISSIONS, permissionsOf, PERMISSIONS, ROLE_NAMES, type Permission, type Role, type User } from '../../../core';
 import { uid, useCompany } from '../api';
 import { Field, Modal, PageHeader } from '../components/ui';
+import { DealerBoxSetup } from '../components/DealerBox';
+import { cashAccounts } from './InvoiceEditor';
 
 export function Users() {
   const { state, user: me } = useCompany();
@@ -14,6 +16,7 @@ export function Users() {
           + مستخدم
         </button>
       </PageHeader>
+      <DealerBoxSetup />
       <p className="muted">كل مستخدم يدخل باسمه وكلمة سره، وكل عملية تُسجّل باسم من نفذها. الصلاحيات تُطبَّق على هذا الجهاز وعلى أجهزة الشبكة.</p>
       <table className="table">
         <thead>
@@ -43,8 +46,11 @@ export function Users() {
 }
 
 function UserForm({ user, onClose }: { user: User | null; onClose: () => void }) {
-  const { call, notify, user: me } = useCompany();
+  const { call, notify, user: me, state } = useCompany();
+  const boxes = cashAccounts(state);
   const [f, setF] = useState({
+    // مع صندوق المورد: الحساب الجديد (الصيدلية) افتراضياً عالصندوق المشترك
+    cashAccountId: user ? (user.cashAccountId ?? '') : state.accounts['11019'] ? (boxes.find((b) => !b.hidden)?.id ?? '') : '',
     displayName: user?.displayName ?? '',
     username: user?.username ?? '',
     role: user?.role ?? ('cashier' as Role),
@@ -53,7 +59,7 @@ function UserForm({ user, onClose }: { user: User | null; onClose: () => void })
     extra: new Set(user?.extra ?? []),
     denied: new Set(user?.denied ?? []),
   });
-  const draft: User = { id: user?.id ?? '', username: f.username, displayName: f.displayName, role: f.role, active: f.active, extra: [...f.extra], denied: [...f.denied] };
+  const draft: User = { id: user?.id ?? '', username: f.username, displayName: f.displayName, role: f.role, active: f.active, extra: [...f.extra], denied: [...f.denied], ...(f.cashAccountId ? { cashAccountId: f.cashAccountId } : {}) };
   const effective = permissionsOf({ ...draft, active: true });
   const base = permissionsOf({ ...draft, extra: [], denied: [], active: true });
   const roles = (Object.keys(ROLE_NAMES) as Role[]).filter((r) => r !== 'owner' || me.role === 'owner');
@@ -105,6 +111,18 @@ function UserForm({ user, onClose }: { user: User | null; onClose: () => void })
               </option>
             ))}
           </select>
+        </Field>
+        <Field label="صندوق المستخدم">
+          <select value={f.cashAccountId} onChange={(e) => setF({ ...f, cashAccountId: e.target.value })}>
+            <option value="">— حسب الفاتورة —</option>
+            {boxes.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+                {b.hidden ? ' (خاص)' : ''}
+              </option>
+            ))}
+          </select>
+          <small className="muted">{f.role === 'owner' ? 'مبيعاتك بتنزل فيه افتراضياً (وفيك تغيّر بالفاتورة).' : 'كل مبيعاته وسنداته بتنزل فيه، وما بيقدر يغيّره.'}</small>
         </Field>
         <Field label={user ? 'كلمة سر جديدة (اتركها فارغة لعدم التغيير)' : 'كلمة السر'}>
           <input type="password" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} />

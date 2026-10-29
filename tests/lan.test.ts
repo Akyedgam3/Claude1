@@ -158,3 +158,28 @@ describe('LAN host and client', () => {
     expect(replay.status).toBe(401);
   });
 });
+
+describe('dealer box', () => {
+  it('routes sales to each user box and tracks what is owed to the shared box', async () => {
+    const { DEALER_BOX_ID, dueToShared, accountBalance } = await import('../src/core');
+    execute(store, store.user, 'setupDealerBox', []);
+    execute(store, store.user, 'updateUser', [{ ...store.ledger.state.users[store.user.id]!, cashAccountId: DEALER_BOX_ID }, '']);
+    execute(store, store.user, 'updateUser', [{ ...store.ledger.state.users[cashier.id]!, cashAccountId: '1101' }, '']);
+    execute(store, store.user, 'saveItem', [{ id: 'h', code: '2', name: 'مادة المورّد', kind: 'stock', unit: 'قطعة', price: 3000, priceCurrency: 'SYP', hidden: true }]);
+    execute(store, store.user, 'adjustStock', [{ kind: 'opening', date: '2026-01-01', lines: [{ itemId: 'h', qty: 5, unitCost: 500 }] }]);
+    // المورد: مادة مشتركة (1000) + مخفية (3000) ← كلها بصندوقه، والمشتركة مستحقة للمشترك
+    const me = store.ledger.state.users[store.user.id]!;
+    execute(store, me, 'postInvoice', [{ kind: 'sale', date: '2026-01-02', lines: [{ itemId: 'i', qty: 1, price: 1000 }, { itemId: 'h', qty: 1, price: 3000 }] }]);
+    // الصيدلية: حتى لو طلبت صندوق المورد، بتنزل بالمشترك
+    const ph = store.ledger.state.users[cashier.id]!;
+    expect(() => execute(store, ph, 'postInvoice', [{ kind: 'sale', date: '2026-01-02', cashAccountId: DEALER_BOX_ID, lines: [{ itemId: 'i', qty: 1, price: 1000 }] }])).not.toThrow();
+    const st = store.ledger.state;
+    expect(accountBalance(st, DEALER_BOX_ID).balance).toBe(4000);
+    expect(accountBalance(st, '1101').balance).toBe(1000);
+    expect(dueToShared(st, DEALER_BOX_ID, '1101')).toBe(1000);
+    expect(() => execute(store, ph, 'transferBox', [{ date: '2026-01-03', from: DEALER_BOX_ID, to: '1101', amount: 1000 }])).toThrow();
+    execute(store, me, 'transferBox', [{ date: '2026-01-03', from: DEALER_BOX_ID, to: '1101', amount: 1000 }]);
+    expect(dueToShared(store.ledger.state, DEALER_BOX_ID, '1101')).toBe(0);
+    expect(accountBalance(store.ledger.state, '1101').balance).toBe(2000);
+  });
+});

@@ -72,7 +72,9 @@ export function itemPrice(state: CompanyState, item: Item, opts: { party?: Party
 
 export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { kind: string; editId?: string; draftId?: string }) {
   const kind = kindProp as InvoiceKind;
-  const { state, call, notify, navigate, feature, can } = useCompany();
+  const { state, call, notify, navigate, feature, can, user } = useCompany();
+  // صندوق المستخدم: لغير المالك ثابت (السيرفر كمان بيفرضه)
+  const lockedBox = user.role !== 'owner' && user.cashAccountId && state.accounts[user.cashAccountId] ? user.cashAccountId : null;
   const base = state.info!.baseCurrency;
   const isSale = kind === 'sale' || kind === 'sale_return';
   const stockIn = kind === 'purchase' || kind === 'sale_return';
@@ -137,7 +139,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
       // ما في تخزين: بيضل الاختيار لهالفاتورة بس
     }
   };
-  const [cashAccountId, setCashAccountId] = useState(editing?.cashAccountId ?? d?.cashAccountId ?? '');
+  const [cashAccountId, setCashAccountId] = useState(lockedBox ?? editing?.cashAccountId ?? d?.cashAccountId ?? user.cashAccountId ?? '');
   const [salesman, setSalesman] = useState(editing?.salesman ?? d?.salesman ?? '');
   const [notes, setNotes] = useState(editing?.notes ?? d?.notes ?? '');
   const [newItem, setNewItem] = useState<string | null>(null);
@@ -719,7 +721,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
             {payMode !== 'credit' && (
               <>
                 <span>الصندوق</span>
-                <select value={cashId} onChange={(e) => setCashAccountId(e.target.value)}>
+                <select value={cashId} onChange={(e) => setCashAccountId(e.target.value)} disabled={!!lockedBox}>
                   {boxes.map((a) => (
                     <option key={a.id} value={a.id}>
                       {a.name}

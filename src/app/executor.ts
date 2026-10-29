@@ -104,6 +104,20 @@ export function execute(store: CompanyStore, actor: User, method: string, args: 
     if (['deleteItem', 'archiveItem'].includes(method) && hidden(args[0])) fail('المادة غير موجودة');
     if ((method === 'saveItem' && (args[0] as { hidden?: unknown } | undefined)?.hidden) || args.some((a) => lines(a).some((l) => hidden(l.itemId)))) fail('المادة غير موجودة');
   }
+  // صندوق المستخدم: مبيعاته وسنداته بتنزل فيه (لغير المالك إجباري، وللمالك افتراضي)
+  const box = user.cashAccountId && store.ledger.state.accounts[user.cashAccountId] ? user.cashAccountId : undefined;
+  if (box) {
+    const draft = (method === 'postInvoice' || method === 'postVoucher' ? args[0] : method === 'replaceInvoice' ? args[1] : undefined) as { cashAccountId?: string; kind?: string; accountId?: string } | undefined;
+    if (draft && typeof draft === 'object' && (draft.kind !== 'purchase' || user.role !== 'owner')) {
+      if (user.role !== 'owner' || !draft.cashAccountId) draft.cashAccountId = box;
+    }
+  }
+  // الصناديق المخفية (صندوق المورد): اللي ما معه الصلاحية ما بيلمسها
+  if (!can(user, 'items.hidden')) {
+    const st = store.ledger.state;
+    const touches = (x: unknown) => x && typeof x === 'object' && ['cashAccountId', 'from', 'to', 'accountId'].some((k) => { const v = (x as Record<string, unknown>)[k]; return typeof v === 'string' && !!st.accounts[v]?.hidden; });
+    if (args.some(touches)) fail('الصندوق غير موجود');
+  }
   // الاستبدال فيه شراء كمان
   if (method === 'tradeIn') requirePermission(user, 'purchases.create');
   if (method === 'saveOrder') {

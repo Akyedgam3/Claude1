@@ -10,6 +10,8 @@ export interface Account {
   isGroup: boolean; // حساب تجميعي (لا يُرحَّل عليه مباشرة)
   currency: string | null; // عملة ثابتة للحساب، أو null لأي عملة
   archived?: boolean;
+  /** حساب خاص (صندوق المورد): ما بيبين إلا للي معه صلاحية «المواد المخفية». */
+  hidden?: boolean;
 }
 
 export type RateKind = 'official' | 'market';
@@ -188,6 +190,8 @@ export interface User {
   extra?: string[]; // صلاحيات إضافية فوق الدور
   denied?: string[]; // صلاحيات محجوبة من الدور
   active: boolean;
+  /** صندوق المستخدم: مبيعاته وسنداته بتنزل فيه لحالها (ولغير المالك ما بيقدر يغيّره). */
+  cashAccountId?: string;
 }
 
 // ───────────── التجارة: العملاء والموردون، المواد، المستودعات، الفواتير ─────────────

@@ -11,6 +11,7 @@ import { dealerStock, dealerUnitCost } from './dealers';
 import { HALL_PERIODS, bookingDeposits, bookingToInvoiceLines, bookingTotals } from './halls';
 import { printJobDeposits, printJobToInvoiceLines, printJobTotals } from './printshop';
 import { solarDeposits, solarToInvoiceLines, solarTotals } from './solar';
+import { DEALER_BOX_ID } from './dealerbox';
 import {
   buildAdjustment,
   buildCount,
@@ -183,6 +184,10 @@ function validateUser(state: CompanyState, user: User): void {
   if (others.some((u) => u.username.toLowerCase() === user.username.toLowerCase())) fail('اسم المستخدم مستخدم مسبقاً');
   const ownersLeft = others.filter((u) => u.role === 'owner' && u.active).length + (user.role === 'owner' && user.active ? 1 : 0);
   if (ownersLeft === 0) fail('يجب أن يبقى مالك واحد فعّال على الأقل');
+  if (user.cashAccountId) {
+    const a = state.accounts[user.cashAccountId];
+    if (!a || a.isGroup || a.type !== 'asset') fail('الصندوق غير موجود');
+  }
 }
 
 export function validateEvent(state: CompanyState, event: CompanyEvent): void {
@@ -523,6 +528,36 @@ export class Ledger {
 
   saveAccount(account: Account): void {
     this.emit({ type: 'account.saved', account });
+  }
+
+  /** صندوق المورد الخاص (مخفي عن الصيدلية)، بينعمل مرة وحدة. */
+  setupDealerBox(name = 'صندوق المورد'): Account {
+    const existing = this.state.accounts[DEALER_BOX_ID];
+    if (existing) return existing;
+    const account: Account = { id: DEALER_BOX_ID, name, type: 'asset', parentId: null, isGroup: false, currency: this.base.code, hidden: true };
+    this.emit({ type: 'account.saved', account });
+    return account;
+  }
+
+  /** تحويل مصاري بين صندوقين (متل حصة الصيدلية من صندوق المورد للصندوق المشترك). */
+  transferBox(t: { date: string; from: string; to: string; amount: number; memo?: string }): JournalEntry {
+    if (!(t.amount > 0) || !Number.isSafeInteger(t.amount)) fail('المبلغ يجب أن يكون أكبر من صفر');
+    if (t.from === t.to) fail('اختار صندوقين مختلفين');
+    for (const id of [t.from, t.to]) {
+      const a = this.state.accounts[id] ?? fail('الصندوق غير موجود');
+      if (a.isGroup || a.type !== 'asset') fail(`«${a.name}» مش صندوق`);
+    }
+    const from = this.state.accounts[t.from]!, to = this.state.accounts[t.to]!;
+    return this.postEntry({
+      date: t.date,
+      memo: t.memo?.trim() || `تحويل من ${from.name} إلى ${to.name}`,
+      lines: [
+        { accountId: t.to, debit: t.amount },
+        { accountId: t.from, credit: t.amount },
+      ],
+      source: { type: 'boxtransfer', id: crypto.randomUUID() },
+      createdBy: this.actor,
+    });
   }
 
   saveTax(tax: Tax): void {

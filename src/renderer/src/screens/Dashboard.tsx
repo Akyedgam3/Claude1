@@ -6,6 +6,7 @@ import { Stat } from '../components/ui';
 import { STATUS_NAMES } from './Repairs';
 import { TAILOR_STATUS } from './Tailor';
 import { Icon } from '../components/icons';
+import { DealerBoxCard } from '../components/DealerBox';
 
 export function Dashboard() {
   const { state, navigate, can, feature, profile, user } = useCompany();
@@ -201,6 +202,8 @@ export function Dashboard() {
           </button>
         )}
       </div>
+
+      <DealerBoxCard />
 
       {feature('tailoring') && can('tailoring.manage') && (
         <div className="stats">

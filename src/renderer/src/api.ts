@@ -151,9 +151,16 @@ export const useCompany = () => useContext(Company);
 /** المواد المخفية بتصير «مؤرشفة» بعين اللي ما معه صلاحيتها: ما بتطلع بالقوائم ولا البيع ولا الجرد، والفواتير القديمة بتضل تقرأ اسمها. */
 export function visibleState(state: CompanyState, user: User): CompanyState {
   const current = state.users[user.id] ?? user;
-  if (canDo(current, 'items.hidden') || !Object.values(state.items).some((i) => i.hidden)) return state;
-  const items = Object.fromEntries(Object.entries(state.items).map(([id, i]) => [id, i.hidden ? { ...i, archived: true } : i]));
-  return { ...state, items };
+  if (canDo(current, 'items.hidden')) return state;
+  const hasItems = Object.values(state.items).some((i) => i.hidden);
+  const hasBoxes = Object.values(state.accounts).some((a) => a.hidden);
+  if (!hasItems && !hasBoxes) return state;
+  const items = hasItems ? Object.fromEntries(Object.entries(state.items).map(([id, i]) => [id, i.hidden ? { ...i, archived: true } : i])) : state.items;
+  // صندوق المورد: ما بينختار وما بيبين اسمه
+  const accounts = hasBoxes ? Object.fromEntries(Object.entries(state.accounts).map(([id, a]) => [id, a.hidden ? { ...a, archived: true, name: 'صندوق خاص' } : a])) : state.accounts;
+  // فواتير فيها مواد مخفية ما بتبين أبداً
+  const invoices = hasItems ? state.invoices.filter((inv) => !inv.lines.some((l) => l.itemId && state.items[l.itemId]?.hidden)) : state.invoices;
+  return { ...state, items, accounts, invoices };
 }
 
 export function makeCtxHelpers(state: CompanyState, user: User) {
