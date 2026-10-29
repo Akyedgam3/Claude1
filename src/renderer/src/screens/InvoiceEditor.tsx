@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { computeTaxes, findRate, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
+import { computeTaxes, findRate, listPrices, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
 import { convertPrice, fxRates, money, parseAmount, rateInverted, toInput, today, uid, useCompany } from '../api';
 import { CurrencySelect, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
 import { invoiceDrafts } from '../drafts';
@@ -56,6 +56,12 @@ export function cashAccounts(state: CompanyState, currency?: string) {
 /** سعر المادة حسب شريحة العميل والوحدة، محوّلاً لعملة الفاتورة. */
 export function itemPrice(state: CompanyState, item: Item, opts: { party?: Party | null; unit?: string; currency: string; date: string; purchase?: boolean; rates?: Record<string, number>; dealer?: boolean }): string {
   const rates = opts.rates ?? fxRates(state, opts.date);
+  if (opts.purchase && item.listPrice) {
+    // كهربائيات: سعر الشراء = النشرة ناقص حسم الشركة
+    const factor = item.units?.find((u) => u.name === opts.unit)?.factor ?? 1;
+    const v = convertPrice(state, Math.round(listPrices(state.info ?? undefined, item).cost * factor), item.priceCurrency, opts.currency, rates);
+    return v === null ? '' : toInput(state, v, opts.currency);
+  }
   if (opts.purchase) {
     const unitCost = state.stock[item.id]?.lastCost ?? 0;
     const factor = item.units?.find((u) => u.name === opts.unit)?.factor ?? 1;
@@ -68,7 +74,10 @@ export function itemPrice(state: CompanyState, item: Item, opts: { party?: Party
   // المورد (صندوقه الخاص) بيبيع أدوية الصيدلية بسعره الأعلى إذا محطوط
   const dealerPrice = opts.dealer && !item.hidden && item.dealerPrice ? item.dealerPrice : undefined;
   if (dealerPrice) price = dealerPrice;
-  if (unit) price = !dealerPrice && unit.price !== undefined ? unit.price : Math.round(price * unit.factor);
+  // زبون إلو حسم خاص من النشرة (معلم مميز)
+  const special = partyListPrice(item, opts.party);
+  if (special !== undefined && !dealerPrice) price = special;
+  if (unit) price = !dealerPrice && special === undefined && unit.price !== undefined ? unit.price : Math.round(price * unit.factor);
   const v = convertPrice(state, price, item.priceCurrency, opts.currency, rates);
   return v === null ? '' : toInput(state, v, opts.currency);
 }

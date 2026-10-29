@@ -3976,3 +3976,9 @@ button.whatsapp:hover { background: #1ebe5b; }
 .daily-profit .dp-day i.bad { background: #c0392b; }
 .daily-profit .dp-day small { font-size: 11px; color: var(--muted); }
 @media (max-width: 700px) { .daily-profit .dp-body { grid-template-columns: 1fr; } }
+
+.table-scroll { overflow: auto; border: 1px solid var(--border); border-radius: 10px; }
+
+/* النشرات والحسومات */
+.list-cfg { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; align-items: end; }
+.list-cfg .wide { grid-column: 1 / -1; margin: 0; }

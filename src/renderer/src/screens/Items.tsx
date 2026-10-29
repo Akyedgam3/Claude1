@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { attributesFor, generateVariants, type Item, type ItemKind, type ItemUnit, type RecipeLine } from '../../../core';
+import { attributesFor, buyDiscountOf, generateVariants, listPrices, type Item, type ItemKind, type ItemUnit, type RecipeLine } from '../../../core';
 import { api, major, money, parseAmount, qtyText, toInput, today, uid, useCompany } from '../api';
 import { Barcode, ExportButtons, usePrinter } from '../components/print';
 import { CameraScanButton, ColorPicker, ConfirmButton, CurrencySelect, ItemName, Empty, Field, itemMatches, itemOptions, Modal, PageHeader, Picker, SearchBox, Tabs } from '../components/ui';
@@ -244,6 +244,8 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
     priceCurrency: item?.priceCurrency ?? base,
     price: item ? toInput(state, item.price, item.priceCurrency) : '',
     wholesalePrice: item?.wholesalePrice !== undefined ? toInput(state, item.wholesalePrice, item.priceCurrency) : '',
+    listPrice: item?.listPrice !== undefined ? toInput(state, item.listPrice, item.priceCurrency) : '',
+    buyDiscount: item?.buyDiscount !== undefined ? String(item.buyDiscount) : '',
     specialPrice: item?.specialPrice !== undefined ? toInput(state, item.specialPrice, item.priceCurrency) : '',
     dealerPrice: item?.dealerPrice !== undefined ? toInput(state, item.dealerPrice, item.priceCurrency) : '',
     dealerId: item?.dealerId ?? '',
@@ -288,6 +290,8 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
         priceCurrency: cur,
         price: parseAmount(state, f.price, cur),
         ...(f.wholesalePrice ? { wholesalePrice: parseAmount(state, f.wholesalePrice, cur) } : {}),
+        ...(f.listPrice ? { listPrice: parseAmount(state, f.listPrice, cur) } : {}),
+        ...(f.buyDiscount.trim() !== '' && Number.isFinite(Number(f.buyDiscount)) ? { buyDiscount: Number(f.buyDiscount) } : {}),
         ...(f.specialPrice ? { specialPrice: parseAmount(state, f.specialPrice, cur) } : {}),
         ...(f.dealerPrice ? { dealerPrice: parseAmount(state, f.dealerPrice, cur) } : {}),
         ...(f.dealerId ? { dealerId: f.dealerId } : {}),
@@ -426,6 +430,30 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
             <Field label="عملة السعر">
               <CurrencySelect value={f.priceCurrency} onChange={(c) => setF({ ...f, priceCurrency: c })} />
             </Field>
+            {feature('listPricing') && (
+              <>
+                <Field label="سعر النشرة">
+                  <input
+                    value={f.listPrice}
+                    inputMode="decimal"
+                    onChange={(e) => {
+                      // سعر الزبون والمعلم بيتحسبوا من النشرة لحالهن (وبتقدر تعدّلهن)
+                      const v = e.target.value;
+                      let p: ReturnType<typeof listPrices> | null = null;
+                      try {
+                        p = v ? listPrices(state.info ?? undefined, { listPrice: parseAmount(state, v, f.priceCurrency), brand: f.brand, ...(f.buyDiscount ? { buyDiscount: Number(f.buyDiscount) } : {}) }) : null;
+                      } catch {
+                        p = null;
+                      }
+                      setF({ ...f, listPrice: v, ...(p ? { price: toInput(state, p.retail, f.priceCurrency), wholesalePrice: toInput(state, p.master, f.priceCurrency) } : {}) });
+                    }}
+                  />
+                </Field>
+                <Field label={`حسم الشراء % (فارغ = حسم النشرة ${buyDiscountOf(state.info ?? undefined, { brand: f.brand })}%)`}>
+                  <input value={f.buyDiscount} onChange={set('buyDiscount')} inputMode="decimal" />
+                </Field>
+              </>
+            )}
             <Field label={feature('dealers') ? (f.dealerId ? 'سعر المبيع (مفرق) — مش مستعمل' : 'سعر الصيدلية (للزبون، وبيتحاسب فيه المورّد)') : 'سعر المبيع (مفرق)'}>
               <input value={f.price} onChange={set('price')} inputMode="decimal" />
             </Field>

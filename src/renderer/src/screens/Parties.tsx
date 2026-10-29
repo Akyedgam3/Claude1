@@ -300,6 +300,7 @@ export function PartyForm({
     address: party?.address ?? '',
     notes: party?.notes ?? '',
     priceTier: party?.priceTier ?? 'retail',
+    listDiscount: party?.listDiscount !== undefined ? String(party.listDiscount) : '',
     creditLimit: party?.creditLimit ? toInput(state, party.creditLimit, base) : '',
   });
   const [measurements, setMeasurements] = useState<Record<string, string>>(party?.measurements ?? {});
@@ -322,6 +323,7 @@ export function PartyForm({
             kind: f.kind as Party['kind'],
             ...(f.priceTier !== 'retail' ? { priceTier: f.priceTier as Party['priceTier'] } : {}),
             ...(creditLimit > 0 ? { creditLimit } : {}),
+            ...(feature('listPricing') && f.listDiscount.trim() !== '' && Number.isFinite(Number(f.listDiscount)) ? { listDiscount: Number(f.listDiscount) } : {}),
             ...(f.phone.trim() ? { phone: f.phone.trim() } : {}),
             ...(f.address.trim() ? { address: f.address.trim() } : {}),
             ...(f.notes.trim() ? { notes: f.notes.trim() } : {}),
@@ -355,10 +357,15 @@ export function PartyForm({
         {feature('priceTiers') && f.kind !== 'supplier' && (
           <Field label="شريحة السعر">
             <select value={f.priceTier} onChange={set('priceTier')}>
-              <option value="retail">مفرق</option>
-              <option value="wholesale">جملة</option>
+              <option value="retail">{feature('listPricing') ? 'زبون عادي' : 'مفرق'}</option>
+              <option value="wholesale">{feature('listPricing') ? 'معلم (حسم المعلمين)' : 'جملة'}</option>
               <option value="special">سعر خاص</option>
             </select>
+          </Field>
+        )}
+        {feature('listPricing') && f.kind !== 'supplier' && (
+          <Field label="حسم خاص من النشرة % (فارغ = حسب الشريحة)">
+            <input value={f.listDiscount} onChange={set('listDiscount')} inputMode="decimal" placeholder="مثلاً 12" />
           </Field>
         )}
         {f.kind !== 'supplier' && (

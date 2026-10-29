@@ -815,6 +815,100 @@ function foodstuff(l: Ledger): void {
   l.postInvoice({ kind: 'sale', date: day(), lines: [{ itemId: 'f-rice', qty: 5, price: P(1700) }, { itemId: 'f-lentil', qty: 2, price: P(1500) }, { itemId: 'f-pasta', qty: 4, price: P(650) }] });
 }
 
+function electrical(l: Ledger): void {
+  l.setRate({ date: day(-40), currency: 'USD', rate: 121, kind: 'market' });
+  l.updateCompany({ listPricing: { buyDiscount: 15, masterDiscount: 10, retailMarkup: 5, brands: { 'نيوباور': 15 } } });
+  l.saveParty({ id: 's-np', kind: 'supplier', name: 'نيوباور — الوكيل', phone: '0944 300 200' });
+  l.saveParty({ id: 'c-m1', kind: 'customer', name: 'المعلم أبو سمير (كهربائي)', phone: '0944 518 220', priceTier: 'wholesale' });
+  l.saveParty({ id: 'c-m2', kind: 'customer', name: 'المعلم خالد (مقاول)', phone: '0933 740 115', priceTier: 'wholesale', listDiscount: 12 });
+  l.saveParty({ id: 'c-h', kind: 'customer', name: 'أبو فادي', phone: '0955 210 330' });
+  // نشرة نيوباور 18/05/2025: [الكود، الصنف، التعبئة، السعر $]
+  const list: [string, string, number, number][] = [
+    ["2000", "مفتاح مفرد 16امبير", 480, 0.7],
+    ["2010", "مفتاح مفرد بضوء 16امبير", 400, 1.5],
+    ["2001", "مفتاح دركسيون 16امبير", 480, 1.0],
+    ["2002", "مفتاح تربل 16امبير", 400, 2.6],
+    ["2011", "كباسة جرس", 400, 1.0],
+    ["2012", "كباسة جرس بضوء ليد", 400, 1.5],
+    ["2013", "مفتاح سخان بضوء ليد", 400, 2.8],
+    ["2003", "مفتاح اباجور", 400, 3.5],
+    ["2004", "كباس اباجور", 400, 3.5],
+    ["2028", "بريز عادي 10امبير", 480, 0.8],
+    ["2020", "بريز امريكي 16امبير", 480, 0.9],
+    ["2021", "بريز 16امبيرمشكل مؤمن", 480, 1.2],
+    ["2023", "بريز شوكو 16امبير", 200, 2.4],
+    ["2024", "بريز انجليزي MK", 200, 2.4],
+    ["2022", "بريز باسونيك", 400, 1.4],
+    ["2025", "بريز شبكة CAT6", 400, 3.0],
+    ["2026", "بريز ابرة ستالايت", 400, 0.8],
+    ["2027", "بريز مأخذ USB", 400, 6.0],
+    ["2028", "بريز مأخذ TYPEC", 400, 6.0],
+    ["2029", "بريز مأخذ TYPEC + USB", 200, 9.0],
+    ["2050", "سدة مفتاح", 960, 0.1],
+    ["2059", "قطعة جرس رنان مخفي", 400, 3.4],
+    ["2068", "قطعة جرس بيانو مخفي", 400, 4.3],
+    ["2069", "قطعة جرس بلبل مخفي", 400, 3.8],
+    ["2000/2", "مفتاح ضيق مجوز", 400, 1.8],
+    ["2050/3", "سدة بلاك ثلاثية", 336, 0.3],
+    ["2017", "قطعة مفتاح مروحة 100وات", 120, 6.8],
+    ["2014", "قطعة مفتاح تنويص 250وات", 160, 6.8],
+    ["2015", "قطعة مفتاح تنويص 800وات", 160, 8.0],
+    ["2065", "حساس حركة", 200, 7.5],
+    ["2066", "حساس حركة مع لمبه", 60, 6.5],
+    ["2052", "بريز 12فولت مع جاك", 400, 1.0],
+    ["2054", "قطعة لمبة إشارة", 400, 1.2],
+    ["مقياس", "فولت كامل", 50, 4.5],
+    ["مقياس", "فولت +امبير كامل", 50, 6.3],
+    ["2055", "نواصة ليد", 50, 3.0],
+    ["2060", "كباس جرس كرت لوحة اسمية", 50, 1.8],
+    ["2057", "بلاك كتيم مخفي", 100, 2.7],
+    ["2058", "بلاك كتيم ظاهر", 50, 3.5],
+    ["2033", "شاسيه مفتاح ثلاثية", 300, 0.2],
+    ["2044", "شاسيه مفتاح رباعية", 240, 0.5],
+    ["2066-T", "شاسيه مفتاح سداسية -معدن", 200, 1.3],
+    ["064", "بلاك باريل عاجي ابيض رباعي", 140, 0.9],
+    ["066", "بلاك باريل عاجي ابيض سداسي", 120, 1.4],
+    ["200", "", 3, 1.0],
+    ["", "", 4140, 1.8],
+    ["", "", 6120, 2.5],
+    ["114", "بلاك اوفال عاجي رباعي", 140, 0.6],
+    ["116", "بلاك اوفال عاجي سداسي", 120, 1.0],
+    ["124", "بلاك اوفال زهري رباعي", 140, 0.6],
+    ["126", "بلاك اوفال زهري سداسي", 120, 1.0],
+    ["134", "بلاك اوفال ازرق رباعي", 140, 0.6],
+    ["136", "بلاك اوفال ازرق سداسي", 120, 1.0],
+    ["301", "بلاك ظاهر مفرد", 150, 0.5],
+    ["302", "بلاك ظاهر مجوز", 90, 0.6],
+    ["303", "بلاك ظاهر ثلاثي", 102, 0.85],
+    ["311", "علبة ظاهرة مفردة", 75, 1.1],
+    ["312", "علبة ظاهرة مجوزة", 75, 1.2],
+    ["313", "علبة ظاهرة ثلاثية", 90, 1.3],
+    ["316", "علبة ظاهرة سداسية", 42, 2.4]
+  ];
+  const cat = (n: string) => (/بلاك|شاسيه/.test(n) ? 'بلاكات وشاسيهات' : /علبة|عﻠبة/.test(n) ? 'علب وتمديدات' : 'مفاتيح وأباريز');
+  const usd = (x: number) => Math.round(x * 100);
+  const seen = new Set<string>();
+  const uniq = (c: string, i: number) => { const k = c && !seen.has(c) ? c : `${c || 'X'}-${i}`; seen.add(k); return k; };
+  const items = list.filter(([, n]) => n.trim().length > 2).map(([code, name, pack, price], i) => ({
+    id: `np-${uniq(code, i)}`, code: `NP${[...seen].pop()}`, name, kind: 'stock' as const, unit: 'قطعة', brand: 'نيوباور', category: cat(name), priceCurrency: 'USD',
+    listPrice: usd(price), price: Math.round(usd(price) * 1.05), wholesalePrice: Math.round(usd(price) * 0.9), ...(pack > 1 ? { units: [{ name: `كرتونة ${pack}`, factor: pack }] } : {}),
+  }));
+  l.saveItems(items);
+  // كبلات بالمتر والربطة، وإنارة
+  l.saveItems([
+    { id: 'cb-2', code: 'CB2', name: 'كبل نحاس 2 ملم', kind: 'stock', unit: 'متر', brand: 'كابلات الشرق', category: 'كبلات وأسلاك', priceCurrency: 'USD', listPrice: 40, price: 42, wholesalePrice: 36, units: [{ name: 'ربطة 100م', factor: 100 }] },
+    { id: 'cb-4', code: 'CB4', name: 'كبل نحاس 4 ملم', kind: 'stock', unit: 'متر', brand: 'كابلات الشرق', category: 'كبلات وأسلاك', priceCurrency: 'USD', listPrice: 75, price: 79, wholesalePrice: 68, units: [{ name: 'ربطة 100م', factor: 100 }] },
+    { id: 'led-12', code: 'LED12', name: 'لمبة ليد 12 واط', kind: 'stock', unit: 'قطعة', brand: 'نور', category: 'إنارة وليدات', priceCurrency: 'USD', listPrice: 120, price: 126, wholesalePrice: 108, units: [{ name: 'كرتونة 50', factor: 50 }] },
+  ]);
+  const rate = 121;
+  const opening = [...items.slice(0, 30), { id: 'cb-2', listPrice: 40 }, { id: 'cb-4', listPrice: 75 }, { id: 'led-12', listPrice: 120 }].map((it) => ({ itemId: it.id, qty: it.id.startsWith('cb') ? 500 : 200, unitCost: Math.round(it.listPrice * 0.85 * rate) }));
+  l.adjustStock({ kind: 'opening', date: day(-30), lines: opening, memo: 'بضاعة أول المدة (تجريبي)' });
+  const s1 = items[0]!, s2 = items[9]!, s3 = items[3]!;
+  l.postInvoice({ kind: 'sale', date: day(-2), partyId: 'c-m1', currency: 'USD', lines: [{ itemId: s1.id, qty: 40, price: s1.wholesalePrice }, { itemId: s2.id, qty: 30, price: s2.wholesalePrice }, { itemId: 'cb-2', qty: 100, price: 36 }], paid: 0 });
+  l.postInvoice({ kind: 'sale', date: day(-1), partyId: 'c-m2', currency: 'USD', lines: [{ itemId: s3.id, qty: 20, price: Math.round(s3.listPrice * 0.88) }], paid: 0 });
+  l.postInvoice({ kind: 'sale', date: day(), currency: 'USD', lines: [{ itemId: s1.id, qty: 3, price: s1.price }, { itemId: 'led-12', qty: 4, price: 126 }] });
+}
+
 function solar(l: Ledger): void {
   l.saveParty({ id: 'c-abuali', kind: 'customer', name: 'أبو علي الشامي', phone: '0944 610 225' });
   l.saveParty({ id: 'c-farm', kind: 'customer', name: 'مزرعة الريّان', phone: '0933 470 118' });
@@ -878,6 +972,7 @@ export function loadDemo(l: Ledger): void {
   else if (activity === 'weddinghall') weddingHall(l);
   else if (activity === 'solar') solar(l);
   else if (activity === 'foodstuff') foodstuff(l);
+  else if (activity === 'electrical') electrical(l);
   else if (activity === 'mobile') mobile(l);
   else if (activity === 'sweets') sweets(l);
   else if (activity === 'supermarket') supermarket(l);

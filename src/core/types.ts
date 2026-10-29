@@ -82,7 +82,8 @@ export type Activity =
   | 'pharmacydealers'
   | 'weddinghall'
   | 'solar'
-  | 'foodstuff';
+  | 'foodstuff'
+  | 'electrical';
 
 export type Paper = 'a4' | 'a5' | '80mm' | '58mm';
 
@@ -165,6 +166,8 @@ export interface CompanyInfo {
   pricing?: { retailMargin?: number; dealerMargin?: number };
   /** أسماء الصالات (صالة أفراح). */
   halls?: string[];
+  /** البيع والشراء على النشرات: حسم الشراء والمعلمين وزيادة الزبون العادي %. */
+  listPricing?: { buyDiscount: number; masterDiscount: number; retailMarkup: number; brands?: Record<string, number> };
 }
 
 /** تخصيص النشاط من قبل المستخدم: تشغيل/إيقاف ميزات، وقوائم خاصة به. */
@@ -207,6 +210,8 @@ export interface Party {
   address?: string;
   creditLimit?: number; // بأصغر وحدة من العملة الأساسية
   priceTier?: PriceTier;
+  /** حسم خاص لهالزبون من سعر النشرة % (كهربائيات). */
+  listDiscount?: number;
   notes?: string;
   measurements?: Record<string, string>; // قياسات الزبون (خياطة): اسم القياس ← القيمة
   debtDue?: string; // موعد السداد المتّفق عليه (قسم الديون)
@@ -247,6 +252,9 @@ export interface Item {
   price: number; // سعر المبيع (مفرق) بأصغر وحدة من priceCurrency
   wholesalePrice?: number;
   specialPrice?: number;
+  /** سعر النشرة من الشركة (كهربائيات)، وحسم الشراء الخاص بالصنف %. */
+  listPrice?: number;
+  buyDiscount?: number;
   /** سعر المورّد المستقل (صيدلية مع موردين): المورّد بيبيع فيه، والصيدلية بتحاسبه بـ price. */
   dealerPrice?: number;
   /** مادة خاصة بمورّد مستقل (مش من بضاعة الصيدلية): مخزونها وربحها إلو. */

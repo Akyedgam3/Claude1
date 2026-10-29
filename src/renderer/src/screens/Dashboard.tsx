@@ -141,6 +141,11 @@ export function Dashboard() {
             <Icon name="users" size={20} /> الموردين
           </button>
         )}
+        {feature('listPricing') && can('items.manage') && (
+          <button className="primary big accent" onClick={() => navigate('lists')}>
+            <Icon name="file" size={20} /> النشرات والحسومات
+          </button>
+        )}
         {feature('priceList') && (
           <button className="primary big accent" onClick={() => navigate('pricelist')}>
             <Icon name="file" size={20} /> نشرة الأسعار

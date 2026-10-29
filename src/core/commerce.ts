@@ -54,6 +54,8 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       }
       if (!state.currencies[item.priceCurrency]) fail('عملة السعر غير معرّفة');
       if (item.dealerId && !state.dealers?.[item.dealerId]) fail('المورّد غير موجود');
+      if (item.listPrice !== undefined && (!Number.isSafeInteger(item.listPrice) || item.listPrice < 0)) fail('سعر النشرة غير صالح');
+      if (item.buyDiscount !== undefined && !(item.buyDiscount >= 0 && item.buyDiscount <= 100)) fail('حسم الشراء بين 0 و100');
       for (const p of [item.price, item.wholesalePrice, item.specialPrice, item.dealerPrice, ...(item.units ?? []).map((u) => u.price)]) {
         if (p !== undefined && (!Number.isSafeInteger(p) || p < 0)) fail('سعر غير صالح');
       }

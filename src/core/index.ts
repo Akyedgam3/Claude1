@@ -20,4 +20,5 @@ export * from './halls';
 export * from './solar';
 export * from './pricelist';
 export * from './dealerbox';
+export * from './listprice';
 export * from './whatsapp';
