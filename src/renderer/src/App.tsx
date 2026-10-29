@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { applyEvent, ROLE_NAMES, type CompanyState, type Feature, type Permission } from '../../core';
 import type { EventItem } from '../../app/lan';
 import type { LicenseStatus } from '../../license/manager';
-import { api, Company, IS_MOBILE, IS_WEB, makeCtxHelpers, type AppInfo, type CompanyCtx, type SessionInfo } from './api';
+import { api, Company, IS_MOBILE, IS_WEB, makeCtxHelpers, visibleState, type AppInfo, type CompanyCtx, type SessionInfo } from './api';
 import logoSmall from './assets/logo-64.png';
 import logo from './assets/logo.png';
 import { Icon } from './components/icons';
@@ -233,7 +233,7 @@ export function App() {
 
   const ctx = useMemo<CompanyCtx | null>(() => {
     if (!info?.session || !state) return null;
-    return { state, info, session: info.session, call, notify, navigate, screenKey: screen.key, back, reloadInfo: loadInfo, ...makeCtxHelpers(state, info.session.user) };
+    return { state: visibleState(state, info.session.user), info, session: info.session, call, notify, navigate, screenKey: screen.key, back, reloadInfo: loadInfo, ...makeCtxHelpers(state, info.session.user) };
   }, [info, state, call, notify, navigate, screen.key, back, loadInfo]);
 
   // الاتصال عن بعد (خدمة إضافية): بس إذا مفعّلة بالترخيص والشركة مفتوحة على هالجهاز

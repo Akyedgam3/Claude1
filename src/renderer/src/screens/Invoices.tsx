@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { INVOICE_KIND_NAMES, type Invoice, type InvoiceKind } from '../../../core';
+import { INVOICE_KIND_NAMES, invoiceProfit, type Invoice, type InvoiceKind } from '../../../core';
 import { dateText, major, money, today, useCompany } from '../api';
 import { ExportButtons } from '../components/print';
 import { ConfirmButton, Empty, Field, matches, PageHeader, SearchBox } from '../components/ui';
@@ -22,6 +22,8 @@ export function Invoices() {
   const deletedCount = useMemo(() => state.invoices.filter((i) => i.deleted).length, [state.invoices]);
   // قائمة الكبسة اليمين على الفاتورة
   const [menu, setMenu] = useState<{ inv: Invoice; x: number; y: number } | null>(null);
+  // ربح كل فاتورة مبيع (بس لأصحاب صلاحية التكلفة، وبينطفى من الإعدادات)
+  const showProfit = can('costs.view') && state.info!.print?.showInvoiceProfit !== false;
 
   const rows = useMemo(
     () =>
@@ -113,6 +115,7 @@ export function Invoices() {
               <th>العميل / المورد</th>
               <th className="num">الإجمالي</th>
               <th className="num">المدفوع</th>
+              {showProfit && <th className="num">الربح</th>}
               <th>المستخدم</th>
               <th />
             </tr>
@@ -134,6 +137,16 @@ export function Invoices() {
                 <td>{i.partyId ? state.parties[i.partyId]?.name : 'نقدي'}</td>
                 <td className="num">{money(state, i.total, i.currency)}</td>
                 <td className="num">{money(state, i.paid, i.currency)}</td>
+                {showProfit && (
+                  <td className="num">
+                    {i.kind === 'sale' && !i.voidEntryId
+                      ? (() => {
+                          const p = invoiceProfit(state, i).profit;
+                          return <span className={p < 0 ? 'bad' : 'good'}>{money(state, p)}</span>;
+                        })()
+                      : '—'}
+                  </td>
+                )}
                 <td className="muted">{users[i.createdBy]?.displayName}</td>
                 <td>
                   {i.deleted ? <span className="tag bad">محذوفة</span> : i.voidEntryId && <span className="tag bad">ملغاة{state.invoices.some((x) => x.replaces === i.id) ? ' (معدّلة)' : ''}</span>}

@@ -327,7 +327,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
 
   // ربح الفاتورة وقت البيع (تقديري بمتوسط التكلفة الحالي)، بالعملة الأساسية. بينطفى من الإعدادات
   const profit = useMemo(() => {
-    if (kind !== 'sale' || !can('costs.view') || state.info!.print?.showInvoiceProfit === false || !used.length || preview.error || !(rate > 0)) return null;
+    if (kind !== 'sale' || !can('costs.view') || state.info!.print?.profitWhileSelling !== true || !used.length || preview.error || !(rate > 0)) return null;
     const scale = 10 ** (state.currencies[base]!.decimals - state.currencies[currency]!.decimals);
     const revenue = Math.round((preview.subtotal - preview.disc) * rate * scale);
     let cost = 0;

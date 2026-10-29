@@ -148,6 +148,14 @@ export interface CompanyCtx {
 export const Company = createContext<CompanyCtx>(null as unknown as CompanyCtx);
 export const useCompany = () => useContext(Company);
 
+/** المواد المخفية بتصير «مؤرشفة» بعين اللي ما معه صلاحيتها: ما بتطلع بالقوائم ولا البيع ولا الجرد، والفواتير القديمة بتضل تقرأ اسمها. */
+export function visibleState(state: CompanyState, user: User): CompanyState {
+  const current = state.users[user.id] ?? user;
+  if (canDo(current, 'items.hidden') || !Object.values(state.items).some((i) => i.hidden)) return state;
+  const items = Object.fromEntries(Object.entries(state.items).map(([id, i]) => [id, i.hidden ? { ...i, archived: true } : i]));
+  return { ...state, items };
+}
+
 export function makeCtxHelpers(state: CompanyState, user: User) {
   const current = state.users[user.id] ?? user;
   const profile = effectiveProfile(state.info);

@@ -41,6 +41,18 @@ describe('executor', () => {
     for (const m of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) expect(() => execute(store, cashier, m, [])).toThrow(/غير معروفة/);
   });
 
+  it('keeps hidden items away from users without the permission', async () => {
+    const { visibleState } = await import('../src/renderer/src/api');
+    execute(store, store.user, 'saveItem', [{ id: 'h', code: '2', name: 'مادة المورّد', kind: 'stock', unit: 'قطعة', price: 1000, priceCurrency: 'SYP', hidden: true }]);
+    execute(store, store.user, 'adjustStock', [{ kind: 'opening', date: '2026-01-01', lines: [{ itemId: 'h', qty: 5, unitCost: 500 }] }]);
+    const sale = { kind: 'sale', date: '2026-01-02', lines: [{ itemId: 'h', qty: 1, price: 1000 }] };
+    expect(() => execute(store, cashier, 'postInvoice', [sale])).toThrow(/غير موجودة/);
+    expect(() => execute(store, cashier, 'saveItem', [{ id: 'h', code: '2', name: 'x', kind: 'stock', unit: 'قطعة', price: 1, priceCurrency: 'SYP' }])).toThrow();
+    expect(execute(store, store.user, 'postInvoice', [sale]).value).toBeTruthy();
+    expect(visibleState(store.ledger.state, cashier).items['h']!.archived).toBe(true);
+    expect(visibleState(store.ledger.state, store.user).items['h']!.archived).toBeUndefined();
+  });
+
   it('applies role changes and deactivation immediately', () => {
     execute(store, store.user, 'updateUser', [{ ...cashier, role: 'accountant' }]);
     expect(execute(store, cashier, 'postInvoice', [{ kind: 'purchase', date: '2026-01-02', lines: [{ itemId: 'i', qty: 1, price: 1 }] }]).value).toBeTruthy();

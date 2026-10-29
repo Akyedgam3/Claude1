@@ -197,6 +197,7 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
                     {i.trackExpiry && <span className="tag">صلاحية</span>}
                     {i.trackSerial && <span className="tag">S/N</span>}
                     {i.weighed && <span className="tag">وزن</span>}
+                    {i.hidden && <span className="tag">مخفية</span>}
                   </td>
                   {feature('partNumbers') && <td className="mono">{i.partNumber}</td>}
                   {feature('partNumbers') && <td>{i.compat}</td>}
@@ -226,7 +227,7 @@ function nextCode(codes: string[]): string {
 type FormTab = 'basic' | 'prices' | 'tracking' | 'recipe';
 
 export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClose: () => void; onSaved?: (item: Item) => void }) {
-  const { state, call, notify, feature, profile } = useCompany();
+  const { state, call, notify, feature, profile, can } = useCompany();
   const base = state.info!.baseCurrency;
   const [tab, setTab] = useState<FormTab>('basic');
   const [f, setF] = useState(() => ({
@@ -246,6 +247,7 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
     specialPrice: item?.specialPrice !== undefined ? toInput(state, item.specialPrice, item.priceCurrency) : '',
     dealerPrice: item?.dealerPrice !== undefined ? toInput(state, item.dealerPrice, item.priceCurrency) : '',
     dealerId: item?.dealerId ?? '',
+    hidden: !!item?.hidden,
     minStock: item?.minStock !== undefined ? String(item.minStock) : '',
     trackExpiry: item?.trackExpiry ?? (feature('batches') && (profile.id === 'pharmacy' || profile.id === 'pharmacydealers')),
     trackSerial: item?.trackSerial ?? false,
@@ -289,6 +291,7 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
         ...(f.specialPrice ? { specialPrice: parseAmount(state, f.specialPrice, cur) } : {}),
         ...(f.dealerPrice ? { dealerPrice: parseAmount(state, f.dealerPrice, cur) } : {}),
         ...(f.dealerId ? { dealerId: f.dealerId } : {}),
+        ...(f.hidden ? { hidden: true } : {}),
         ...(f.minStock ? { minStock: Number(f.minStock) } : {}),
         ...(unitList.length ? { units: unitList } : {}),
         ...(recipeList.length ? { recipe: recipeList } : {}),
@@ -401,6 +404,12 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
                 </button>
               </div>
             </Field>
+            {can('items.hidden') && (
+              <label className="check wide">
+                <input type="checkbox" checked={f.hidden} onChange={(e) => setF({ ...f, hidden: e.target.checked })} />
+                مادة مخفية: ما بتبين إلا إلك (والمدير). حساب الصيدلية أو الكاشير ما بيشوفها ولا بيبيعها
+              </label>
+            )}
           </>
         )}
 

@@ -105,7 +105,8 @@ export interface PrintSettings {
   saleTitle?: string;
   /** بدون عنوان على فاتورة المبيع (بس الرقم). */
   hideSaleTitle?: boolean;
-  showInvoiceProfit?: boolean; // مربع ربح الفاتورة وقت البيع، لأصحاب صلاحية التكلفة (افتراضياً نعم)
+  showInvoiceProfit?: boolean; // ربح كل فاتورة بسجل الفواتير وعرض الفاتورة، لأصحاب صلاحية التكلفة (افتراضياً نعم)
+  profitWhileSelling?: boolean; // مربع الربح وقت كتابة الفاتورة (افتراضياً لا)
   receipt?: ReceiptSettings; // تصميم الإيصال الحراري (80/58mm)
 }
 
@@ -249,6 +250,8 @@ export interface Item {
   priceCurrency: string;
   minStock?: number;
   trackExpiry?: boolean; // دفعات وتواريخ صلاحية (صيدلية، مواد غذائية)
+  /** مادة مخفية: ما بتبين إلا للي معه صلاحية «المواد المخفية» (مثلاً بضاعة المورّد عن حساب الصيدلية). */
+  hidden?: boolean;
   trackSerial?: boolean; // أرقام تسلسلية / IMEI (موبايلات وإلكترونيات)
   weighed?: boolean; // يُباع بالوزن عبر باركود الميزان
   recipe?: RecipeLine[]; // مكوّنات الصنف المركّب أو وصفة الإنتاج

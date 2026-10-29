@@ -96,6 +96,14 @@ export function execute(store: CompanyStore, actor: User, method: string, args: 
     const before = j?.id ? store.ledger.state.siteJobs[j.id]?.discount : undefined;
     if (j?.discount && j.discount !== before) requirePermission(user, 'discount.give');
   }
+  // المواد المخفية: اللي ما معه صلاحيتها ما بيبيعها ولا بيعدّلها (حتى لو بعت طلب يدوي)
+  if (!can(user, 'items.hidden')) {
+    const hidden = (id: unknown) => typeof id === 'string' && !!store.ledger.state.items[id]?.hidden;
+    const lines = (x: unknown) => ((x as { lines?: { itemId?: unknown }[] } | undefined)?.lines ?? []);
+    if (method === 'saveItem' && hidden((args[0] as { id?: unknown } | undefined)?.id)) fail('المادة غير موجودة');
+    if (['deleteItem', 'archiveItem'].includes(method) && hidden(args[0])) fail('المادة غير موجودة');
+    if ((method === 'saveItem' && (args[0] as { hidden?: unknown } | undefined)?.hidden) || args.some((a) => lines(a).some((l) => hidden(l.itemId)))) fail('المادة غير موجودة');
+  }
   // الاستبدال فيه شراء كمان
   if (method === 'tradeIn') requirePermission(user, 'purchases.create');
   if (method === 'saveOrder') {

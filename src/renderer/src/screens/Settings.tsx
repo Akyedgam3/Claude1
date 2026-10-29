@@ -514,7 +514,11 @@ function PrintTab() {
         </label>
         <label className="check">
           <input type="checkbox" checked={p.showInvoiceProfit !== false} onChange={(e) => setP({ ...p, showInvoiceProfit: e.target.checked })} />
-          إظهار ربح الفاتورة وقت البيع (بيشوفه بس اللي إله صلاحية التكلفة)
+          إظهار ربح كل فاتورة بسجل الفواتير (بيشوفه بس اللي إله صلاحية التكلفة)
+        </label>
+        <label className="check">
+          <input type="checkbox" checked={p.profitWhileSelling === true} onChange={(e) => setP({ ...p, profitWhileSelling: e.target.checked })} />
+          إظهار الربح كمان وقت كتابة الفاتورة (الزبون ممكن يشوفه عالشاشة)
         </label>
         <div className="form-actions wide">
           <button className="primary">حفظ</button>

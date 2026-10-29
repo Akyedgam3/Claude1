@@ -13,6 +13,7 @@ export const PERMISSIONS = {
   'journal.create': 'القيود اليدوية',
   'items.manage': 'إدارة المواد والأسعار',
   'costs.view': 'رؤية التكاليف والأرباح',
+  'items.hidden': 'رؤية المواد المخفية',
   'parties.manage': 'إدارة العملاء والموردين',
   'stock.adjust': 'الجرد والتالف والأرصدة الافتتاحية',
   'stock.transfer': 'التحويل بين المستودعات',
