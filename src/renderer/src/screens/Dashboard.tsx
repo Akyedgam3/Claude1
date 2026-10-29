@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { balancesByCurrency, partyBalance, expiringBatches, findRate, incomeStatement, installmentState, stockReport } from '../../../core';
+import { useMemo, useState } from 'react';
+import { balancesByCurrency, dailyProfit, partyBalance, expiringBatches, findRate, incomeStatement, installmentState, stockReport } from '../../../core';
 import type { CompanyState } from '../../../core';
 import { addDays, dateText, money, qtyText, today, useCompany } from '../api';
 import { Stat } from '../components/ui';
@@ -270,6 +270,8 @@ export function Dashboard() {
         </div>
       )}
 
+      {fin && can('costs.view') && <DailyProfitCard />}
+
       {fin && (
         <div className="two-col">
           <section className="card clickable" onClick={() => navigate('reports', 'daily')}>
@@ -472,5 +474,66 @@ function WeekBars({ state, week, today }: { state: CompanyState; week: { day: st
       </div>
       <div className="muted week-sum">مجموع الأسبوع: <strong>{money(state, sum)}</strong></div>
     </div>
+  );
+}
+
+/** الربح اليومي: كل يوم شقد بعت، شقد كلّفت البضاعة، المصاريف والتالف، وصافي الربح أو الخسارة. من القيود نفسها فبيشمل كل الأقسام. */
+function DailyProfitCard() {
+  const { state, navigate } = useCompany();
+  const d = today();
+  const [day, setDay] = useState(d);
+  const days = useMemo(() => dailyProfit(state, addDays(d, -29), d), [state, d]);
+  const sel = days.find((x) => x.date === day) ?? { date: day, revenue: 0, cogs: 0, losses: 0, expenses: 0, gross: 0, net: 0 };
+  const loss = sel.net < 0;
+  const max = Math.max(1, ...days.slice(0, 14).map((x) => Math.abs(x.net)));
+  const row = (label: string, v: number, cls = '', sign = '') => (
+    <>
+      <span>{label}</span>
+      <strong className={cls}>
+        {sign}
+        {money(state, Math.abs(v))}
+      </strong>
+    </>
+  );
+  return (
+    <section className="card daily-profit">
+      <div className="dp-head">
+        <h3>
+          <Icon name="trend" size={16} /> الربح اليومي
+        </h3>
+        <div className="dp-nav">
+          <button className="icon" title="اليوم اللي قبل" onClick={() => setDay(addDays(day, -1))}>
+            <Icon name="prev" size={16} />
+          </button>
+          <input type="date" value={day} max={d} onChange={(e) => e.target.value && setDay(e.target.value)} />
+          <button className="icon" title="اليوم اللي بعد" disabled={day >= d} onClick={() => setDay(addDays(day, 1))}>
+            <Icon name="next" size={16} />
+          </button>
+        </div>
+      </div>
+      <div className="dp-body">
+        <div className={`dp-net ${loss ? 'bad' : 'good'}`} onClick={() => navigate('reports', 'income')}>
+          <span>{day === d ? (loss ? 'خسارة اليوم' : 'ربح اليوم') : `${loss ? 'خسارة' : 'ربح'} ${dateText(day)}`}</span>
+          <b>{money(state, Math.abs(sel.net))}</b>
+          {sel.revenue > 0 && <small>{Math.round((sel.net / sel.revenue) * 100)}% من المبيعات</small>}
+        </div>
+        <div className="kv dp-kv">
+          {row('المبيعات والإيرادات', sel.revenue)}
+          {row('تكلفة البضاعة', sel.cogs, '', '− ')}
+          {row('الربح الإجمالي', sel.gross, sel.gross < 0 ? 'bad' : 'good')}
+          {sel.losses !== 0 && row('تالف وفروقات جرد', sel.losses, 'bad', '− ')}
+          {row('المصاريف', sel.expenses, '', '− ')}
+          {row(loss ? 'صافي الخسارة' : 'صافي الربح', sel.net, loss ? 'bad' : 'good')}
+        </div>
+      </div>
+      <div className="dp-days">
+        {days.slice(0, 14).map((x) => (
+          <button key={x.date} className={`dp-day ${x.date === day ? 'on' : ''}`} onClick={() => setDay(x.date)} title={`${dateText(x.date)}: ${money(state, x.net)}`}>
+            <i className={x.net < 0 ? 'bad' : 'good'} style={{ height: `${Math.max(4, (Math.abs(x.net) / max) * 46)}px` }} />
+            <small>{x.date.slice(8)}/{x.date.slice(5, 7)}</small>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }

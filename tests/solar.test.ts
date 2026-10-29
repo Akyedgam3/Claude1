@@ -84,3 +84,18 @@ describe('foodstuff price list', () => {
     expect(priceList(d.state, { categories: ['زيوت وسمون'] }).map((g) => g.category)).toEqual(['زيوت وسمون']);
   });
 });
+
+describe('daily profit', () => {
+  it('splits each day into sales, cost, losses and expenses from the ledger', async () => {
+    const { dailyProfit } = await import('../src/core');
+    const l = shop();
+    l.postInvoice({ kind: 'sale', date: '2026-10-02', lines: [{ itemId: 'panel', qty: 2, price: 900_000 }] });
+    l.postVoucher({ kind: 'payment', date: '2026-10-02', amount: 100_000, accountId: '5204', memo: 'مازوت' });
+    l.adjustStock({ kind: 'damage', date: '2026-10-03', lines: [{ itemId: 'panel', qty: 1 }] });
+    const days = dailyProfit(l.state, '2026-10-01', '2026-10-31');
+    const d2 = days.find((x) => x.date === '2026-10-02')!;
+    expect([d2.revenue, d2.cogs, d2.gross, d2.expenses, d2.net]).toEqual([1_800_000, 1_400_000, 400_000, 100_000, 300_000]);
+    const d3 = days.find((x) => x.date === '2026-10-03')!;
+    expect([d3.losses, d3.net]).toEqual([700_000, -700_000]);
+  });
+});

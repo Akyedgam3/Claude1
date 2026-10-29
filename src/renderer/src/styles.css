@@ -3955,3 +3955,24 @@ button.whatsapp:hover { background: #1ebe5b; }
 /* معاينة صورة الواتساب */
 .share-preview { max-height: 62vh; overflow: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2, #f4f6f8); text-align: center; }
 .share-preview img { display: block; width: 100%; height: auto; }
+
+/* الربح اليومي بالرئيسية */
+.daily-profit .dp-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.daily-profit .dp-head h3 { margin: 0; }
+.daily-profit .dp-nav { display: flex; align-items: center; gap: 6px; }
+.daily-profit .dp-nav input { width: 160px; }
+.daily-profit .dp-body { display: grid; grid-template-columns: minmax(200px, 1fr) 2fr; gap: 16px; margin-top: 12px; align-items: center; }
+.daily-profit .dp-net { border-radius: 16px; padding: 16px; text-align: center; cursor: pointer; background: rgba(18, 138, 92, 0.08); border: 1px solid rgba(18, 138, 92, 0.3); }
+.daily-profit .dp-net.bad { background: rgba(192, 57, 43, 0.08); border-color: rgba(192, 57, 43, 0.3); }
+.daily-profit .dp-net span { display: block; font-size: 13px; color: var(--muted); }
+.daily-profit .dp-net b { display: block; font-size: 28px; margin: 4px 0; }
+.daily-profit .dp-net.good b { color: #128a5c; }
+.daily-profit .dp-net.bad b { color: #c0392b; }
+.daily-profit .dp-net small { color: var(--muted); }
+.daily-profit .dp-days { display: flex; gap: 6px; align-items: flex-end; margin-top: 14px; overflow-x: auto; padding-bottom: 2px; }
+.daily-profit .dp-day { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px 6px; border-radius: 8px; border: 1px solid transparent; background: none; min-width: 42px; cursor: pointer; }
+.daily-profit .dp-day.on { border-color: var(--primary); background: var(--primary-soft); }
+.daily-profit .dp-day i { display: block; width: 18px; border-radius: 4px; background: #128a5c; }
+.daily-profit .dp-day i.bad { background: #c0392b; }
+.daily-profit .dp-day small { font-size: 11px; color: var(--muted); }
+@media (max-width: 700px) { .daily-profit .dp-body { grid-template-columns: 1fr; } }

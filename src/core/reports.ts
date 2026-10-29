@@ -232,6 +232,42 @@ export function incomeStatement(state: CompanyState, period: Period = {}): Incom
   return { revenue, expenses, netProfit: revenue - expenses };
 }
 
+export interface DayProfit {
+  date: string;
+  revenue: number; // صافي المبيعات والإيرادات (بعد المرتجع والخصم)
+  cogs: number; // تكلفة البضاعة المباعة
+  losses: number; // تالف وفروقات جرد ومواد مستهلكة
+  expenses: number; // باقي المصاريف (رواتب، أجار، مازوت...)
+  gross: number; // الربح الإجمالي = المبيعات − التكلفة
+  net: number; // صافي الربح = الإجمالي − التالف − المصاريف
+}
+
+/** الربح يوم بيوم من القيود نفسها، فبيشمل كل الأقسام (فواتير، طلبات، حجوزات، مصاريف، تالف...). */
+export function dailyProfit(state: CompanyState, from: string, to: string): DayProfit[] {
+  const LOSS = new Set(['5402', '5403', '5404']);
+  const days = new Map<string, DayProfit>();
+  const day = (d: string) => days.get(d) ?? days.set(d, { date: d, revenue: 0, cogs: 0, losses: 0, expenses: 0, gross: 0, net: 0 }).get(d)!;
+  for (const e of state.entries) {
+    if (e.date < from || e.date > to || e.source?.type === 'closing') continue;
+    for (const l of e.lines) {
+      const acc = state.accounts[l.accountId];
+      if (!acc) continue;
+      if (acc.type === 'revenue') day(e.date).revenue += l.baseCredit - l.baseDebit;
+      else if (acc.type === 'expense') {
+        const v = l.baseDebit - l.baseCredit;
+        if (l.accountId === '5101' || acc.parentId === '5101') day(e.date).cogs += v;
+        else if (LOSS.has(l.accountId)) day(e.date).losses += v;
+        else day(e.date).expenses += v;
+      }
+    }
+  }
+  for (const d of days.values()) {
+    d.gross = d.revenue - d.cogs;
+    d.net = d.gross - d.losses - d.expenses;
+  }
+  return [...days.values()].sort((a, b) => b.date.localeCompare(a.date));
+}
+
 // ───────────── تقارير إضافية ─────────────
 
 export interface BalanceSheet {
