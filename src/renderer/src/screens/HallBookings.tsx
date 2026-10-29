@@ -650,21 +650,15 @@ async function sendWhatsApp(phone: string, text: string, notify: (m: string, kin
   }
 }
 
-/** زر واتساب للحجز: رسالة تأكيد (أو تذكير إذا المناسبة قريبة) لرقم العريس، وإذا ما في فلرقم الزبون (مع الأسعار). */
+/** زر واتساب للحجز: رسالة تأكيد (أو تذكير إذا المناسبة قريبة) لرقم العريس بس، بدون أسعار. */
 function WhatsAppButton({ booking, small }: { booking: HallBooking; small?: boolean }) {
   const { state, notify } = useCompany();
-  const groom = booking.groomPhone;
-  const phone = groom || state.parties[booking.partyId]?.phone;
-  if (!phone) return null;
-  const send = () =>
-    sendWhatsApp(
-      phone,
-      bookingMessage(state, booking, { today: today(), fmt: (m) => money(state, m, booking.currency), ...(groom ? { greet: booking.title ?? '', withPrices: false } : {}) }),
-      notify,
-    );
+  const phone = booking.groomPhone;
+  if (!phone) return small ? null : <span className="muted">حط رقم العريس واحفظ لتبعتلو واتساب</span>;
+  const send = () => sendWhatsApp(phone, bookingMessage(state, booking, { today: today(), greet: booking.title ?? '', withPrices: false }), notify);
   return (
-    <button type="button" className={`whatsapp${small ? ' small' : ''}`} title={`رسالة واتساب ${groom ? 'للعريس' : 'للزبون'} ${phone}`} onClick={() => void send()}>
-      <Icon name="message" size={small ? 14 : 16} /> واتساب{groom && !small ? ' العريس' : ''}
+    <button type="button" className={`whatsapp${small ? ' small' : ''}`} title={`رسالة واتساب للعريس ${phone}`} onClick={() => void send()}>
+      <Icon name="message" size={small ? 14 : 16} /> واتساب{small ? '' : ' العريس'}
     </button>
   );
 }
