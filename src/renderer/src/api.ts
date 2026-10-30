@@ -161,8 +161,19 @@ export function visibleState(state: CompanyState, user: User): CompanyState {
   // صندوق المورد: ما بينختار وما بيبين اسمه
   const accounts = hasBoxes ? Object.fromEntries(Object.entries(state.accounts).map(([id, a]) => [id, a.hidden ? { ...a, archived: true, name: 'صندوق خاص' } : a])) : state.accounts;
   // فواتير فيها مواد مخفية ما بتبين أبداً
-  const invoices = hasItems ? state.invoices.filter((inv) => !inv.lines.some((l) => l.itemId && state.items[l.itemId]?.hidden)) : state.invoices;
-  return { ...state, items, accounts, invoices };
+  const hiddenInv = new Set(hasItems ? state.invoices.filter((inv) => inv.lines.some((l) => l.itemId && state.items[l.itemId]?.hidden)).map((i) => i.id) : []);
+  const invoices = hiddenInv.size ? state.invoices.filter((inv) => !hiddenInv.has(inv.id)) : state.invoices;
+  // وقيودها كمان (وإلا أرباحها وديونها بتبين بلوحة الأرباح والتقارير)، وحركات صندوق المورد (سندات ومصاريف)،
+  // إلا تحويلات الصندوقين وفواتير أدوية الصيدلية اللي باعها المورد (هدول حق الصيدلية)
+  const hiddenAcc = new Set(Object.values(state.accounts).filter((a) => a.hidden).map((a) => a.id));
+  const KEEP = new Set(['invoice', 'reprice', 'boxtransfer', 'dealersale']);
+  const hideIds = new Set(
+    state.entries
+      .filter((e) => (e.source && (e.source.type === 'invoice' || e.source.type === 'reprice') && hiddenInv.has(e.source.id)) || (!KEEP.has(e.source?.type ?? '') && e.lines.some((l) => hiddenAcc.has(l.accountId))))
+      .map((e) => e.id),
+  );
+  const entries = hideIds.size ? state.entries.filter((e) => !hideIds.has(e.id) && !(e.voidOf && hideIds.has(e.voidOf))) : state.entries;
+  return { ...state, items, accounts, invoices, entries };
 }
 
 export function makeCtxHelpers(state: CompanyState, user: User) {

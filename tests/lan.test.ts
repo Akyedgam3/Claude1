@@ -51,6 +51,16 @@ describe('executor', () => {
     expect(execute(store, store.user, 'postInvoice', [sale]).value).toBeTruthy();
     expect(visibleState(store.ledger.state, cashier).items['h']!.archived).toBe(true);
     expect(visibleState(store.ledger.state, store.user).items['h']!.archived).toBeUndefined();
+    // بيع آجل لبضاعة المورد: الكاشير ما بيشوف لا ربحها ولا دينها
+    const { dailyProfit, incomeStatement } = await import('../src/core');
+    execute(store, store.user, 'saveParty', [{ id: 'c', kind: 'customer', name: 'زبون المورّد' }]);
+    execute(store, store.user, 'postInvoice', [{ ...sale, partyId: 'c', paid: 0, lines: [{ itemId: 'h', qty: 2, price: 1500 }] }]);
+    const mine = visibleState(store.ledger.state, store.user);
+    const his = visibleState(store.ledger.state, cashier);
+    expect(incomeStatement(mine, { from: '2026-01-01', to: '2026-12-31' }).netProfit).toBeGreaterThan(0);
+    expect(incomeStatement(his, { from: '2026-01-01', to: '2026-12-31' }).netProfit).toBe(0);
+    expect(dailyProfit(his, '2026-01-02', '2026-01-02').reduce((a, d) => a + d.net, 0)).toBe(0);
+    expect(his.entries.some((e) => e.lines.some((l) => l.partyId === 'c'))).toBe(false);
   });
 
   it('applies role changes and deactivation immediately', () => {
