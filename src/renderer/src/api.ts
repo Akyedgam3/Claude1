@@ -245,7 +245,12 @@ const rendering = () => {
   const h = reactInternals.H;
   return h != null && typeof h === 'object' && !idleDispatchers.has(h);
 };
-const masked = () => moneyHidden && rendering();
+// شاشات الفاتورة نفسها (بيع، شراء، عرض فاتورة، نقطة البيع…) بتضل بالأرقام: الشغل فيها بدو الأرقام
+let maskHere = true;
+export function setMaskHere(v: boolean): void {
+  maskHere = v;
+}
+const masked = () => moneyHidden && maskHere && rendering();
 
 export function money(state: CompanyState, minor: number, currency?: string): string {
   const c = state.currencies[currency ?? state.info!.baseCurrency]!;

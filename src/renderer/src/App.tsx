@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { applyEvent, ROLE_NAMES, type CompanyState, type Feature, type Permission } from '../../core';
 import type { EventItem } from '../../app/lan';
 import type { LicenseStatus } from '../../license/manager';
-import { api, Company, IS_MOBILE, moneyMask, noteIdleDispatcher, IS_WEB, makeCtxHelpers, visibleState, type AppInfo, type CompanyCtx, type SessionInfo } from './api';
+import { api, Company, IS_MOBILE, moneyMask, noteIdleDispatcher, setMaskHere, IS_WEB, makeCtxHelpers, visibleState, type AppInfo, type CompanyCtx, type SessionInfo } from './api';
 import logoSmall from './assets/logo-64.png';
 import { ConfirmHost } from './components/ui';
 import logo from './assets/logo.png';
@@ -343,6 +343,8 @@ export function App() {
     if (n.perms && !n.perms.some(ctx.can)) return false;
     return true;
   }).filter((n, i, arr) => typeof n !== 'string' || (arr[i + 1] !== undefined && typeof arr[i + 1] !== 'string'));
+  // زر إخفاء الأرقام ما بيطبّق على شاشات الفاتورة نفسها
+  setMaskHere(!UNMASKED_SCREENS.has(screen.key));
   const screens = visible.filter((n): n is NavItem => typeof n !== 'string');
   const allowed = new Set(screens.map((n) => n.key));
   shortcuts.current = Object.fromEntries(Object.entries(SHORTCUTS).filter(([, key]) => allowed.has(key)));
@@ -456,7 +458,7 @@ export function App() {
           {ctx.session.viaRecovery && <div className="banner bad">دخلت برمز الاسترداد. غيّر كلمة السر الآن من الإعدادات ← حسابي.</div>}
           <OpenInvoices />
           <ErrorBoundary resetKey={`${screen.key}:${screen.param ?? ''}`}>
-            <Screen key={moneyHidden ? 'hidden' : 'shown'} screen={screen} />
+            <Screen key={moneyHidden && !UNMASKED_SCREENS.has(screen.key) ? 'hidden' : 'shown'} screen={screen} />
           </ErrorBoundary>
         </main>
       </div>
@@ -465,6 +467,9 @@ export function App() {
     </Company.Provider>
   );
 }
+
+/** شاشات بتضل بالأرقام حتى لو الأرقام مخفية: الفواتير وعروض الأسعار ونقاط البيع. */
+const UNMASKED_SCREENS = new Set(['pos', 'restaurant', 'restaurant-live', 'kitchen', 'sale', 'purchase', 'sale_return', 'purchase_return', 'invoice', 'quote']);
 
 function Screen({ screen }: { screen: { key: string; param?: string } }) {
   const p = screen.param;
