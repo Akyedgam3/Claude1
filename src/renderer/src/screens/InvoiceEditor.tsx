@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { computeTaxes, findRate, itemPlace, listPrices, withPlace, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
 import { convertPrice, fxRates, money, parseAmount, rateInverted, toInput, today, uid, useCompany } from '../api';
-import { CurrencySelect, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
+import { askConfirm, CurrencySelect, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
 import { invoiceDrafts } from '../drafts';
 import { ItemForm } from './Items';
 import { PartyForm } from './Parties';
@@ -853,8 +853,8 @@ export function OpenInvoices() {
             type="button"
             className="close"
             title="تجاهل هالفاتورة"
-            onClick={() => {
-              if (!confirm('تتجاهل هالفاتورة؟ ما رح تنحفظ.')) return;
+            onClick={async () => {
+              if (!(await askConfirm('تتجاهل هالفاتورة؟ ما رح تنحفظ.'))) return;
               invoiceDrafts.remove(company, d.id);
               if (inEditor && current === d.id) navigate(d.kind, `draft:${uid()}`);
             }}

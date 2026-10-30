@@ -3,6 +3,7 @@ import { cloudCodeLink } from '../../../cloud/code';
 import { api, useCompany, type CloudStatus } from '../api';
 import { Qr } from '../components/CommercialDoc';
 import { CLOUD_CHANGED } from './useCloudHost';
+import { askConfirm } from '../components/ui';
 
 /** الإعدادات ← الاتصال عن بعد: خدمة إضافية اختيارية، بتشتغل بس إذا مفعّلة بالترخيص. */
 export function CloudTab() {
@@ -29,7 +30,7 @@ export function CloudTab() {
   }
 
   const setup = async (enable: boolean, newCode = false) => {
-    if (newCode && !confirm('سيتم فصل كل الأجهزة المتصلة عن بعد، وتحتاج لإدخال الرمز الجديد عليها. متابعة؟')) return;
+    if (newCode && !(await askConfirm('سيتم فصل كل الأجهزة المتصلة عن بعد، وتحتاج لإدخال الرمز الجديد عليها. متابعة؟'))) return;
     try {
       setS(await api.cloudSetup(enable, newCode));
       window.dispatchEvent(new Event(CLOUD_CHANGED));

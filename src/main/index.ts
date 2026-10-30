@@ -229,7 +229,7 @@ function handle(channel: string, fn: (...args: never[]) => unknown, opts: { allo
 
 async function printOrPdf(contents: WebContents, opts: { paper: string; printer?: string; copies?: number; pdf?: string }): Promise<string | boolean> {
   if (opts.pdf) {
-    const res = await dialog.showSaveDialog(win!, { title: 'حفظ PDF', defaultPath: path.join(app.getPath('documents'), `${safeFolderName(opts.pdf)}.pdf`), filters: [{ name: 'PDF', extensions: ['pdf'] }] });
+    const res = await afterDialog(dialog.showSaveDialog(win!, { title: 'حفظ PDF', defaultPath: path.join(app.getPath('documents'), `${safeFolderName(opts.pdf)}.pdf`), filters: [{ name: 'PDF', extensions: ['pdf'] }] }));
     if (res.canceled || !res.filePath) return false;
     const data = await contents.printToPDF({ printBackground: true, preferCSSPageSize: true, ...(opts.paper === 'a4' ? { pageSize: 'A4' } : {}) });
     fs.writeFileSync(res.filePath, data);
@@ -238,9 +238,34 @@ async function printOrPdf(contents: WebContents, opts: { paper: string; printer?
   return new Promise<boolean>((resolve) => {
     contents.print(
       { printBackground: true, silent: !!opts.printer, ...(opts.printer ? { deviceName: opts.printer } : {}), copies: Math.max(1, Math.min(5, opts.copies ?? 1)) },
-      (success) => resolve(success),
+      (success) => {
+        refocus();
+        resolve(success);
+      },
     );
   });
+}
+
+/** نافذة حفظ/فتح: بعد ما تتسكّر منرجّع التركيز للصفحة. */
+async function afterDialog<T>(p: Promise<T>): Promise<T> {
+  try {
+    return await p;
+  } finally {
+    refocus();
+  }
+}
+
+/**
+ * ويندوز: بعد نافذة نظام (طباعة، حفظ، تأكيد) النافذة بترجع بس الكتابة ما بتوصل للخانات لحتى يتسكّر البرنامج.
+ * منرجّع التركيز لمحتوى الصفحة.
+ */
+function refocus(): void {
+  if (!win || win.isDestroyed()) return;
+  if (process.platform === 'win32') {
+    win.blur();
+    win.focus();
+  }
+  win.webContents.focus();
 }
 
 // ───────────── شاشة الزبون ─────────────
@@ -371,7 +396,7 @@ function registerIpc(): void {
 
   handle('company:peek', async (dir?: string) => {
     if (!dir) {
-      const res = await dialog.showOpenDialog(win!, { title: 'اختر مجلد الشركة', defaultPath: companiesRoot(), properties: ['openDirectory'] });
+      const res = await afterDialog(dialog.showOpenDialog(win!, { title: 'اختر مجلد الشركة', defaultPath: companiesRoot(), properties: ['openDirectory'] }));
       if (res.canceled || !res.filePaths[0]) return null;
       dir = res.filePaths[0];
     }
@@ -391,11 +416,11 @@ function registerIpc(): void {
   /** استعادة نسخة احتياطية: تُنسخ إلى مجلد جديد ثم تُفتح بتسجيل الدخول. */
   handle('company:restore', async () => {
     // ملف .wazn (من الجوال أو من الاتصال عن بعد)، أو company.json جوا مجلد نسخة الكمبيوتر
-    const res = await dialog.showOpenDialog(win!, {
+    const res = await afterDialog(dialog.showOpenDialog(win!, {
       title: 'اختر ملف النسخة (.wazn) أو ملف company.json من مجلد النسخة',
       properties: ['openFile'],
       filters: [{ name: 'نسخة وزن', extensions: ['wazn', 'json'] }],
-    });
+    }));
     if (res.canceled || !res.filePaths[0]) return null;
     const picked = res.filePaths[0];
     if (picked.toLowerCase().endsWith('.wazn')) {
@@ -435,14 +460,14 @@ function registerIpc(): void {
     if (backend instanceof CloudBackend) {
       // كمبيوتر بعيد: نسخة كاملة من الجهاز الرئيسي بملف .wazn
       const stamp = new Date().toISOString().slice(0, 10);
-      const res = await dialog.showSaveDialog(win!, { title: 'حفظ نسخة احتياطية من الجهاز الرئيسي', defaultPath: `Wazn-${safeFolderName(backend.companyName)}-${stamp}.wazn`, filters: [{ name: 'نسخة وزن', extensions: ['wazn'] }] });
+      const res = await afterDialog(dialog.showSaveDialog(win!, { title: 'حفظ نسخة احتياطية من الجهاز الرئيسي', defaultPath: `Wazn-${safeFolderName(backend.companyName)}-${stamp}.wazn`, filters: [{ name: 'نسخة وزن', extensions: ['wazn'] }] }));
       if (res.canceled || !res.filePath) return null;
       fs.writeFileSync(res.filePath, await backend.client.backup());
       return res.filePath;
     }
     const store = localStore();
     if (!toExternal) return store.backup();
-    const res = await dialog.showOpenDialog(win!, { title: 'اختر مكان النسخة الاحتياطية (فلاشة مثلاً)', properties: ['openDirectory'] });
+    const res = await afterDialog(dialog.showOpenDialog(win!, { title: 'اختر مكان النسخة الاحتياطية (فلاشة مثلاً)', properties: ['openDirectory'] }));
     if (res.canceled || !res.filePaths[0]) return null;
     return store.backup(path.join(res.filePaths[0], `Wazn-${safeFolderName(store.meta.name)}`), Infinity);
   });
@@ -669,11 +694,11 @@ function registerIpc(): void {
   handle('export:pdf', (opts: { paper: string; name: string }) => printOrPdf(win!.webContents, { paper: opts.paper, pdf: opts.name }));
 
   handle('export:excel', async (name: string, sheets: ExportSheet[], format: 'xlsx' | 'csv' = 'xlsx') => {
-    const res = await dialog.showSaveDialog(win!, {
+    const res = await afterDialog(dialog.showSaveDialog(win!, {
       title: 'حفظ الملف',
       defaultPath: path.join(app.getPath('documents'), `${safeFolderName(name)}.${format}`),
       filters: format === 'csv' ? [{ name: 'CSV', extensions: ['csv'] }] : [{ name: 'Excel', extensions: ['xlsx'] }],
-    });
+    }));
     if (res.canceled || !res.filePath) return null;
     if (format === 'csv') fs.writeFileSync(res.filePath, buildCsv(sheets[0]!), 'utf8');
     else fs.writeFileSync(res.filePath, await buildWorkbook(sheets));
@@ -681,7 +706,7 @@ function registerIpc(): void {
   });
 
   handle('import:excel', async () => {
-    const res = await dialog.showOpenDialog(win!, { title: 'اختر ملف Excel', filters: [{ name: 'Excel', extensions: ['xlsx'] }], properties: ['openFile'] });
+    const res = await afterDialog(dialog.showOpenDialog(win!, { title: 'اختر ملف Excel', filters: [{ name: 'Excel', extensions: ['xlsx'] }], properties: ['openFile'] }));
     if (res.canceled || !res.filePaths[0]) return null;
     return readWorkbook(fs.readFileSync(res.filePaths[0]));
   });
@@ -712,6 +737,10 @@ function createWindow(): void {
   });
   win.removeMenu();
   win.once('ready-to-show', () => win?.show());
+  // لما النافذة ترجع للواجهة، التركيز لازم يرجع لمحتواها كمان (وإلا الكتابة بالخانات بتوقف على ويندوز)
+  win.on('focus', () => {
+    if (win && !win.isDestroyed() && !win.webContents.isFocused()) win.webContents.focus();
+  });
   // سكّرنا البرنامج: شاشة الزبون بتتسكّر معه
   win.on('closed', () => {
     if (custWin && !custWin.isDestroyed()) custWin.close();

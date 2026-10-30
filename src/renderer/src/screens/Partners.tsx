@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { PARTNER_MOVE_NAMES, partnerMoves, partnersSummary, type Partner, type PartnerMoveKind, type PartnerRow } from '../../../core';
 import { dateText, major, money, parseAmount, today, toInput, uid, useCompany } from '../api';
 import { DocHeader, ExportButtons, PrintButtons } from '../components/print';
-import { Empty, Field, Modal, PageHeader } from '../components/ui';
+import { askConfirm, Empty, Field, Modal, PageHeader } from '../components/ui';
 import { Icon } from '../components/icons';
 import { cashAccounts } from './InvoiceEditor';
 
@@ -170,7 +170,7 @@ export function Partners() {
             setShowing(null);
           }}
           onVoid={async (entryId) => {
-            if (!confirm('تلغي هالحركة؟ بينعمل قيد عكسي بتاريخ اليوم.')) return;
+            if (!(await askConfirm('تلغي هالحركة؟ بينعمل قيد عكسي بتاريخ اليوم.'))) return;
             if (await call('voidPartnerMove', entryId, today())) notify('تم إلغاء الحركة');
           }}
         />

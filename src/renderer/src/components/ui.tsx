@@ -395,3 +395,39 @@ export function ScanInput({ onScan, placeholder, autoFocus, inputRef }: { onScan
     </div>
   );
 }
+
+// تأكيد من جوّا البرنامج بدل confirm() الأصلي: على ويندوز نافذة confirm بتخلّي الخانات تبطل تقبل كتابة لحتى يتسكّر البرنامج
+type Ask = { message: string; resolve: (ok: boolean) => void };
+let pushAsk: ((a: Ask) => void) | null = null;
+
+/** بيسأل المستخدم ويرجّع true إذا وافق. */
+export function askConfirm(message: string): Promise<boolean> {
+  return new Promise((resolve) => (pushAsk ? pushAsk({ message, resolve }) : resolve(window.confirm(message))));
+}
+
+/** مكان نافذة التأكيد (مرة وحدة بأعلى الواجهة). */
+export function ConfirmHost() {
+  const [ask, setAsk] = useState<Ask | null>(null);
+  useEffect(() => {
+    pushAsk = (a) => setAsk((cur) => (cur ? (a.resolve(false), cur) : a));
+    return () => {
+      pushAsk = null;
+    };
+  }, []);
+  if (!ask) return null;
+  const done = (ok: boolean) => {
+    ask.resolve(ok);
+    setAsk(null);
+  };
+  return (
+    <Modal title="تأكيد" onClose={() => done(false)} width={420}>
+      <p>{ask.message}</p>
+      <div className="form-actions">
+        <button className="primary" autoFocus onClick={() => done(true)}>
+          نعم
+        </button>
+        <button onClick={() => done(false)}>لا</button>
+      </div>
+    </Modal>
+  );
+}

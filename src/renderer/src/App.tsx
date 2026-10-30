@@ -4,6 +4,7 @@ import type { EventItem } from '../../app/lan';
 import type { LicenseStatus } from '../../license/manager';
 import { api, Company, IS_MOBILE, IS_WEB, makeCtxHelpers, visibleState, type AppInfo, type CompanyCtx, type SessionInfo } from './api';
 import logoSmall from './assets/logo-64.png';
+import { ConfirmHost } from './components/ui';
 import logo from './assets/logo.png';
 import { Icon } from './components/icons';
 import { QuickSearch } from './components/QuickSearch';
@@ -288,7 +289,12 @@ export function App() {
     </div>
   );
   if (!info) return splash;
-  const toastEl = toast && <div className={`toast ${toast.kind}`}>{toast.message}</div>;
+  const toastEl = (
+    <>
+      <ConfirmHost />
+      {toast && <div className={`toast ${toast.kind}`}>{toast.message}</div>}
+    </>
+  );
   const lic = info.license;
 
   // البرنامج لا يفتح بدون ترخيص (إلا الاتصال بجهاز رئيسي مرخّص)
