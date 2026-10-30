@@ -1,4 +1,6 @@
 import {
+  Eye,
+  EyeOff,
   Cloud,
   Container,
   Mountain,
@@ -120,6 +122,8 @@ const ICONS: Record<string, LucideIcon> = {
   logout: LogOut,
   customize: SlidersHorizontal,
   search: Search,
+  eye: Eye,
+  'eye-off': EyeOff,
   moon: Moon,
   sun: Sun,
   zap: Zap,

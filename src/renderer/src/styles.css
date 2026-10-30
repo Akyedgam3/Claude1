@@ -3982,3 +3982,25 @@ button.whatsapp:hover { background: #1ebe5b; }
 /* النشرات والحسومات */
 .list-cfg { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; align-items: end; }
 .list-cfg .wide { grid-column: 1 / -1; margin: 0; }
+
+/* زر إخفاء الأرقام (فوق، بطرف الشاشة) */
+.content {
+  position: relative;
+}
+.money-toggle {
+  position: sticky;
+  top: 0;
+  float: left;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  margin: -8px -12px 0 0;
+}
+.money-toggle.on {
+  background: var(--warn-bg, #fff4d6);
+  border-color: #e0b341;
+}

@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import type { Paper } from '../../../core';
-import { api, useCompany, type ExportSheet } from '../api';
+import { api, moneyMask, useCompany, type ExportSheet } from '../api';
 import { Icon } from './icons';
 
 export type DocKind = 'invoice' | 'receipt' | 'kitchen' | 'label' | 'report';
@@ -20,11 +20,18 @@ async function withPaper<T>(paper: Paper, fn: () => Promise<T>): Promise<T> {
   style.textContent = PAGE_CSS[paper];
   document.head.appendChild(style);
   document.body.dataset['paper'] = paper;
+  // الأرقام مخفية عالشاشة؟ الورقة لازم تطلع بالأرقام الحقيقية
+  const hidden = moneyMask.get();
+  if (hidden) {
+    moneyMask.set(false, false);
+    await new Promise((r) => setTimeout(r, 150));
+  }
   try {
     return await fn();
   } finally {
     style.remove();
     delete document.body.dataset['paper'];
+    if (hidden) moneyMask.set(true, false);
   }
 }
 

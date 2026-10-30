@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { applyEvent, ROLE_NAMES, type CompanyState, type Feature, type Permission } from '../../core';
 import type { EventItem } from '../../app/lan';
 import type { LicenseStatus } from '../../license/manager';
-import { api, Company, IS_MOBILE, IS_WEB, makeCtxHelpers, visibleState, type AppInfo, type CompanyCtx, type SessionInfo } from './api';
+import { api, Company, IS_MOBILE, moneyMask, noteIdleDispatcher, IS_WEB, makeCtxHelpers, visibleState, type AppInfo, type CompanyCtx, type SessionInfo } from './api';
 import logoSmall from './assets/logo-64.png';
 import { ConfirmHost } from './components/ui';
 import logo from './assets/logo.png';
@@ -143,6 +143,12 @@ export function App() {
     }
   });
   const [toast, setToast] = useState<{ message: string; kind: 'ok' | 'error' } | null>(null);
+  const moneyHidden = useSyncExternalStore(moneyMask.subscribe, moneyMask.get);
+  useEffect(() => {
+    noteIdleDispatcher();
+    const t = setTimeout(noteIdleDispatcher, 0);
+    return () => clearTimeout(t);
+  });
   const seqRef = useRef(0);
   const stateRef = useRef<CompanyState | null>(null);
 
@@ -350,6 +356,9 @@ export function App() {
               <Icon name="menu" size={22} />
             </button>
             <strong>{screens.find((n) => n.key === screen.key)?.label ?? 'وزن'}</strong>
+            <button className="icon" aria-label={moneyHidden ? 'إظهار الأرقام' : 'إخفاء الأرقام'} onClick={() => moneyMask.set(!moneyHidden)}>
+              <Icon name={moneyHidden ? 'eye-off' : 'eye'} size={20} />
+            </button>
             <button className="icon" aria-label="بحث" onClick={() => setSearching(true)}>
               <Icon name="search" size={20} />
             </button>
@@ -431,6 +440,11 @@ export function App() {
         )}
         <Tour />
         <main className="content">
+          {!IS_MOBILE && (
+            <button className={`money-toggle ${moneyHidden ? 'on' : ''}`} title={moneyHidden ? 'إظهار الأرقام' : 'إخفاء الأرقام (المبالغ والمصاري)'} onClick={() => moneyMask.set(!moneyHidden)}>
+              <Icon name={moneyHidden ? 'eye-off' : 'eye'} size={16} /> {moneyHidden ? 'إظهار الأرقام' : 'إخفاء الأرقام'}
+            </button>
+          )}
           {lic.message && !lic.locked && <div className="banner">{lic.message}</div>}
           {ctx.session.cloud?.offline && (
             <div className="banner">
@@ -442,7 +456,7 @@ export function App() {
           {ctx.session.viaRecovery && <div className="banner bad">دخلت برمز الاسترداد. غيّر كلمة السر الآن من الإعدادات ← حسابي.</div>}
           <OpenInvoices />
           <ErrorBoundary resetKey={`${screen.key}:${screen.param ?? ''}`}>
-            <Screen screen={screen} />
+            <Screen key={moneyHidden ? 'hidden' : 'shown'} screen={screen} />
           </ErrorBoundary>
         </main>
       </div>

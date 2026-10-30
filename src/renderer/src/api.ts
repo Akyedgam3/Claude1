@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { createContext, useContext } from 'react';
 import { can as canDo, effectiveProfile, findRate, formatMinor, toMinor, type ActivityProfile, type CompanyState, type Currency, type Feature, type Permission, type User } from '../../core';
 import type { LicenseStatus } from '../../license/manager';
@@ -198,13 +199,63 @@ export function uid(): string {
 }
 
 /** يعرض مبلغاً بأصغر وحدة مع رمز العملة. */
+// ───────────── إخفاء الأرقام ─────────────
+// زر بالشريط بيخفي المبالغ عن الشاشة (لما حدا واقف جنبك). بينطبق وقت رسم الواجهة بس:
+// النصوص والصور اللي بتنبعت عالواتساب والتصدير بتضل بالأرقام الحقيقية، والطباعة بترجّعها مؤقتاً.
+let moneyHidden = (() => {
+  try {
+    return localStorage.getItem('wazn.hideMoney') === '1';
+  } catch {
+    return false;
+  }
+})();
+const moneyListeners = new Set<() => void>();
+export const moneyMask = {
+  get: () => moneyHidden,
+  set(v: boolean, persist = true) {
+    if (v === moneyHidden) return;
+    moneyHidden = v;
+    if (persist) {
+      try {
+        localStorage.setItem('wazn.hideMoney', v ? '1' : '0');
+      } catch {
+        // مش مهم
+      }
+    }
+    moneyListeners.forEach((f) => f());
+  },
+  subscribe(f: () => void) {
+    moneyListeners.add(f);
+    return () => {
+      moneyListeners.delete(f);
+    };
+  },
+};
+const reactInternals = (React as unknown as Record<string, { H?: unknown } | undefined>)['__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE'];
+// برّا الرسم React بيحط «موزّع» ثابت (ما بيقبل hooks)؛ منسجّله من أثر (effect) ومن مؤقّت،
+// ووقت رسم أي مكوّن بيكون الموزّع غيره. هيك منعرف إذا الرقم رايح للشاشة ولا لنص/صورة واتساب.
+const idleDispatchers = new WeakSet<object>();
+export function noteIdleDispatcher(): void {
+  const h = reactInternals?.H;
+  if (h && typeof h === 'object') idleDispatchers.add(h);
+}
+/** عم نرسم واجهة React هلق؟ (برّا الرسم، متل زر واتساب، منرجّع الرقم الحقيقي) */
+const rendering = () => {
+  if (!reactInternals) return true;
+  const h = reactInternals.H;
+  return h != null && typeof h === 'object' && !idleDispatchers.has(h);
+};
+const masked = () => moneyHidden && rendering();
+
 export function money(state: CompanyState, minor: number, currency?: string): string {
   const c = state.currencies[currency ?? state.info!.baseCurrency]!;
+  if (masked()) return `•••• ${c.symbol}`;
   return `${formatMinor(minor, c.decimals)} ${c.symbol}`;
 }
 
 /** المبلغ بدون رمز العملة (أعمدة الإيصال الحراري الضيقة). */
 export function plainMoney(state: CompanyState, minor: number, currency?: string): string {
+  if (masked()) return '••••';
   return formatMinor(minor, state.currencies[currency ?? state.info!.baseCurrency]!.decimals);
 }
 
