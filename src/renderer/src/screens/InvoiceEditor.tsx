@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { computeTaxes, findRate, listPrices, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
+import { computeTaxes, findRate, itemPlace, listPrices, withPlace, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
 import { convertPrice, fxRates, money, parseAmount, rateInverted, toInput, today, uid, useCompany } from '../api';
 import { CurrencySelect, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
 import { invoiceDrafts } from '../drafts';
@@ -7,6 +7,7 @@ import { ItemForm } from './Items';
 import { PartyForm } from './Parties';
 import { Icon } from '../components/icons';
 import { WeighingModal, weightsFromQty } from '../components/Weighing';
+import { PlaceInput } from '../components/PlaceInput';
 
 interface LineState {
   key: string;
@@ -101,6 +102,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
   const [date, setDate] = useState(editing?.date ?? d?.date ?? today());
   const [currency, setCurrency] = useState(editing?.currency ?? (d && state.currencies[d.currency] ? d.currency : base));
   const [rateText, setRateText] = useState(() => (editing && editing.currency !== base ? String(rateInverted(state, editing.currency) ? Math.round(10000 / editing.rate) / 10000 : editing.rate) : (d?.rateText ?? '')));
+  const [placeEdits, setPlaceEdits] = useState<Record<string, string>>({});
   const [warehouseId, setWarehouseId] = useState(editing?.warehouseId ?? (d && state.warehouses[d.warehouseId] ? d.warehouseId : undefined) ?? Object.keys(state.warehouses)[0] ?? 'main');
   const [lines, setLines] = useState<LineState[]>(() =>
     editing
@@ -401,6 +403,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
         ...(notes.trim() ? { notes: notes.trim() } : {}),
       };
       const res = editing ? await call<Invoice>('replaceInvoice', editing.id, draft) : await call<Invoice>('postInvoice', draft);
+      const latest: Record<string, Item> = {};
       if (res && setPrices) {
         // أسعار البيع الجديدة من فاتورة الشراء: سعر الصيدلية وسعر المورّد
         let n = 0;
@@ -410,9 +413,23 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
           const price = l.sell?.trim() ? parseAmount(state, l.sell, item.priceCurrency) : item.price;
           const dealerPrice = l.dealer?.trim() ? parseAmount(state, l.dealer, item.priceCurrency) : item.dealerPrice;
           if (price === item.price && dealerPrice === item.dealerPrice) continue;
-          if (await call('saveItem', { ...item, price, ...(dealerPrice !== undefined ? { dealerPrice } : {}) })) n++;
+          const next = { ...item, price, ...(dealerPrice !== undefined ? { dealerPrice } : {}) };
+          if (await call('saveItem', next)) {
+            latest[item.id] = next;
+            n++;
+          }
         }
         if (n) notify(`انحدّثت أسعار ${n} مادة`);
+      }
+      if (res && kind === 'purchase' && can('items.manage')) {
+        // أماكن المواد بالمستودع (رف/ركن) اللي انكتبت أو تعدّلت على السطور
+        for (const l of used) {
+          const item = l.itemId ? (latest[l.itemId] ?? state.items[l.itemId]) : null;
+          const edit = placeEdits[l.key];
+          if (!item || item.kind !== 'stock' || edit === undefined || edit.trim() === itemPlace(item, warehouseId)) continue;
+          latest[item.id] = withPlace(item, warehouseId, edit);
+          await call('saveItem', latest[item.id]);
+        }
       }
       if (res) {
         notify(editing ? `تم تعديل ${INVOICE_KIND_NAMES[kind]} رقم ${res.value.number}` : `تم حفظ ${INVOICE_KIND_NAMES[kind]} رقم ${res.value.number}`);
@@ -558,6 +575,12 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
                               <input className="num-input" inputMode="decimal" placeholder={suggest(l, margins.dealerMargin) || (item?.dealerPrice ? toInput(state, item.dealerPrice, item.priceCurrency) : '')} value={l.dealer ?? ''} onChange={(e) => setLine(l.key, { dealer: e.target.value })} />
                             </label>
                           </span>
+                        )}
+                        {kind === 'purchase' && item?.kind === 'stock' && can('items.manage') && (
+                          <label className="line-place">
+                            المكان
+                            <PlaceInput warehouseId={warehouseId} selfId={item.id} value={placeEdits[l.key] ?? itemPlace(item, warehouseId)} onChange={(v) => setPlaceEdits((p) => ({ ...p, [l.key]: v }))} />
+                          </label>
                         )}
                         {l.weighing && <small className="weigh-note">{weighingText(l.weighing, l.unit || item?.unit || 'كغ')}</small>}
                         {item?.trackExpiry &&

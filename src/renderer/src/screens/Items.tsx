@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
-import { attributesFor, buyDiscountOf, generateVariants, listPrices, type Item, type ItemKind, type ItemUnit, type RecipeLine } from '../../../core';
+import { attributesFor, buyDiscountOf, generateVariants, itemPlace, itemPlacesText, listPrices, type Item, type ItemKind, type ItemUnit, type RecipeLine } from '../../../core';
 import { api, major, money, parseAmount, qtyText, toInput, today, uid, useCompany } from '../api';
 import { Barcode, ExportButtons, usePrinter } from '../components/print';
 import { CameraScanButton, ColorPicker, ConfirmButton, CurrencySelect, ItemName, Empty, Field, itemMatches, itemOptions, Modal, PageHeader, Picker, SearchBox, Tabs } from '../components/ui';
 import { Icon } from '../components/icons';
+import { PlaceInput } from '../components/PlaceInput';
 import { DealerForm } from './Dealers';
 
 export function Items({ initialQuery }: { initialQuery?: string } = {}) {
@@ -203,7 +204,7 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
                   {feature('partNumbers') && <td className="mono">{i.partNumber}</td>}
                   {feature('partNumbers') && <td>{i.compat}</td>}
                   <td>{i.category}</td>
-                  <td>{i.location}</td>
+                  <td>{itemPlacesText(state, i)}</td>
                   <td className={`num ${low ? 'bad' : ''}`}>{i.kind === 'stock' ? `${qtyText(qty)} ${i.unit}` : '—'}</td>
                   {showCost && <td className="num">{s && qty > 0 ? money(state, Math.round(s.value / qty)) : '—'}</td>}
                   <td className="num">{money(state, i.price, i.priceCurrency)}</td>
@@ -242,7 +243,6 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
     brand: item?.brand ?? '',
     partNumber: item?.partNumber ?? '',
     compat: item?.compat ?? '',
-    location: item?.location ?? '',
     priceCurrency: item?.priceCurrency ?? base,
     price: item ? toInput(state, item.price, item.priceCurrency) : '',
     wholesalePrice: item?.wholesalePrice !== undefined ? toInput(state, item.wholesalePrice, item.priceCurrency) : '',
@@ -258,6 +258,8 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
     weighed: item?.weighed ?? false,
     warrantyMonths: item?.warrantyMonths ? String(item.warrantyMonths) : '',
   }));
+  const warehouseList = Object.values(state.warehouses);
+  const [places, setPlaces] = useState<Record<string, string>>(() => Object.fromEntries(warehouseList.map((w) => [w.id, item ? itemPlace(item, w.id) : ''])));
   const [units, setUnits] = useState<{ name: string; factor: string; price: string; barcode: string }[]>(
     () => item?.units?.map((u) => ({ name: u.name, factor: String(u.factor), price: u.price !== undefined ? toInput(state, u.price, item.priceCurrency) : '', barcode: u.barcode ?? '' })) ?? [],
   );
@@ -307,7 +309,8 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
         ...(f.weighed ? { weighed: true } : {}),
         ...(f.warrantyMonths ? { warrantyMonths: Number(f.warrantyMonths) } : {}),
         ...(item?.group ? { group: item.group } : {}),
-        ...Object.fromEntries((['barcode', 'category', 'brand', 'partNumber', 'compat', 'location'] as const).filter((k) => f[k].trim()).map((k) => [k, f[k].trim()])),
+        ...(Object.values(places).some((p) => p.trim()) ? { locations: Object.fromEntries(Object.entries(places).filter(([, p]) => p.trim()).map(([w, p]) => [w, p.trim()])) } : {}),
+        ...Object.fromEntries((['barcode', 'category', 'brand', 'partNumber', 'compat'] as const).filter((k) => f[k].trim()).map((k) => [k, f[k].trim()])),
       };
     } catch (e) {
       return notify((e as Error).message, 'error');
@@ -385,9 +388,11 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
                 <CameraScanButton onCode={(code) => setF({ ...f, barcode: code })} />
               </div>
             </Field>
-            <Field label="المكان (رف / مستودع)">
-              <input value={f.location} onChange={set('location')} />
-            </Field>
+            {warehouseList.map((w) => (
+              <Field key={w.id} label={warehouseList.length > 1 ? `المكان بمستودع ${w.name}` : 'المكان (رف / ركن)'}>
+                <PlaceInput warehouseId={w.id} selfId={item?.id} value={places[w.id] ?? ''} onChange={(v) => setPlaces((p) => ({ ...p, [w.id]: v }))} />
+              </Field>
+            ))}
             {attributeNames.map((a) => (
               <Field key={a} label={a} wide={a === 'اللون'}>
                 {a === 'اللون' ? <ColorPicker value={attrs[a] ?? ''} onChange={(v) => setAttrs({ ...attrs, [a]: v })} /> : <input value={attrs[a] ?? ''} onChange={(e) => setAttrs({ ...attrs, [a]: e.target.value })} />}

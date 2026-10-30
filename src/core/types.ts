@@ -248,7 +248,8 @@ export interface Item {
   brand?: string; // الماركة/المنشأ
   partNumber?: string; // رقم القطعة (OEM)
   compat?: string; // السيارات/الأجهزة المتوافقة
-  location?: string; // مكان المادة في المحل/المستودع
+  location?: string; // مكان المادة في المحل/المستودع (قديم، لكل المستودعات)
+  locations?: Record<string, string>; // مكان المادة (رف/ركن) لكل مستودع: معرّف المستودع ← المكان
   price: number; // سعر المبيع (مفرق) بأصغر وحدة من priceCurrency
   wholesalePrice?: number;
   specialPrice?: number;

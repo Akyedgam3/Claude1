@@ -5,6 +5,7 @@ import {
   cashMovement,
   dailySummary,
   incomeStatement,
+  itemPlacesText,
   receivablesAging,
   salesByItem,
   salesByPerson,
@@ -456,7 +457,7 @@ function Stock({ onSheet }: SheetProps) {
             <tr key={r.item.id} className={r.low ? 'warn-row' : ''}>
               <td className="mono">{r.item.code}</td>
               <td>{r.item.name}</td>
-              <td>{r.item.location}</td>
+              <td>{itemPlacesText(state, r.item)}</td>
               <td className={`num ${r.low ? 'bad' : ''}`}>
                 {qtyText(r.qty)} {r.item.unit}
               </td>

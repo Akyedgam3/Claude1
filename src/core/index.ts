@@ -22,3 +22,4 @@ export * from './pricelist';
 export * from './dealerbox';
 export * from './listprice';
 export * from './whatsapp';
+export * from './places';

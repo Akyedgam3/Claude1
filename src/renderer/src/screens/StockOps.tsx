@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
-import { ADJUSTMENT_NAMES, expiringBatches, type Item } from '../../../core';
+import { ADJUSTMENT_NAMES, expiringBatches, itemPlace, withPlace, type Item } from '../../../core';
 import { dateText, major, money, parseAmount, qtyText, today, uid, useCompany } from '../api';
 import { ExportButtons, PrintButtons, DocHeader } from '../components/print';
 import { ConfirmButton, CurrencySelect, Empty, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, SearchBox, Tabs } from '../components/ui';
 import { Icon } from '../components/icons';
+import { PlaceInput } from '../components/PlaceInput';
 
 type Tab = 'opening' | 'count' | 'damage' | 'transfer' | 'expiry' | 'history';
 
@@ -60,9 +61,10 @@ interface StockRow {
   batch: string;
   expiry: string;
   serials: string;
+  place?: string;
 }
 
-function ItemRows({ rows, setRows, withCost, withBatch }: { rows: StockRow[]; setRows: (r: StockRow[]) => void; withCost?: boolean; withBatch?: 'in' | 'out' }) {
+function ItemRows({ rows, setRows, withCost, withBatch, placeIn }: { rows: StockRow[]; setRows: (r: StockRow[]) => void; withCost?: boolean; withBatch?: 'in' | 'out'; placeIn?: string }) {
   const { state } = useCompany();
   const opts = useMemo(() => itemOptions(state, (i) => i.kind === 'stock'), [state]);
   const set = (key: string, patch: Partial<StockRow>) => setRows(rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -75,6 +77,7 @@ function ItemRows({ rows, setRows, withCost, withBatch }: { rows: StockRow[]; se
             <th>الكمية</th>
             {withCost && <th>تكلفة الوحدة ({state.currencies[state.info!.baseCurrency]?.symbol})</th>}
             <th>الدفعة / الأرقام</th>
+            {placeIn && <th>المكان</th>}
             <th />
           </tr>
         </thead>
@@ -108,6 +111,11 @@ function ItemRows({ rows, setRows, withCost, withBatch }: { rows: StockRow[]; se
                   )}
                   {item.trackSerial && <textarea className="mono" rows={1} placeholder="الأرقام التسلسلية" value={r.serials} onChange={(e) => set(r.key, { serials: e.target.value })} />}
                 </td>
+                {placeIn && (
+                  <td>
+                    <PlaceInput warehouseId={placeIn} selfId={item.id} value={r.place ?? itemPlace(item, placeIn)} onChange={(v) => set(r.key, { place: v })} />
+                  </td>
+                )}
                 <td>
                   <button className="icon" onClick={() => setRows(rows.filter((x) => x.key !== r.key))}>
                     <Icon name="close" size={16} />
@@ -177,7 +185,7 @@ function BulkAdd({ rows, setRows }: { rows: StockRow[]; setRows: (r: StockRow[])
 const serialList = (s: string) => s.split(/[\s,،]+/).map((x) => x.trim()).filter(Boolean);
 
 function Opening() {
-  const { state, call, notify } = useCompany();
+  const { state, call, notify, can } = useCompany();
   const base = state.info!.baseCurrency;
   const [date, setDate] = useState(today());
   const [warehouseId, setWarehouseId] = useState(firstWarehouse(state));
@@ -213,6 +221,12 @@ function Opening() {
       if (!draft.accounts.length && !draft.parties.length && !draft.stock.length) return notify('لا يوجد ما يُحفظ', 'error');
       if (await call('postOpeningBalances', draft)) {
         notify('تم تسجيل الأرصدة الافتتاحية');
+        if (can('items.manage')) {
+          for (const r of rows) {
+            const it = state.items[r.itemId];
+            if (it && r.place !== undefined && r.place.trim() !== itemPlace(it, warehouseId)) await call('saveItem', withPlace(it, warehouseId, r.place));
+          }
+        }
         setRows([]);
         setParties([]);
         setCash(cash.map((c) => ({ ...c, amount: '' })));
@@ -265,7 +279,7 @@ function Opening() {
       <button onClick={() => setParties([...parties, { key: uid(), partyId: null, amount: '', currency: base }])}>+ دين</button>
       <h4>بضاعة أول المدة</h4>
       <BulkAdd rows={rows} setRows={setRows} />
-      <ItemRows rows={rows} setRows={setRows} withCost withBatch="in" />
+      <ItemRows rows={rows} setRows={setRows} withCost withBatch="in" placeIn={can('items.manage') ? warehouseId : undefined} />
       <div className="form-actions">
         <button className="primary" onClick={save}>
           حفظ الأرصدة الافتتاحية
@@ -334,7 +348,7 @@ function Count() {
                   <td>
                     <ItemName item={i} />
                   </td>
-                  <td>{i.location}</td>
+                  <td>{itemPlace(i, warehouseId)}</td>
                   <td className="num">{qtyText(book)}</td>
                   <td className="num">
                     <input className="num-input no-print" value={v} onChange={(e) => setCounted({ ...counted, [i.id]: e.target.value })} inputMode="decimal" />
