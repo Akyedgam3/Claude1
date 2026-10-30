@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { attributesFor, buyDiscountOf, generateVariants, itemPlace, itemPlacesText, listPrices, type Item, type ItemKind, type ItemUnit, type RecipeLine } from '../../../core';
+import { attributesFor, buyDiscountOf, generateVariants, itemPlace, itemPlacesText, listPrices, withPlace, type Item, type ItemKind, type ItemUnit, type RecipeLine } from '../../../core';
 import { api, major, money, parseAmount, qtyText, toInput, today, uid, useCompany } from '../api';
 import { Barcode, ExportButtons, usePrinter } from '../components/print';
 import { CameraScanButton, ColorPicker, ConfirmButton, CurrencySelect, ItemName, Empty, Field, itemMatches, itemOptions, Modal, PageHeader, Picker, SearchBox, Tabs } from '../components/ui';
@@ -14,6 +14,7 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
   const [editing, setEditing] = useState<Item | 'new' | null>(null);
   const [variants, setVariants] = useState(false);
   const [labels, setLabels] = useState<Item[] | null>(null);
+  const [placing, setPlacing] = useState(false);
   const showCost = can('costs.view');
   const canEdit = can('items.manage');
 
@@ -105,6 +106,7 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
             </button>
             {feature('variants') && <button onClick={() => setVariants(true)}>+ موديل بمقاسات وألوان</button>}
             <button onClick={importExcel}>استيراد من Excel</button>
+            <button onClick={() => setPlacing(true)}>تحديد الأماكن</button>
           </>
         )}
         {can('stock.adjust') && (
@@ -217,6 +219,7 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
       {editing && <ItemForm item={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
       {variants && <VariantsForm onClose={() => setVariants(false)} />}
       {labels && <LabelSheet items={labels} onClose={() => setLabels(null)} />}
+      {placing && <PlacesBulk items={items.filter((i) => i.kind === 'stock')} onClose={() => setPlacing(false)} />}
     </div>
   );
 }
@@ -739,4 +742,70 @@ function LabelSheet({ items, onClose }: { items: Item[]; onClose: () => void }) 
 /** "جديد" أو "جديدة" حسب الاسم (مادة جديدة، صنف جديد). */
 export function newWord(label: string): string {
   return /[ةه]$/.test(label.trim()) ? 'جديدة' : 'جديد';
+}
+
+/** تحديد أماكن المواد القديمة دفعة وحدة: مكان لكل مادة، أو مكان واحد لكل المواد المعروضة (حسب البحث والتصنيف). */
+function PlacesBulk({ items, onClose }: { items: Item[]; onClose: () => void }) {
+  const { state, call, notify } = useCompany();
+  const warehouses = Object.values(state.warehouses);
+  const [wid, setWid] = useState(warehouses[0]?.id ?? 'main');
+  const [edits, setEdits] = useState<Record<string, string>>({});
+  const [all, setAll] = useState('');
+  const [onlyEmpty, setOnlyEmpty] = useState(true);
+  const shown = useMemo(() => items.filter((i) => !onlyEmpty || !itemPlace(i, wid) || edits[i.id] !== undefined), [items, onlyEmpty, wid, edits]);
+  const changed = items.filter((i) => edits[i.id] !== undefined && edits[i.id]!.trim() !== itemPlace(i, wid));
+  const fillAll = () => setEdits((e) => ({ ...e, ...Object.fromEntries(shown.map((i) => [i.id, all])) }));
+  const save = async () => {
+    if (!changed.length) return onClose();
+    if (await call('saveItems', changed.map((i) => withPlace(i, wid, edits[i.id]!)))) {
+      notify(`انحفظ مكان ${changed.length} مادة`);
+      onClose();
+    }
+  };
+  return (
+    <Modal title="تحديد أماكن المواد" onClose={onClose} width={720}>
+      <p className="muted">اكتب مكان كل مادة (رف / ركن) أو حط مكان واحد لكل المواد المعروضة. القائمة حسب البحث والتصنيف اللي اخترتهم.</p>
+      <div className="toolbar">
+        {warehouses.length > 1 && (
+          <select value={wid} onChange={(e) => { setWid(e.target.value); setEdits({}); }}>
+            {warehouses.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.name}
+              </option>
+            ))}
+          </select>
+        )}
+        <label className="check">
+          <input type="checkbox" checked={onlyEmpty} onChange={(e) => setOnlyEmpty(e.target.checked)} /> بدون مكان بس
+        </label>
+      </div>
+      <div className="with-button">
+        <PlaceInput warehouseId={wid} value={all} onChange={setAll} placeholder="مكان لكل المواد المعروضة" />
+        <button type="button" disabled={!all.trim() || !shown.length} onClick={fillAll}>
+          حطّه لـ {shown.length} مادة
+        </button>
+      </div>
+      <div style={{ maxHeight: '45vh', overflow: 'auto', marginTop: 8 }}>
+        <table className="table compact">
+          <tbody>
+            {shown.map((i) => (
+              <tr key={i.id}>
+                <td className="mono">{i.code}</td>
+                <td>{i.name}</td>
+                <td style={{ width: '40%' }}>
+                  <PlaceInput warehouseId={wid} selfId={i.id} value={edits[i.id] ?? itemPlace(i, wid)} onChange={(v) => setEdits((e) => ({ ...e, [i.id]: v }))} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {!shown.length && <Empty>كل المواد المعروضة إلها مكان</Empty>}
+      </div>
+      <div className="form-actions">
+        <button className="primary" onClick={save}>
+          حفظ ({changed.length})
+        </button>
+      </div>
+    </Modal>
+  );
 }
