@@ -227,17 +227,21 @@ function handle(channel: string, fn: (...args: never[]) => unknown, opts: { allo
   });
 }
 
+/** أحجام الورق العادية؛ الحراري بيضل على مقاس CSS (طول حسب الإيصال). */
+const PAGE_SIZES: Record<string, 'A4' | 'A5'> = { a4: 'A4', a5: 'A5' };
+
 async function printOrPdf(contents: WebContents, opts: { paper: string; printer?: string; copies?: number; pdf?: string }): Promise<string | boolean> {
   if (opts.pdf) {
     const res = await afterDialog(dialog.showSaveDialog(win!, { title: 'حفظ PDF', defaultPath: path.join(app.getPath('documents'), `${safeFolderName(opts.pdf)}.pdf`), filters: [{ name: 'PDF', extensions: ['pdf'] }] }));
     if (res.canceled || !res.filePath) return false;
-    const data = await contents.printToPDF({ printBackground: true, preferCSSPageSize: true, ...(opts.paper === 'a4' ? { pageSize: 'A4' } : {}) });
+    const data = await contents.printToPDF({ printBackground: true, preferCSSPageSize: true, ...(PAGE_SIZES[opts.paper] ? { pageSize: PAGE_SIZES[opts.paper] } : {}) });
     fs.writeFileSync(res.filePath, data);
     return res.filePath;
   }
   return new Promise<boolean>((resolve) => {
     contents.print(
-      { printBackground: true, silent: !!opts.printer, ...(opts.printer ? { deviceName: opts.printer } : {}), copies: Math.max(1, Math.min(5, opts.copies ?? 1)) },
+      // حجم الورق لازم ينبعت للطابعة صراحة: بدونه الطابعة بتاخد A4 (الافتراضي عندها) وبتعطي «الورق غلط» إذا حاطط A5
+      { printBackground: true, silent: !!opts.printer, ...(opts.printer ? { deviceName: opts.printer } : {}), ...(PAGE_SIZES[opts.paper] ? { pageSize: PAGE_SIZES[opts.paper] } : {}), copies: Math.max(1, Math.min(5, opts.copies ?? 1)) },
       (success) => {
         refocus();
         resolve(success);
