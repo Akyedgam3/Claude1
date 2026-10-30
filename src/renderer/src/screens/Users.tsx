@@ -88,6 +88,7 @@ function UserForm({ user, onClose }: { user: User | null; onClose: () => void })
             active: f.active,
             ...(f.extra.size ? { extra: [...f.extra] } : {}),
             ...(f.denied.size ? { denied: [...f.denied] } : {}),
+            ...(f.cashAccountId ? { cashAccountId: f.cashAccountId } : {}),
           };
           if (!user && f.password.length < 6) return notify('كلمة السر 6 أحرف على الأقل', 'error');
           const res = user ? await call('updateUser', data, f.password || undefined) : await call('createUser', data, f.password);
