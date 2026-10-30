@@ -76,6 +76,7 @@ export interface CustomerDisplayData {
 
 export const api = {
   info: () => inv<AppInfo>('app:info'),
+  refocus: () => inv<boolean>('app:refocus'),
   activate: (key: string) => inv<LicenseStatus>('license:activate', key),
   refreshLicense: () => inv<LicenseStatus>('license:refresh'),
   /** بالجوال: 'installing' أو 'permission' (لازم يسمح بالتنصيب ويرجع يضغط) أو 'browser'. */

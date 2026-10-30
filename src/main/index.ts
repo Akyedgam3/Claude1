@@ -367,6 +367,11 @@ function registerIpc(): void {
     return 'clipboard';
   });
 
+  // شبكة أمان: الواجهة بتطلبها إذا انكبس على الصفحة وهي مش مستلمة الكيبورد
+  handle('app:refocus', () => {
+    refocus();
+    return true;
+  }, { allowLocked: true });
   handle('app:activities', () => Object.values(ACTIVITIES).map((a) => ({ id: a.id, name: a.name, description: a.description, icon: a.icon })), { allowLocked: true });
 
   // ── إنشاء وفتح الشركات (على هذا الجهاز) ──
