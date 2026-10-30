@@ -109,11 +109,18 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
             <button onClick={() => setPlacing(true)}>تحديد الأماكن</button>
           </>
         )}
-        {can('stock.adjust') && (
-          <button onClick={() => navigate('stock', 'count')}>
-            <Icon name="check" size={16} /> جرد المواد
-          </button>
-        )}
+        {can('stock.adjust') &&
+          (Object.keys(state.warehouses).length > 1 ? (
+            Object.values(state.warehouses).map((w) => (
+              <button key={w.id} onClick={() => navigate('stock', `count:${w.id}`)}>
+                <Icon name="check" size={16} /> جرد {w.name}
+              </button>
+            ))
+          ) : (
+            <button onClick={() => navigate('stock', 'count')}>
+              <Icon name="check" size={16} /> جرد المواد
+            </button>
+          ))}
         <button onClick={() => setLabels(items.filter((i) => i.barcode || i.code).slice(0, 60))}>طباعة ملصقات</button>
         <ExportButtons
           name={profile.itemsLabel}

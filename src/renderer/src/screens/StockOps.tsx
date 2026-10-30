@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { ADJUSTMENT_NAMES, expiringBatches, itemPlace, withPlace, type Item } from '../../../core';
 import { dateText, major, money, parseAmount, qtyText, today, uid, useCompany } from '../api';
 import { ExportButtons, PrintButtons, DocHeader } from '../components/print';
-import { ConfirmButton, CurrencySelect, Empty, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, SearchBox, Tabs } from '../components/ui';
+import { askConfirm, ConfirmButton, CurrencySelect, Empty, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, SearchBox, Tabs } from '../components/ui';
 import { Icon } from '../components/icons';
 import { PlaceInput } from '../components/PlaceInput';
 
@@ -10,7 +10,9 @@ type Tab = 'opening' | 'count' | 'damage' | 'transfer' | 'expiry' | 'history';
 
 export function StockOps({ tab: initial }: { tab?: string }) {
   const { can, feature, state } = useCompany();
-  const [tab, setTab] = useState<Tab>((initial as Tab) ?? (can('stock.adjust') ? 'count' : 'transfer'));
+  // «count:<المستودع>» بيفتح جرد مستودع معيّن
+  const [first, wh] = (initial ?? '').split(':');
+  const [tab, setTab] = useState<Tab>((first as Tab) || (can('stock.adjust') ? 'count' : 'transfer'));
   return (
     <div className="page">
       <PageHeader title="الجرد وعمليات المخزون" />
@@ -27,7 +29,7 @@ export function StockOps({ tab: initial }: { tab?: string }) {
         ]}
       />
       {tab === 'opening' && <Opening />}
-      {tab === 'count' && <Count />}
+      {tab === 'count' && <Count key={wh ?? ''} initialWarehouse={wh && state.warehouses[wh] ? wh : undefined} />}
       {tab === 'damage' && <Damage />}
       {tab === 'transfer' && <Transfer />}
       {tab === 'expiry' && <Expiry />}
@@ -289,33 +291,61 @@ function Opening() {
   );
 }
 
-function Count() {
+function Count({ initialWarehouse }: { initialWarehouse?: string }) {
   const { state, call, notify, can } = useCompany();
   const [date, setDate] = useState(today());
-  const [warehouseId, setWarehouseId] = useState(firstWarehouse(state));
+  const [warehouseId, setWarehouseId] = useState(initialWarehouse ?? firstWarehouse(state));
   const [query, setQuery] = useState('');
   const [counted, setCounted] = useState<Record<string, string>>({});
-  const items = useMemo(() => Object.values(state.items).filter((i) => i.kind === 'stock' && !i.archived && !i.trackSerial && itemMatches(i, query)).sort((a, b) => a.code.localeCompare(b.code, 'ar', { numeric: true })), [state.items, query]);
+  const warehouses = Object.values(state.warehouses);
+  const many = warehouses.length > 1;
+  // بأكتر من مستودع: افتراضياً المواد اللي إلها رصيد أو مكان بهالمستودع بس
+  const [onlyHere, setOnlyHere] = useState(true);
+  const items = useMemo(
+    () =>
+      Object.values(state.items)
+        .filter((i) => i.kind === 'stock' && !i.archived && !i.trackSerial && itemMatches(i, query))
+        .filter((i) => !many || !onlyHere || (state.stock[i.id]?.qty[warehouseId] ?? 0) !== 0 || !!itemPlace(i, warehouseId) || counted[i.id] !== undefined)
+        .sort((a, b) => a.code.localeCompare(b.code, 'ar', { numeric: true })),
+    [state.items, state.stock, query, many, onlyHere, warehouseId, counted],
+  );
+  const pickWarehouse = async (w: string) => {
+    if (w === warehouseId) return;
+    if (Object.values(counted).some((v) => v.trim()) && !(await askConfirm('في كميات مكتوبة بهالجرد وما انعتمدت. تتركها وتنتقل لمستودع تاني؟'))) return;
+    setWarehouseId(w);
+    setCounted({}); // الجرد يخص مستودعاً واحداً
+  };
   const changed = Object.entries(counted).filter(([, v]) => v.trim() !== '');
   const showCost = can('costs.view');
 
   return (
     <section className="card">
-      <p className="muted">اكتب الكمية الفعلية الموجودة على الرف فقط للمواد التي جردتها. الفرق يُسجّل تلقائياً بالتكلفة الوسطية في حساب "فروقات الجرد".</p>
+      {many && (
+        <div className="preset-row" style={{ marginBottom: 12 }}>
+          {warehouses.map((w) => (
+            <button key={w.id} type="button" className={w.id === warehouseId ? 'primary' : ''} onClick={() => void pickWarehouse(w.id)}>
+              <Icon name="check" size={16} /> جرد {w.name}
+            </button>
+          ))}
+        </div>
+      )}
+      <p className="muted">
+        {many ? <b>عم تجرد: {state.warehouses[warehouseId]?.name}. </b> : null}
+        اكتب الكمية الفعلية الموجودة على الرف فقط للمواد التي جردتها. الفرق يُسجّل تلقائياً بالتكلفة الوسطية في حساب "فروقات الجرد".
+      </p>
       <div className="toolbar">
         <Field label="التاريخ">
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
-        <WarehouseSelect
-          value={warehouseId}
-          onChange={(w) => {
-            setWarehouseId(w);
-            setCounted({}); // الجرد يخص مستودعاً واحداً
-          }}
-        />
+        {many && (
+          <label className="check">
+            <input type="checkbox" checked={onlyHere} onChange={(e) => setOnlyHere(e.target.checked)} /> بس مواد هالمستودع
+          </label>
+        )}
         <SearchBox value={query} onChange={setQuery} placeholder="ابحث أو امسح الباركود..." />
         <PrintButtons kind="report" name="ورقة جرد" papers={['a4']} />
       </div>
+      {many && onlyHere && !query && items.length === 0 && <p className="muted">ما في مواد إلها رصيد أو مكان بهالمستودع. شيل علامة «بس مواد هالمستودع» لتشوف كل المواد.</p>}
       <div className="print-area">
         <div className="print-only">
           <DocHeader title="ورقة جرد">
