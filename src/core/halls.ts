@@ -67,6 +67,8 @@ export const HALL_EXPENSES: { name: string; accountId: string }[] = [
   { name: 'غاز', accountId: '5209' },
   { name: 'منظفات ومحارم', accountId: '5209' },
   { name: 'صيانة', accountId: '5207' },
+  { name: 'مستلزمات الصالة', accountId: '5209' },
+  { name: 'أجور إضافية', accountId: '5201' },
 ];
 
 /** المصاريف المدفوعة بالشهر (سندات دفع على حسابات المصاريف 5xxx)، مع اسم البند من أول البيان. */

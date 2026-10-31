@@ -135,17 +135,13 @@ export async function bookingImage(state: CompanyState, b: HallBooking, o: { tod
 /** جدول الحجوزات كصورة: مرتّب بالتاريخ، وكل حجز شقد قيمته وشقد دفع عربون وشقد باقي (إذا بدك المبالغ). */
 export async function bookingsTableImage(state: CompanyState, list: HallBooking[], o: { title: string; amounts: boolean; fmt: (b: HallBooking, minor: number) => string }): Promise<ShareImage> {
   await fonts();
-  const many = hallNames(state).length > 1;
   type Col = { h: string; w: number; v: (b: HallBooking, i: number) => string; c?: (b: HallBooking) => string; ltr?: boolean };
   const cols: Col[] = [
     { h: '#', w: 60, v: (_b, i) => String(i + 1) },
     { h: 'التاريخ', w: 300, v: (b) => `${dayName(b.date)} ${dmy(b.date)}` },
     { h: 'الموعد', w: 300, v: (b) => `${HALL_PERIODS[b.period]}${bookingHours(b) ? ` ${bookingHours(b)}` : ''}` },
-    ...(many ? [{ h: 'الصالة', w: 190, v: (b: HallBooking) => b.hall }] : []),
     { h: 'المناسبة', w: 380, v: (b) => `${b.eventType}${b.title ? ` — ${b.title}` : ''}` },
-    { h: 'الزبون', w: 260, v: (b) => state.parties[b.partyId]?.name ?? '' },
     { h: 'الإضافات', w: 260, v: (b) => b.extras || '—' },
-    { h: 'الحالة', w: 150, v: (b) => BOOKING_STATUS_NAMES[b.status], c: (b) => (b.status === 'cancelled' ? '#c0392b' : b.status === 'tentative' ? '#9a6b12' : '#128a5c') },
     ...(o.amounts
       ? [
           { h: 'القيمة', w: 230, v: (b: HallBooking) => o.fmt(b, bookingTotals(b).total) },
