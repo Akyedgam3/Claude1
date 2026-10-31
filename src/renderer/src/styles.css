@@ -3922,9 +3922,9 @@ button.danger-soft {
 
 /* ── صالة الأفراح: تقويم الحجوزات ── */
 .hall-cal .cal-head { display: flex; align-items: center; justify-content: center; gap: 18px; margin-bottom: 12px; font-size: 20px; }
-.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
 .cal-dow { text-align: center; font-weight: 700; color: var(--muted); font-size: 13px; padding: 4px 0; }
-.cal-day { min-height: 104px; border: 1px solid var(--border); border-radius: 10px; padding: 6px; display: flex; flex-direction: column; gap: 4px; cursor: pointer; background: var(--card, #fff); }
+.cal-day { position: relative; min-width: 0; min-height: 76px; border: 1px solid var(--border); border-radius: 10px; padding: 6px; display: flex; flex-direction: column; gap: 4px; cursor: pointer; background: var(--card, #fff); }
 .cal-day.empty { border: 0; background: none; cursor: default; }
 .cal-day.past { opacity: 0.55; cursor: default; }
 .cal-day.today { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
@@ -4004,3 +4004,13 @@ button.whatsapp:hover { background: #1ebe5b; }
   background: var(--warn-bg, #fff4d6);
   border-color: #e0b341;
 }
+
+/* التقويم: اليوم المحجوز بيتلوّن بس */
+.cal-day.booked { background: var(--primary-soft); border-color: var(--primary); }
+.cal-day.booked .cal-n { color: var(--primary); }
+.cal-day.booked.tentative { background: rgba(231, 183, 90, 0.2); border-color: #d9a441; }
+.cal-day.booked.tentative .cal-n { color: #9a6b12; }
+.cal-day.full .cal-n { color: #c0392b; }
+.cal-count { position: absolute; bottom: 4px; inset-inline-start: 6px; font-size: 11px; font-weight: 700; min-width: 18px; height: 18px; line-height: 18px; text-align: center; border-radius: 9px; background: var(--primary); color: #fff; }
+.day-list { display: flex; flex-direction: column; gap: 8px; }
+.day-list .cal-ev { font-size: 15px; padding: 10px 12px; }

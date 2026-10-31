@@ -974,3 +974,11 @@ body.mobile .web-connect > p.center {
 @keyframes web-scan-laser { from { top: 12%; } to { top: 86%; } }
 .web-scan-hint { position: absolute; top: calc(env(safe-area-inset-top) + 40px); left: 0; right: 0; text-align: center; color: #fff; font-weight: 700; font-size: 17px; }
 .web-scan-close { position: absolute; bottom: calc(env(safe-area-inset-bottom) + 36px); left: 50%; transform: translateX(-50%); min-width: 160px; padding: 14px 28px; border-radius: 30px; border: 0; background: rgba(255, 255, 255, 0.92); color: #111; font: inherit; font-weight: 700; font-size: 17px; }
+
+/* تقويم الصالة على الجوال: سبع خانات متساوية بعرض الشاشة */
+body.mobile .cal-grid { gap: 3px; }
+body.mobile .cal-day { min-height: 44px; padding: 4px 2px; border-radius: 8px; align-items: center; justify-content: center; }
+body.mobile .cal-dow { font-size: 10px; padding: 2px 0; white-space: nowrap; overflow: hidden; }
+body.mobile .cal-n { font-size: 13px; }
+body.mobile .cal-count { bottom: 2px; inset-inline-start: 2px; font-size: 9px; min-width: 14px; height: 14px; line-height: 14px; }
+body.mobile .hall-cal { padding: 10px 6px; }

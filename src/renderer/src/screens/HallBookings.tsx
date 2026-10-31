@@ -115,6 +115,7 @@ function Calendar({ onOpen }: { onOpen: (b: HallBooking | null, date?: string) =
   };
   const halls = hallNames(state);
   const t = today();
+  const [day, setDay] = useState<string | null>(null);
   return (
     <section className="card hall-cal">
       <div className="cal-head">
@@ -129,7 +130,7 @@ function Calendar({ onOpen }: { onOpen: (b: HallBooking | null, date?: string) =
         </button>
       </div>
       <div className="cal-grid">
-        {DAYS.map((x) => (
+        {(IS_MOBILE ? DAYS.map((x) => x.replace(/^ال/, '')) : DAYS).map((x) => (
           <div key={x} className="cal-dow">
             {x}
           </div>
@@ -141,32 +142,63 @@ function Calendar({ onOpen }: { onOpen: (b: HallBooking | null, date?: string) =
           const date = `${ym}-${String(i + 1).padStart(2, '0')}`;
           const list = (byDate[date] ?? []).sort(compareBookings);
           const full = halls.every((h) => list.some((b) => b.hall === h && (b.period === 'full' || (list.some((x) => x.hall === h && x.period === 'morning') && list.some((x) => x.hall === h && x.period === 'evening')))));
+          // اليوم المحجوز بيتلوّن بس (بدون أسماء): مؤكد أخضر، مبدئي أصفر، وكل الصالات محجوزة أحمر
+          const tone = !list.length ? '' : full ? ' full' : list.every((b) => b.status === 'tentative') ? ' booked tentative' : ' booked';
           return (
-            <div key={date} className={`cal-day${date === t ? ' today' : ''}${date < t ? ' past' : ''}${full ? ' full' : ''}`} onClick={() => can('bookings.manage') && date >= t && onOpen(null, date)}>
+            <div
+              key={date}
+              className={`cal-day${date === t ? ' today' : ''}${date < t ? ' past' : ''}${tone}`}
+              title={list.length ? `${list.length} حجز` : undefined}
+              onClick={() => {
+                if (list.length) setDay(date);
+                else if (can('bookings.manage') && date >= t) onOpen(null, date);
+              }}
+            >
               <span className="cal-n">{i + 1}</span>
-              {list.map((b) => (
-                <button
-                  key={b.id}
-                  className={`cal-ev ${b.status}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onOpen(b);
-                  }}
-                  title={`${b.hall} · ${HALL_PERIODS[b.period]}`}
-                >
-                  {b.eventType} {b.title ? `· ${b.title}` : ''}
-                  <small>
-                    {halls.length > 1 ? `${b.hall} · ` : ''}
-                    {HALL_PERIODS[b.period]}
-                    {b.startTime ? ` · ${bookingHours(b)}` : ''}
-                  </small>
-                </button>
-              ))}
+              {list.length > 1 && <span className="cal-count">{list.length}</span>}
             </div>
           );
         })}
       </div>
-      <p className="muted">اكبس على يوم فاضي لتعمل حجز جديد فيه. الأحمر يعني كل الصالات محجوزة بهاليوم.</p>
+      {day && (
+        <Modal title={`حجوزات ${dateText(day)}`} onClose={() => setDay(null)} width={460}>
+          <div className="day-list">
+            {(byDate[day] ?? []).sort(compareBookings).map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                className={`cal-ev ${b.status}`}
+                onClick={() => {
+                  setDay(null);
+                  onOpen(b);
+                }}
+              >
+                {b.eventType} {b.title ? `· ${b.title}` : ''}
+                <small>
+                  {halls.length > 1 ? `${b.hall} · ` : ''}
+                  {HALL_PERIODS[b.period]}
+                  {b.startTime ? ` · ${bookingHours(b)}` : ''}
+                </small>
+              </button>
+            ))}
+          </div>
+          {can('bookings.manage') && day >= t && (
+            <div className="form-actions">
+              <button
+                className="primary"
+                onClick={() => {
+                  const d = day;
+                  setDay(null);
+                  onOpen(null, d);
+                }}
+              >
+                + حجز جديد بهاليوم
+              </button>
+            </div>
+          )}
+        </Modal>
+      )}
+      <p className="muted">اكبس على يوم فاضي لتعمل حجز جديد، أو على يوم ملوّن لتشوف حجوزاته. الأخضر محجوز، الأصفر حجز مبدئي، والأحمر كل الصالات محجوزة.</p>
     </section>
   );
 }
