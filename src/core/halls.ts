@@ -153,3 +153,26 @@ export function bookingsTableText(state: CompanyState, rows: HallBooking[], opts
   out.push(`المجموع: ${rows.length} حجز`);
   return out.join('\n');
 }
+
+/** خانات الحجز اللي فيك تخفيها من «إعدادات الصالة» (التاريخ واسم العريس دايماً ظاهرين). */
+export const BOOKING_FIELDS = {
+  customer: 'الزبون',
+  eventType: 'المناسبة',
+  period: 'الفترة (صباحي/مسائي)',
+  startTime: 'ساعة البداية',
+  endTime: 'ساعة الانتهاء',
+  groomPhone: 'رقم العريس',
+  extras: 'الإضافات',
+  services: 'الخدمات (وإلا قيمة الحجز بس)',
+  discount: 'الخصم',
+  status: 'الحالة',
+  currency: 'العملة',
+  notes: 'الملاحظات',
+} as const;
+export type BookingField = keyof typeof BOOKING_FIELDS;
+
+export function hiddenBookingFields(state: CompanyState): BookingField[] {
+  const h = (state.info?.hallHidden ?? []).filter((k): k is BookingField => k in BOOKING_FIELDS);
+  if (state.info?.hallNoCustomer && !h.includes('customer')) h.push('customer');
+  return h;
+}

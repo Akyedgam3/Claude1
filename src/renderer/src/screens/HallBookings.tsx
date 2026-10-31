@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  BOOKING_FIELDS,
   BOOKING_STATUS_NAMES,
+  hiddenBookingFields,
+  type BookingField,
   EVENT_TYPES,
   HALL_EXPENSES,
   bookingHours,
@@ -399,6 +402,8 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
   const [depositing, setDepositing] = useState(false);
   const [invoicing, setInvoicing] = useState(false);
   const locked = !!booking?.invoiceId;
+  // خانات الحجز اللي بيختارها صاحب الصالة من «إعدادات الصالة»
+  const show = (k: BookingField) => !hiddenBookingFields(state).includes(k);
   const setLine = (i: number, patch: Partial<LineForm>) => setLines((ls) => ls.map((x, j) => (j === i ? { ...x, ...patch } : x)));
 
   const build = (): Omit<HallBooking, 'number' | 'deposits' | 'invoiceId' | 'createdAt'> | string => {
@@ -458,7 +463,7 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
   return (
     <Modal title={booking ? `حجز رقم ${booking.number}` : 'حجز جديد'} onClose={onClose} width={980}>
       <div className="form-grid">
-{!state.info?.hallNoCustomer && (
+{show('customer') && (
                   <Field label="الزبون (اختياري)">
           <div className="with-button">
             <Picker options={partyOptions(state, 'customer')} value={f.partyId || null} onChange={(v) => set('partyId', v ?? '')} placeholder="بيكفي اسم العريس..." />
@@ -470,6 +475,7 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
           </div>
         </Field>
         )}
+        {show('eventType') && (
         <Field label="المناسبة">
           <input list="event-types" value={f.eventType} onChange={(e) => set('eventType', e.target.value)} disabled={locked} />
           <datalist id="event-types">
@@ -478,6 +484,7 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
             ))}
           </datalist>
         </Field>
+        )}
         <Field label="أسماء العرسان / اسم المناسبة">
           <input placeholder="أحمد ♥ سلمى" value={f.title} onChange={(e) => set('title', e.target.value)} disabled={locked} />
         </Field>
@@ -493,6 +500,7 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
         <Field label="التاريخ">
           <input type="date" value={f.date} onChange={(e) => set('date', e.target.value)} disabled={locked} />
         </Field>
+        {show('period') && (
         <Field label="الفترة">
           <select value={f.period} onChange={(e) => set('period', e.target.value as HallPeriod)} disabled={locked}>
             {(Object.keys(HALL_PERIODS) as HallPeriod[]).map((p) => (
@@ -502,18 +510,28 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
             ))}
           </select>
         </Field>
+        )}
+        {show('startTime') && (
         <Field label="ساعة بداية الحفل">
           <input type="time" value={f.startTime} onChange={(e) => set('startTime', e.target.value)} disabled={locked} />
         </Field>
+        )}
+        {show('endTime') && (
         <Field label="ساعة انتهاء الحفل">
           <input type="time" value={f.endTime} onChange={(e) => set('endTime', e.target.value)} disabled={locked} />
         </Field>
+        )}
+        {show('groomPhone') && (
         <Field label="رقم العريس">
           <input type="tel" dir="ltr" placeholder="09xx xxx xxx" value={f.groomPhone} onChange={(e) => set('groomPhone', e.target.value)} disabled={locked} />
         </Field>
+        )}
+        {show('extras') && (
         <Field label="الإضافات">
           <input placeholder="جلسة تصوير، زفة، كيك..." value={f.extras} onChange={(e) => set('extras', e.target.value)} disabled={locked} />
         </Field>
+        )}
+        {show('status') && (
         <Field label="الحالة">
           <select value={f.status} onChange={(e) => set('status', e.target.value as BookingStatus)} disabled={locked}>
             {(locked ? [f.status] : EDIT_STATUS).map((s) => (
@@ -523,9 +541,12 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
             ))}
           </select>
         </Field>
+        )}
+        {show('currency') && (
         <Field label="العملة">
           <CurrencySelect value={f.currency} onChange={(c) => set('currency', c)} />
         </Field>
+        )}
         {clash && f.status !== 'cancelled' && (
           <div className="banner wide bad">
             {f.hall} محجوزة بهاليوم ({HALL_PERIODS[clash.period]}): {clash.eventType}
@@ -533,6 +554,8 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
           </div>
         )}
 
+        {show('services') ? (
+          <>
         <h3 className="wide form-section">الخدمات</h3>
         {!locked && (
           <div className="wide preset-row">
@@ -591,12 +614,22 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
             </tbody>
           </table>
         </div>
+          </>
+        ) : (
+          <Field label="قيمة الحجز">
+            <input inputMode="decimal" value={lines[0]?.price ?? ''} onChange={(e) => (lines.length ? setLine(0, { price: e.target.value }) : setLines([{ id: uid(), name: 'أجار الصالة', perGuest: false, qty: '1', price: e.target.value }]))} disabled={locked} />
+          </Field>
+        )}
+        {show('discount') && (
         <Field label="خصم">
           <input inputMode="decimal" value={f.discount} onChange={(e) => set('discount', e.target.value)} disabled={locked} />
         </Field>
+        )}
+        {show('notes') && (
         <Field label="ملاحظات">
           <input placeholder="طلبات خاصة، توقيت الزفة..." value={f.notes} onChange={(e) => set('notes', e.target.value)} disabled={locked} />
         </Field>
+        )}
         {totals && (
           <div className="kv wide">
             <span>قيمة الحجز</span>
@@ -912,11 +945,11 @@ function HallsForm({ onClose }: { onClose: () => void }) {
   const { state, call, notify } = useCompany();
   const [text, setText] = useState(hallNames(state).join('\n'));
   const [phone, setPhone] = useState(state.info?.phone ?? '');
-  const [noCustomer, setNoCustomer] = useState(!!state.info?.hallNoCustomer);
+  const [hidden, setHidden] = useState<BookingField[]>(() => hiddenBookingFields(state));
   const save = async () => {
     const halls = [...new Set(text.split('\n').map((x) => x.trim()).filter(Boolean))];
     if (!halls.length) return notify('اكتب اسم صالة وحدة عالأقل', 'error');
-    if (await call('updateCompany', { halls, phone: phone.trim(), hallNoCustomer: noCustomer })) {
+    if (await call('updateCompany', { halls, phone: phone.trim(), hallHidden: hidden, hallNoCustomer: false })) {
       notify('انحفظت الإعدادات');
       onClose();
     }
@@ -931,9 +964,16 @@ function HallsForm({ onClose }: { onClose: () => void }) {
         <Field label="رقم التواصل (بيطلع على إيصال الحجز)" wide>
           <input type="tel" dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="09xx xxx xxx" />
         </Field>
-        <label className="check wide">
-          <input type="checkbox" checked={noCustomer} onChange={(e) => setNoCustomer(e.target.checked)} /> شيل خانة «الزبون» من الحجز (بيكفي اسم العريس)
-        </label>
+        <div className="field wide">
+          <span>خانات الحجز الجديد (شيل العلامة عن اللي ما بدك ياه، والتاريخ واسم العريس دايماً موجودين)</span>
+          <div className="perm-grid">
+            {(Object.keys(BOOKING_FIELDS) as BookingField[]).map((k) => (
+              <label key={k} className="check">
+                <input type="checkbox" checked={!hidden.includes(k)} onChange={(e) => setHidden((h) => (e.target.checked ? h.filter((x) => x !== k) : [...h, k]))} /> {BOOKING_FIELDS[k]}
+              </label>
+            ))}
+          </div>
+        </div>
         <div className="form-actions wide">
           <button type="button" onClick={onClose}>
             إلغاء
