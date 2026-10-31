@@ -219,5 +219,9 @@ describe('dealer box', () => {
     const tb = trialBalance(visibleState(st, ph));
     expect(tb.totalDebit).toBe(tb.totalCredit);
     expect(visibleState(st, ph).invoices.find((i) => i.date === '2026-01-06')!.total).toBe(1000);
+    // دين زبون المورد (بيع آجل لأدوية الصيدلية) ما بيبين عند الصيدلية: حقها عند المورد
+    const { partyBalance } = await import('../src/core');
+    expect(partyBalance(visibleState(store.ledger.state, ph), 'c').base).toBe(0);
+    expect(partyBalance(visibleState(store.ledger.state, me), 'c').base).toBe(2000);
   });
 });

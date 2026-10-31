@@ -166,10 +166,13 @@ export function visibleState(state: CompanyState, user: User): CompanyState {
   // وقيودها كمان (وإلا أرباحها وديونها بتبين بلوحة الأرباح والتقارير)، وحركات صندوق المورد (سندات ومصاريف)،
   // إلا تحويلات الصندوقين وفواتير أدوية الصيدلية اللي باعها المورد (هدول حق الصيدلية)
   const hiddenAcc = new Set(Object.values(state.accounts).filter((a) => a.hidden).map((a) => a.id));
+  // جرد/رصيد افتتاحي/تالف لبضاعة المورد بس: ما بيبين (ولا قيمته بالمخزون)
+  const hiddenAdj = new Set(hasItems ? state.adjustments.filter((a) => a.lines.length && a.lines.every((l) => state.items[l.itemId]?.hidden)).map((a) => a.id) : []);
+  const hiddenAdjEntries = new Set(state.adjustments.filter((a) => hiddenAdj.has(a.id) && a.entryId).map((a) => a.entryId!));
   const KEEP = new Set(['invoice', 'reprice', 'boxtransfer', 'dealersale']);
   const hideIds = new Set(
     state.entries
-      .filter((e) => (e.source && (e.source.type === 'invoice' || e.source.type === 'reprice') && hiddenInv.has(e.source.id)) || (!KEEP.has(e.source?.type ?? '') && e.lines.some((l) => hiddenAcc.has(l.accountId))))
+      .filter((e) => hiddenAdjEntries.has(e.id) || (e.source && (e.source.type === 'invoice' || e.source.type === 'reprice') && hiddenInv.has(e.source.id)) || (!KEEP.has(e.source?.type ?? '') && e.lines.some((l) => hiddenAcc.has(l.accountId))))
       .map((e) => e.id),
   );
   let entries = hideIds.size ? state.entries.filter((e) => !hideIds.has(e.id) && !(e.voidOf && hideIds.has(e.voidOf))) : state.entries;
@@ -178,7 +181,7 @@ export function visibleState(state: CompanyState, user: User): CompanyState {
   for (const inv of invoices) {
     if (inv.cashAccountId !== DEALER_BOX_ID || (inv.kind !== 'sale' && inv.kind !== 'sale_return') || !(inv.total > 0)) continue;
     const f = pharmacyValue(state, inv) / inv.total;
-    if (f > 0 && f < 1) scale.set(inv.id, f);
+    if (f > 0) scale.set(inv.id, Math.min(f, 1));
   }
   if (scale.size) {
     const byEntry = new Map(invoices.filter((i) => scale.has(i.id)).map((i) => [i.entryId, scale.get(i.id)!] as const));
@@ -192,12 +195,26 @@ export function visibleState(state: CompanyState, user: User): CompanyState {
       return { ...inv, total: Math.round(inv.total * f), paid: Math.round(inv.paid * f), lines: inv.lines.map((l) => ({ ...l, price: Math.round(l.price * f) })) };
     });
   }
-  return { ...state, items, accounts, invoices, entries };
+  // زباين وموردين بضاعة المورد الخاصة (ما إلهم أي حركة ظاهرة للصيدلية) ما بيبينو
+  const used = new Set<string>();
+  for (const inv of invoices) if (inv.partyId) used.add(inv.partyId);
+  for (const e of entries) for (const l of e.lines) if (l.partyId) used.add(l.partyId);
+  const onlyHidden = new Set<string>();
+  for (const inv of state.invoices) if (hiddenInv.has(inv.id) && inv.partyId && !used.has(inv.partyId)) onlyHidden.add(inv.partyId);
+  for (const e of state.entries) if (hideIds.has(e.id)) for (const l of e.lines) if (l.partyId && !used.has(l.partyId)) onlyHidden.add(l.partyId);
+  const parties = onlyHidden.size ? Object.fromEntries(Object.entries(state.parties).map(([id, p]) => [id, onlyHidden.has(id) ? { ...p, archived: true } : p])) : state.parties;
+  const adjustments = hiddenAdj.size ? state.adjustments.filter((a) => !hiddenAdj.has(a.id)) : state.adjustments;
+  return { ...state, items, accounts, invoices, entries, parties, adjustments };
 }
 
 /** بيصغّر إيراد قيد الفاتورة بنسبة f، والفرق بينطرح من الطرف المقابل (صندوق المورد أولاً ثم ذمة الزبون). */
 function scaleRevenue(state: CompanyState, e: CompanyState['entries'][number], f: number): CompanyState['entries'][number] {
-  const lines = e.lines.map((l) => ({ ...l }));
+  // دين الزبون على فاتورة المورد هو للمورد (والصيدلية حقها عند المورد)، فبيروح على صندوقه الخاص
+  const lines = e.lines.map((l) => {
+    if (!l.partyId || state.accounts[l.accountId]?.type === 'revenue') return { ...l };
+    const { partyId: _p, ...rest } = l;
+    return { ...rest, accountId: DEALER_BOX_ID };
+  });
   let dBase = 0;
   for (const l of lines) {
     if (state.accounts[l.accountId]?.type !== 'revenue') continue;
