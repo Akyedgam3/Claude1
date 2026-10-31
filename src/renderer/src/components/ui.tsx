@@ -14,6 +14,10 @@ export function Field({ label, children, wide }: { label: string; children: Reac
 
 const modalStack: object[] = [];
 
+let lastModalClose = 0;
+/** سكّرت نافذة هلق؟ (الكبسة نفسها ما لازم تفوت على شي تحتها) */
+export const justClosedModal = () => Date.now() - lastModalClose < 600;
+
 export function Modal({ title, onClose, children, width }: { title: string; onClose: () => void; children: ReactNode; width?: number }) {
   const close = useRef(onClose);
   close.current = onClose;
@@ -21,6 +25,8 @@ export function Modal({ title, onClose, children, width }: { title: string; onCl
     // النوافذ المتداخلة: Escape يغلق العليا فقط، ولا يغلقها إن كانت قائمة اختيار مفتوحة
     const me = {};
     modalStack.push(me);
+    // الجوال: شريط الأزرار تحت ما بيستقبل كبسات والنافذة مفتوحة (ولا لحظة سكّرتها)، حتى ما تفوت الكبسة عليه
+    document.body.classList.add('modal-open');
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.defaultPrevented || modalStack[modalStack.length - 1] !== me) return;
       close.current();
@@ -29,6 +35,8 @@ export function Modal({ title, onClose, children, width }: { title: string; onCl
     return () => {
       window.removeEventListener('keydown', onKey);
       modalStack.splice(modalStack.indexOf(me), 1);
+      lastModalClose = Date.now();
+      if (!modalStack.length) setTimeout(() => !modalStack.length && document.body.classList.remove('modal-open'), 500);
     };
   }, []);
   return (

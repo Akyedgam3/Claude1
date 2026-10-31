@@ -982,3 +982,6 @@ body.mobile .cal-dow { font-size: 10px; padding: 2px 0; white-space: nowrap; ove
 body.mobile .cal-n { font-size: 13px; }
 body.mobile .cal-count { bottom: 2px; inset-inline-start: 2px; font-size: 9px; min-width: 14px; height: 14px; line-height: 14px; }
 body.mobile .hall-cal { padding: 10px 6px; }
+
+/* والنافذة مفتوحة: شريط الأزرار تحت ما بيستقبل كبسات (كانت الكبسة على «مشاركة» تفوت على «الديون») */
+body.mobile.modal-open .bottom-nav { pointer-events: none; }

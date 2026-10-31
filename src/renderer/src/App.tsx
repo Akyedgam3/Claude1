@@ -4,7 +4,7 @@ import type { EventItem } from '../../app/lan';
 import type { LicenseStatus } from '../../license/manager';
 import { api, Company, IS_MOBILE, moneyMask, noteIdleDispatcher, setMaskHere, IS_WEB, makeCtxHelpers, visibleState, type AppInfo, type CompanyCtx, type SessionInfo } from './api';
 import logoSmall from './assets/logo-64.png';
-import { ConfirmHost } from './components/ui';
+import { ConfirmHost, justClosedModal } from './components/ui';
 import logo from './assets/logo.png';
 import { Icon } from './components/icons';
 import { QuickSearch } from './components/QuickSearch';
@@ -429,12 +429,12 @@ export function App() {
             ]
               .filter((n): n is NavItem => !!n)
               .map((n) => (
-                <button key={n.key} className={screen.key === n.key ? 'active' : ''} onClick={() => navigate(n.key)}>
+                <button key={n.key} className={screen.key === n.key ? 'active' : ''} onClick={() => !justClosedModal() && navigate(n.key)}>
                   <Icon name={n.icon} size={22} />
                   <span>{n.key === 'dashboard' ? 'الرئيسية' : n.key === 'sitejobs' ? 'المشاريع' : n.key === 'shipments' ? 'الشحنات' : n.key === 'stoneblocks' ? 'الكتل' : n.key === 'poultry' ? 'الفروج' : n.key === 'printjobs' ? 'الطلبات' : n.key === 'bookings' ? 'الحجوزات' : n.key === 'solar' ? 'المنظومات' : n.key === 'pos' || n.key === 'restaurant' || n.key === 'sale' ? 'البيع' : n.key === 'invoices' ? 'الفواتير' : n.label}</span>
                 </button>
               ))}
-            <button className={navOpen ? 'active' : ''} onClick={() => setNavOpen(true)}>
+            <button className={navOpen ? 'active' : ''} onClick={() => !justClosedModal() && setNavOpen(true)}>
               <Icon name="menu" size={22} />
               <span>المزيد</span>
             </button>
