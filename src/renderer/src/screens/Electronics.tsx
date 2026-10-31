@@ -15,7 +15,11 @@ export function DeviceLookup({ serial: initial }: { serial?: string }) {
   const [shown, setShown] = useState(initial ?? '');
   const [query, setQuery] = useState('');
   const h = shown ? serialHistory(state, shown, today()) : null;
-  const stock = serialsInStock(state).filter((x) => matches(query, x.serial, x.item.name, x.item.category));
+  const [wh, setWh] = useState('');
+  const warehouses = Object.values(state.warehouses);
+  const all = serialsInStock(state);
+  const stock = all.filter((x) => (!wh || x.warehouseId === wh) && matches(query, x.serial, x.item.name, x.item.category));
+  const SHOWN = 2000;
   const party = (id?: string | null) => (id ? state.parties[id]?.name : 'زبون نقدي');
   return (
     <div className="page">
@@ -102,18 +106,30 @@ export function DeviceLookup({ serial: initial }: { serial?: string }) {
       )}
       <section className="card">
         <header className="panel-header">
-          <h3>الأجهزة الموجودة بالمخزون ({serialsInStock(state).length})</h3>
+          <h3>الأجهزة الموجودة بالمخزون ({all.length})</h3>
           <div className="scan-wrap">
             <SearchBox value={query} onChange={setQuery} placeholder="بحث بالرقم أو الموديل..." />
             <CameraScanButton onCode={setQuery} title="قراءة IMEI بالكاميرا" />
           </div>
         </header>
+        {warehouses.length > 1 && (
+          <div className="preset-row" style={{ marginBottom: 10 }}>
+            <button type="button" className={`small ${wh === '' ? 'primary' : ''}`} onClick={() => setWh('')}>
+              الكل ({all.length})
+            </button>
+            {warehouses.map((w) => (
+              <button key={w.id} type="button" className={`small ${wh === w.id ? 'primary' : ''}`} onClick={() => setWh(w.id)}>
+                {w.name} ({all.filter((x) => x.warehouseId === w.id).length})
+              </button>
+            ))}
+          </div>
+        )}
         {stock.length === 0 ? (
           <p className="muted">ما في أجهزة برقم تسلسلي بالمخزون.</p>
         ) : (
           <table className="table compact">
             <tbody>
-              {stock.slice(0, 300).map((x) => (
+              {stock.slice(0, SHOWN).map((x) => (
                 <tr
                   key={x.serial}
                   className="clickable"
@@ -129,12 +145,14 @@ export function DeviceLookup({ serial: initial }: { serial?: string }) {
                     <ItemName item={x.item} />
                   </td>
                   <td className="muted">{x.item.category}</td>
+                  {warehouses.length > 1 && <td className="muted">{state.warehouses[x.warehouseId]?.name}</td>}
                   <td className="num">{money(state, x.item.price, x.item.priceCurrency)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
+        {stock.length > SHOWN && <p className="muted">عم يظهر {SHOWN} من {stock.length}. دوّر بالرقم أو الموديل لتلاقي الباقي.</p>}
       </section>
     </div>
   );

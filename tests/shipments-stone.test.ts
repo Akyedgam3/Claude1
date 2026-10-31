@@ -136,4 +136,20 @@ describe('cancel a warehouse transfer', () => {
     expect(l.state.transfers.find((x) => x.id === t2.id)!.voided).toBeUndefined();
     balanced(l);
   });
+
+  it('keeps serial numbers when a transfer is cancelled, and counts serial items by scanning', () => {
+    const l = company();
+    l.saveWarehouse({ id: 'back', name: 'المستودع الخلفي' });
+    l.saveItem({ id: 'ph', code: 'P', name: 'موبايل', kind: 'stock', unit: 'قطعة', price: 1000, priceCurrency: 'SYP', trackSerial: true });
+    l.adjustStock({ kind: 'opening', date: '2026-10-01', warehouseId: 'main', lines: [{ itemId: 'ph', qty: 3, unitCost: 500, serials: ['A1', 'A2', 'A3'] }] });
+    const t = l.transferStock({ date: '2026-10-02', from: 'main', to: 'back', lines: [{ itemId: 'ph', qty: 2, serials: ['A1', 'A2'] }] });
+    expect(l.state.stock['ph']!.serials).toEqual({ A1: 'back', A2: 'back', A3: 'main' });
+    l.voidTransfer(t.id, '2026-10-03');
+    expect(l.state.stock['ph']!.serials).toEqual({ A1: 'main', A2: 'main', A3: 'main' });
+    // جرد: لقينا A1 وA3 وجهاز جديد B9، وA2 ناقص
+    l.countStock({ date: '2026-10-04', warehouseId: 'main', lines: [{ itemId: 'ph', counted: 3, serials: ['A1', 'A3', 'B9'] }] });
+    expect(l.state.stock['ph']!.serials).toEqual({ A1: 'main', A3: 'main', B9: 'main' });
+    expect(l.state.stock['ph']!.qty['main']).toBe(3);
+    balanced(l);
+  });
 });

@@ -37,7 +37,11 @@ interface Snapshot {
   seq: number;
   hash: string;
   state: CompanyState;
+  /** نسخة طريقة بناء الحالة: لما يتصلّح شي بتطبيق الأحداث منرفعها، فاللقطة القديمة بتنهمل وبتنبنى الحالة من السجل من جديد. */
+  v?: number;
 }
+// 2: إلغاء التحويل كان يضيّع الأرقام التسلسلية (1.2.48)
+const STATE_VERSION = 2;
 
 interface KeyEntry extends WrappedKey {
   userId: string;
@@ -264,6 +268,7 @@ export class CompanyStore {
     let snapshot: Snapshot | null = null;
     try {
       snapshot = JSON.parse(open(key, readJson<Sealed>(path.join(dir, SNAPSHOT)), 'snapshot').toString('utf8'));
+      if (snapshot?.v !== STATE_VERSION) snapshot = null;
     } catch {
       snapshot = null; // اللقطة اختيارية، نعيد البناء من السجل
     }
@@ -391,7 +396,7 @@ export class CompanyStore {
   /** يحفظ لقطة مشفّرة من الحالة الحالية لتسريع الفتح القادم. */
   snapshot(): void {
     if (this.fd < 0) return;
-    const snap: Snapshot = { seq: this.seq, hash: this.lastHash, state: this.ledger.state };
+    const snap: Snapshot = { seq: this.seq, hash: this.lastHash, state: this.ledger.state, v: STATE_VERSION };
     writeAtomic(path.join(this.dir, SNAPSHOT), JSON.stringify(seal(this.key, JSON.stringify(snap), 'snapshot')));
     this.sinceSnapshot = 0;
   }

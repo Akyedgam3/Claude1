@@ -135,7 +135,8 @@ function finishAdjustment(
 export interface CountDraft {
   date: string;
   warehouseId?: string;
-  lines: { itemId: string; counted: number; batch?: string; expiry?: string }[];
+  /** للمواد بالأرقام التسلسلية: serials = الأرقام اللي انلقت فعلاً عالرف (counted = عددها). */
+  lines: { itemId: string; counted: number; batch?: string; expiry?: string; serials?: string[] }[];
   memo?: string;
 }
 
@@ -149,6 +150,26 @@ export function buildCount(ctx: OpsContext, d: CountDraft): { adjustment: StockA
     const item = state.items[l.itemId] ?? fail('مادة غير موجودة');
     if (item.kind !== 'stock') continue;
     if (!(l.counted >= 0)) fail(`كمية غير صالحة لـ"${item.name}"`);
+    if (item.trackSerial) {
+      // جرد بالأرقام: الناقص بيطلع بأرقامه، والزايد (رقم مش بالمخزون) بيدخل بأرقامه
+      const found = [...new Set((l.serials ?? []).map((x) => x.trim()).filter(Boolean))];
+      const where = state.stock[item.id]?.serials ?? {};
+      const book = Object.keys(where).filter((x) => where[x] === warehouseId);
+      const missing = book.filter((x) => !found.includes(x));
+      const extra = found.filter((x) => !where[x]);
+      const elsewhere = found.find((x) => where[x] && where[x] !== warehouseId);
+      if (elsewhere) fail(`الرقم ${elsewhere} مسجّل بمستودع «${state.warehouses[where[elsewhere]!]?.name ?? ''}». انقله بتحويل بين المستودعات`);
+      if (missing.length) {
+        const res = planner.out(item.id, warehouseId, missing.length, { serials: missing, allowNegative: true });
+        lines.push({ itemId: item.id, qty: -missing.length, cost: -res.cost, ...(res.serials ? { serials: res.serials } : {}) });
+      }
+      if (extra.length) {
+        const cost = Math.round(planner.unitCost(item.id) * extra.length);
+        const res = planner.in(item.id, warehouseId, extra.length, cost, { serials: extra });
+        lines.push({ itemId: item.id, qty: extra.length, cost, ...res });
+      }
+      continue;
+    }
     let have: number;
     if (item.trackExpiry && l.batch) {
       have = Object.values(state.stock[item.id]?.batches ?? {}).find((b) => b.warehouseId === warehouseId && b.batch === l.batch)?.qty ?? 0;

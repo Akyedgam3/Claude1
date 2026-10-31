@@ -297,14 +297,35 @@ function Count({ initialWarehouse }: { initialWarehouse?: string }) {
   const [warehouseId, setWarehouseId] = useState(initialWarehouse ?? firstWarehouse(state));
   const [query, setQuery] = useState('');
   const [counted, setCounted] = useState<Record<string, string>>({});
+  // الأجهزة بالأرقام التسلسلية: الأرقام اللي انلقت عالرف لكل مادة
+  const [found, setFound] = useState<Record<string, string[]>>({});
+  const [serialOf, setSerialOf] = useState<Item | null>(null);
+  const [scan, setScan] = useState('');
   const warehouses = Object.values(state.warehouses);
   const many = warehouses.length > 1;
+  const bookSerials = (id: string) => Object.entries(state.stock[id]?.serials ?? {}).filter(([, w]) => w === warehouseId).map(([x]) => x);
+  const setFoundFor = (id: string, list: string[]) => {
+    setFound((f) => ({ ...f, [id]: list }));
+    setCounted((c) => ({ ...c, [id]: String(list.length) }));
+  };
+  /** مسح سيريال من أي جهاز: بيتعلّم موجود عند مادته */
+  const scanSerial = (raw: string) => {
+    const x = raw.trim();
+    if (!x) return;
+    const id = Object.keys(state.stock).find((k) => state.stock[k]?.serials?.[x]);
+    if (!id || !state.items[id]) return notify(`الرقم ${x} مش موجود بالمخزون. افتح «جرد بالسيريال» عند المادة لتضيفه`, 'error');
+    if (state.stock[id]!.serials![x] !== warehouseId) return notify(`الرقم ${x} مسجّل بمستودع «${state.warehouses[state.stock[id]!.serials![x]!]?.name ?? ''}»`, 'error');
+    const cur = found[id] ?? [];
+    if (!cur.includes(x)) setFoundFor(id, [...cur, x]);
+    notify(`✓ ${state.items[id]!.name} — ${x}`);
+    setScan('');
+  };
   // بأكتر من مستودع: افتراضياً المواد اللي إلها رصيد أو مكان بهالمستودع بس
   const [onlyHere, setOnlyHere] = useState(true);
   const items = useMemo(
     () =>
       Object.values(state.items)
-        .filter((i) => i.kind === 'stock' && !i.archived && !i.trackSerial && itemMatches(i, query))
+        .filter((i) => i.kind === 'stock' && !i.archived && itemMatches(i, query))
         .filter((i) => !many || !onlyHere || (state.stock[i.id]?.qty[warehouseId] ?? 0) !== 0 || !!itemPlace(i, warehouseId) || counted[i.id] !== undefined)
         .sort((a, b) => a.code.localeCompare(b.code, 'ar', { numeric: true })),
     [state.items, state.stock, query, many, onlyHere, warehouseId, counted],
@@ -314,6 +335,7 @@ function Count({ initialWarehouse }: { initialWarehouse?: string }) {
     if (Object.values(counted).some((v) => v.trim()) && !(await askConfirm('في كميات مكتوبة بهالجرد وما انعتمدت. تتركها وتنتقل لمستودع تاني؟'))) return;
     setWarehouseId(w);
     setCounted({}); // الجرد يخص مستودعاً واحداً
+    setFound({});
   };
   const changed = Object.entries(counted).filter(([, v]) => v.trim() !== '');
   const showCost = can('costs.view');
@@ -343,6 +365,21 @@ function Count({ initialWarehouse }: { initialWarehouse?: string }) {
           </label>
         )}
         <SearchBox value={query} onChange={setQuery} placeholder="ابحث أو امسح الباركود..." />
+        {items.some((x) => x.trackSerial) && (
+          <input
+            className="mono no-print"
+            dir="ltr"
+            placeholder="امسح سيريال / IMEI ↵"
+            value={scan}
+            onChange={(e) => setScan(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                scanSerial(scan);
+              }
+            }}
+          />
+        )}
         <PrintButtons kind="report" name="ورقة جرد" papers={['a4']} />
       </div>
       {many && onlyHere && !query && items.length === 0 && <p className="muted">ما في مواد إلها رصيد أو مكان بهالمستودع. شيل علامة «بس مواد هالمستودع» لتشوف كل المواد.</p>}
@@ -381,7 +418,13 @@ function Count({ initialWarehouse }: { initialWarehouse?: string }) {
                   <td>{itemPlace(i, warehouseId)}</td>
                   <td className="num">{qtyText(book)}</td>
                   <td className="num">
-                    <input className="num-input no-print" value={v} onChange={(e) => setCounted({ ...counted, [i.id]: e.target.value })} inputMode="decimal" />
+                    {i.trackSerial ? (
+                      <button type="button" className="small no-print" onClick={() => setSerialOf(i)}>
+                        {found[i.id] ? `${found[i.id]!.length} موجود` : 'جرد بالسيريال'}
+                      </button>
+                    ) : (
+                      <input className="num-input no-print" value={v} onChange={(e) => setCounted({ ...counted, [i.id]: e.target.value })} inputMode="decimal" />
+                    )}
                     <span className="print-only">______</span>
                   </td>
                   <td className={`num ${diff ? (diff < 0 ? 'bad' : 'good') : ''}`}>{diff === null ? '' : qtyText(diff)}</td>
@@ -397,16 +440,26 @@ function Count({ initialWarehouse }: { initialWarehouse?: string }) {
           className="primary"
           disabled={!changed.length}
           onClick={async () => {
-            const res = await call('countStock', { date, warehouseId, lines: changed.map(([itemId, v]) => ({ itemId, counted: Number(v) })) });
+            const res = await call('countStock', { date, warehouseId, lines: changed.map(([itemId, v]) => ({ itemId, counted: Number(v), ...(found[itemId] ? { serials: found[itemId] } : {}) })) });
             if (res) {
               notify('تم تسجيل الجرد');
               setCounted({});
+              setFound({});
             }
           }}
         >
           اعتماد الجرد ({changed.length})
         </button>
       </div>
+      {serialOf && (
+        <SerialCount
+          item={serialOf}
+          book={bookSerials(serialOf.id)}
+          value={found[serialOf.id] ?? []}
+          onChange={(list) => setFoundFor(serialOf.id, list)}
+          onClose={() => setSerialOf(null)}
+        />
+      )}
     </section>
   );
 }
@@ -760,5 +813,54 @@ function History() {
         </Modal>
       )}
     </section>
+  );
+}
+
+/** جرد مادة بالأرقام التسلسلية: علّم الموجود عالرف أو امسحه، والناقص بيطلع من المخزون عند الاعتماد. */
+function SerialCount({ item, book, value, onChange, onClose }: { item: Item; book: string[]; value: string[]; onChange: (list: string[]) => void; onClose: () => void }) {
+  const [entry, setEntry] = useState('');
+  const set = new Set(value);
+  const extra = value.filter((x) => !book.includes(x));
+  const toggle = (x: string) => onChange(set.has(x) ? value.filter((y) => y !== x) : [...value, x]);
+  const add = () => {
+    const x = entry.trim();
+    if (x && !set.has(x)) onChange([...value, x]);
+    setEntry('');
+  };
+  return (
+    <Modal title={`جرد بالسيريال: ${item.name}`} onClose={onClose} width={620}>
+      <p className="muted">
+        علّم الأجهزة الموجودة عالرف (أو امسح السيريال). اللي ما بيتعلّم بيعتبر ناقص وبيطلع من المخزون لما تعتمد الجرد. الدفتري {book.length}، الموجود {value.length}.
+      </p>
+      <div className="with-button">
+        <input className="mono" dir="ltr" placeholder="امسح أو اكتب السيريال ↵" value={entry} autoFocus onChange={(e) => setEntry(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), add())} />
+        <button type="button" onClick={() => onChange([...new Set([...value, ...book])])}>
+          كلهم موجودين
+        </button>
+        <button type="button" onClick={() => onChange([])}>
+          مسح
+        </button>
+      </div>
+      <div style={{ maxHeight: '50vh', overflow: 'auto', marginTop: 8 }}>
+        {book.map((x) => (
+          <label key={x} className={`check ${set.has(x) ? 'good' : 'bad'}`} style={{ display: 'flex' }}>
+            <input type="checkbox" checked={set.has(x)} onChange={() => toggle(x)} /> <span className="mono">{x}</span>
+            {!set.has(x) && <small className="muted"> — ناقص</small>}
+          </label>
+        ))}
+        {extra.map((x) => (
+          <label key={x} className="check good" style={{ display: 'flex' }}>
+            <input type="checkbox" checked onChange={() => toggle(x)} /> <span className="mono">{x}</span>
+            <small className="muted"> — زايد (مش بالمخزون، رح ينضاف)</small>
+          </label>
+        ))}
+        {!book.length && !extra.length && <Empty>ما في أرقام مسجّلة لهالمادة بهالمستودع</Empty>}
+      </div>
+      <div className="form-actions">
+        <button className="primary" onClick={onClose}>
+          تم
+        </button>
+      </div>
+    </Modal>
   );
 }

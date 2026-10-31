@@ -44,7 +44,8 @@ export function applyMove(state: CompanyState, m: StockMove): void {
   for (const s of m.serials ?? []) {
     const serials = (lvl.serials ??= {});
     if (sign > 0) serials[s] = m.warehouseId;
-    else delete serials[s];
+    // الخروج بيشيل الرقم من هالمستودع بس: بإلغاء تحويل الرقم بيرجع للمستودع الأصلي قبل ما يطلع من التاني
+    else if (serials[s] === m.warehouseId) delete serials[s];
   }
 }
 
