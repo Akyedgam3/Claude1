@@ -3988,17 +3988,15 @@ button.whatsapp:hover { background: #1ebe5b; }
   position: relative;
 }
 .money-toggle {
-  position: sticky;
-  top: 0;
-  float: left;
-  z-index: 20;
-  display: inline-flex;
+  display: flex;
+  width: fit-content;
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  padding: 5px 12px;
+  padding: 4px 12px;
   border-radius: 999px;
-  margin: -8px -12px 0 0;
+  margin: -10px 0 8px;
+  margin-inline-start: auto;
 }
 .money-toggle.on {
   background: var(--warn-bg, #fff4d6);
