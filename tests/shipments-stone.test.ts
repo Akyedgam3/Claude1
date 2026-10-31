@@ -138,7 +138,7 @@ describe('cancel a warehouse transfer', () => {
   });
 
   it('keeps serial numbers when a transfer is cancelled, and counts serial items by scanning', () => {
-    const l = company();
+    const l = company('general');
     l.saveWarehouse({ id: 'back', name: 'المستودع الخلفي' });
     l.saveItem({ id: 'ph', code: 'P', name: 'موبايل', kind: 'stock', unit: 'قطعة', price: 1000, priceCurrency: 'SYP', trackSerial: true });
     l.adjustStock({ kind: 'opening', date: '2026-10-01', warehouseId: 'main', lines: [{ itemId: 'ph', qty: 3, unitCost: 500, serials: ['A1', 'A2', 'A3'] }] });

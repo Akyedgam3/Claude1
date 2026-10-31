@@ -210,5 +210,14 @@ describe('dealer box', () => {
     expect(accountBalance(st, '1101').balance).toBe(5000);
     expect(accountBalance(st, DEALER_BOX_ID).balance - before).toBe(600);
     expect(dueToShared(st, DEALER_BOX_ID, '1101')).toBe(0);
+    // الصيدلية بتشوف الفاتورة بسعرها (1000): ربحها 500، والمورد بيشوف 1100
+    const { visibleState } = await import('../src/renderer/src/api');
+    const { incomeStatement, trialBalance } = await import('../src/core');
+    const day = { from: '2026-01-06', to: '2026-01-06' };
+    expect(incomeStatement(visibleState(st, ph), day).netProfit).toBe(500);
+    expect(incomeStatement(visibleState(st, me), day).netProfit).toBe(1100);
+    const tb = trialBalance(visibleState(st, ph));
+    expect(tb.totalDebit).toBe(tb.totalCredit);
+    expect(visibleState(st, ph).invoices.find((i) => i.date === '2026-01-06')!.total).toBe(1000);
   });
 });

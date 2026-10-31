@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { createContext, useContext } from 'react';
-import { can as canDo, effectiveProfile, findRate, formatMinor, toMinor, type ActivityProfile, type CompanyState, type Currency, type Feature, type Permission, type User } from '../../core';
+import { can as canDo, DEALER_BOX_ID, effectiveProfile, pharmacyValue, findRate, formatMinor, toMinor, type ActivityProfile, type CompanyState, type Currency, type Feature, type Permission, type User } from '../../core';
 import type { LicenseStatus } from '../../license/manager';
 
 /** نسخة الموبايل (أندرويد): مستقلة، بدون شبكة محلية ولا شاشة زبون. */
@@ -162,7 +162,7 @@ export function visibleState(state: CompanyState, user: User): CompanyState {
   const accounts = hasBoxes ? Object.fromEntries(Object.entries(state.accounts).map(([id, a]) => [id, a.hidden ? { ...a, archived: true, name: 'صندوق خاص' } : a])) : state.accounts;
   // فواتير فيها مواد مخفية ما بتبين أبداً
   const hiddenInv = new Set(hasItems ? state.invoices.filter((inv) => inv.lines.some((l) => l.itemId && state.items[l.itemId]?.hidden)).map((i) => i.id) : []);
-  const invoices = hiddenInv.size ? state.invoices.filter((inv) => !hiddenInv.has(inv.id)) : state.invoices;
+  let invoices = hiddenInv.size ? state.invoices.filter((inv) => !hiddenInv.has(inv.id)) : state.invoices;
   // وقيودها كمان (وإلا أرباحها وديونها بتبين بلوحة الأرباح والتقارير)، وحركات صندوق المورد (سندات ومصاريف)،
   // إلا تحويلات الصندوقين وفواتير أدوية الصيدلية اللي باعها المورد (هدول حق الصيدلية)
   const hiddenAcc = new Set(Object.values(state.accounts).filter((a) => a.hidden).map((a) => a.id));
@@ -172,8 +172,58 @@ export function visibleState(state: CompanyState, user: User): CompanyState {
       .filter((e) => (e.source && (e.source.type === 'invoice' || e.source.type === 'reprice') && hiddenInv.has(e.source.id)) || (!KEEP.has(e.source?.type ?? '') && e.lines.some((l) => hiddenAcc.has(l.accountId))))
       .map((e) => e.id),
   );
-  const entries = hideIds.size ? state.entries.filter((e) => !hideIds.has(e.id) && !(e.voidOf && hideIds.has(e.voidOf))) : state.entries;
+  let entries = hideIds.size ? state.entries.filter((e) => !hideIds.has(e.id) && !(e.voidOf && hideIds.has(e.voidOf))) : state.entries;
+  // أدوية الصيدلية اللي باعها المورد بسعره: الصيدلية بتشوفها بسعرها هي، وفرق السعر (ربح المورد) ما بيبين عندها
+  const scale = new Map<string, number>();
+  for (const inv of invoices) {
+    if (inv.cashAccountId !== DEALER_BOX_ID || (inv.kind !== 'sale' && inv.kind !== 'sale_return') || !(inv.total > 0)) continue;
+    const f = pharmacyValue(state, inv) / inv.total;
+    if (f > 0 && f < 1) scale.set(inv.id, f);
+  }
+  if (scale.size) {
+    const byEntry = new Map(invoices.filter((i) => scale.has(i.id)).map((i) => [i.entryId, scale.get(i.id)!] as const));
+    entries = entries.map((e) => {
+      const f = byEntry.get(e.id) ?? (e.voidOf ? byEntry.get(e.voidOf) : undefined);
+      return f === undefined ? e : scaleRevenue(state, e, f);
+    });
+    invoices = invoices.map((inv) => {
+      const f = scale.get(inv.id);
+      if (f === undefined) return inv;
+      return { ...inv, total: Math.round(inv.total * f), paid: Math.round(inv.paid * f), lines: inv.lines.map((l) => ({ ...l, price: Math.round(l.price * f) })) };
+    });
+  }
   return { ...state, items, accounts, invoices, entries };
+}
+
+/** بيصغّر إيراد قيد الفاتورة بنسبة f، والفرق بينطرح من الطرف المقابل (صندوق المورد أولاً ثم ذمة الزبون). */
+function scaleRevenue(state: CompanyState, e: CompanyState['entries'][number], f: number): CompanyState['entries'][number] {
+  const lines = e.lines.map((l) => ({ ...l }));
+  let dBase = 0;
+  for (const l of lines) {
+    if (state.accounts[l.accountId]?.type !== 'revenue') continue;
+    for (const [amt, base] of [['credit', 'baseCredit'], ['debit', 'baseDebit']] as const) {
+      if (!l[base]) continue;
+      const nb = Math.round(l[base] * f);
+      dBase += (amt === 'credit' ? 1 : -1) * (l[base] - nb);
+      l[amt] = Math.round(l[amt] * f);
+      l[base] = nb;
+    }
+  }
+  // dBase > 0: بيع (الإيراد دائن نقص) ← ننقص المدين المقابل؛ < 0: مرتجع ← ننقص الدائن المقابل
+  const side = dBase > 0 ? (['debit', 'baseDebit'] as const) : (['credit', 'baseCredit'] as const);
+  let left = Math.abs(dBase);
+  const order = [...lines].sort((a, b) => Number(b.accountId === DEALER_BOX_ID) - Number(a.accountId === DEALER_BOX_ID) || Number(!!b.partyId) - Number(!!a.partyId));
+  for (const l of order) {
+    if (left <= 0) break;
+    if (state.accounts[l.accountId]?.type === 'revenue' || !l[side[1]]) continue;
+    if (l.accountId !== DEALER_BOX_ID && !l.partyId) continue;
+    const cut = Math.min(left, l[side[1]]);
+    const ratio = l[side[1]] ? (l[side[1]] - cut) / l[side[1]] : 1;
+    l[side[0]] = Math.round(l[side[0]] * ratio);
+    l[side[1]] -= cut;
+    left -= cut;
+  }
+  return { ...e, lines };
 }
 
 export function makeCtxHelpers(state: CompanyState, user: User) {
