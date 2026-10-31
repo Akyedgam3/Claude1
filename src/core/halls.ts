@@ -20,6 +20,8 @@ export const HALL_SERVICES: { name: string; perGuest?: boolean }[] = [
   { name: 'إضاءة وليزر' },
   { name: 'ورد طبيعي' },
   { name: 'سيارة العرس' },
+  { name: 'شرار' },
+  { name: 'جهاز بخار' },
 ];
 
 export const isOpenBooking = (b: HallBooking) => b.status !== 'cancelled';

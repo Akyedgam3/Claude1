@@ -29,6 +29,8 @@ import { ImageShareDialog } from '../components/ImageShareDialog';
 
 const EDIT_STATUS: BookingStatus[] = ['tentative', 'confirmed', 'done', 'cancelled'];
 const MONTHS = ['كانون الثاني', 'شباط', 'آذار', 'نيسان', 'أيار', 'حزيران', 'تموز', 'آب', 'أيلول', 'تشرين الأول', 'تشرين الثاني', 'كانون الأول'];
+/** الحجز بدون زبون: بينعمل زبون باسم العريس عند الحفظ. */
+const NEW_PARTY = '__new';
 const DAYS = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
 const num = (s: string) => Number(s.replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/[٫،,]/g, '.').trim() || 0);
 
@@ -400,12 +402,13 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
   const setLine = (i: number, patch: Partial<LineForm>) => setLines((ls) => ls.map((x, j) => (j === i ? { ...x, ...patch } : x)));
 
   const build = (): Omit<HallBooking, 'number' | 'deposits' | 'invoiceId' | 'createdAt'> | string => {
-    if (!f.partyId) return 'اختار الزبون (أو ضيف زبون جديد)';
+    // الزبون اختياري: بيكفي اسم العريس، وبينعمل زبون باسمه لحاله عند الحفظ
+    if (!f.partyId && !f.title.trim()) return 'اكتب اسم العريس (أو اختار الزبون)';
     try {
       const discount = parseAmount(state, f.discount, f.currency);
       return {
         id,
-        partyId: f.partyId,
+        partyId: f.partyId || NEW_PARTY,
         hall: f.hall.trim() || halls[0]!,
         date: f.date,
         period: f.period,
@@ -437,6 +440,12 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
       notify(d, 'error');
       return null;
     }
+    if (d.partyId === NEW_PARTY) {
+      const party = { id: uid(), kind: 'customer' as const, name: f.title.trim(), ...(f.groomPhone.trim() ? { phone: f.groomPhone.trim() } : {}) };
+      if (!(await call('saveParty', party))) return null;
+      d.partyId = party.id;
+      set('partyId', party.id);
+    }
     const res = await call<HallBooking>('saveBooking', d);
     if (!res) return null;
     if (!quiet) {
@@ -449,9 +458,9 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
   return (
     <Modal title={booking ? `حجز رقم ${booking.number}` : 'حجز جديد'} onClose={onClose} width={980}>
       <div className="form-grid">
-        <Field label="الزبون">
+        <Field label="الزبون (اختياري)">
           <div className="with-button">
-            <Picker options={partyOptions(state, 'customer')} value={f.partyId || null} onChange={(v) => set('partyId', v ?? '')} placeholder="اختار الزبون..." />
+            <Picker options={partyOptions(state, 'customer')} value={f.partyId || null} onChange={(v) => set('partyId', v ?? '')} placeholder="بيكفي اسم العريس..." />
             {can('parties.manage') && !locked && (
               <button type="button" className="icon" title="زبون جديد" onClick={() => setNewParty(true)}>
                 <Icon name="plus" size={16} />
