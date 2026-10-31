@@ -166,6 +166,8 @@ export interface CompanyInfo {
   pricing?: { retailMargin?: number; dealerMargin?: number };
   /** أسماء الصالات (صالة أفراح). */
   halls?: string[];
+  /** صالة أفراح: بلا خانة الزبون بالحجز (بيكفي اسم العريس). */
+  hallNoCustomer?: boolean;
   /** البيع والشراء على النشرات: حسم الشراء والمعلمين وزيادة الزبون العادي %. */
   listPricing?: { buyDiscount: number; masterDiscount: number; retailMarkup: number; brands?: Record<string, number> };
 }

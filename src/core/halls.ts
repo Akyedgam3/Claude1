@@ -94,10 +94,18 @@ export function compareBookings(a: HallBooking, b: HallBooking): number {
 }
 
 /** ساعات الحفل كنص: «20:00 – 23:30» أو «من 20:00» أو فاضي. */
+/** الساعة بنظام 12: «20:30» ← «8:30 م» (مو الكل بيفهم 21 و22). */
+export function time12(hhmm: string): string {
+  const [h, m] = hhmm.split(':').map(Number) as [number, number];
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return hhmm;
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${h < 12 ? 'ص' : 'م'}`;
+}
+
 export function bookingHours(b: Pick<HallBooking, 'startTime' | 'endTime'>): string {
-  if (b.startTime && b.endTime) return `${b.startTime} – ${b.endTime}`;
-  if (b.startTime) return `من ${b.startTime}`;
-  if (b.endTime) return `لـ ${b.endTime}`;
+  if (b.startTime && b.endTime) return `${time12(b.startTime)} – ${time12(b.endTime)}`;
+  if (b.startTime) return `من ${time12(b.startTime)}`;
+  if (b.endTime) return `لـ ${time12(b.endTime)}`;
   return '';
 }
 

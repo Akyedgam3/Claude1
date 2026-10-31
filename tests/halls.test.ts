@@ -79,9 +79,9 @@ describe('hall extras', () => {
     expect(() => l.saveBooking({ ...base, id: 'x', partyId: 'c', date: '2026-11-21', period: 'evening', startTime: '25:00', lines: [] })).toThrow('ساعة');
     const msg = bookingMessage(l.state, b, { today: '2026-10-29', greet: b.title!, withPrices: false });
     expect(msg).toContain('مرحباً أحمد ♥ سلمى');
-    expect(msg).toContain('(مسائي، 20:00 – 23:30)');
+    expect(msg).toContain('(مسائي، 8:00 م – 11:30 م)');
     const table = bookingsTableText(l.state, [b], { title: 'جدول الحجوزات', withPrices: true, fmt: (_b, m) => String(m / 100) });
-    expect(table).toContain('📅 الجمعة 20/11/2026 · مسائي (20:00 – 23:30)');
+    expect(table).toContain('📅 الجمعة 20/11/2026 · مسائي (8:00 م – 11:30 م)');
     expect(table).toContain('القيمة 10000');
     expect(bookingsTableText(l.state, [b], { title: 't' })).not.toContain('القيمة');
   });

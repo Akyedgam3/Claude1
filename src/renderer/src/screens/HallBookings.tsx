@@ -53,7 +53,7 @@ export function HallBookings() {
   return (
     <div className="page">
       <PageHeader title="حجوزات الصالة">
-        {can('settings.manage') && <button onClick={() => setHallsOpen(true)}>الصالات</button>}
+        {can('settings.manage') && <button onClick={() => setHallsOpen(true)}>إعدادات الصالة</button>}
         {manage && (
           <button className="primary" onClick={() => setEditing({ booking: null })}>
             <Icon name="plus" size={16} /> حجز جديد
@@ -458,7 +458,8 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
   return (
     <Modal title={booking ? `حجز رقم ${booking.number}` : 'حجز جديد'} onClose={onClose} width={980}>
       <div className="form-grid">
-        <Field label="الزبون (اختياري)">
+{!state.info?.hallNoCustomer && (
+                  <Field label="الزبون (اختياري)">
           <div className="with-button">
             <Picker options={partyOptions(state, 'customer')} value={f.partyId || null} onChange={(v) => set('partyId', v ?? '')} placeholder="بيكفي اسم العريس..." />
             {can('parties.manage') && !locked && (
@@ -468,6 +469,7 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
             )}
           </div>
         </Field>
+        )}
         <Field label="المناسبة">
           <input list="event-types" value={f.eventType} onChange={(e) => set('eventType', e.target.value)} disabled={locked} />
           <datalist id="event-types">
@@ -909,21 +911,29 @@ function HallExpenses() {
 function HallsForm({ onClose }: { onClose: () => void }) {
   const { state, call, notify } = useCompany();
   const [text, setText] = useState(hallNames(state).join('\n'));
+  const [phone, setPhone] = useState(state.info?.phone ?? '');
+  const [noCustomer, setNoCustomer] = useState(!!state.info?.hallNoCustomer);
   const save = async () => {
     const halls = [...new Set(text.split('\n').map((x) => x.trim()).filter(Boolean))];
     if (!halls.length) return notify('اكتب اسم صالة وحدة عالأقل', 'error');
-    if (await call('updateCompany', { halls })) {
-      notify('انحفظت الصالات');
+    if (await call('updateCompany', { halls, phone: phone.trim(), hallNoCustomer: noCustomer })) {
+      notify('انحفظت الإعدادات');
       onClose();
     }
   };
   return (
-    <Modal title="الصالات" onClose={onClose} width={480}>
+    <Modal title="إعدادات الصالة" onClose={onClose} width={480}>
       <div className="form-grid">
         <Field label="اسم كل صالة بسطر" wide>
           <textarea rows={5} value={text} onChange={(e) => setText(e.target.value)} />
         </Field>
         <p className="muted wide">إذا عندك أكتر من صالة (الكبرى، الحديقة...)، كل وحدة إلها حجوزاتها، وفيك تحجز التنتين بنفس اليوم.</p>
+        <Field label="رقم التواصل (بيطلع على إيصال الحجز)" wide>
+          <input type="tel" dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="09xx xxx xxx" />
+        </Field>
+        <label className="check wide">
+          <input type="checkbox" checked={noCustomer} onChange={(e) => setNoCustomer(e.target.checked)} /> شيل خانة «الزبون» من الحجز (بيكفي اسم العريس)
+        </label>
         <div className="form-actions wide">
           <button type="button" onClick={onClose}>
             إلغاء

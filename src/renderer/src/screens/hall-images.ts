@@ -91,6 +91,8 @@ export async function bookingImage(state: CompanyState, b: HallBooking, o: { tod
   }
   x.globalAlpha = 1;
   text(state.info?.name ?? '', R, 100, { s: 40, c: '#fff', max: 640 });
+  // رقم تواصل الصالة جنب اسمها
+  if (state.info?.phone) text(`☎ ${state.info.phone}`, P, 172, { s: 30, c: 'rgba(255,255,255,0.92)', a: 'left', ltr: true });
   box(P, 62, 300, 60, 30, 'rgba(255,255,255,0.18)');
   text(reminder ? (days === 0 ? 'تذكير: اليوم' : days === 1 ? 'تذكير: بكرا' : `تذكير: بعد ${days} أيام`) : 'تأكيد حجز', P + 150, 103, { s: 30, c: '#fff', a: 'center' });
   text(b.eventType, R, 200, { s: 64, c: '#fff', max: W - 2 * P });
