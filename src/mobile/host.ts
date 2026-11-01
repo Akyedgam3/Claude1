@@ -274,7 +274,9 @@ function registerHandlers(): void {
   // صورة للواتساب: قائمة المشاركة (بتختار واتساب وبعدين المحادثة)، وبالويب مشاركة المتصفح أو تنزيل
   handle('app:whatsappImage', async (_phone: unknown, png: unknown, name: unknown, caption: unknown) => {
     if (!(png instanceof Uint8Array) || png.length > 15_000_000) throw new Error('صورة غير صالحة');
-    const file = `${String(name ?? 'wazn').replace(/[^\p{L}\p{N} _-]/gu, '').slice(0, 60) || 'wazn'}.png`;
+    // اسم الملف بالإنجليزي وبلا مسافات: في تطبيقات (منها واتساب) بترفض الملفات اللي اسمها عربي بالمشاركة
+    void name;
+    const file = `wazn-${Date.now()}.png`;
     if (!Capacitor.isNativePlatform()) {
       const f = new File([png as BlobPart], file, { type: 'image/png' });
       if (navigator.canShare?.({ files: [f] })) {

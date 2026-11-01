@@ -19,6 +19,8 @@ export function ImageShareDialog(p: {
   const { notify } = useCompany();
   const [amounts, setAmounts] = useState(p.amountsDefault ?? true);
   const [img, setImg] = useState<ShareImage | null>(null);
+  // الكمبيوتر: الصورة انتسخت والواتساب انفتح؛ منضل نعرض شو يعمل (اللصق) لحتى يكبس «تم»
+  const [copied, setCopied] = useState(false);
   useEffect(() => {
     let live = true;
     setImg(null);
@@ -32,8 +34,8 @@ export function ImageShareDialog(p: {
     if (!img) return;
     try {
       const r = await api.whatsappImage(p.phone, img.png, p.fileName, p.caption);
-      if (r === 'clipboard') notify('نسخت الصورة وفتحت الواتساب: الصقها بالمحادثة (Ctrl+V) وابعت');
-      if (r) p.onClose();
+      if (r === 'clipboard') setCopied(true);
+      else if (r) p.onClose();
     } catch (e) {
       notify((e as Error).message, 'error');
     }
@@ -51,14 +53,24 @@ export function ImageShareDialog(p: {
           ]}
         />
       </div>
+      {copied && (
+        <div className="banner good" style={{ marginBottom: 10 }}>
+          <b>الصورة انتسخت وانفتح الواتساب.</b> بمحادثة {p.phone ? 'الزبون' : 'الشخص اللي بدك ياه'} اكبس <b>Ctrl+V</b> (لصق)، وبعدين «إرسال». إذا ما انفتح الواتساب، افتحه بإيدك والصق بنفس الطريقة.
+        </div>
+      )}
       <div className="share-preview">{img ? <img src={img.dataUrl} alt="" /> : <p className="muted">عم جهّز الصورة...</p>}</div>
       <div className="form-actions">
         <button type="button" onClick={p.onClose}>
           إلغاء
         </button>
         <button type="button" className="whatsapp" disabled={!img} onClick={() => void send()}>
-          <Icon name="message" size={16} /> {IS_MOBILE ? 'مشاركة بالواتساب' : 'إرسال بالواتساب'}
+          <Icon name="message" size={16} /> {IS_MOBILE ? 'مشاركة بالواتساب' : copied ? 'انسخ وافتح الواتساب مرة تانية' : 'إرسال بالواتساب'}
         </button>
+        {copied && (
+          <button type="button" className="primary" onClick={p.onClose}>
+            تم
+          </button>
+        )}
       </div>
     </Modal>
   );
