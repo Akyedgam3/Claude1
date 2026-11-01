@@ -367,11 +367,15 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
     }
   })();
 
+  // حساب جاري: المدفوع أكتر من الفاتورة ← الزيادة بتنسجّل دفعة من الدين القديم (سند قبض/دفع بنفس الصندوق)
+  const extra = payMode === 'partial' && (kind === 'sale' || kind === 'purchase') && paid > preview.total ? paid - preview.total : 0;
+
   const save = async () => {
     if (savingRef.current) return; // منع الحفظ مرتين (Ctrl+Enter المتكرر)
     if (preview.error) return notify(preview.error, 'error');
     if (currency !== base && !rate) return notify('أدخل سعر الصرف', 'error');
     if (payMode !== 'cash' && !partyId) return notify(isSale ? 'اختر العميل ليُسجَّل الدين عليه' : 'اختر المورد ليُسجَّل الدين له', 'error');
+    if (extra > 0 && !(await askConfirm(`المدفوع أكتر من الفاتورة بـ ${money(state, extra, currency)}. بتنسجّل الزيادة ${isSale ? 'مقبوضة من' : 'مدفوعة لـ'} ${state.parties[partyId!]?.name ?? ''} على حسابه الجاري؟`))) return;
     savingRef.current = true;
     setSaving(true);
     try {
@@ -397,12 +401,25 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
         })),
         discount: preview.disc,
         taxIds,
-        paid,
+        paid: extra > 0 ? preview.total : paid,
         cashAccountId: cashId,
         ...(salesman.trim() ? { salesman: salesman.trim() } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
       };
       const res = editing ? await call<Invoice>('replaceInvoice', editing.id, draft) : await call<Invoice>('postInvoice', draft);
+      if (res && extra > 0) {
+        const v = await call('postVoucher', {
+          kind: isSale ? 'receipt' : 'payment',
+          date,
+          amount: extra,
+          currency,
+          ...(currency !== base ? { rate } : {}),
+          partyId,
+          cashAccountId: cashId,
+          memo: `دفعة على الحساب مع ${INVOICE_KIND_NAMES[kind]} رقم ${res.value.number}`,
+        });
+        if (v) notify(`انسجّلت الزيادة ${money(state, extra, currency)} على حساب ${state.parties[partyId!]?.name ?? ''}`);
+      }
       const latest: Record<string, Item> = {};
       if (res && setPrices) {
         // أسعار البيع الجديدة من فاتورة الشراء: سعر الصيدلية وسعر المورّد
@@ -751,6 +768,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
               <>
                 <span>{kind === 'sale' || kind === 'purchase_return' ? 'المقبوض' : 'المدفوع'}</span>
                 <input className="num-input" autoFocus value={paidText ?? ''} placeholder="0" onChange={(e) => setPaidText(e.target.value)} inputMode="decimal" />
+                {extra > 0 && <small className="good" style={{ gridColumn: '1 / -1' }}>الزيادة {money(state, extra, currency)} بتنسجّل دفعة على الحساب الجاري (من الدين القديم)</small>}
               </>
             )}
             {payMode !== 'credit' && (
