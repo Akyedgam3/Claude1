@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { attributesFor, buyDiscountOf, generateVariants, itemPlace, itemPlacesText, listPrices, withPlace, type Item, type ItemKind, type ItemUnit, type RecipeLine } from '../../../core';
-import { api, major, money, parseAmount, qtyText, toInput, today, uid, useCompany } from '../api';
+import { api, major, money, parseAmount, parsePrice, qtyText, toInput, today, uid, useCompany } from '../api';
 import { Barcode, ExportButtons, usePrinter } from '../components/print';
 import { CameraScanButton, ColorPicker, ConfirmButton, CurrencySelect, ItemName, Empty, Field, itemMatches, itemOptions, Modal, PageHeader, Picker, SearchBox, Tabs } from '../components/ui';
 import { Icon } from '../components/icons';
@@ -69,7 +69,7 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
           kind: 'stock',
           unit: String(r['الوحدة'] ?? profile.units[0] ?? 'قطعة'),
           priceCurrency: currency,
-          price: parseAmount(state, String(r['سعر المبيع'] ?? '0'), currency),
+          price: parsePrice(state, String(r['سعر المبيع'] ?? '0'), currency),
           ...(r['الباركود'] ? { barcode: String(r['الباركود']) } : {}),
           ...(r['التصنيف'] ? { category: String(r['التصنيف']) } : {}),
           ...(r['الماركة'] ? { brand: String(r['الماركة']) } : {}),
@@ -290,7 +290,7 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
         .map((u) => ({
           name: u.name.trim(),
           factor: Number(u.factor),
-          ...(u.price ? { price: parseAmount(state, u.price, cur) } : {}),
+          ...(u.price ? { price: parsePrice(state, u.price, cur) } : {}),
           ...(u.barcode.trim() ? { barcode: u.barcode.trim() } : {}),
         }));
       const recipeList: RecipeLine[] = recipe.filter((r) => r.itemId && Number(r.qty) > 0).map((r) => ({ itemId: r.itemId, qty: Number(r.qty) }));
@@ -302,12 +302,12 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
         kind: f.kind,
         unit: f.unit.trim() || 'قطعة',
         priceCurrency: cur,
-        price: parseAmount(state, f.price, cur),
-        ...(f.wholesalePrice ? { wholesalePrice: parseAmount(state, f.wholesalePrice, cur) } : {}),
+        price: parsePrice(state, f.price, cur),
+        ...(f.wholesalePrice ? { wholesalePrice: parsePrice(state, f.wholesalePrice, cur) } : {}),
         ...(f.listPrice ? { listPrice: parseAmount(state, f.listPrice, cur) } : {}),
         ...(f.buyDiscount.trim() !== '' && Number.isFinite(Number(f.buyDiscount)) ? { buyDiscount: Number(f.buyDiscount) } : {}),
-        ...(f.specialPrice ? { specialPrice: parseAmount(state, f.specialPrice, cur) } : {}),
-        ...(f.dealerPrice ? { dealerPrice: parseAmount(state, f.dealerPrice, cur) } : {}),
+        ...(f.specialPrice ? { specialPrice: parsePrice(state, f.specialPrice, cur) } : {}),
+        ...(f.dealerPrice ? { dealerPrice: parsePrice(state, f.dealerPrice, cur) } : {}),
         ...(f.dealerId ? { dealerId: f.dealerId } : {}),
         ...(f.hidden ? { hidden: true } : {}),
         ...(f.minStock ? { minStock: Number(f.minStock) } : {}),
@@ -662,7 +662,7 @@ function VariantsForm({ onClose }: { onClose: () => void }) {
                 name: f.name.trim(),
                 kind: 'stock',
                 unit: profile.units[0] ?? 'قطعة',
-                price: parseAmount(state, f.price, f.currency),
+                price: parsePrice(state, f.price, f.currency),
                 priceCurrency: f.currency,
                 ...(f.category ? { category: f.category } : {}),
                 ...(f.brand ? { brand: f.brand } : {}),

@@ -204,7 +204,7 @@ export function stockReport(state: CompanyState): StockRow[] {
         qty,
         byWarehouse: s?.qty ?? {},
         value: s?.value ?? 0,
-        avgCost: s && qty > 0 ? Math.round(s.value / qty) : (s?.lastCost ?? 0),
+        avgCost: s && qty > 0 ? Math.round((s.value / qty) * 10_000) / 10_000 : (s?.lastCost ?? 0),
         low: item.minStock !== undefined && qty <= item.minStock,
       };
     })

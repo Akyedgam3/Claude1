@@ -66,7 +66,8 @@ export function itemPrice(state: CompanyState, item: Item, opts: { party?: Party
   if (opts.purchase) {
     const unitCost = state.stock[item.id]?.lastCost ?? 0;
     const factor = item.units?.find((u) => u.name === opts.unit)?.factor ?? 1;
-    const v = convertPrice(state, Math.round(unitCost * factor), state.info!.baseCurrency, opts.currency, rates);
+    const scaled = convertPrice(state, Math.round(unitCost * factor * 10_000), state.info!.baseCurrency, opts.currency, rates);
+    const v = scaled === null ? null : scaled / 10_000;
     return v === null || v === 0 ? '' : toInput(state, v, opts.currency);
   }
   const unit = item.units?.find((u) => u.name === opts.unit);
@@ -78,8 +79,10 @@ export function itemPrice(state: CompanyState, item: Item, opts: { party?: Party
   // زبون إلو حسم خاص من النشرة (معلم مميز)
   const special = partyListPrice(item, opts.party);
   if (special !== undefined && !dealerPrice) price = special;
-  if (unit) price = !dealerPrice && special === undefined && unit.price !== undefined ? unit.price : Math.round(price * unit.factor);
-  const v = convertPrice(state, price, item.priceCurrency, opts.currency, rates);
+  if (unit) price = !dealerPrice && special === undefined && unit.price !== undefined ? unit.price : Math.round(price * unit.factor * 10_000) / 10_000;
+  // منحافظ على أجزاء السنت (0.0005$) بالتحويل
+  const scaled = convertPrice(state, Math.round(price * 10_000), item.priceCurrency, opts.currency, rates);
+  const v = scaled === null ? null : scaled / 10_000;
   return v === null ? '' : toInput(state, v, opts.currency);
 }
 
@@ -427,8 +430,8 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
         for (const l of used) {
           const item = l.itemId ? state.items[l.itemId] : null;
           if (!item || (!l.sell?.trim() && !l.dealer?.trim())) continue;
-          const price = l.sell?.trim() ? parseAmount(state, l.sell, item.priceCurrency) : item.price;
-          const dealerPrice = l.dealer?.trim() ? parseAmount(state, l.dealer, item.priceCurrency) : item.dealerPrice;
+          const price = l.sell?.trim() ? parsePrice(state, l.sell, item.priceCurrency) : item.price;
+          const dealerPrice = l.dealer?.trim() ? parsePrice(state, l.dealer, item.priceCurrency) : item.dealerPrice;
           if (price === item.price && dealerPrice === item.dealerPrice) continue;
           const next = { ...item, price, ...(dealerPrice !== undefined ? { dealerPrice } : {}) };
           if (await call('saveItem', next)) {

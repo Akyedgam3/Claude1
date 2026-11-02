@@ -1,7 +1,7 @@
 import { itemTitle } from './activities';
 import { cashAccountFor, SYSTEM_ACCOUNTS } from './chart-templates';
 import type { EntryDraft, LineDraft } from './ledger';
-import { convertMinor } from './money';
+import { convertMinor, isUnitPrice } from './money';
 import { adjustmentMoves, applyMove, assertMovesPossible, invoiceMoves, negate, productionMoves, roundQty, StockPlanner, transferMoves } from './stock';
 import { bookingConflicts } from './halls';
 import { cleanWeighing, weighingNet } from './poultry';
@@ -57,7 +57,7 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       if (item.listPrice !== undefined && (!Number.isSafeInteger(item.listPrice) || item.listPrice < 0)) fail('سعر النشرة غير صالح');
       if (item.buyDiscount !== undefined && !(item.buyDiscount >= 0 && item.buyDiscount <= 100)) fail('حسم الشراء بين 0 و100');
       for (const p of [item.price, item.wholesalePrice, item.specialPrice, item.dealerPrice, ...(item.units ?? []).map((u) => u.price)]) {
-        if (p !== undefined && (!Number.isSafeInteger(p) || p < 0)) fail('سعر غير صالح');
+        if (p !== undefined && !isUnitPrice(p)) fail('سعر غير صالح');
       }
       for (const u of item.units ?? []) {
         if (!u.name.trim() || !(u.factor > 0)) fail('وحدة غير صالحة: يجب إدخال الاسم ومعامل التحويل');
@@ -139,7 +139,7 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       if (!state.currencies[q.currency]) fail('عملة غير معروفة');
       for (const l of q.lines) {
         if (l.itemId && !state.items[l.itemId]) fail(`مادة غير موجودة: ${l.description}`);
-        if (!(l.qty > 0) || !Number.isSafeInteger(l.price) || l.price < 0) fail(`كمية أو سعر غير صالح: ${l.description}`);
+        if (!(l.qty > 0) || !isUnitPrice(l.price)) fail(`كمية أو سعر غير صالح: ${l.description}`);
         if (l.discount !== undefined && (!Number.isSafeInteger(l.discount) || l.discount < 0)) fail('خصم غير صالح');
       }
       for (const t of q.taxIds) if (!state.taxes[t]) fail('ضريبة غير معروفة');
@@ -797,7 +797,7 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft, opts: { n
     const d = weighing ? { ...raw, qty: weighingNet(weighing) } : raw;
     const item = d.itemId ? (state.items[d.itemId] ?? fail(`السطر ${n}: مادة غير موجودة`)) : null;
     if (!(d.qty > 0) || !Number.isFinite(d.qty)) fail(`السطر ${n}: الكمية يجب أن تكون أكبر من صفر`);
-    if (!Number.isFinite(d.price) || !Number.isSafeInteger(Math.round(d.price * 1000)) || Math.abs(d.price * 1000 - Math.round(d.price * 1000)) > 1e-6 || d.price < 0) fail(`السطر ${n}: سعر غير صالح`);
+    if (!isUnitPrice(d.price)) fail(`السطر ${n}: سعر غير صالح`);
     const discount = d.discount ?? 0;
     if (!Number.isSafeInteger(discount) || discount < 0 || discount > Math.round(d.qty * d.price)) fail(`السطر ${n}: خصم غير صالح`);
     const description = d.description?.trim() || (item ? itemTitle(item) : '') || fail(`السطر ${n}: البيان مطلوب`);

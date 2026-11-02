@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { amountInWords, quoteTotals, type Invoice, type Quote, type QuoteStatus } from '../../../core';
-import { addDays, dateText, money, parseAmount, qtyText, toInput, today, uid, useCompany } from '../api';
+import { addDays, dateText, money, parseAmount, parsePrice, qtyText, toInput, today, uid, useCompany } from '../api';
 import { CommercialDoc, type DocModel } from '../components/CommercialDoc';
 import { Icon } from '../components/icons';
 import { PrintButtons } from '../components/print';
@@ -126,7 +126,7 @@ export function QuoteEditor({ id }: { id?: string }) {
         ...(r.itemId ? { itemId: r.itemId } : {}),
         description: r.description.trim(),
         qty: Number(r.qty) || 0,
-        price: parseAmount(state, r.price, currency),
+        price: parsePrice(state, r.price, currency),
         ...(r.discount ? { discount: parseAmount(state, r.discount, currency) } : {}),
       })),
     discount: discount ? parseAmount(state, discount, currency) : 0,
@@ -236,7 +236,7 @@ export function QuoteEditor({ id }: { id?: string }) {
                 const upd = (k: keyof Row) => (e: { target: { value: string } }) => setRows((rs) => rs.map((x) => (x.key === r.key ? { ...x, [k]: e.target.value } : x)));
                 let total = '';
                 try {
-                  total = money(state, Math.round((Number(r.qty) || 0) * parseAmount(state, r.price, currency)) - (r.discount ? parseAmount(state, r.discount, currency) : 0), currency);
+                  total = money(state, Math.round((Number(r.qty) || 0) * parsePrice(state, r.price, currency)) - (r.discount ? parseAmount(state, r.discount, currency) : 0), currency);
                 } catch {
                   total = '—';
                 }

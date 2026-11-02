@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ADJUSTMENT_NAMES, expiringBatches, itemPlace, withPlace, type Item } from '../../../core';
-import { dateText, major, money, parseAmount, qtyText, today, uid, useCompany } from '../api';
+import { dateText, major, money, parseAmount, parsePrice, qtyText, toInput, today, uid, useCompany } from '../api';
 import { ExportButtons, PrintButtons, DocHeader } from '../components/print';
 import { askConfirm, ConfirmButton, CurrencySelect, Empty, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, SearchBox, Tabs } from '../components/ui';
 import { Icon } from '../components/icons';
@@ -136,7 +136,7 @@ function ItemRows({ rows, setRows, withCost, withBatch, placeIn }: { rows: Stock
         onChange={(id) => {
           if (!id) return;
           const lc = state.stock[id]?.lastCost ?? 0;
-          setRows([...rows, { key: uid(), itemId: id, qty: '1', cost: lc ? String(major(state, lc)) : '', batch: '', expiry: '', serials: '' }]);
+          setRows([...rows, { key: uid(), itemId: id, qty: '1', cost: lc ? toInput(state, lc, state.info!.baseCurrency) : '', batch: '', expiry: '', serials: '' }]);
         }}
       />
     </>
@@ -157,7 +157,7 @@ function BulkAdd({ rows, setRows }: { rows: StockRow[]; setRows: (r: StockRow[])
       ...rows,
       ...items.map((i) => {
         const lc = state.stock[i.id]?.lastCost ?? 0;
-        return { key: uid(), itemId: i.id, qty: '', cost: lc ? String(major(state, lc)) : '', batch: '', expiry: '', serials: '' };
+        return { key: uid(), itemId: i.id, qty: '', cost: lc ? toInput(state, lc, state.info!.baseCurrency) : '', batch: '', expiry: '', serials: '' };
       }),
     ]);
   };
@@ -214,7 +214,7 @@ function Opening() {
         stock: rows.filter((r) => Number(r.qty) > 0).map((r) => ({
           itemId: r.itemId,
           qty: Number(r.qty),
-          unitCost: parseAmount(state, r.cost || '0', base),
+          unitCost: parsePrice(state, r.cost || '0', base),
           ...(r.batch ? { batch: r.batch } : {}),
           ...(r.expiry ? { expiry: r.expiry } : {}),
           ...(r.serials ? { serials: serialList(r.serials) } : {}),
