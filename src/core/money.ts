@@ -45,8 +45,20 @@ export function toMinor(amount: string | number, decimals: number): number {
   return assertSafe(sign ? -minor : minor);
 }
 
+/** سعر وحدة: بيقبل لحد 3 منازل زيادة عن العملة (قطع صغيرة رخيصة)، والنتيجة ممكن تكون كسر من أصغر وحدة. */
+export function toUnitPrice(amount: string, decimals: number): number {
+  const minor = toMinor(amount, decimals + 3) / 1000;
+  return Number.isInteger(minor) ? minor : Math.round(minor * 1000) / 1000;
+}
+
 /** يعرض المبلغ بصيغة مقروءة مع فواصل الآلاف: 1,250.75 */
 export function formatMinor(minor: number, decimals: number): string {
+  // سعر وحدة أدق من أصغر وحدة (مثلاً 0.076$): منعرض المنازل الزيادة بس إذا موجودة
+  if (!Number.isInteger(minor)) {
+    const extra = Math.round(minor * 1000);
+    if (extra % 1000 !== 0) return formatMinor(extra, decimals + 3).replace(/0+$/, '');
+    minor = extra / 1000;
+  }
   const negative = minor < 0;
   const digits = Math.abs(minor).toString().padStart(decimals + 1, '0');
   const whole = digits.slice(0, digits.length - decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ',');

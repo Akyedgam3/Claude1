@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { computeTaxes, findRate, itemPlace, listPrices, withPlace, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
-import { convertPrice, fxRates, money, parseAmount, rateInverted, toInput, today, uid, useCompany } from '../api';
+import { convertPrice, fxRates, money, parseAmount, parsePrice, rateInverted, toInput, today, uid, useCompany } from '../api';
 import { askConfirm, CurrencySelect, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
 import { invoiceDrafts } from '../drafts';
 import { ItemForm } from './Items';
@@ -165,7 +165,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
     const item = l.itemId ? state.items[l.itemId] : null;
     const factor = item?.units?.find((u) => u.name === l.unit)?.factor ?? 1;
     try {
-      return parseAmount(state, l.price, currency) / factor;
+      return parsePrice(state, l.price, currency) / factor;
     } catch {
       return 0;
     }
@@ -331,7 +331,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
   }, [editing, company, draftId, kind, isSale, state.parties, used, partyId, date, currency, rateText, warehouseId, lines, discount, taxIds, paidText, payMode, cashAccountId, salesman, notes]);
   const preview = useMemo(() => {
     try {
-      const amounts = used.map((l) => Math.round(Number(l.qty || 0) * parseAmount(state, l.price, currency)) - parseAmount(state, l.discount, currency));
+      const amounts = used.map((l) => Math.round(Number(l.qty || 0) * parsePrice(state, l.price, currency)) - parseAmount(state, l.discount, currency));
       const subtotal = amounts.reduce((s, a) => s + a, 0);
       const disc = parseAmount(state, discount, currency);
       const t = computeTaxes(subtotal - disc, taxIds.map((id) => ({ ...state.taxes[id]!, active: true })));
@@ -391,7 +391,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
           description: l.description,
           qty: Number(l.qty),
           ...(l.unit ? { unit: l.unit } : {}),
-          price: parseAmount(state, l.price, currency),
+          price: parsePrice(state, l.price, currency),
           discount: parseAmount(state, l.discount, currency),
           ...(l.batch.trim() ? { batch: l.batch.trim() } : {}),
           ...(l.expiry ? { expiry: l.expiry } : {}),

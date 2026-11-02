@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { createContext, useContext } from 'react';
-import { can as canDo, DEALER_BOX_ID, effectiveProfile, pharmacyValue, findRate, formatMinor, toMinor, type ActivityProfile, type CompanyState, type Currency, type Feature, type Permission, type User } from '../../core';
+import { can as canDo, DEALER_BOX_ID, effectiveProfile, pharmacyValue, findRate, formatMinor, toMinor, toUnitPrice, type ActivityProfile, type CompanyState, type Currency, type Feature, type Permission, type User } from '../../core';
 import type { LicenseStatus } from '../../license/manager';
 
 /** نسخة الموبايل (أندرويد): مستقلة، بدون شبكة محلية ولا شاشة زبون. */
@@ -356,6 +356,12 @@ export function toInput(state: CompanyState, minor: number, currency: string): s
 export function parseAmount(state: CompanyState, text: string, currency: string): number {
   if (!text.trim()) return 0;
   return toMinor(text, state.currencies[currency]!.decimals);
+}
+
+/** سعر الوحدة بسطر الفاتورة: بيقبل منازل زيادة (0.076$ للقطعة). */
+export function parsePrice(state: CompanyState, text: string, currency: string): number {
+  if (!text.trim()) return 0;
+  return toUnitPrice(text, state.currencies[currency]!.decimals);
 }
 
 export function qtyText(q: number): string {

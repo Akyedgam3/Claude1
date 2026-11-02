@@ -797,7 +797,7 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft, opts: { n
     const d = weighing ? { ...raw, qty: weighingNet(weighing) } : raw;
     const item = d.itemId ? (state.items[d.itemId] ?? fail(`السطر ${n}: مادة غير موجودة`)) : null;
     if (!(d.qty > 0) || !Number.isFinite(d.qty)) fail(`السطر ${n}: الكمية يجب أن تكون أكبر من صفر`);
-    if (!Number.isSafeInteger(d.price) || d.price < 0) fail(`السطر ${n}: سعر غير صالح`);
+    if (!Number.isFinite(d.price) || !Number.isSafeInteger(Math.round(d.price * 1000)) || Math.abs(d.price * 1000 - Math.round(d.price * 1000)) > 1e-6 || d.price < 0) fail(`السطر ${n}: سعر غير صالح`);
     const discount = d.discount ?? 0;
     if (!Number.isSafeInteger(discount) || discount < 0 || discount > Math.round(d.qty * d.price)) fail(`السطر ${n}: خصم غير صالح`);
     const description = d.description?.trim() || (item ? itemTitle(item) : '') || fail(`السطر ${n}: البيان مطلوب`);
