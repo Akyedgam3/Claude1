@@ -7,7 +7,7 @@ describe('unit prices finer than the currency (0.076$ a piece)', () => {
     expect(toUnitPrice('31.35', 2)).toBe(3135);
     expect(formatMinor(7.6, 2)).toBe('0.076');
     expect(formatMinor(3135, 2)).toBe('31.35');
-    expect(() => toUnitPrice('0.0000001', 2)).toThrow();
+    expect(() => toUnitPrice('0.000000001', 2)).toThrow();
   });
 
   it('posts a purchase line of 600 × 0.076$ = 45.60$', () => {
@@ -27,6 +27,7 @@ describe('half a cent and smaller (0.0005$)', () => {
     expect(toUnitPrice('0.0005', 2)).toBe(0.05);
     expect(formatMinor(0.05, 2)).toBe('0.0005');
     expect(formatMinor(toUnitPrice('0.000001', 2), 2)).toBe('0.000001');
+    expect(formatMinor(toUnitPrice('0.00000005', 2), 2)).toBe('0.00000005');
     const l = new Ledger(() => {});
     l.createCompany({ name: 'أدوات', activity: 'supermarket', baseCurrency: 'USD', fiscalYearStart: '01-01' }, DEFAULT_CURRENCIES, chartFor('supermarket'), defaultTaxes());
     l.saveItem({ id: 'b', code: '1', name: 'برغي', kind: 'stock', unit: 'قطعة', price: 0.08, priceCurrency: 'USD' } as Item);

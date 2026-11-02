@@ -45,9 +45,11 @@ export function toMinor(amount: string | number, decimals: number): number {
   return assertSafe(sign ? -minor : minor);
 }
 
-/** كم منزلة زيادة عن العملة بيقبل سعر الوحدة (0.0005$ وأصغر لحد 0.000001$). */
-export const PRICE_EXTRA = 4;
-const PRICE_SCALE = 10 ** PRICE_EXTRA;
+/** كم منزلة زيادة عن العملة بيقبل سعر الوحدة (بالدولار لحد 8 أرقام بعد الفاصلة: 0.00000001$). */
+export const PRICE_EXTRA = 6;
+export const PRICE_SCALE = 10 ** PRICE_EXTRA;
+/** بيقرّب سعر/تكلفة وحدة لدقة الأسعار (بيحفظ أجزاء السنت). */
+export const roundPrice = (n: number): number => Math.round(n * PRICE_SCALE) / PRICE_SCALE;
 
 /** سعر وحدة: بيقبل منازل زيادة عن العملة (قطع صغيرة رخيصة)، والنتيجة ممكن تكون كسر من أصغر وحدة. */
 export function toUnitPrice(amount: string, decimals: number): number {
@@ -59,7 +61,7 @@ export function toUnitPrice(amount: string, decimals: number): number {
 export function isUnitPrice(n: unknown): n is number {
   if (typeof n !== 'number' || !Number.isFinite(n) || n < 0) return false;
   const scaled = Math.round(n * PRICE_SCALE);
-  return Number.isSafeInteger(scaled) && Math.abs(n * PRICE_SCALE - scaled) < 1e-4;
+  return Number.isSafeInteger(scaled) && Math.abs(n * PRICE_SCALE - scaled) < 1e-3;
 }
 
 /** يعرض المبلغ بصيغة مقروءة مع فواصل الآلاف: 1,250.75 */

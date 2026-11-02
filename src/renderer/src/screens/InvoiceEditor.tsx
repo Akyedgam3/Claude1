@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { computeTaxes, findRate, itemPlace, listPrices, withPlace, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
+import { computeTaxes, PRICE_SCALE, roundPrice, findRate, itemPlace, listPrices, withPlace, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
 import { convertPrice, fxRates, money, parseAmount, parsePrice, rateInverted, toInput, today, uid, useCompany } from '../api';
 import { askConfirm, CurrencySelect, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
 import { invoiceDrafts } from '../drafts';
@@ -66,8 +66,8 @@ export function itemPrice(state: CompanyState, item: Item, opts: { party?: Party
   if (opts.purchase) {
     const unitCost = state.stock[item.id]?.lastCost ?? 0;
     const factor = item.units?.find((u) => u.name === opts.unit)?.factor ?? 1;
-    const scaled = convertPrice(state, Math.round(unitCost * factor * 10_000), state.info!.baseCurrency, opts.currency, rates);
-    const v = scaled === null ? null : scaled / 10_000;
+    const scaled = convertPrice(state, Math.round(unitCost * factor * PRICE_SCALE), state.info!.baseCurrency, opts.currency, rates);
+    const v = scaled === null ? null : scaled / PRICE_SCALE;
     return v === null || v === 0 ? '' : toInput(state, v, opts.currency);
   }
   const unit = item.units?.find((u) => u.name === opts.unit);
@@ -79,10 +79,10 @@ export function itemPrice(state: CompanyState, item: Item, opts: { party?: Party
   // زبون إلو حسم خاص من النشرة (معلم مميز)
   const special = partyListPrice(item, opts.party);
   if (special !== undefined && !dealerPrice) price = special;
-  if (unit) price = !dealerPrice && special === undefined && unit.price !== undefined ? unit.price : Math.round(price * unit.factor * 10_000) / 10_000;
+  if (unit) price = !dealerPrice && special === undefined && unit.price !== undefined ? unit.price : roundPrice(price * unit.factor);
   // منحافظ على أجزاء السنت (0.0005$) بالتحويل
-  const scaled = convertPrice(state, Math.round(price * 10_000), item.priceCurrency, opts.currency, rates);
-  const v = scaled === null ? null : scaled / 10_000;
+  const scaled = convertPrice(state, Math.round(price * PRICE_SCALE), item.priceCurrency, opts.currency, rates);
+  const v = scaled === null ? null : scaled / PRICE_SCALE;
   return v === null ? '' : toInput(state, v, opts.currency);
 }
 

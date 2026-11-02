@@ -1,3 +1,4 @@
+import { roundPrice } from './money';
 import type { BatchMove, CompanyState, Invoice, InvoiceKind, Item, Production, StockAdjustment, StockLevel, StockTransfer } from './types';
 
 // كل حركات المخزون (فواتير، جرد، تحويل، إنتاج) تُختزل إلى "حركة" واحدة بهذا الشكل،
@@ -31,7 +32,7 @@ export function applyMove(state: CompanyState, m: StockMove): void {
   lvl.qty[m.warehouseId] = roundQty((lvl.qty[m.warehouseId] ?? 0) + m.qty);
   lvl.totalQty = roundQty(lvl.totalQty + m.qty);
   lvl.value += m.value;
-  if (m.lastCost && m.qty > 0) lvl.lastCost = Math.round((m.value / m.qty) * 10_000) / 10_000; // بيحفظ أجزاء السنت (قطع رخيصة)
+  if (m.lastCost && m.qty > 0) lvl.lastCost = roundPrice(m.value / m.qty); // بيحفظ أجزاء السنت (قطع رخيصة)
   const sign = m.qty >= 0 ? 1 : -1;
   for (const b of m.batches ?? []) {
     const batches = (lvl.batches ??= {});
