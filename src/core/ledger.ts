@@ -705,6 +705,40 @@ export class Ledger {
     this.emit({ type: 'party.saved', party });
   }
 
+  /**
+   * دمج شخص مكرر بشخص تاني: رصيده (لكل حساب وعملة) بينتقل بقيد واحد، والاسم المكرر بيتأرشف.
+   * فواتيره وسنداته القديمة بتضل متل ما هي باسمه القديم.
+   */
+  mergeParty(fromId: string, toId: string, date: string): JournalEntry | null {
+    const from = this.state.parties[fromId] ?? fail('الشخص غير موجود');
+    const to = this.state.parties[toId] ?? fail('الشخص اللي بدك تدمج فيه غير موجود');
+    if (fromId === toId) fail('اختار شخص تاني');
+    if (to.archived) fail(`«${to.name}» محذوف`);
+    const sums = new Map<string, { accountId: string; currency: string; cur: number; base: number }>();
+    for (const e of this.state.entries) {
+      for (const l of e.lines) {
+        if (l.partyId !== fromId) continue;
+        const k = `${l.accountId}|${l.currency}`;
+        const g = sums.get(k) ?? { accountId: l.accountId, currency: l.currency, cur: 0, base: 0 };
+        g.cur += l.debit - l.credit;
+        g.base += l.baseDebit - l.baseCredit;
+        sums.set(k, g);
+      }
+    }
+    const lines: LineDraft[] = [];
+    for (const g of sums.values()) {
+      if (!g.cur) continue;
+      const amt = Math.abs(g.cur);
+      const rate = g.currency === this.base.code ? undefined : this.rateFor(g.currency, date) ?? undefined;
+      const common = { accountId: g.accountId, currency: g.currency, ...(rate ? { rate } : {}) };
+      lines.push({ ...common, partyId: fromId, ...(g.cur > 0 ? { credit: amt } : { debit: amt }) });
+      lines.push({ ...common, partyId: toId, ...(g.cur > 0 ? { debit: amt } : { credit: amt }) });
+    }
+    const entry = lines.length ? this.postEntry({ date, memo: `دمج حساب «${from.name}» مع «${to.name}»`, lines, source: { type: 'merge', id: fromId } }) : null;
+    this.saveParty({ ...from, archived: true });
+    return entry;
+  }
+
   saveItem(item: Item): void {
     this.emit({ type: 'item.saved', item });
   }

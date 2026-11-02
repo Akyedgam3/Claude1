@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { partyBalance, partyStatement, siteJobRooms, siteJobTotals, type Party } from '../../../core';
-import { major, money, parseAmount, toInput, uid, useCompany, dateText } from '../api';
+import { major, money, parseAmount, toInput, today, uid, useCompany, dateText } from '../api';
 import { ExportButtons, PrintButtons, DocHeader } from '../components/print';
 import { Icon } from '../components/icons';
-import { Empty, Field, matches, Modal, PageHeader, SearchBox } from '../components/ui';
+import { askConfirm, Empty, Field, matches, Modal, PageHeader, partyOptions, Picker, SearchBox } from '../components/ui';
 import { MeasurementsEditor, TAILOR_STATUS } from './Tailor';
 import { meters, SITE_JOB_STATUS } from './SiteJobs';
 
@@ -329,6 +329,10 @@ export function PartyForm({
             ...(f.notes.trim() ? { notes: f.notes.trim() } : {}),
             ...(Object.keys(measurements).length ? { measurements } : {}),
           };
+          // نفس الاسم موجود؟ (بيصير الحساب على اسمين وما بيبين صح)
+          const norm = (x: string) => x.replace(/\s+/g, ' ').trim();
+          const twin = !party && Object.values(state.parties).find((x) => !x.archived && norm(x.name) === norm(data.name));
+          if (twin && !(await askConfirm(`«${twin.name}» مسجّل قبل. الأفضل تستعمل الموجود حتى يضل حسابه بمكان واحد. بدك تضيف واحد تاني بنفس الاسم؟`))) return;
           if (await call('saveParty', data)) {
             notify('تم الحفظ');
             onSaved?.(data);
@@ -382,6 +386,7 @@ export function PartyForm({
             <MeasurementsEditor value={measurements} onChange={setMeasurements} />
           </div>
         )}
+        {party && <MergeParty party={party} onDone={onClose} />}
         <div className="form-actions wide">
           <button type="button" onClick={onClose}>
             إلغاء
@@ -390,5 +395,47 @@ export function PartyForm({
         </div>
       </form>
     </Modal>
+  );
+}
+
+/** الاسم مكرر؟ دمجه بالاسم التاني: الرصيد بينتقل والمكرر بينحذف. */
+function MergeParty({ party, onDone }: { party: Party; onDone: () => void }) {
+  const { state, call, notify } = useCompany();
+  const [open, setOpen] = useState(false);
+  const [target, setTarget] = useState<string | null>(null);
+  const options = partyOptions(state).filter((o) => o.id !== party.id);
+  if (!open)
+    return (
+      <div className="wide">
+        <button type="button" className="ghost small" onClick={() => setOpen(true)}>
+          دمج مع شخص تاني (اسم مكرر)
+        </button>
+      </div>
+    );
+  return (
+    <div className="wide card" style={{ padding: 12 }}>
+      <p className="muted" style={{ marginTop: 0 }}>
+        اختار الاسم الصح. رصيد «{party.name}» ({money(state, partyBalance(state, party.id).base)}) بينتقل إله، و«{party.name}» بينحذف. الفواتير القديمة بتضل متل ما هي.
+      </p>
+      <div className="with-button">
+        <Picker options={options} value={target} onChange={setTarget} placeholder="ادمج مع..." />
+        <button
+          type="button"
+          className="primary"
+          disabled={!target}
+          onClick={async () => {
+            if (!target) return;
+            const to = state.parties[target]!;
+            if (!(await askConfirm(`تدمج «${party.name}» مع «${to.name}»؟ رصيده بينتقل والاسم المكرر بينحذف.`))) return;
+            if (await call('mergeParty', party.id, target, today())) {
+              notify(`انضم حساب «${party.name}» لـ«${to.name}»`);
+              onDone();
+            }
+          }}
+        >
+          دمج
+        </button>
+      </div>
+    </div>
   );
 }

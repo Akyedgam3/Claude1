@@ -529,10 +529,18 @@ function DebtForm({ direction: initial, partyId: presetParty, onClose }: { direc
     try {
       if (adding || !pid) {
         if (!newName.trim()) return notify('اختر الشخص أو اكتب اسمه', 'error');
-        if (!can('parties.manage')) return notify('لا تملك صلاحية إضافة أشخاص', 'error');
-        const p: Party = { id: uid(), kind: direction === 'owed' ? 'customer' : 'supplier', name: newName.trim(), ...(newPhone.trim() ? { phone: newPhone.trim() } : {}), ...(due ? { debtDue: due } : {}) };
-        if (!(await call('saveParty', p))) return;
-        pid = p.id;
+        // الاسم مسجّل قبل؟ الدين بينسجّل عليه بدل ما ينعمل اسم مكرر (وإلا بينقسم حسابه على اسمين)
+        const norm = (x: string) => x.replace(/\s+/g, ' ').trim();
+        const twin = Object.values(state.parties).find((x) => !x.archived && norm(x.name) === norm(newName));
+        if (twin) {
+          pid = twin.id;
+          notify(`«${twin.name}» مسجّل قبل، انسجّل الدين عليه`);
+        } else {
+          if (!can('parties.manage')) return notify('لا تملك صلاحية إضافة أشخاص', 'error');
+          const p: Party = { id: uid(), kind: direction === 'owed' ? 'customer' : 'supplier', name: newName.trim(), ...(newPhone.trim() ? { phone: newPhone.trim() } : {}), ...(due ? { debtDue: due } : {}) };
+          if (!(await call('saveParty', p))) return;
+          pid = p.id;
+        }
       }
       const res = await call<JournalEntry>('postDebt', {
         direction,

@@ -93,6 +93,7 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
   lockPeriod: 'period.close',
   closeYear: 'period.close',
   saveParty: 'parties.manage',
+  mergeParty: 'parties.manage',
   saveItem: 'items.manage',
   saveItems: 'items.manage',
   deleteItem: 'items.manage',
