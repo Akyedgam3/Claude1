@@ -1563,6 +1563,10 @@ body:not(.mobile) .pos-line.cart-line > button.icon {
 }
 
 @media print {
+  /* النوافذ صارت على body مباشرة: إذا الطباعة من نافذة، منخفي الشاشة اللي تحتها لحتى ما تاخد مساحة */
+  body:has(> .modal-backdrop .print-area) > #root {
+    display: none;
+  }
   .modal-backdrop {
     position: static;
     background: none;
@@ -3955,6 +3959,10 @@ button.whatsapp:hover { background: #1ebe5b; }
 /* معاينة صورة الواتساب */
 .share-preview { max-height: 62vh; overflow: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2, #f4f6f8); text-align: center; }
 .share-preview img { display: block; width: 100%; height: auto; }
+/* زر المشاركة لازم يضل فوق الصورة: كانت الصورة عم تغطّيه بالجوال فالكبسة ما تشتغل */
+.share-preview { position: relative; z-index: 0; }
+.share-preview + .form-actions { position: relative; z-index: 5; }
+body.mobile .share-preview { max-height: 46vh; }
 
 /* الربح اليومي بالرئيسية */
 .daily-profit .dp-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }

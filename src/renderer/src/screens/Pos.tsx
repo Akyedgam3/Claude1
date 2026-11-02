@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { itemTitle, resolveScan, type Invoice, type Item } from '../../../core';
-import { convertPrice, fxRates, money, parseAmount, qtyText, shownCurrencies, today, toInput, uid, useCompany } from '../api';
+import { convertPrice, fxRates, money, parseAmount, parsePrice, qtyText, shownCurrencies, today, toInput, uid, useCompany } from '../api';
 import { usePrinter } from '../components/print';
 import { ItemName, matches, partyOptions, Picker, ScanInput } from '../components/ui';
 import { InvoiceDocument } from './InvoiceView';
@@ -111,7 +111,7 @@ export function Pos() {
   /** السعر بعملة البيع، أو null إن كانت المادة مسعّرة بعملة تانية وما في سعر صرف. */
   const priceOf = (item: Item, unit = ''): number | null => {
     const text = itemPrice(state, item, { party, unit, currency: cur, date: today(), dealer: user.cashAccountId === '11019' });
-    return text ? parseAmount(state, text, cur) : null;
+    return text ? parsePrice(state, text, cur) : null;
   };
   const switchCurrency = (next: string) => {
     if (next === cur) return;
@@ -121,9 +121,9 @@ export function Pos() {
       c.map((l) => {
         const it = state.items[l.itemId];
         const fresh = it ? itemPrice(state, it, { party, unit: l.unit, currency: cur, date: today() }) : '';
-        const wasList = fresh && parseAmount(state, fresh, cur) === l.price;
+        const wasList = fresh && parsePrice(state, fresh, cur) === l.price;
         const nextList = wasList && it ? itemPrice(state, it, { party, unit: l.unit, currency: next, date: today() }) : '';
-        return { ...l, price: nextList ? parseAmount(state, nextList, next) : (convert(l.price, cur, next) ?? l.price) };
+        return { ...l, price: nextList ? parsePrice(state, nextList, next) : (convert(l.price, cur, next) ?? l.price) };
       }),
     );
     setDiscount('');

@@ -630,7 +630,7 @@ export function TradeIn() {
                 setNewItem(v);
                 setNewSerial('');
                 const it = v ? state.items[v] : undefined;
-                if (it) setNewPrice(itemPrice(state, it, { currency: base, date: today() }) || '');
+                if (it) setNewPrice(itemPrice(state, it, { currency: base, date: today(), whole: true }) || '');
               }}
               placeholder="اختار الجهاز (موبايل، لابتوب...)"
             />
@@ -842,7 +842,7 @@ export function PcBuild() {
                       value={r.itemId}
                       onChange={(v) => {
                         const item = v ? state.items[v] : undefined;
-                        upd(r.key, { itemId: v, serial: '', price: item ? itemPrice(state, item, { currency: base, date: today(), ...(partyId ? { party: state.parties[partyId] ?? null } : {}) }) || '' : '' });
+                        upd(r.key, { itemId: v, serial: '', price: item ? itemPrice(state, item, { currency: base, date: today(), whole: true, ...(partyId ? { party: state.parties[partyId] ?? null } : {}) }) || '' : '' });
                       }}
                       placeholder="اختار..."
                     />

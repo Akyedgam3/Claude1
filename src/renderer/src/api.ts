@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { createContext, useContext } from 'react';
-import { can as canDo, DEALER_BOX_ID, effectiveProfile, pharmacyValue, findRate, formatMinor, toMinor, toUnitPrice, type ActivityProfile, type CompanyState, type Currency, type Feature, type Permission, type User } from '../../core';
+import { can as canDo, DEALER_BOX_ID, effectiveProfile, pharmacyValue, findRate, formatMinor, niceUnitCost, toMinor, toUnitPrice, type ActivityProfile, type CompanyState, type Currency, type Feature, type Permission, type User } from '../../core';
 import type { LicenseStatus } from '../../license/manager';
 
 /** نسخة الموبايل (أندرويد): مستقلة، بدون شبكة محلية ولا شاشة زبون. */
@@ -334,6 +334,12 @@ export function money(state: CompanyState, minor: number, currency?: string): st
   const c = state.currencies[currency ?? state.info!.baseCurrency]!;
   if (masked()) return `•••• ${c.symbol}`;
   return `${formatMinor(minor, c.decimals)} ${c.symbol}`;
+}
+
+/** تكلفة وحدة (متوسط التكلفة): بتبيّن أجزاء السنت للقطع الرخيصة. */
+export function unitMoney(state: CompanyState, minor: number, currency?: string): string {
+  const c = state.currencies[currency ?? state.info!.baseCurrency]!;
+  return money(state, niceUnitCost(minor, c.decimals), currency);
 }
 
 /** المبلغ بدون رمز العملة (أعمدة الإيصال الحراري الضيقة). */

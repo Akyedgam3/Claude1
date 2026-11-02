@@ -1,6 +1,7 @@
 import { useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { itemColor, itemTitle, type CompanyState, type Item, type Party } from '../../../core';
 import { api, Company, IS_MOBILE, shownCurrencies, useCompany, type CompanyCtx } from '../api';
+import { createPortal } from 'react-dom';
 import { Icon } from './icons';
 
 export function Field({ label, children, wide }: { label: string; children: ReactNode; wide?: boolean }) {
@@ -39,8 +40,10 @@ export function Modal({ title, onClose, children, width }: { title: string; onCl
       if (!modalStack.length) setTimeout(() => !modalStack.length && document.body.classList.remove('modal-open'), 500);
     };
   }, []);
-  return (
-    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+  // النافذة بتنرسم على body مباشرة: إذا انفتحت من جوّا بطاقة (صف بجدول الجوال) كانت تتحرك مع
+  // أنميشن الكبسة تبع البطاقة فتفلت الكبسة عن الزر. والكبسات جوّاها ما بتوصل للبطاقة اللي تحتها.
+  return createPortal(
+    <div className="modal-backdrop" onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" style={width ? { width } : undefined}>
         <header>
           <h3>{title}</h3>
@@ -50,7 +53,8 @@ export function Modal({ title, onClose, children, width }: { title: string; onCl
         </header>
         <div className="modal-body">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

@@ -361,7 +361,7 @@ function OrderPanel({ order, onBack, onSwitch }: { order: Order; onBack: () => v
     const existing = lines.find((l) => l.itemId === itemId && !l.sent && !l.note);
     if (existing) setLines(lines.map((l) => (l === existing ? { ...l, qty: l.qty + 1 } : l)));
     else {
-      const text = itemPrice(state, item, { currency: base, date: today() });
+      const text = itemPrice(state, item, { currency: base, date: today(), whole: true });
       if (!text) return notify(`سجّل سعر صرف ${state.currencies[item.priceCurrency]?.nameAr ?? ''} أولاً لتسعير "${item.name}"`, 'error');
       const line = { id: uid(), itemId, qty: 1, price: parseAmount(state, text, base) };
       setLines([...lines, line]);

@@ -74,7 +74,7 @@ test('pharmacy: batches with expiry dates are sold nearest-expiry first', async 
   const { page, close } = await launch();
   try {
     await activate(page);
-    await createCompany(page, { name: 'صيدلية الشفاء', activity: 'صيدلية' });
+    await createCompany(page, { name: 'صيدلية الشفاء', activity: 'أدوية بدفعات' });
     const m = page.locator('.modal');
     await nav(page, 'المواد');
     await page.getByRole('button', { name: /دواء جديد/ }).click();

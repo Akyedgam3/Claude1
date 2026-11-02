@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { attributesFor, buyDiscountOf, generateVariants, itemPlace, itemPlacesText, listPrices, withPlace, type Item, type ItemKind, type ItemUnit, type RecipeLine } from '../../../core';
-import { api, major, money, parseAmount, parsePrice, qtyText, toInput, today, uid, useCompany } from '../api';
+import { attributesFor, niceUnitCost, buyDiscountOf, generateVariants, itemPlace, itemPlacesText, listPrices, withPlace, type Item, type ItemKind, type ItemUnit, type RecipeLine } from '../../../core';
+import { api, major, money, unitMoney, parseAmount, parsePrice, qtyText, toInput, today, uid, useCompany } from '../api';
 import { Barcode, ExportButtons, usePrinter } from '../components/print';
 import { CameraScanButton, ColorPicker, ConfirmButton, CurrencySelect, ItemName, Empty, Field, itemMatches, itemOptions, Modal, PageHeader, Picker, SearchBox, Tabs } from '../components/ui';
 import { Icon } from '../components/icons';
@@ -153,7 +153,7 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
                   qty: i.kind === 'stock' ? (s?.totalQty ?? 0) : null,
                   price: major(state, i.price, i.priceCurrency),
                   currency: i.priceCurrency,
-                  cost: s && s.totalQty > 0 ? major(state, Math.round(s.value / s.totalQty)) : null,
+                  cost: s && s.totalQty > 0 ? major(state, niceUnitCost(s.value / s.totalQty, state.currencies[state.info!.baseCurrency]!.decimals)) : null,
                 };
               }),
             },
@@ -215,7 +215,7 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
                   <td>{i.category}</td>
                   <td>{itemPlacesText(state, i)}</td>
                   <td className={`num ${low ? 'bad' : ''}`}>{i.kind === 'stock' ? `${qtyText(qty)} ${i.unit}` : '—'}</td>
-                  {showCost && <td className="num">{s && qty > 0 ? money(state, Math.round(s.value / qty)) : '—'}</td>}
+                  {showCost && <td className="num">{s && qty > 0 ? unitMoney(state, s.value / qty) : '—'}</td>}
                   <td className="num">{money(state, i.price, i.priceCurrency)}</td>
                 </tr>
               );

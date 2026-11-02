@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { computeTaxes, PRICE_SCALE, roundPrice, findRate, itemPlace, listPrices, withPlace, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
+import { computeTaxes, niceUnitCost, PRICE_SCALE, roundPrice, findRate, itemPlace, listPrices, withPlace, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
 import { convertPrice, fxRates, money, parseAmount, parsePrice, rateInverted, toInput, today, uid, useCompany } from '../api';
 import { askConfirm, CurrencySelect, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
 import { invoiceDrafts } from '../drafts';
@@ -55,8 +55,19 @@ export function cashAccounts(state: CompanyState, currency?: string) {
 }
 
 /** سعر المادة حسب شريحة العميل والوحدة، محوّلاً لعملة الفاتورة. */
-export function itemPrice(state: CompanyState, item: Item, opts: { party?: Party | null; unit?: string; currency: string; date: string; purchase?: boolean; rates?: Record<string, number>; dealer?: boolean }): string {
+export function itemPrice(state: CompanyState, item: Item, opts: { party?: Party | null; unit?: string; currency: string; date: string; purchase?: boolean; rates?: Record<string, number>; dealer?: boolean; whole?: boolean }): string {
   const rates = opts.rates ?? fxRates(state, opts.date);
+  const decimals = state.currencies[opts.currency]?.decimals ?? 2;
+  /**
+   * التحويل بيرجع لأصغر وحدة متل قبل (0.0542$ بتصير 0.05$)، إلا إذا السعر الأصلي نفسه فيه أجزاء من أصغر
+   * وحدة (قطع رخيصة 0.0005$): هيك منحافظ على دقته. whole = الشاشات اللي بتقبل مبالغ كاملة بس (مطعم، خدمات).
+   */
+  const convert = (minor: number, from: string): number | null => {
+    const scaled = convertPrice(state, Math.round(minor * PRICE_SCALE), from, opts.currency, rates);
+    if (scaled === null) return null;
+    const v = scaled / PRICE_SCALE;
+    return opts.whole || Number.isInteger(minor) ? Math.round(v) : niceUnitCost(v, decimals);
+  };
   if (opts.purchase && item.listPrice) {
     // كهربائيات: سعر الشراء = النشرة ناقص حسم الشركة
     const factor = item.units?.find((u) => u.name === opts.unit)?.factor ?? 1;
@@ -66,8 +77,7 @@ export function itemPrice(state: CompanyState, item: Item, opts: { party?: Party
   if (opts.purchase) {
     const unitCost = state.stock[item.id]?.lastCost ?? 0;
     const factor = item.units?.find((u) => u.name === opts.unit)?.factor ?? 1;
-    const scaled = convertPrice(state, Math.round(unitCost * factor * PRICE_SCALE), state.info!.baseCurrency, opts.currency, rates);
-    const v = scaled === null ? null : scaled / PRICE_SCALE;
+    const v = convert(roundPrice(unitCost * factor), state.info!.baseCurrency);
     return v === null || v === 0 ? '' : toInput(state, v, opts.currency);
   }
   const unit = item.units?.find((u) => u.name === opts.unit);
@@ -80,9 +90,7 @@ export function itemPrice(state: CompanyState, item: Item, opts: { party?: Party
   const special = partyListPrice(item, opts.party);
   if (special !== undefined && !dealerPrice) price = special;
   if (unit) price = !dealerPrice && special === undefined && unit.price !== undefined ? unit.price : roundPrice(price * unit.factor);
-  // منحافظ على أجزاء السنت (0.0005$) بالتحويل
-  const scaled = convertPrice(state, Math.round(price * PRICE_SCALE), item.priceCurrency, opts.currency, rates);
-  const v = scaled === null ? null : scaled / PRICE_SCALE;
+  const v = convert(price, item.priceCurrency);
   return v === null ? '' : toInput(state, v, opts.currency);
 }
 

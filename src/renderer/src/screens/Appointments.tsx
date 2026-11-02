@@ -107,7 +107,7 @@ function InvoiceButton({ appointment, onDone }: { appointment: Appointment; onDo
   const [open, setOpen] = useState(false);
   const service = appointment.itemId ? state.items[appointment.itemId] : undefined;
   // السعر يُحوَّل لعملة الشركة (خدمة مسعّرة بالدولار مثلاً)
-  const [price, setPrice] = useState(service ? itemPrice(state, service, { currency: base, date: today() }) : '');
+  const [price, setPrice] = useState(service ? itemPrice(state, service, { currency: base, date: today(), whole: true }) : '');
   const [paid, setPaid] = useState(price);
   if (!can('sales.create')) return null;
   if (!open) return <button onClick={() => setOpen(true)}>إنهاء وفوترة</button>;

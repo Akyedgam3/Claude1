@@ -39,3 +39,12 @@ describe('half a cent and smaller (0.0005$)', () => {
     expect(l.state.stock['b']!.value).toBe(250);
   });
 });
+
+describe('average unit cost display', () => {
+  it('keeps 4 significant digits under one unit', async () => {
+    const { niceUnitCost } = await import('../src/core');
+    expect(formatMinor(niceUnitCost(9409 / 144, 2), 2)).toBe('0.6534');
+    expect(formatMinor(niceUnitCost(0.005, 2), 2)).toBe('0.00005');
+    expect(formatMinor(niceUnitCost(1234.4, 2), 2)).toBe('12.34');
+  });
+});

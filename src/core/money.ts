@@ -57,6 +57,18 @@ export function toUnitPrice(amount: string, decimals: number): number {
   return scaled / PRICE_SCALE;
 }
 
+/**
+ * تكلفة وحدة للعرض (متوسط التكلفة): بالمنازل العادية للعملة، وإذا كانت أقل من وحدة كاملة
+ * منعرض 4 أرقام مهمة (0.6534$ مش 0.65$، و0.00005$ مش 0.00$).
+ */
+export function niceUnitCost(minor: number, decimals: number): number {
+  const major = Math.abs(minor) / 10 ** decimals;
+  if (!(major > 0) || major >= 1) return Math.round(minor);
+  const places = Math.min(decimals + PRICE_EXTRA, Math.max(decimals, Math.ceil(-Math.log10(major)) + 3));
+  const k = 10 ** (places - decimals);
+  return Math.round(minor * k) / k;
+}
+
 /** سعر وحدة صالح: موجب وما فيه منازل أكتر من المسموح. */
 export function isUnitPrice(n: unknown): n is number {
   if (typeof n !== 'number' || !Number.isFinite(n) || n < 0) return false;

@@ -12,9 +12,10 @@ import {
   stockReport,
   trialBalance,
   type Period,
+  niceUnitCost,
 } from '../../../core';
 import type { ExportSheet } from '../api';
-import { dateText, major, money, qtyText, today, useCompany } from '../api';
+import { dateText, major, money, unitMoney, qtyText, today, useCompany } from '../api';
 import { DocHeader, ExportButtons, PrintButtons } from '../components/print';
 import { Empty, Field, PageHeader, Stat, Tabs } from '../components/ui';
 
@@ -432,7 +433,7 @@ function Stock({ onSheet }: SheetProps) {
       { header: 'الوحدة', key: 'unit' },
       ...(showCost ? [{ header: 'متوسط التكلفة', key: 'avg', type: 'money' as const }, { header: 'القيمة', key: 'value', type: 'money' as const }] : []),
     ],
-    rows: rows.map((r) => ({ code: r.item.code, name: r.item.name, qty: r.qty, unit: r.item.unit, avg: major(state, r.avgCost), value: major(state, r.value) })),
+    rows: rows.map((r) => ({ code: r.item.code, name: r.item.name, qty: r.qty, unit: r.item.unit, avg: major(state, niceUnitCost(r.avgCost, state.currencies[state.info!.baseCurrency]!.decimals)), value: major(state, r.value) })),
   });
   if (!rows.length) return <Empty>لا توجد مواد مخزنية</Empty>;
   return (
@@ -461,7 +462,7 @@ function Stock({ onSheet }: SheetProps) {
               <td className={`num ${r.low ? 'bad' : ''}`}>
                 {qtyText(r.qty)} {r.item.unit}
               </td>
-              {showCost && <td className="num">{money(state, r.avgCost)}</td>}
+              {showCost && <td className="num">{unitMoney(state, r.avgCost)}</td>}
               {showCost && <td className="num">{money(state, r.value)}</td>}
             </tr>
           ))}

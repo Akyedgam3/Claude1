@@ -13,7 +13,7 @@ import {
   type DealerSale,
   type Item,
 } from '../../../core';
-import { dateText, money, parseAmount, qtyText, toInput, today, uid, useCompany } from '../api';
+import { dateText, money, unitMoney, parseAmount, qtyText, toInput, today, uid, useCompany } from '../api';
 import { Icon } from '../components/icons';
 import { ConfirmButton, Empty, Field, Modal, PageHeader, Picker, ScanInput, Tabs } from '../components/ui';
 import { ItemForm } from './Items';
@@ -521,7 +521,7 @@ function DealerGoods({ dealer }: { dealer: Dealer }) {
                   <td className={`num ${s.qty <= (it.minStock ?? 0) ? 'bad' : ''}`}>
                     {qtyText(s.qty)} {it.unit}
                   </td>
-                  <td className="num">{s.qty > 0 ? money(state, Math.round(s.value / s.qty)) : '—'}</td>
+                  <td className="num">{s.qty > 0 ? unitMoney(state, s.value / s.qty) : '—'}</td>
                   <td className="num">{it.dealerPrice ? money(state, it.dealerPrice, it.priceCurrency) : '—'}</td>
                   <td className="num">{money(state, s.value)}</td>
                 </tr>
