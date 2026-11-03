@@ -400,6 +400,7 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
   const [lines, setLines] = useState<LineForm[]>(() => booking?.lines.map((l) => ({ id: l.id, name: l.name, perGuest: !!l.perGuest, qty: String(l.qty), price: toInput(state, l.price, booking.currency) })) ?? [{ id: uid(), name: 'أجار الصالة', perGuest: false, qty: '1', price: '' }]);
   const [newParty, setNewParty] = useState(false);
   const [depositing, setDepositing] = useState(false);
+  const [settling, setSettling] = useState(false);
   const [invoicing, setInvoicing] = useState(false);
   const locked = !!booking?.invoiceId;
   // خانات الحجز اللي بيختارها صاحب الصالة من «إعدادات الصالة»
@@ -639,7 +640,11 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
                 <span>العربون المقبوض</span>
                 <strong className="good">{money(state, deposits, f.currency)}</strong>
                 <span>الباقي</span>
-                <strong className="bad">{money(state, Math.max(0, totals.total - deposits), f.currency)}</strong>
+                {totals.total - deposits > 0 ? (
+                  <strong className="bad">{money(state, totals.total - deposits, f.currency)}</strong>
+                ) : (
+                  <strong className="good">مدفوع بالكامل ✓</strong>
+                )}
               </>
             )}
           </div>
@@ -656,6 +661,11 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
               {can('vouchers.create') && f.status !== 'cancelled' && (
                 <button type="button" className="push-start" onClick={() => setDepositing(true)}>
                   <Icon name="wallet" size={16} /> قبض عربون
+                </button>
+              )}
+              {can('vouchers.create') && f.status !== 'cancelled' && totals && deposits > 0 && totals.total - deposits > 0 && (
+                <button type="button" onClick={() => setSettling(true)}>
+                  <Icon name="wallet" size={16} /> قبض الباقي
                 </button>
               )}
               {can('sales.create') && f.status !== 'cancelled' && (
@@ -690,6 +700,23 @@ function BookingForm({ booking: initial, date: initDate, onClose }: { booking: H
               notify('تم قبض العربون');
               set('status', saved.status === 'tentative' ? 'confirmed' : saved.status);
               setDepositing(false);
+            }
+          }}
+        />
+      )}
+      {settling && totals && (
+        <DepositDialog
+          title="قبض باقي الحجز"
+          hint="بيتسجّل سند قبض بالباقي باسم الزبون، وبيصير الحجز «مدفوع بالكامل». بتقدر تصدر الفاتورة بعدها إذا بدك."
+          currency={f.currency}
+          suggested={Math.max(0, totals.total - deposits)}
+          onClose={() => setSettling(false)}
+          onConfirm={async (amount, cashAccountId) => {
+            const saved = await save(true);
+            if (!saved) return;
+            if (await call('addBookingDeposit', saved.id, { date: today(), amount, cashAccountId })) {
+              notify('تم قبض الباقي');
+              setSettling(false);
             }
           }}
         />
