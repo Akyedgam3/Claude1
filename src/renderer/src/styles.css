@@ -4073,3 +4073,10 @@ body.mobile .share-preview { max-height: 46vh; }
   body[data-paper='label'] .modal-body > :not(.labels) { display: none !important; }
   body[data-paper='label'] .modal, body[data-paper='label'] .modal-body { padding: 0 !important; margin: 0 !important; border: none !important; border-radius: 0 !important; overflow: visible !important; }
 }
+
+/* كشف الحساب مع تفاصيل المواد */
+.st-lines td { padding-top: 0 !important; border-top: none !important; }
+.st-lines ul { list-style: none; margin: 0; padding: 4px 10px; border-inline-start: 3px solid var(--primary-soft); display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--muted); }
+.st-lines li { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.st-lines li b { color: var(--text); }
+@media print { .st-lines ul { color: #000; border-color: #ccc; } }

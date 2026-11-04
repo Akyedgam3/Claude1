@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
-import { partyBalance, partyStatement, siteJobRooms, siteJobTotals, type Party } from '../../../core';
-import { major, money, parseAmount, toInput, today, uid, useCompany, dateText } from '../api';
+import { Fragment, useMemo, useState } from 'react';
+import { lineAmount, partyBalance, partyStatement, siteJobRooms, siteJobTotals, type Invoice, type Party } from '../../../core';
+import { major, money, parseAmount, qtyText, toInput, today, uid, useCompany, dateText } from '../api';
 import { ExportButtons, PrintButtons, DocHeader } from '../components/print';
 import { Icon } from '../components/icons';
 import { askConfirm, Empty, Field, matches, Modal, PageHeader, partyOptions, Picker, SearchBox } from '../components/ui';
@@ -112,6 +112,7 @@ export function BalanceText({ value, currency }: { value: number; currency?: str
 export function PartyPanel({ party, onEdit }: { party: Party; onEdit?: () => void }) {
   const { state, navigate, feature, can, notify } = useCompany();
   const [currency, setCurrency] = useState<string>('');
+  const [details, setDetails] = useState(false);
   const jobs = feature('sitejobs') ? Object.values(state.siteJobs).filter((j) => j.partyId === party.id).sort((a, b) => b.date.localeCompare(a.date)) : [];
   const orders = feature('tailoring') ? Object.values(state.tailorOrders).filter((o) => o.partyId === party.id).sort((a, b) => b.number - a.number) : [];
   const measures = Object.entries(party.measurements ?? {});
@@ -229,6 +230,9 @@ export function PartyPanel({ party, onEdit }: { party: Party; onEdit?: () => voi
       )}
       <div className="panel-actions">
         <h4>كشف الحساب</h4>
+        <label className="check">
+          <input type="checkbox" checked={details} onChange={(e) => setDetails(e.target.checked)} /> مع تفاصيل المواد
+        </label>
         {currencies.length > 1 && (
           <select value={currency} onChange={(e) => setCurrency(e.target.value)}>
             <option value="">بالعملة الأساسية</option>
@@ -263,17 +267,37 @@ export function PartyPanel({ party, onEdit }: { party: Party; onEdit?: () => voi
             {st.rows.map((r) => {
               const inv = state.invoices.find((i) => i.entryId === r.entryId);
               return (
-                <tr key={r.entryId} className={inv ? 'clickable' : ''} onClick={() => inv && navigate('invoice', inv.id)}>
-                  <td>{dateText(r.date)}</td>
-                  <td>{r.memo}</td>
-                  <td className="num">{r.debit ? money(state, r.debit, currency || undefined) : ''}</td>
-                  <td className="num">{r.credit ? money(state, r.credit, currency || undefined) : ''}</td>
-                  <td className="num">{money(state, r.running, currency || undefined)}</td>
-                </tr>
+                <Fragment key={r.entryId}>
+                  <tr className={inv ? 'clickable' : ''} onClick={() => inv && navigate('invoice', inv.id)}>
+                    <td>{dateText(r.date)}</td>
+                    <td>{r.memo}</td>
+                    <td className="num">{r.debit ? money(state, r.debit, currency || undefined) : ''}</td>
+                    <td className="num">{r.credit ? money(state, r.credit, currency || undefined) : ''}</td>
+                    <td className="num">{money(state, r.running, currency || undefined)}</td>
+                  </tr>
+                  {details && inv && (
+                    <tr className="st-lines">
+                      <td />
+                      <td colSpan={4}>
+                        <ul>
+                          {inv.lines.map((l, i) => (
+                            <li key={i}>
+                              <span>{l.description}</span>
+                              <span className="num">
+                                {qtyText(l.qty)} {l.unit ?? (l.itemId ? state.items[l.itemId]?.unit : '') ?? ''} × {money(state, l.price, inv.currency)} = <b>{money(state, lineAmount(l), inv.currency)}</b>
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               );
             })}
           </tbody>
         </table>
+        {details && <ItemsSummary partyId={party.id} />}
         </div>
       )}
     </aside>
@@ -437,5 +461,56 @@ function MergeParty({ party, onDone }: { party: Party; onDone: () => void }) {
         </button>
       </div>
     </div>
+  );
+}
+
+/** ملخص المواد مع شخص: كل مادة كم أخد منّا (أو أخدنا منه) بالمجموع، صافي بعد المرتجعات. */
+function ItemsSummary({ partyId }: { partyId: string }) {
+  const { state } = useCompany();
+  const rows = useMemo(() => {
+    const map = new Map<string, { name: string; unit: string; sold: number; bought: number; amount: Record<string, number> }>();
+    const sign: Record<Invoice['kind'], [number, number]> = { sale: [1, 0], sale_return: [-1, 0], purchase: [0, 1], purchase_return: [0, -1] };
+    for (const inv of state.invoices) {
+      if (inv.partyId !== partyId || inv.deleted || inv.voidEntryId) continue;
+      const [s, b] = sign[inv.kind];
+      for (const l of inv.lines) {
+        const key = l.itemId ?? `d:${l.description}`;
+        const item = l.itemId ? state.items[l.itemId] : undefined;
+        const base = l.qty * (l.factor ?? 1);
+        const r = map.get(key) ?? { name: item?.name ?? l.description, unit: item?.unit ?? l.unit ?? '', sold: 0, bought: 0, amount: {} };
+        r.sold += s * base;
+        r.bought += b * base;
+        r.amount[inv.currency] = (r.amount[inv.currency] ?? 0) + (s + b) * lineAmount(l);
+        map.set(key, r);
+      }
+    }
+    return [...map.values()].filter((r) => r.sold || r.bought).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+  }, [state, partyId]);
+  if (!rows.length) return null;
+  const anySold = rows.some((r) => r.sold), anyBought = rows.some((r) => r.bought);
+  return (
+    <>
+      <h4 style={{ marginTop: 14 }}>ملخص المواد</h4>
+      <table className="table compact">
+        <thead>
+          <tr>
+            <th>المادة</th>
+            {anySold && <th className="num">أخد منّا</th>}
+            {anyBought && <th className="num">أخدنا منه</th>}
+            <th className="num">القيمة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.name}>
+              <td>{r.name}</td>
+              {anySold && <td className="num">{r.sold ? `${qtyText(Math.round(r.sold * 1000) / 1000)} ${r.unit}` : ''}</td>}
+              {anyBought && <td className="num">{r.bought ? `${qtyText(Math.round(r.bought * 1000) / 1000)} ${r.unit}` : ''}</td>}
+              <td className="num">{Object.entries(r.amount).filter(([, v]) => v).map(([c, v]) => money(state, v, c)).join(' + ')}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
   );
 }
