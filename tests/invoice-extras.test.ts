@@ -113,3 +113,17 @@ describe('edit the price of a purchase whose goods moved or sold', () => {
     expect(l.state.stock['ph']!.value).toBe(90_000);
   });
 });
+
+describe('overpaying an invoice', () => {
+  it('the invoice "remaining" counts the extra payment posted with it', () => {
+    const l = shop();
+    // دين قديم للمورد 50,000 (فاتورة بدون دفع)
+    l.postInvoice({ kind: 'purchase', date: '2026-03-02', partyId: 'sup', lines: [{ itemId: 'rice', qty: 5, price: 10_000 }], paid: 0 });
+    const inv = l.postInvoice({ kind: 'purchase', date: '2026-03-03', partyId: 'sup', lines: [{ itemId: 'rice', qty: 1, price: 10_000 }], paid: 10_000 });
+    l.postVoucher({ kind: 'payment', date: '2026-03-03', amount: 20_000, partyId: 'sup', memo: `دفعة على الحساب مع فاتورة شراء رقم ${inv.number}` });
+    const b = invoicePartyBalance(l.state, inv)!;
+    expect(-b.previous).toBe(50_000);
+    expect(-b.after).toBe(30_000);
+    expect(-partyBalance(l.state, 'sup').base).toBe(30_000);
+  });
+});

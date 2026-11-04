@@ -1,5 +1,8 @@
 import { roundPrice } from './money';
-import type { Account, CompanyState, Invoice, Item, JournalEntry, JournalLine } from './types';
+import type { Account, CompanyState, Invoice, InvoiceKind, Item, JournalEntry, JournalLine } from './types';
+
+// نفس أسماء commerce.ts (منكررها هون حتى ما يصير استيراد دائري)
+const INVOICE_NAMES: Record<InvoiceKind, string> = { sale: 'فاتورة مبيع', purchase: 'فاتورة شراء', sale_return: 'مرتجع مبيع', purchase_return: 'مرتجع شراء' };
 
 export interface Period {
   from?: string; // YYYY-MM-DD شامل
@@ -532,10 +535,21 @@ export function invoicePartyBalance(state: CompanyState, inv: Invoice): { previo
   if (!inv.partyId) return null;
   let previous = 0;
   let own = 0;
-  for (const e of state.entries) {
+  const entries = state.entries;
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i]!;
     const mine = e.id === inv.entryId;
     for (const l of e.lines) if (l.partyId === inv.partyId && l.currency === inv.currency) (mine ? (own += l.debit - l.credit) : (previous += l.debit - l.credit));
-    if (mine) return { previous, after: previous + own };
+    if (mine) {
+      // الزيادة المدفوعة مع الفاتورة (أكتر من قيمتها) بتنسجّل سند لحالو بعدها مباشرة: منحسبها بـ«الباقي»
+      const memo = `دفعة على الحساب مع ${INVOICE_NAMES[inv.kind]} رقم ${inv.number}`;
+      for (let j = i + 1; j < Math.min(entries.length, i + 4); j++) {
+        const x = entries[j]!;
+        if (!x.memo.endsWith(`: ${memo}`) || x.voidOf || state.voided[x.id]) continue;
+        for (const l of x.lines) if (l.partyId === inv.partyId && l.currency === inv.currency) own += l.debit - l.credit;
+      }
+      return { previous, after: previous + own };
+    }
   }
   return null;
 }
