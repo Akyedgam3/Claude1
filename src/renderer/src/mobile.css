@@ -1000,3 +1000,5 @@ body.mobile .pos-line-wrap { animation: m-slide-in 0.25s var(--ease) both; }
 @media (prefers-reduced-motion: reduce) { body.mobile .pos-line-wrap, body.mobile .pos-item .badge { animation: none; } }
 body.mobile .pos-item .badge { top: -8px; left: -8px; min-width: 26px; height: 26px; border-radius: 13px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18); border: 2px solid var(--surface); }
 body.mobile .pos-tile { overflow: visible; }
+body.mobile .modal .form-actions { flex-wrap: wrap; }
+body.mobile .modal .form-actions > .push-start { flex-basis: 100%; }

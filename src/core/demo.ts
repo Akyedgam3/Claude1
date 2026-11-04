@@ -870,6 +870,28 @@ function perfumes(l: Ledger): void {
   l.postInvoice({ kind: 'sale', date: day(), partyId: 'c-maya', lines: [{ itemId: 'p-sun', qty: 1, price: P(6500) }, { itemId: 'p-cologne', qty: 2, price: P(2500) }, { itemId: 'p-soap', qty: 3, price: P(900) }] });
 }
 
+function woodmill(l: Ledger): void {
+  l.saveParty({ id: 's-ali', kind: 'supplier', name: 'أبو علي — حطب الساحل', phone: '0944 512 300' });
+  l.saveParty({ id: 's-farm', kind: 'supplier', name: 'مزرعة الزيتون — تقليم', phone: '0933 610 245' });
+  l.saveParty({ id: 'c-bakery', kind: 'customer', name: 'فرن الحارة', phone: '0955 207 118' });
+  l.saveParty({ id: 'c-rest', kind: 'customer', name: 'مطعم الشواء', phone: '0944 330 912' });
+  const a = l.buyWoodLot({ date: day(-25), title: 'سنديان', cost: P(60000), supplierId: 's-ali', paid: P(40000) });
+  l.addWoodExpense({ date: day(-24), kind: 'نقل وتحميل', amount: P(3000), lotId: a.id });
+  l.addWoodExpense({ date: day(-22), kind: 'أجور عمال', description: 'فرم وتقطيع (3 عمال)', amount: P(6000), lotId: a.id });
+  l.addWoodExpense({ date: day(-21), kind: 'مازوت ومحروقات', description: 'مازوت الفرّامة', amount: P(2500), lotId: a.id });
+  l.sellWood(a.id, { date: day(-20), partyId: 'c-bakery', lines: [{ unit: 'طن', qty: 2, price: P(18000) }], paid: P(20000) });
+  l.sellWood(a.id, { date: day(-15), lines: [{ unit: 'شوال', qty: 30, price: P(900) }, { unit: 'قطعة', qty: 40, price: P(150) }] });
+  l.sellWood(a.id, { date: day(-12), partyId: 'c-rest', lines: [{ unit: 'طن', qty: 1.5, price: P(18500) }] });
+  l.closeWoodLot(a.id, day(-10));
+  const b = l.buyWoodLot({ date: day(-8), title: 'زيتون (تقليم)', cost: P(45000), supplierId: 's-farm', paid: P(45000) });
+  l.addWoodExpense({ date: day(-7), kind: 'أجور عمال', description: 'تقطيع وتعبئة شوالات', amount: P(4000), lotId: b.id });
+  l.addWoodExpense({ date: day(-7), kind: 'شوالات وتغليف', description: '100 شوال فاضي', amount: P(1500), lotId: b.id });
+  l.sellWood(b.id, { date: day(-3), lines: [{ unit: 'شوال', qty: 25, price: P(1100) }] });
+  l.sellWood(b.id, { date: day(), partyId: 'c-rest', lines: [{ unit: 'طن', qty: 1, price: P(21000) }], paid: 0 });
+  l.addWoodExpense({ date: day(-5), kind: 'صيانة', description: 'تبديل سكاكين الفرّامة', amount: P(3500) });
+  l.addWoodExpense({ date: day(-1), kind: 'كهرباء', amount: P(1200) });
+}
+
 function electrical(l: Ledger): void {
   l.setRate({ date: day(-40), currency: 'USD', rate: 121, kind: 'market' });
   l.updateCompany({ listPricing: { buyDiscount: 15, masterDiscount: 10, retailMarkup: 5, brands: { 'نيوباور': 15 } } });
@@ -1028,6 +1050,7 @@ export function loadDemo(l: Ledger): void {
   else if (activity === 'solar') solar(l);
   else if (activity === 'foodstuff') foodstuff(l);
   else if (activity === 'perfumes') perfumes(l);
+  else if (activity === 'woodmill') woodmill(l);
   else if (activity === 'electrical') electrical(l);
   else if (activity === 'mobile') mobile(l);
   else if (activity === 'sweets') sweets(l);

@@ -9,6 +9,7 @@ import { invoiceMoves } from './stock';
 import { POULTRY_CUTS } from './poultry';
 import { dealerStock, dealerUnitCost } from './dealers';
 import { HALL_PERIODS, bookingDeposits, bookingToInvoiceLines, bookingTotals } from './halls';
+import { woodExpenseAccount, woodLotSales } from './woodlots';
 import { printJobDeposits, printJobToInvoiceLines, printJobTotals } from './printshop';
 import { solarDeposits, solarToInvoiceLines, solarTotals } from './solar';
 import { DEALER_BOX_ID } from './dealerbox';
@@ -24,6 +25,8 @@ import {
   type TransferDraft,
 } from './operations';
 import type {
+  WoodExpense,
+  WoodLot,
   Partner,
   PriceBoard,
   HallBooking,
@@ -2298,6 +2301,147 @@ export class Ledger {
     };
     this.emit({ type: 'workorder.saved', order });
     return order;
+  }
+
+  // ───────────── معمل الحطب ─────────────
+
+  /** إلغاء قيد تبع الحمولة (الشراء أو تسكيرها): بنفس طريقة القيد العكسي. */
+  private voidWoodEntry(entryId: string, date: string): void {
+    const original = this.state.entries.find((e) => e.id === entryId) ?? fail('القيد غير موجود');
+    this.emit({ type: 'entry.posted', entry: this.reversal(original, date) });
+  }
+
+  /** شراء حمولة حطب بالقيمة: بتدخل المخزون بقيمتها، وبتنسجّل دين للمورد (أو من الصندوق إذا ما في مورد). */
+  buyWoodLot(d: { date: string; title: string; cost: number; supplierId?: string; paid?: number; cashAccountId?: string; notes?: string }): WoodLot {
+    if (!d.title?.trim()) fail('اكتب نوع الحطب');
+    if (!Number.isSafeInteger(d.cost) || d.cost <= 0) fail('اكتب قيمة الحمولة');
+    const paid = d.supplierId ? Math.max(0, Math.min(d.cost, d.paid ?? 0)) : d.cost;
+    const number = (this.state.counters['woodlot'] ?? 0) + 1;
+    const supplier = d.supplierId ? (this.state.parties[d.supplierId] ?? fail('المورد غير موجود')) : null;
+    const memo = `حمولة حطب رقم ${number}: ${d.title.trim()}${supplier ? ` — ${supplier.name}` : ''}`;
+    const id = crypto.randomUUID();
+    const purchase = this.postEntry({
+      date: d.date,
+      memo,
+      lines: [
+        { accountId: SYSTEM_ACCOUNTS.inventory, debit: d.cost },
+        supplier ? { accountId: SYSTEM_ACCOUNTS.suppliers, credit: d.cost, partyId: supplier.id } : { accountId: d.cashAccountId ?? cashAccountFor(this.state, this.base.code), credit: d.cost },
+      ],
+      source: { type: 'woodlot', id },
+    });
+    const paidEntry =
+      supplier && paid > 0
+        ? this.postVoucher({ kind: 'payment', date: d.date, amount: paid, partyId: supplier.id, memo: `دفعة عن حمولة حطب رقم ${number}`, ...(d.cashAccountId ? { cashAccountId: d.cashAccountId } : {}), createdBy: this.actor })
+        : undefined;
+    const lot: WoodLot = {
+      id,
+      number,
+      date: d.date,
+      title: d.title.trim(),
+      ...(supplier ? { supplierId: supplier.id } : {}),
+      cost: d.cost,
+      purchaseEntryId: purchase.id,
+      ...(paidEntry ? { paidEntryId: paidEntry.id } : {}),
+      status: 'open',
+      ...(d.notes?.trim() ? { notes: d.notes.trim() } : {}),
+      createdAt: new Date().toISOString(),
+    };
+    this.emit({ type: 'woodlot.saved', lot });
+    return lot;
+  }
+
+  /** تعديل اسم الحمولة أو ملاحظاتها (القيمة ما بتتغيّر؛ للغلط بتلغيها وبتسجّلها من جديد). */
+  updateWoodLot(id: string, d: { title?: string; notes?: string }): WoodLot {
+    const lot = this.state.woodLots?.[id] ?? fail('الحمولة غير موجودة');
+    const next: WoodLot = { ...lot, ...(d.title?.trim() ? { title: d.title.trim() } : {}), ...(d.notes !== undefined ? { notes: d.notes.trim() } : {}) };
+    this.emit({ type: 'woodlot.saved', lot: next });
+    return next;
+  }
+
+  /** إلغاء حمولة انسجّلت بالغلط (إذا ما انباع منها شي): قيد عكسي للشراء والدفعة. */
+  cancelWoodLot(id: string, date: string): WoodLot {
+    const lot = this.state.woodLots?.[id] ?? fail('الحمولة غير موجودة');
+    if (lot.status === 'cancelled') return lot;
+    if (woodLotSales(this.state, id).length) fail('انباع من الحمولة؛ ألغِ فواتيرها أولاً');
+    if (lot.closeEntryId && !this.state.voided[lot.closeEntryId]) this.voidWoodEntry(lot.closeEntryId, date);
+    if (lot.paidEntryId && !this.state.voided[lot.paidEntryId]) this.voidEntry(lot.paidEntryId, date);
+    if (!this.state.voided[lot.purchaseEntryId]) this.voidWoodEntry(lot.purchaseEntryId, date);
+    for (const x of Object.values(this.state.woodExpenses ?? {})) if (x.lotId === id && !this.state.voided[x.entryId]) this.voidEntry(x.entryId, date);
+    const next: WoodLot = { ...this.state.woodLots![id]!, status: 'cancelled' };
+    this.emit({ type: 'woodlot.saved', lot: next });
+    return next;
+  }
+
+  /** مصروف المعمل (أجور، صيانة، مازوت...): على حمولة معيّنة أو مصروف عام. */
+  addWoodExpense(d: { date: string; kind: string; description?: string; amount: number; lotId?: string; cashAccountId?: string }): WoodExpense {
+    if (!d.kind?.trim()) fail('اختار نوع المصروف');
+    if (!Number.isSafeInteger(d.amount) || d.amount <= 0) fail('اكتب المبلغ');
+    const lot = d.lotId ? (this.state.woodLots?.[d.lotId] ?? fail('الحمولة غير موجودة')) : null;
+    const entry = this.postVoucher({
+      kind: 'payment',
+      date: d.date,
+      amount: d.amount,
+      accountId: woodExpenseAccount(d.kind),
+      memo: `${d.kind}${d.description?.trim() ? ` — ${d.description.trim()}` : ''}${lot ? ` (حمولة ${lot.number}: ${lot.title})` : ''}`,
+      ...(d.cashAccountId ? { cashAccountId: d.cashAccountId } : {}),
+      createdBy: this.actor,
+    });
+    const expense: WoodExpense = { id: crypto.randomUUID(), date: d.date, kind: d.kind.trim(), ...(d.description?.trim() ? { description: d.description.trim() } : {}), amount: d.amount, ...(lot ? { lotId: lot.id } : {}), entryId: entry.id };
+    this.emit({ type: 'woodexpense.saved', expense });
+    return expense;
+  }
+
+  removeWoodExpense(id: string, date: string): void {
+    const x = this.state.woodExpenses?.[id] ?? fail('المصروف غير موجود');
+    if (!this.state.voided[x.entryId]) this.voidEntry(x.entryId, date);
+  }
+
+  /** بيع من الحمولة: فاتورة مبيع عادية (بتنطبع وبتدخل بالديون) بسطور بالطن أو الشوال أو القطعة. */
+  sellWood(lotId: string, d: { date: string; partyId?: string | null; lines: { unit: string; qty: number; price: number; note?: string }[]; paid?: number; cashAccountId?: string; discount?: number; notes?: string }): Invoice {
+    const lot = this.state.woodLots?.[lotId] ?? fail('الحمولة غير موجودة');
+    if (lot.status === 'cancelled') fail('الحمولة ملغاة');
+    const lines = d.lines.filter((l) => l.qty > 0);
+    if (!lines.length) fail('اكتب الكمية والسعر');
+    return this.postInvoice({
+      kind: 'sale',
+      date: d.date,
+      ...(d.partyId ? { partyId: d.partyId } : {}),
+      lines: lines.map((l) => ({ itemId: null, description: `حطب ${lot.title} (${l.unit || 'قطعة'})`, qty: l.qty, unit: l.unit || 'قطعة', price: l.price, ...(l.note ? { note: l.note } : {}) })),
+      ...(d.paid !== undefined ? { paid: d.paid } : {}),
+      ...(d.cashAccountId ? { cashAccountId: d.cashAccountId } : {}),
+      ...(d.discount ? { discount: d.discount } : {}),
+      notes: d.notes?.trim() || `من حمولة رقم ${lot.number}`,
+      source: { type: 'woodlot', id: lot.id },
+    });
+  }
+
+  /** الحمولة خلصت: قيمتها بتنتقل من المخزون لتكلفة المبيعات، فبيبيّن ربحها بالتقارير. */
+  closeWoodLot(id: string, date: string): WoodLot {
+    const lot = this.state.woodLots?.[id] ?? fail('الحمولة غير موجودة');
+    if (lot.status !== 'open') fail('الحمولة مش مفتوحة');
+    const entry = this.postEntry({
+      date,
+      memo: `خلصت حمولة الحطب رقم ${lot.number}: ${lot.title}`,
+      lines: [
+        { accountId: SYSTEM_ACCOUNTS.cogs, debit: lot.cost },
+        { accountId: SYSTEM_ACCOUNTS.inventory, credit: lot.cost },
+      ],
+      source: { type: 'woodlot-close', id: lot.id },
+    });
+    const next: WoodLot = { ...lot, status: 'closed', closedAt: date, closeEntryId: entry.id };
+    this.emit({ type: 'woodlot.saved', lot: next });
+    return next;
+  }
+
+  /** رجّع الحمولة مفتوحة (إذا تسكّرت بالغلط). */
+  reopenWoodLot(id: string, date: string): WoodLot {
+    const lot = this.state.woodLots?.[id] ?? fail('الحمولة غير موجودة');
+    if (lot.status !== 'closed') return lot;
+    if (lot.closeEntryId && !this.state.voided[lot.closeEntryId]) this.voidWoodEntry(lot.closeEntryId, date);
+    const { closedAt: _c, closeEntryId: _e, ...rest } = this.state.woodLots![id]!;
+    const next: WoodLot = { ...rest, status: 'open' };
+    this.emit({ type: 'woodlot.saved', lot: next });
+    return next;
   }
 
   /** إلغاء مصروف: سند عكسي ويضل ظاهر كملغى. */

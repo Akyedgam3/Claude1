@@ -217,6 +217,25 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       if (prev?.invoiceId && !invoiceVoided(state, prev.invoiceId) && (s.status !== 'invoiced' || s.invoiceId !== prev.invoiceId)) fail('الشحنة مفوترة؛ ألغِ الفاتورة أولاً لتعديلها');
       return;
     }
+    case 'woodlot.saved': {
+      const w = event.lot;
+      if (!DATE_RE.test(w.date)) fail('تاريخ غير صالح');
+      if (!w.title?.trim() || w.title.length > 120) fail('اكتب نوع الحطب');
+      if (!Number.isSafeInteger(w.cost) || w.cost <= 0) fail('قيمة الحمولة لازم تكون أكبر من صفر');
+      if (w.supplierId && !state.parties[w.supplierId]) fail('المورد غير موجود');
+      if (!['open', 'closed', 'cancelled'].includes(w.status)) fail('حالة غير صالحة');
+      const prev = state.woodLots?.[w.id];
+      if (prev && (prev.cost !== w.cost || prev.purchaseEntryId !== w.purchaseEntryId)) fail('ما بتتغيّر قيمة الحمولة بعد تسجيلها');
+      return;
+    }
+    case 'woodexpense.saved': {
+      const x = event.expense;
+      if (!DATE_RE.test(x.date)) fail('تاريخ غير صالح');
+      if (!x.kind?.trim()) fail('اكتب نوع المصروف');
+      if (!Number.isSafeInteger(x.amount) || x.amount <= 0) fail('المبلغ لازم يكون أكبر من صفر');
+      if (x.lotId && !state.woodLots?.[x.lotId]) fail('الحمولة غير موجودة');
+      return;
+    }
     case 'booking.saved': {
       const b = event.booking;
       if (!state.parties[b.partyId]) fail('الزبون غير موجود');
@@ -600,6 +619,13 @@ export function applyCommerceEvent(state: CompanyState, event: CompanyEvent): vo
     case 'shipment.saved':
       (state.shipments ??= {})[event.shipment.id] = { ...event.shipment };
       bump(state, 'shipment', event.shipment.number);
+      return;
+    case 'woodlot.saved':
+      (state.woodLots ??= {})[event.lot.id] = { ...event.lot };
+      bump(state, 'woodlot', event.lot.number);
+      return;
+    case 'woodexpense.saved':
+      (state.woodExpenses ??= {})[event.expense.id] = { ...event.expense };
       return;
     case 'booking.saved':
       (state.bookings ??= {})[event.booking.id] = { ...event.booking };

@@ -24,6 +24,7 @@ import { Parties } from './screens/Parties';
 import { Pos } from './screens/Pos';
 import { Production } from './screens/Production';
 import { Formulas } from './screens/Formulas';
+import { WoodLots } from './screens/WoodLots';
 import { Rates } from './screens/Rates';
 import { RepairEditor } from './screens/RepairEditor';
 import { Repairs } from './screens/Repairs';
@@ -101,6 +102,7 @@ const NAV: (NavItem | string)[] = [
   { key: 'pricelist', label: 'نشرة الأسعار', icon: 'file', feature: 'priceList' },
   { key: 'lists', label: 'النشرات والحسومات', icon: 'file', feature: 'listPricing', perm: 'items.manage' },
   { key: 'stock', label: 'الجرد وعمليات المخزون', icon: 'transfer', perms: ['stock.adjust', 'stock.transfer'] },
+  { key: 'woodlots', label: 'حمولات الحطب', icon: 'tree', feature: 'woodlots', perms: ['purchases.create', 'sales.create', 'vouchers.create'] },
   { key: 'formulas', label: 'الخلطات والوصفات', icon: 'flask', feature: 'production', perms: ['production.manage', 'items.manage'] },
   { key: 'production', label: 'الإنتاج', icon: 'factory', feature: 'production', perm: 'production.manage' },
   { key: 'parties', label: 'العملاء والموردون', icon: 'users' },
@@ -551,6 +553,8 @@ function Screen({ screen }: { screen: { key: string; param?: string } }) {
       return <Production />;
     case 'formulas':
       return <Formulas />;
+    case 'woodlots':
+      return <WoodLots />;
     case 'parties':
       return <Parties {...(p ? { focus: p } : {})} />;
     case 'debts':

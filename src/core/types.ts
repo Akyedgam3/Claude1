@@ -84,7 +84,8 @@ export type Activity =
   | 'solar'
   | 'foodstuff'
   | 'electrical'
-  | 'perfumes';
+  | 'perfumes'
+  | 'woodmill';
 
 export type Paper = 'a4' | 'a5' | '80mm' | '58mm';
 
@@ -666,6 +667,36 @@ export type HallPeriod = 'morning' | 'evening' | 'full';
 export type BookingStatus = 'tentative' | 'confirmed' | 'done' | 'invoiced' | 'cancelled';
 
 /** حجز صالة لمناسبة: التاريخ والفترة، عدد الضيوف، الخدمات (ضيافة بالراس، DJ، تصوير...)، العربون والفاتورة. */
+// ───────────── معمل الحطب والخشب ─────────────
+
+/** حمولة حطب بتنشرى بالقيمة بس (بدون كمية ولا وزن)، بتنفرم وبتنباع بالقطعة أو الشوال أو الطن. */
+export interface WoodLot {
+  id: string;
+  number: number;
+  date: string;
+  title: string; // نوع الحطب: زيتون، سنديان، حمضيات...
+  supplierId?: string;
+  cost: number; // قيمة الشراء بالعملة الأساسية
+  purchaseEntryId: string;
+  paidEntryId?: string; // الدفعة للمورد وقت الشراء
+  status: 'open' | 'closed' | 'cancelled';
+  closedAt?: string;
+  closeEntryId?: string; // قيد نقل قيمة الحمولة لتكلفة المبيعات لما تخلص
+  notes?: string;
+  createdAt: string;
+}
+
+/** مصروف المعمل: أجور عمال، صيانة، مازوت... على حمولة معيّنة أو مصروف عام. */
+export interface WoodExpense {
+  id: string;
+  date: string;
+  kind: string;
+  description?: string;
+  amount: number;
+  lotId?: string;
+  entryId: string;
+}
+
 export interface HallBooking {
   id: string;
   number: number;
@@ -1021,6 +1052,8 @@ export interface CompanyState {
   printJobs?: Record<string, PrintJob>;
   dealers?: Record<string, Dealer>;
   bookings?: Record<string, HallBooking>;
+  woodLots?: Record<string, WoodLot>;
+  woodExpenses?: Record<string, WoodExpense>;
   solarProjects?: Record<string, SolarProject>;
   /** صندوق المورد: شقد صار عليه للصيدلية عن كل فاتورة (أدويتها بسعر بيعها). */
   dealerDues?: Record<string, number>;
@@ -1072,6 +1105,8 @@ export type CompanyEvent =
   | { type: 'dealer.saved'; dealer: Dealer }
   | { type: 'dealer.deleted'; dealerId: string }
   | { type: 'booking.saved'; booking: HallBooking }
+  | { type: 'woodlot.saved'; lot: WoodLot }
+  | { type: 'woodexpense.saved'; expense: WoodExpense }
   | { type: 'booking.deleted'; bookingId: string }
   | { type: 'dealersale.posted'; sale: DealerSale }
   | { type: 'dealersale.voided'; saleId: string; date: string; by: string }

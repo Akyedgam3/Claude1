@@ -4080,3 +4080,39 @@ body.mobile .share-preview { max-height: 46vh; }
 .st-lines li { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .st-lines li b { color: var(--text); }
 @media print { .st-lines ul { color: #000; border-color: #ccc; } }
+
+/* معمل الحطب */
+.wood .chips, .modal .chips { margin: 6px 0 10px; }
+.chips button { border-radius: 999px; padding: 5px 13px; font-size: 13px; min-height: 0; }
+.chips button.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.chip-stat { background: var(--surface-2, #f1f3f6); padding: 5px 12px; border-radius: 999px; font-size: 13px; }
+.wood-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; margin-top: 12px; }
+.wood-card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 14px; display: flex; flex-direction: column; gap: 10px; position: relative; overflow: hidden; animation: formula-in 0.35s ease both; animation-delay: calc(var(--i, 0) * 45ms); transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.wood-card::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 4px; background: linear-gradient(90deg, #7a5230, #c08a4a); }
+.wood-card.won::before { background: linear-gradient(90deg, #128a5c, #6fcf97); }
+.wood-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08); }
+.wood-card header { display: flex; gap: 10px; align-items: center; cursor: pointer; }
+.wood-card header > div { flex: 1; min-width: 0; }
+.wood-card h4 { margin: 0; font-size: 17px; }
+.wood-icon { width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #7a5230, #b07a3c); flex: none; }
+.badge-soft { background: var(--primary-soft); color: var(--primary); border-radius: 999px; padding: 3px 10px; font-size: 12px; }
+.wood-bar { height: 10px; border-radius: 999px; background: var(--surface-2, #eef0f3); overflow: hidden; }
+.wood-bar span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #c08a4a, #128a5c); transition: width 0.8s cubic-bezier(0.2, 0.8, 0.2, 1); animation: wood-grow 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes wood-grow { from { width: 0 !important; } }
+.wood-nums { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--muted); flex-wrap: wrap; }
+.wood-nums b { display: block; color: var(--text); font-size: 14px; }
+.wood-profit { border-radius: 12px; padding: 8px 12px; font-size: 14px; background: rgba(192, 57, 43, 0.08); }
+.wood-profit.good { background: rgba(18, 138, 92, 0.1); }
+.wood-actions { display: flex; gap: 8px; }
+.wood-actions button { flex: 1; }
+.wood-hint { margin: -4px 0 8px; color: var(--primary); font-weight: 600; }
+.old-lira { margin: 4px 0 10px; }
+.wood-lines { display: flex; flex-direction: column; gap: 10px; margin: 10px 0; }
+.wood-line { border: 1px solid var(--border); border-radius: 14px; padding: 10px; animation: formula-in 0.25s ease both; }
+.wood-line .chips { margin: 0 0 8px; }
+.wood-line-nums { display: flex; align-items: center; gap: 8px; }
+.wood-line-nums input { flex: 1; min-width: 0; }
+.wood-total { font-size: 18px; text-align: center; padding: 10px; border-radius: 14px; background: var(--primary-soft); margin: 6px 0 12px; }
+.wood-total b { font-size: 22px; margin-inline-start: 8px; }
+button.link { background: none; border: none; color: var(--primary); padding: 4px 0; text-align: start; cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { .wood-card, .wood-line, .wood-bar span { animation: none; transition: none; } }
