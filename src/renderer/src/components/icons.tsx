@@ -1,4 +1,5 @@
 import {
+  FlaskConical,
   Eye,
   EyeOff,
   Cloud,
@@ -75,6 +76,7 @@ const ICONS: Record<string, LucideIcon> = {
   car: Car,
   'shopping-cart': ShoppingCart,
   pill: Pill,
+  flask: FlaskConical,
   utensils: Utensils,
   shirt: Shirt,
   smartphone: Smartphone,

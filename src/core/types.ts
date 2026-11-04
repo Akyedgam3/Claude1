@@ -83,7 +83,8 @@ export type Activity =
   | 'weddinghall'
   | 'solar'
   | 'foodstuff'
-  | 'electrical';
+  | 'electrical'
+  | 'perfumes';
 
 export type Paper = 'a4' | 'a5' | '80mm' | '58mm';
 
@@ -272,6 +273,8 @@ export interface Item {
   trackSerial?: boolean; // أرقام تسلسلية / IMEI (موبايلات وإلكترونيات)
   weighed?: boolean; // يُباع بالوزن عبر باركود الميزان
   recipe?: RecipeLine[]; // مكوّنات الصنف المركّب أو وصفة الإنتاج
+  /** الوصفة انكتبت لكمية (مثلاً 100 مل أو 50 عبوة): للعرض بس، الكميات بـ recipe دايماً للوحدة الواحدة. */
+  recipeYield?: number;
   group?: string; // موديل يجمع المقاسات والألوان (ألبسة)
   attributes?: Record<string, string>; // مقاس، لون، مادة فعالة، شكل صيدلاني...
   warrantyMonths?: number;

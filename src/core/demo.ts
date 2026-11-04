@@ -815,6 +815,61 @@ function foodstuff(l: Ledger): void {
   l.postInvoice({ kind: 'sale', date: day(), lines: [{ itemId: 'f-rice', qty: 5, price: P(1700) }, { itemId: 'f-lentil', qty: 2, price: P(1500) }, { itemId: 'f-pasta', qty: 4, price: P(650) }] });
 }
 
+function perfumes(l: Ledger): void {
+  l.saveParty({ id: 'c-salon', kind: 'customer', name: 'صالون ريم', phone: '0944 612 330', priceTier: 'wholesale' });
+  l.saveParty({ id: 'c-maya', kind: 'customer', name: 'مايا', phone: '0933 205 771' });
+  l.saveParty({ id: 's-oils', kind: 'supplier', name: 'مستودع الزيوت العطرية', phone: '0944 880 120' });
+  // مواد أولية: [id، الاسم، التصنيف، الوحدة، الكمية، تكلفة الوحدة]
+  const raw: [string, string, string, string, number, number][] = [
+    ['p-alcohol', 'كحول عطري 96%', 'كحول ومثبتات', 'مل', 20000, 0.6],
+    ['p-fixer', 'مثبت عطر', 'كحول ومثبتات', 'مل', 2000, 4],
+    ['p-water', 'ماء مقطّر', 'مواد أولية', 'مل', 10000, 0.05],
+    ['p-oil-lemon', 'زيت ليمون عطري', 'زيوت عطرية', 'مل', 1500, 6],
+    ['p-oil-oud', 'زيت عود', 'زيوت عطرية', 'مل', 800, 25],
+    ['p-oil-musk', 'زيت مسك أبيض', 'زيوت عطرية', 'مل', 1000, 12],
+    ['p-bottle100', 'عبوة بخاخ 100 مل', 'عبوات وزجاجات', 'قطعة', 300, 250],
+    ['p-bottle50', 'عبوة بخاخ 50 مل', 'عبوات وزجاجات', 'قطعة', 300, 180],
+  ];
+  for (const [id, name, category, unit] of raw) item(l, { id, code: id.slice(2).toUpperCase(), name, kind: 'stock', unit, price: 0, category, minStock: unit === 'مل' ? 500 : 30 });
+  // منتجات بتنباع جاهزة (عناية بالبشرة)
+  const ready: [string, string, string, number, number, number][] = [
+    ['p-cream', 'كريم مرطب للوجه 50 مل', 'كريمات ولوشن', 4500, 24, 2800],
+    ['p-wash', 'غسول وجه للبشرة الدهنية', 'عناية بالبشرة', 3800, 20, 2300],
+    ['p-sun', 'واقي شمس SPF50', 'عناية بالبشرة', 6500, 15, 4200],
+    ['p-soap', 'صابون غار', 'صابون وشامبو', 900, 60, 500],
+  ];
+  for (const [id, name, category, price] of ready) item(l, { id, code: id.slice(2).toUpperCase(), name, kind: 'stock', unit: 'قطعة', price: P(price), category, minStock: 5, trackExpiry: category !== 'صابون وشامبو' });
+  // منتجات مصنّعة بوصفات
+  item(l, {
+    id: 'p-cologne', code: 'COLOGNE', name: 'كولونيا ليمون 100 مل', kind: 'stock', unit: 'عبوة', price: P(2500), wholesalePrice: P(2000), category: 'كولونيا', minStock: 10,
+    recipe: [{ itemId: 'p-alcohol', qty: 80 }, { itemId: 'p-oil-lemon', qty: 12 }, { itemId: 'p-fixer', qty: 3 }, { itemId: 'p-water', qty: 5 }, { itemId: 'p-bottle100', qty: 1 }], recipeYield: 1,
+  });
+  item(l, {
+    id: 'p-oud50', code: 'OUD50', name: 'عطر عود مركّز 50 مل', kind: 'stock', unit: 'عبوة', price: P(9000), wholesalePrice: P(7500), category: 'عطور', minStock: 5,
+    recipe: [{ itemId: 'p-alcohol', qty: 32 }, { itemId: 'p-oil-oud', qty: 15 }, { itemId: 'p-fixer', qty: 3 }, { itemId: 'p-bottle50', qty: 1 }], recipeYield: 1,
+  });
+  // مسك بالمل (تعبئة على الطلب): الوصفة مكتوبة لليتر
+  item(l, {
+    id: 'p-musk', code: 'MUSK', name: 'عطر مسك أبيض (تعبئة)', kind: 'stock', unit: 'مل', price: P(40), category: 'عطور', minStock: 200,
+    recipe: [{ itemId: 'p-alcohol', qty: 0.7 }, { itemId: 'p-oil-musk', qty: 0.25 }, { itemId: 'p-fixer', qty: 0.05 }], recipeYield: 1000,
+  });
+  l.adjustStock({
+    kind: 'opening',
+    date: day(-30),
+    lines: [
+      ...raw.map(([id, , , , qty, cost]) => ({ itemId: id, qty, unitCost: P(cost) })),
+      ...ready.map(([id, , , , qty, cost]) => ({ itemId: id, qty, unitCost: P(cost), ...(id !== 'p-soap' ? { batch: 'B1', expiry: day(300) } : {}) })),
+    ],
+    memo: 'بضاعة أول المدة (تجريبي)',
+  });
+  l.postProduction({ date: day(-10), outputs: [{ itemId: 'p-cologne', qty: 40 }], memo: 'تصنيع كولونيا ليمون × 40 عبوة' });
+  l.postProduction({ date: day(-6), outputs: [{ itemId: 'p-oud50', qty: 20 }], memo: 'تصنيع عطر عود × 20 عبوة' });
+  l.postProduction({ date: day(-3), outputs: [{ itemId: 'p-musk', qty: 1000 }], memo: 'تصنيع مسك أبيض × 1000 مل' });
+  l.postInvoice({ kind: 'sale', date: day(-2), partyId: 'c-salon', lines: [{ itemId: 'p-cologne', qty: 12, price: P(2000) }, { itemId: 'p-cream', qty: 6, price: P(4000) }], paid: P(20000) });
+  l.postInvoice({ kind: 'sale', date: day(-1), lines: [{ itemId: 'p-oud50', qty: 1, price: P(9000) }, { itemId: 'p-musk', qty: 30, price: P(40) }] });
+  l.postInvoice({ kind: 'sale', date: day(), partyId: 'c-maya', lines: [{ itemId: 'p-sun', qty: 1, price: P(6500) }, { itemId: 'p-cologne', qty: 2, price: P(2500) }, { itemId: 'p-soap', qty: 3, price: P(900) }] });
+}
+
 function electrical(l: Ledger): void {
   l.setRate({ date: day(-40), currency: 'USD', rate: 121, kind: 'market' });
   l.updateCompany({ listPricing: { buyDiscount: 15, masterDiscount: 10, retailMarkup: 5, brands: { 'نيوباور': 15 } } });
@@ -972,6 +1027,7 @@ export function loadDemo(l: Ledger): void {
   else if (activity === 'weddinghall') weddingHall(l);
   else if (activity === 'solar') solar(l);
   else if (activity === 'foodstuff') foodstuff(l);
+  else if (activity === 'perfumes') perfumes(l);
   else if (activity === 'electrical') electrical(l);
   else if (activity === 'mobile') mobile(l);
   else if (activity === 'sweets') sweets(l);

@@ -4020,3 +4020,34 @@ body.mobile .share-preview { max-height: 46vh; }
 .cal-count { position: absolute; bottom: 4px; inset-inline-start: 6px; font-size: 11px; font-weight: 700; min-width: 18px; height: 18px; line-height: 18px; text-align: center; border-radius: 9px; background: var(--primary); color: #fff; }
 .day-list { display: flex; flex-direction: column; gap: 8px; }
 .day-list .cal-ev { font-size: 15px; padding: 10px 12px; }
+
+/* الخلطات والوصفات (عطور، كولونيا، كريمات...) */
+.formula-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin-top: 12px; }
+.formula-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04); animation: formula-in 0.35s ease both; animation-delay: calc(var(--i, 0) * 40ms); transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.formula-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08); }
+.formula-card header { display: flex; gap: 10px; align-items: center; }
+.formula-card h4 { margin: 0; font-size: 16px; }
+.formula-icon { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #8e4fb3, #c06c9e); flex: none; }
+.formula-lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.formula-lines li { display: flex; justify-content: space-between; gap: 8px; padding: 6px 10px; border-radius: 10px; background: var(--surface-2, #f4f6f8); font-size: 14px; }
+.formula-foot { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.formula-foot em { font-style: normal; }
+.formula-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: auto; }
+.formula-actions button { flex: 1; }
+.formula-out td { background: var(--primary-soft); }
+.inline-unit { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.inline-unit input { width: 110px; }
+.qty-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.qty-chips button { border-radius: 999px; padding: 4px 12px; font-size: 13px; }
+.qty-chips button.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+@keyframes formula-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .formula-card { animation: none; transition: none; } }
+.mf-rows { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 10px; }
+.mf-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 6px 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); animation: formula-in 0.25s ease both; }
+.mf-row .mf-name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.mf-row .inline-unit input { width: 90px; }
+.mf-out { background: var(--primary-soft); border-color: transparent; }
+@media (max-width: 560px) {
+  .mf-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .mf-row .mf-meta { grid-column: 1 / -1; }
+}

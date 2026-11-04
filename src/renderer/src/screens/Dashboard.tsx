@@ -131,6 +131,11 @@ export function Dashboard() {
             <Icon name="mountain" size={20} /> الكتل والقص
           </button>
         )}
+        {feature('production') && feature('recipes') && (can('production.manage') || can('items.manage')) && (
+          <button className="primary big accent" onClick={() => navigate('formulas')}>
+            <Icon name="flask" size={20} /> الخلطات والتصنيع
+          </button>
+        )}
         {feature('hallbookings') && can('bookings.manage') && (
           <button className="primary big accent" onClick={() => navigate('bookings')}>
             <Icon name="calendar" size={20} /> حجوزات الصالة

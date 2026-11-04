@@ -23,6 +23,7 @@ import { LockScreen } from './screens/LockScreen';
 import { Parties } from './screens/Parties';
 import { Pos } from './screens/Pos';
 import { Production } from './screens/Production';
+import { Formulas } from './screens/Formulas';
 import { Rates } from './screens/Rates';
 import { RepairEditor } from './screens/RepairEditor';
 import { Repairs } from './screens/Repairs';
@@ -100,6 +101,7 @@ const NAV: (NavItem | string)[] = [
   { key: 'pricelist', label: 'نشرة الأسعار', icon: 'file', feature: 'priceList' },
   { key: 'lists', label: 'النشرات والحسومات', icon: 'file', feature: 'listPricing', perm: 'items.manage' },
   { key: 'stock', label: 'الجرد وعمليات المخزون', icon: 'transfer', perms: ['stock.adjust', 'stock.transfer'] },
+  { key: 'formulas', label: 'الخلطات والوصفات', icon: 'flask', feature: 'production', perms: ['production.manage', 'items.manage'] },
   { key: 'production', label: 'الإنتاج', icon: 'factory', feature: 'production', perm: 'production.manage' },
   { key: 'parties', label: 'العملاء والموردون', icon: 'users' },
   { key: 'vehicles', label: 'السيارات والأجهزة', icon: 'car', features: ['vehicles', 'devices'], perm: 'repairs.manage' },
@@ -547,6 +549,8 @@ function Screen({ screen }: { screen: { key: string; param?: string } }) {
       return <StockOps {...(p ? { tab: p } : {})} />;
     case 'production':
       return <Production />;
+    case 'formulas':
+      return <Formulas />;
     case 'parties':
       return <Parties {...(p ? { focus: p } : {})} />;
     case 'debts':
