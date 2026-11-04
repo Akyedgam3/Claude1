@@ -21,6 +21,7 @@ export const justClosedModal = () => Date.now() - lastModalClose < 600;
 
 export function Modal({ title, onClose, children, width }: { title: string; onClose: () => void; children: ReactNode; width?: number }) {
   const close = useRef(onClose);
+  const downOnBackdrop = useRef(false);
   close.current = onClose;
   useEffect(() => {
     // النوافذ المتداخلة: Escape يغلق العليا فقط، ولا يغلقها إن كانت قائمة اختيار مفتوحة
@@ -43,7 +44,16 @@ export function Modal({ title, onClose, children, width }: { title: string; onCl
   // النافذة بتنرسم على body مباشرة: إذا انفتحت من جوّا بطاقة (صف بجدول الجوال) كانت تتحرك مع
   // أنميشن الكبسة تبع البطاقة فتفلت الكبسة عن الزر. والكبسات جوّاها ما بتوصل للبطاقة اللي تحتها.
   return createPortal(
-    <div className="modal-backdrop" onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div
+      className="modal-backdrop"
+      onPointerDown={(e) => (downOnBackdrop.current = e.target === e.currentTarget)}
+      onClick={(e) => {
+        e.stopPropagation();
+        // بتتسكّر بس إذا الضغطة بلّشت وخلصت عالخلفية (مش لما الشاشة تتحرك تحت الإصبع، متل لما يتسكّر الكيبورد)
+        if (e.target === e.currentTarget && downOnBackdrop.current) onClose();
+        downOnBackdrop.current = false;
+      }}
+    >
       <div className="modal" style={width ? { width } : undefined}>
         <header>
           <h3>{title}</h3>

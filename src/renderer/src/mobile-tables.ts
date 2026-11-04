@@ -61,8 +61,7 @@ export function startImeCommit(): void {
       const target = e.target as Element | null;
       if (!target || target === active || active.contains(target)) return;
       if (!target.closest('button, [role="button"], a[href], .pos-item, label')) return;
-      sync(active);
-      active.blur();
+      // ما منسكّر الكيبورد هون: سكّرو بيكبّر الشاشة فبتنزل النافذة والكبسة بتوقع برّاها
       sync(active);
     },
     true,
