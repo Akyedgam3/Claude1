@@ -116,7 +116,7 @@ export const api = {
   cloudLast: () => inv<{ code: string; username: string; name?: string } | null>('cloud:last'),
   cloudForget: () => inv<boolean>('cloud:forget'),
   printers: () => inv<{ name: string; label: string }[]>('print:printers'),
-  print: (o: { paper: string; printer?: string; copies?: number }) => inv<boolean>('print:run', o),
+  print: (o: { paper: string; printer?: string; copies?: number; size?: { w: number; h: number } }) => inv<boolean>('print:run', o),
   exportPdf: (o: { paper: string; name: string }) => inv<string | false>('export:pdf', o),
   exportExcel: (name: string, sheets: ExportSheet[], format: 'xlsx' | 'csv' = 'xlsx') => inv<string | null>('export:excel', name, sheets, format),
   importExcel: () => inv<Record<string, string | number>[] | null>('import:excel'),

@@ -230,18 +230,26 @@ function handle(channel: string, fn: (...args: never[]) => unknown, opts: { allo
 /** أحجام الورق العادية؛ الحراري بيضل على مقاس CSS (طول حسب الإيصال). */
 const PAGE_SIZES: Record<string, 'A4' | 'A5'> = { a4: 'A4', a5: 'A5' };
 
-async function printOrPdf(contents: WebContents, opts: { paper: string; printer?: string; copies?: number; pdf?: string }): Promise<string | boolean> {
+/** مقاس ورق مخصص بالمليمتر (ملصقات: 40×30، 50×25...) ← ميكرون لـ Electron. */
+function customSize(opts: { size?: { w: number; h: number } }): { width: number; height: number } | null {
+  const s = opts.size;
+  if (!s || !(s.w >= 10 && s.w <= 300 && s.h >= 10 && s.h <= 300)) return null;
+  return { width: Math.round(s.w * 1000), height: Math.round(s.h * 1000) };
+}
+
+async function printOrPdf(contents: WebContents, opts: { paper: string; printer?: string; copies?: number; pdf?: string; size?: { w: number; h: number } }): Promise<string | boolean> {
+  const custom = customSize(opts);
   if (opts.pdf) {
     const res = await afterDialog(dialog.showSaveDialog(win!, { title: 'حفظ PDF', defaultPath: path.join(app.getPath('documents'), `${safeFolderName(opts.pdf)}.pdf`), filters: [{ name: 'PDF', extensions: ['pdf'] }] }));
     if (res.canceled || !res.filePath) return false;
-    const data = await contents.printToPDF({ printBackground: true, preferCSSPageSize: true, ...(PAGE_SIZES[opts.paper] ? { pageSize: PAGE_SIZES[opts.paper] } : {}) });
+    const data = await contents.printToPDF({ printBackground: true, preferCSSPageSize: true, ...(custom ? { pageSize: custom, margins: { top: 0, bottom: 0, left: 0, right: 0 } } : PAGE_SIZES[opts.paper] ? { pageSize: PAGE_SIZES[opts.paper] } : {}) });
     fs.writeFileSync(res.filePath, data);
     return res.filePath;
   }
   return new Promise<boolean>((resolve) => {
     contents.print(
       // حجم الورق لازم ينبعت للطابعة صراحة: بدونه الطابعة بتاخد A4 (الافتراضي عندها) وبتعطي «الورق غلط» إذا حاطط A5
-      { printBackground: true, silent: !!opts.printer, ...(opts.printer ? { deviceName: opts.printer } : {}), ...(PAGE_SIZES[opts.paper] ? { pageSize: PAGE_SIZES[opts.paper] } : {}), copies: Math.max(1, Math.min(5, opts.copies ?? 1)) },
+      { printBackground: true, silent: !!opts.printer, ...(opts.printer ? { deviceName: opts.printer } : {}), ...(custom ? { pageSize: custom, margins: { marginType: 'none' as const } } : PAGE_SIZES[opts.paper] ? { pageSize: PAGE_SIZES[opts.paper] } : {}), copies: Math.max(1, Math.min(5, opts.copies ?? 1)) },
       (success) => {
         refocus();
         resolve(success);
@@ -699,7 +707,7 @@ function registerIpc(): void {
 
   // ── الطباعة والتصدير ──
   handle('print:printers', async () => (await win!.webContents.getPrintersAsync()).map((p) => ({ name: p.name, label: p.displayName || p.name })));
-  handle('print:run', (opts: { paper: string; printer?: string; copies?: number }) => printOrPdf(win!.webContents, opts));
+  handle('print:run', (opts: { paper: string; printer?: string; copies?: number; size?: { w: number; h: number } }) => printOrPdf(win!.webContents, opts));
   handle('export:pdf', (opts: { paper: string; name: string }) => printOrPdf(win!.webContents, { paper: opts.paper, pdf: opts.name }));
 
   handle('export:excel', async (name: string, sheets: ExportSheet[], format: 'xlsx' | 'csv' = 'xlsx') => {

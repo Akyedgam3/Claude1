@@ -121,7 +121,7 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
               <Icon name="check" size={16} /> جرد المواد
             </button>
           ))}
-        <button onClick={() => setLabels(items.filter((i) => i.barcode || i.code).slice(0, 60))}>طباعة ملصقات</button>
+        <button onClick={() => setLabels(items.filter((i) => i.barcode || i.code).slice(0, 500))}>طباعة ملصقات</button>
         <ExportButtons
           name={profile.itemsLabel}
           sheets={() => [
@@ -241,6 +241,7 @@ type FormTab = 'basic' | 'prices' | 'tracking' | 'recipe';
 export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClose: () => void; onSaved?: (item: Item) => void }) {
   const { state, call, notify, feature, profile, can } = useCompany();
   const [newDealer, setNewDealer] = useState(false);
+  const [label, setLabel] = useState(false);
   const base = state.info!.baseCurrency;
   const [tab, setTab] = useState<FormTab>('basic');
   const [f, setF] = useState(() => ({
@@ -631,12 +632,18 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
               }}
             />
           )}
+          {item && (item.barcode || item.code) && (
+            <button type="button" onClick={() => setLabel(true)}>
+              <Icon name="printer" size={16} /> ملصق
+            </button>
+          )}
           <button type="button" onClick={onClose}>
             إلغاء
           </button>
           <button className="primary">حفظ</button>
         </div>
       </form>
+      {label && item && <LabelSheet items={[item]} onClose={() => setLabel(false)} />}
       {newDealer && <DealerForm dealer={null} onClose={() => setNewDealer(false)} onSaved={(d) => (setF((x) => ({ ...x, dealerId: d.id })), setNewDealer(false))} />}
     </Modal>
   );
@@ -714,32 +721,134 @@ function VariantsForm({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** ورقة ملصقات باركود للطباعة على طابعة الملصقات أو ورق A4. */
+/** مقاسات ورق الملصقات الشائعة (عرض × ارتفاع بالمليمتر). */
+const LABEL_SIZES: [number, number][] = [[40, 30], [50, 30], [50, 25], [38, 25], [30, 20], [60, 40], [58, 40], [100, 50]];
+type LabelPrefs = { w: number; h: number; name: boolean; price: boolean; code: boolean };
+const LABEL_KEY = 'wazn.labels';
+function readLabelPrefs(): LabelPrefs {
+  try {
+    const v = JSON.parse(localStorage.getItem(LABEL_KEY) ?? '') as Partial<LabelPrefs>;
+    if (v && v.w! >= 10 && v.h! >= 10) return { w: v.w!, h: v.h!, name: v.name !== false, price: v.price !== false, code: v.code !== false };
+  } catch {
+    // أول مرة
+  }
+  return { w: 40, h: 30, name: true, price: true, code: true };
+}
+
+/**
+ * ملصقات الباركود: كل مادة بعدد النسخ اللي بدك ياه (0 = ما بتنطبع). على طابعة الملصقات كل ملصق صفحة لحالها
+ * بمقاس الورقة الحقيقي (40×30، 50×25...) فما بتزحط، أو على ورق A4 جدول.
+ */
 function LabelSheet({ items, onClose }: { items: Item[]; onClose: () => void }) {
   const { state } = useCompany();
   const printer = usePrinter();
-  const [copiesText, setCopiesText] = useState('1');
-  const copies = Math.min(50, Math.max(1, Number(copiesText) || 1));
-  const list = items.flatMap((i) => Array.from({ length: copies }, () => i));
+  const [prefs, setPrefsState] = useState<LabelPrefs>(readLabelPrefs);
+  const setPrefs = (p: Partial<LabelPrefs>) =>
+    setPrefsState((old) => {
+      const next = { ...old, ...p };
+      try {
+        localStorage.setItem(LABEL_KEY, JSON.stringify(next));
+      } catch {
+        // مش مهم
+      }
+      return next;
+    });
+  const [q, setQ] = useState('');
+  const [counts, setCounts] = useState<Record<string, string>>(() => Object.fromEntries(items.map((i) => [i.id, items.length === 1 ? '1' : ''])));
+  const toNum = (t: string) => Math.min(500, Math.max(0, Number(t.replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))) || 0));
+  const list = items.flatMap((i) => Array.from({ length: toNum(counts[i.id] ?? '0') }, () => i));
+  const shown = q.trim() ? items.filter((i) => i.name.includes(q.trim()) || (i.barcode ?? '').includes(q.trim()) || i.code.includes(q.trim())) : items;
+  const custom = !LABEL_SIZES.some(([w, h]) => w === prefs.w && h === prefs.h);
+  const setAll = (n: string) => setCounts(Object.fromEntries(items.map((i) => [i.id, n])));
+  const style = { ['--lw' as string]: `${prefs.w}mm`, ['--lh' as string]: `${prefs.h}mm` } as React.CSSProperties;
   return (
-    <Modal title={`ملصقات الباركود (${items.length} مادة)`} onClose={onClose} width={820}>
-      <div className="button-row">
-        <label className="check">
-          عدد النسخ لكل مادة
-          <input inputMode="numeric" value={copiesText} onChange={(e) => setCopiesText(e.target.value.replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/[^\d]/g, ''))} style={{ width: 70 }} />
-        </label>
-        <button className="primary" onClick={() => printer.print('label', 'a4')}>
-          طباعة على A4
-        </button>
-        <button onClick={() => printer.print('label', '58mm')}>طابعة ملصقات</button>
+    <Modal title={items.length === 1 ? `ملصق «${items[0]!.name}»` : `ملصقات الباركود (${items.length} مادة)`} onClose={onClose} width={860}>
+      <div className="label-setup">
+        <Field label="مقاس الملصق (عرض × ارتفاع مم)">
+          <select
+            value={custom ? 'custom' : `${prefs.w}x${prefs.h}`}
+            onChange={(e) => {
+              if (e.target.value === 'custom') return setPrefs({ w: prefs.w + 1 });
+              const [w, h] = e.target.value.split('x').map(Number);
+              setPrefs({ w: w!, h: h! });
+            }}
+          >
+            {LABEL_SIZES.map(([w, h]) => (
+              <option key={`${w}x${h}`} value={`${w}x${h}`}>
+                {w} × {h} مم
+              </option>
+            ))}
+            <option value="custom">مقاس تاني...</option>
+          </select>
+        </Field>
+        {custom && (
+          <Field label="المقاس">
+            <span className="inline-unit">
+              <input inputMode="numeric" value={prefs.w} onChange={(e) => setPrefs({ w: toNum(e.target.value) || 10 })} /> ×
+              <input inputMode="numeric" value={prefs.h} onChange={(e) => setPrefs({ h: toNum(e.target.value) || 10 })} /> مم
+            </span>
+          </Field>
+        )}
+        <div className="label-show">
+          <label className="check">
+            <input type="checkbox" checked={prefs.name} onChange={(e) => setPrefs({ name: e.target.checked })} /> الاسم
+          </label>
+          <label className="check">
+            <input type="checkbox" checked={prefs.price} onChange={(e) => setPrefs({ price: e.target.checked })} /> السعر
+          </label>
+          <label className="check">
+            <input type="checkbox" checked={prefs.code} onChange={(e) => setPrefs({ code: e.target.checked })} /> رقم الباركود
+          </label>
+        </div>
       </div>
-      <div className="print-area labels">
+
+      {items.length > 1 && (
+        <>
+          <div className="toolbar">
+            <SearchBox value={q} onChange={setQ} placeholder="ابحث عن مادة..." />
+            <button type="button" onClick={() => setAll('1')}>
+              الكل 1
+            </button>
+            <button type="button" onClick={() => setAll('0')}>
+              ولا وحدة
+            </button>
+          </div>
+          <div className="label-pick">
+            {shown.map((i) => (
+              <label key={i.id} className={`label-pick-row ${toNum(counts[i.id] ?? '0') > 0 ? 'on' : ''}`}>
+                <span>
+                  {i.name} <small className="muted mono">{i.barcode || i.code}</small>
+                </span>
+                <input inputMode="numeric" placeholder="0" value={counts[i.id] ?? ''} onFocus={(e) => e.target.select()} onChange={(e) => setCounts({ ...counts, [i.id]: e.target.value })} aria-label="عدد الملصقات" />
+              </label>
+            ))}
+          </div>
+        </>
+      )}
+      {items.length === 1 && (
+        <Field label="كم ملصق">
+          <input inputMode="numeric" value={counts[items[0]!.id] ?? ''} onChange={(e) => setCounts({ [items[0]!.id]: e.target.value })} style={{ maxWidth: 120 }} autoFocus />
+        </Field>
+      )}
+
+      <div className="button-row" style={{ margin: '10px 0' }}>
+        <button className="primary" disabled={!list.length} onClick={() => void printer.printLabels({ w: prefs.w, h: prefs.h })}>
+          <Icon name="printer" size={16} /> طباعة {list.length} ملصق ({prefs.w}×{prefs.h})
+        </button>
+        <button disabled={!list.length} onClick={() => printer.print('label', 'a4')}>
+          على ورق A4
+        </button>
+      </div>
+      <p className="muted" style={{ fontSize: 13 }}>
+        💡 بطابعة الملصقات: اختار نفس مقاس الورقة اللي فيها، وبإعدادات الطابعة بويندوز حط نفس المقاس. كل ملصق بينطبع لحالو بدون ما يزحط.
+      </p>
+      <div className="print-area labels" style={style}>
         {list.map((i, n) => (
           <div key={`${i.id}-${n}`} className="label">
-            <div className="label-name">{i.name}</div>
+            {prefs.name && <div className="label-name">{i.name}</div>}
             <Barcode value={i.barcode || i.code} />
-            <div className="label-code mono">{i.barcode || i.code}</div>
-            <div className="label-price">{money(state, i.price, i.priceCurrency)}</div>
+            {prefs.code && <div className="label-code mono">{i.barcode || i.code}</div>}
+            {prefs.price && <div className="label-price">{money(state, i.price, i.priceCurrency)}</div>}
           </div>
         ))}
       </div>

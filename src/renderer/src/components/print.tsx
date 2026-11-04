@@ -51,6 +51,28 @@ export function usePrinter() {
         notify((e as Error).message, 'error');
       }
     },
+    /** ملصقات بمقاس الورقة الحقيقي (كل ملصق صفحة لحالها بدون هوامش). */
+    async printLabels(size: { w: number; h: number }) {
+      const style = document.createElement('style');
+      style.textContent = `@page { size: ${size.w}mm ${size.h}mm; margin: 0; }`;
+      document.head.appendChild(style);
+      document.body.dataset['paper'] = 'label';
+      const hidden = moneyMask.get();
+      if (hidden) {
+        moneyMask.set(false, false);
+        await new Promise((r) => setTimeout(r, 150));
+      }
+      try {
+        const printer = settings.printers?.['label'];
+        await api.print({ paper: 'label', size, ...(printer ? { printer } : {}) });
+      } catch (e) {
+        notify((e as Error).message, 'error');
+      } finally {
+        style.remove();
+        delete document.body.dataset['paper'];
+        if (hidden) moneyMask.set(true, false);
+      }
+    },
     async pdf(name: string, paper: Paper = 'a4') {
       try {
         const file = await withPaper(paper, () => api.exportPdf({ paper, name }));

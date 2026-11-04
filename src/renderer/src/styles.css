@@ -4051,3 +4051,25 @@ body.mobile .share-preview { max-height: 46vh; }
   .mf-row { grid-template-columns: minmax(0, 1fr) auto; }
   .mf-row .mf-meta { grid-column: 1 / -1; }
 }
+
+/* ملصقات بمقاس الورقة الحقيقي (--lw × --lh): عالشاشة معاينة، وبالطباعة كل ملصق صفحة لحالها */
+.label-setup { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-end; margin-bottom: 8px; }
+.label-setup .inline-unit input { width: 64px; }
+.label-show { display: flex; gap: 14px; flex-wrap: wrap; padding-bottom: 10px; }
+.label-pick { max-height: 32vh; overflow: auto; display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
+.label-pick-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 10px; cursor: pointer; }
+.label-pick-row.on { border-color: var(--primary); background: var(--primary-soft); }
+.label-pick-row input { width: 70px; text-align: center; }
+.labels[style] { grid-template-columns: repeat(auto-fill, var(--lw)); justify-content: start; }
+.labels[style] .label { width: var(--lw); height: var(--lh); box-sizing: border-box; padding: 1.2mm 1.5mm; display: flex; flex-direction: column; justify-content: center; gap: 0.4mm; overflow: hidden; background: #fff; color: #000; }
+.labels[style] .label .barcode { flex: 1 1 auto; min-height: 0; max-height: 14mm; height: auto; }
+.labels[style] .label-name { font-size: calc(var(--lh) * 0.09); line-height: 1.15; }
+.labels[style] .label-code { font-size: calc(var(--lh) * 0.075); line-height: 1; }
+.labels[style] .label-price { font-size: calc(var(--lh) * 0.11); line-height: 1.1; }
+@media print {
+  body[data-paper='label'] .labels { display: block; gap: 0; }
+  body[data-paper='label'] .label { border: none; margin: 0; break-after: page; page-break-after: always; }
+  body[data-paper='label'] .label:last-child { break-after: auto; page-break-after: auto; }
+  body[data-paper='label'] .modal-body > :not(.labels) { display: none !important; }
+  body[data-paper='label'] .modal, body[data-paper='label'] .modal-body { padding: 0 !important; margin: 0 !important; border: none !important; border-radius: 0 !important; overflow: visible !important; }
+}
