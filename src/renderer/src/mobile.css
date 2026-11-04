@@ -178,6 +178,12 @@ body.mobile .bottom-nav {
   body.mobile .content table.table:not(.m-cards) th {
     white-space: nowrap;
   }
+  /* الأسماء الطويلة (مواد، زباين...) بتنزل لسطر تاني بدل ما تنقص، والأرقام بتضل بسطر واحد */
+  body.mobile .content table.table:not(.m-cards) td:not(.num):not(.mono) {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    min-width: 7em;
+  }
   body.mobile .content table.lines td:first-child {
     white-space: normal;
     min-width: 170px;

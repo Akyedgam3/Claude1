@@ -4116,3 +4116,9 @@ body.mobile .share-preview { max-height: 46vh; }
 .wood-total b { font-size: 22px; margin-inline-start: 8px; }
 button.link { background: none; border: none; color: var(--primary); padding: 4px 0; text-align: start; cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { .wood-card, .wood-line, .wood-bar span { animation: none; transition: none; } }
+
+/* الأسماء الطويلة بتبيّن كاملة: بتنزل لسطر تاني بدل ما تنقص بنقاط */
+.mf-row .mf-name { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+.item-name, .pos-item strong, .label-pick-row span, .formula-card h4, .wood-card h4 { overflow-wrap: anywhere; }
+.labels .label-name { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.15; overflow-wrap: anywhere; }
+.labels[style] .label-name { font-size: min(calc(var(--lh) * 0.09), 3.2mm); }
