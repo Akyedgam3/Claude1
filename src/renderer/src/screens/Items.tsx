@@ -718,14 +718,15 @@ function VariantsForm({ onClose }: { onClose: () => void }) {
 function LabelSheet({ items, onClose }: { items: Item[]; onClose: () => void }) {
   const { state } = useCompany();
   const printer = usePrinter();
-  const [copies, setCopies] = useState(1);
+  const [copiesText, setCopiesText] = useState('1');
+  const copies = Math.min(50, Math.max(1, Number(copiesText) || 1));
   const list = items.flatMap((i) => Array.from({ length: copies }, () => i));
   return (
     <Modal title={`ملصقات الباركود (${items.length} مادة)`} onClose={onClose} width={820}>
       <div className="button-row">
         <label className="check">
           عدد النسخ لكل مادة
-          <input type="number" min={1} max={50} value={copies} onChange={(e) => setCopies(Math.max(1, Number(e.target.value)))} style={{ width: 70 }} />
+          <input inputMode="numeric" value={copiesText} onChange={(e) => setCopiesText(e.target.value.replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/[^\d]/g, ''))} style={{ width: 70 }} />
         </label>
         <button className="primary" onClick={() => printer.print('label', 'a4')}>
           طباعة على A4

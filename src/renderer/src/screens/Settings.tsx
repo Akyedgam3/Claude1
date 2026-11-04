@@ -487,7 +487,13 @@ function PrintTab() {
           </select>
         </Field>
         <Field label="عدد نسخ الفاتورة">
-          <input type="number" min={1} max={5} value={p.copies ?? 1} onChange={(e) => setP({ ...p, copies: Number(e.target.value) })} />
+          <select value={p.copies ?? 1} onChange={(e) => setP({ ...p, copies: Number(e.target.value) })}>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
         </Field>
         {!IS_MOBILE && printerSelect('invoice', 'طابعة الفواتير')}
         {!IS_MOBILE && printerSelect('receipt', 'طابعة الإيصالات (حرارية)')}

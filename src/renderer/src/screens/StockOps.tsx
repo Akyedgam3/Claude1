@@ -633,13 +633,14 @@ function RecentTransfers() {
 
 function Expiry() {
   const { state } = useCompany();
-  const [days, setDays] = useState(60);
+  const [daysText, setDaysText] = useState('60');
+  const days = Math.max(0, Number(daysText) || 0);
   const rows = expiringBatches(state, today(), days);
   return (
     <section className="card">
       <div className="toolbar">
         <Field label="خلال (يوم)">
-          <input type="number" min={0} value={days} onChange={(e) => setDays(Number(e.target.value))} />
+          <input inputMode="numeric" value={daysText} onChange={(e) => setDaysText(e.target.value.replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/[^\d]/g, ''))} />
         </Field>
         <ExportButtons
           name="الصلاحية"
