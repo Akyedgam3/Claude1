@@ -43,7 +43,7 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
         const name = String(r['الاسم'] ?? '').trim();
         if (!name) continue;
         const qty = num(r['الكمية']);
-        const cost = String(r['التكلفة'] ?? '').trim() ? parseAmount(state, String(r['التكلفة']).replace(/[,،\s]/g, ''), base) : 0;
+        const cost = String(r['التكلفة'] ?? '').trim() ? parsePrice(state, String(r['التكلفة']).replace(/[,،\s]/g, ''), base) : 0;
         const code = String(r['الرمز'] ?? '').trim() || nextCode([...existingCodes]);
         const old = byCode.get(code);
         if (old) {
