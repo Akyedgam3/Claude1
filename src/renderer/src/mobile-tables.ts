@@ -30,3 +30,25 @@ export function startTableCards(): void {
   }).observe(document.body, { childList: true, subtree: true });
   run();
 }
+
+/**
+ * كيبوردات الجوال (Gboard، سامسونج...) بتضل الكلمة الأخيرة «قيد الكتابة» (تحتها خط) وما بتوصل للبرنامج
+ * لحتى الكيبورد يثبّتها. فإذا كبس «حفظ» فوراً، كانت تنحفظ بدون آخر كلمة (أو المسح ما بينحسب).
+ * الحل: أول ما تنلمس أي زر، منسكّر الكتابة بالخانة (blur) فالكيبورد بيثبّت الكلمة قبل ما يشتغل الزر.
+ */
+export function startImeCommit(): void {
+  const isField = (el: Element | null): el is HTMLInputElement | HTMLTextAreaElement =>
+    (el instanceof HTMLInputElement && !['checkbox', 'radio', 'button', 'submit', 'file', 'range', 'color'].includes(el.type)) || el instanceof HTMLTextAreaElement;
+  document.addEventListener(
+    'pointerdown',
+    (e) => {
+      const active = document.activeElement;
+      if (!isField(active)) return;
+      const target = e.target as Element | null;
+      if (!target || target === active || active.contains(target)) return;
+      if (!target.closest('button, [role="button"], a[href], .pos-item')) return;
+      active.blur();
+    },
+    true,
+  );
+}

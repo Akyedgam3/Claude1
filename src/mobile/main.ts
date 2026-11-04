@@ -9,8 +9,9 @@ async function boot() {
     const { startHost } = await import('./host');
     await startHost();
     await import('../renderer/src/main');
-    const { startTableCards } = await import('../renderer/src/mobile-tables');
+    const { startTableCards, startImeCommit } = await import('../renderer/src/mobile-tables');
     startTableCards();
+    startImeCommit();
     finishIntro();
   } catch (e) {
     finishIntro(true);
