@@ -1,5 +1,5 @@
 import qrcode from 'qrcode-generator';
-import type { CSSProperties, ReactNode } from 'react';
+import { useMemo, type CSSProperties, type ReactNode } from 'react';
 import type { PrintSettings } from '../../../core';
 import { useCompany } from '../api';
 
@@ -51,6 +51,36 @@ export function Qr({ text, size = 104 }: { text: string; size?: number }) {
       <path d={d} fill="#000" />
     </svg>
   );
+}
+
+/**
+ * نفس الـQR بس صورة PNG (canvas): في جوالات أندرويد قديمة الـSVG الكبير ما بينرسم وبيطلع مربع أبيض فاضي.
+ * للشاشات اللي لازم ينمسح منها (الاتصال عن بعد).
+ */
+export function QrImage({ text, size = 180 }: { text: string; size?: number }) {
+  const src = useMemo(() => {
+    try {
+      const qr = qrcode(0, 'M');
+      qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8']!;
+      qr.addData(text, 'Byte');
+      qr.make();
+      const n = qr.getModuleCount();
+      const scale = Math.max(4, Math.ceil((size * 2) / (n + 4)));
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = (n + 4) * scale;
+      const g = canvas.getContext('2d');
+      if (!g) return null;
+      g.fillStyle = '#fff';
+      g.fillRect(0, 0, canvas.width, canvas.height);
+      g.fillStyle = '#000';
+      for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) g.fillRect((c + 2) * scale, (r + 2) * scale, scale, scale);
+      return canvas.toDataURL('image/png');
+    } catch {
+      return null;
+    }
+  }, [text, size]);
+  if (!src) return <Qr text={text} size={size} />;
+  return <img className="doc-qr" src={src} width={size} height={size} alt="QR" style={{ imageRendering: 'pixelated' }} />;
 }
 
 export function CommercialDoc({ model, className, preview }: { model: DocModel; className?: string; preview?: PrintSettings }) {

@@ -312,9 +312,25 @@ export function Pos() {
             return (
               <div key={i.id} className="pos-tile">
                 <button className={`pos-item ${inCart[i.id] ? 'in-cart' : ''}`} onClick={() => (i.price > 0 ? add(i) : i.units?.[0] && add(i, { unit: i.units[0].name }))}>
-                  {inCart[i.id] ? <span className="badge">{inCart[i.id]}</span> : null}
+                  {inCart[i.id] ? (
+                    <span key={inCart[i.id]} className="badge">
+                      {inCart[i.id]}
+                    </span>
+                  ) : null}
                   <ItemName item={i} strong />
-                  <span>{i.price > 0 ? (p === null ? 'لا يوجد سعر صرف' : `${money(state, p, cur)} / ${i.unit}`) : ''}</span>
+                  <span className="pos-price">
+                    {i.price > 0 ? (
+                      p === null ? (
+                        'لا يوجد سعر صرف'
+                      ) : (
+                        <>
+                          <b>{money(state, p, cur)}</b> <i>/ {i.unit}</i>
+                        </>
+                      )
+                    ) : (
+                      ''
+                    )}
+                  </span>
                   {i.kind === 'stock' && (
                     <small>
                       {qtyText(state.stock[i.id]?.totalQty ?? 0)} {i.unit}
@@ -404,7 +420,7 @@ export function Pos() {
                     <button onClick={() => setLine(l.key, { qty: l.qty + 1 })}>+</button>
                   </div>
                   <strong className="num">{money(state, Math.round(l.qty * l.price), cur)}</strong>
-                  <button className="icon" onClick={() => setCart(cart.filter((x) => x.key !== l.key))}>
+                  <button className="icon line-remove" aria-label="شيل من السلة" onClick={() => setCart(cart.filter((x) => x.key !== l.key))}>
                     <Icon name="close" size={16} />
                   </button>
                 </div>

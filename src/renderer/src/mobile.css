@@ -985,3 +985,18 @@ body.mobile .hall-cal { padding: 10px 6px; }
 
 /* والنافذة مفتوحة: شريط الأزرار تحت ما بيستقبل كبسات (كانت الكبسة على «مشاركة» تفوت على «الديون») */
 body.mobile.modal-open .bottom-nav { pointer-events: none; }
+
+/* نقطة البيع على الجوال (1.2.56): سعر بسطر واحد، وسطر السلة: الاسم فوق، والكمية والمجموع وزر الشيل بسطر واحد */
+body.mobile .pos-item .pos-price { display: block; }
+body.mobile .pos-item .pos-price b { display: block; font-weight: 700; white-space: nowrap; font-size: clamp(12px, 3.6vw, 15px); }
+body.mobile .pos-item .pos-price i { display: none; }
+body.mobile .pos-item .badge { animation: m-pop 0.35s var(--spring); }
+body.mobile .pos-line.cart-line { grid-template-columns: auto minmax(0, 1fr) auto; row-gap: 8px; align-items: center; }
+body.mobile .pos-line.cart-line > div:first-child { grid-column: 1 / -1; }
+body.mobile .pos-line.cart-line > strong.num { grid-column: auto; text-align: end; font-size: 16px; }
+body.mobile .pos-line.cart-line > .line-remove { width: 36px; height: 36px; min-height: 0; padding: 0; border: none; background: var(--surface-2, #f1f3f6); color: var(--muted); border-radius: 50%; justify-self: end; }
+body.mobile .pos-line-wrap { animation: m-slide-in 0.25s var(--ease) both; }
+@keyframes m-slide-in { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { body.mobile .pos-line-wrap, body.mobile .pos-item .badge { animation: none; } }
+body.mobile .pos-item .badge { top: -8px; left: -8px; min-width: 26px; height: 26px; border-radius: 13px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18); border: 2px solid var(--surface); }
+body.mobile .pos-tile { overflow: visible; }

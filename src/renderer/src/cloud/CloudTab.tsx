@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { cloudCodeLink } from '../../../cloud/code';
 import { api, useCompany, type CloudStatus } from '../api';
-import { Qr } from '../components/CommercialDoc';
+import { QrImage } from '../components/CommercialDoc';
 import { CLOUD_CHANGED } from './useCloudHost';
 import { askConfirm } from '../components/ui';
 
@@ -53,7 +53,7 @@ export function CloudTab() {
       {s.enabled && s.code && (
         <>
           <div className="cloud-code">
-            <Qr text={cloudCodeLink(s.code)} size={180} />
+            <QrImage text={cloudCodeLink(s.code)} size={180} />
             <div>
               <p>أندرويد: افتح تطبيق وزن ← «اتصال عن بعد» ← امسح الرمز. آيفون: امسح الرمز بكاميرا الجوال فبتنفتح نسخة الويب والرمز جاهز. أو اكتب الرمز:</p>
               <p className="big-code mono selectable" dir="ltr">
