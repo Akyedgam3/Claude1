@@ -39,7 +39,8 @@ test('cloud: desktop hosts a remote phone', async () => {
     await createCompany(page, { name: 'محل السحابة', activity: 'سوبرماركت' });
     await nav(page, 'الإعدادات');
     await page.getByRole('button', { name: 'الاتصال عن بعد' }).click();
-    await page.locator('label.check', { hasText: 'تفعيل الاتصال عن بعد' }).locator('input').check();
+    await page.locator('label.check', { hasText: 'تفعيل الاتصال عن بعد' }).locator('input').click();
+    await page.locator('.cloud-code .big-code').waitFor({ timeout: 20000 });
     const code = (await page.locator('.cloud-code .big-code').innerText()).replace(/\s+/g, '-');
     await shot(page, '81-cloud-host');
 
