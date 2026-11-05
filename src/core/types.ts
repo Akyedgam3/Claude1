@@ -213,7 +213,8 @@ export interface User {
 // ───────────── التجارة: العملاء والموردون، المواد، المستودعات، الفواتير ─────────────
 
 export type PartyKind = 'customer' | 'supplier' | 'both';
-export type PriceTier = 'retail' | 'wholesale' | 'special';
+/** نوع الزبون (شريحة السعر): مفرق، جملة، جملة الجملة، وكيل. special = «سعر خاص» القديم. */
+export type PriceTier = 'retail' | 'wholesale' | 'bulk' | 'agent' | 'special';
 
 export interface Party {
   id: string;
@@ -267,6 +268,10 @@ export interface Item {
   locations?: Record<string, string>; // مكان المادة (رف/ركن) لكل مستودع: معرّف المستودع ← المكان
   price: number; // سعر المبيع (مفرق) بأصغر وحدة من priceCurrency
   wholesalePrice?: number;
+  /** سعر جملة الجملة. */
+  bulkPrice?: number;
+  /** سعر الوكيل. */
+  agentPrice?: number;
   specialPrice?: number;
   /** سعر النشرة من الشركة (كهربائيات)، وحسم الشراء الخاص بالصنف %. */
   listPrice?: number;

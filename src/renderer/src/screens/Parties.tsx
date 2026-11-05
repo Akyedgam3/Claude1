@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState } from 'react';
-import { lineAmount, partyBalance, partyStatement, siteJobRooms, siteJobTotals, type Invoice, type Party } from '../../../core';
+import { PRICE_TIER_NAMES, PRICE_TIERS, type PriceTier, lineAmount, partyBalance, partyStatement, siteJobRooms, siteJobTotals, type Invoice, type Party } from '../../../core';
 import { major, money, parseAmount, qtyText, toInput, today, uid, useCompany, dateText } from '../api';
 import { ExportButtons, PrintButtons, DocHeader } from '../components/print';
 import { Icon } from '../components/icons';
@@ -10,19 +10,20 @@ import { meters, SITE_JOB_STATUS } from './SiteJobs';
 const KIND_NAMES: Record<Party['kind'], string> = { customer: 'عميل', supplier: 'مورد', both: 'عميل ومورد' };
 
 export function Parties({ focus }: { focus?: string }) {
-  const { state, can } = useCompany();
+  const { state, can, feature } = useCompany();
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState<'all' | 'customer' | 'supplier'>('all');
+  const [tier, setTier] = useState<PriceTier | 'all'>('all');
   const [editing, setEditing] = useState<Party | 'new' | null>(null);
   const [selected, setSelected] = useState<string | null>(focus ?? null);
 
   const rows = useMemo(
     () =>
       Object.values(state.parties)
-        .filter((p) => !p.archived && (kind === 'all' || p.kind === kind || p.kind === 'both') && matches(query, p.name, p.phone))
+        .filter((p) => !p.archived && (kind === 'all' || p.kind === kind || p.kind === 'both') && (tier === 'all' || (p.priceTier ?? 'retail') === tier) && matches(query, p.name, p.phone))
         .map((p) => ({ party: p, balance: partyBalance(state, p.id) }))
         .sort((a, b) => a.party.name.localeCompare(b.party.name, 'ar')),
-    [state, query, kind],
+    [state, query, kind, tier],
   );
 
   return (
@@ -58,6 +59,16 @@ export function Parties({ focus }: { focus?: string }) {
             </button>
           ))}
         </div>
+        {feature('priceTiers') && kind !== 'supplier' && (
+          <select value={tier} onChange={(e) => setTier(e.target.value as typeof tier)} aria-label="نوع الزبون">
+            <option value="all">كل أنواع الزباين</option>
+            {PRICE_TIERS.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
       <div className="split">
         <div>
@@ -76,7 +87,10 @@ export function Parties({ focus }: { focus?: string }) {
               <tbody>
                 {rows.map(({ party, balance }) => (
                   <tr key={party.id} className={`clickable ${selected === party.id ? 'selected' : ''}`} onClick={() => setSelected(party.id)}>
-                    <td>{party.name}</td>
+                    <td>
+                      {party.name}
+                      {party.priceTier && party.priceTier !== 'retail' && <small className="tier-chip">{PRICE_TIER_NAMES[party.priceTier]}</small>}
+                    </td>
                     <td>{KIND_NAMES[party.kind]}</td>
                     <td dir="ltr" className="mono">
                       {party.phone}
@@ -385,12 +399,19 @@ export function PartyForm({
           <input value={f.address} onChange={set('address')} />
         </Field>
         {feature('priceTiers') && f.kind !== 'supplier' && (
-          <Field label="شريحة السعر">
-            <select value={f.priceTier} onChange={set('priceTier')}>
-              <option value="retail">{feature('listPricing') ? 'زبون عادي' : 'مفرق'}</option>
-              <option value="wholesale">{feature('listPricing') ? 'معلم (حسم المعلمين)' : 'جملة'}</option>
-              <option value="special">سعر خاص</option>
-            </select>
+          <Field label="نوع الزبون (بياخد أسعار نوعه لحالها)" wide>
+            <div className="tier-pick">
+              {PRICE_TIERS.map((t) => (
+                <button type="button" key={t.id} className={f.priceTier === t.id ? 'active' : ''} onClick={() => setF({ ...f, priceTier: t.id })}>
+                  {feature('listPricing') && t.id === 'retail' ? 'زبون عادي' : feature('listPricing') && t.id === 'wholesale' ? 'معلم' : t.short}
+                </button>
+              ))}
+              {(party?.priceTier === 'special' || f.priceTier === 'special') && (
+                <button type="button" className={f.priceTier === 'special' ? 'active' : ''} onClick={() => setF({ ...f, priceTier: 'special' })}>
+                  سعر خاص
+                </button>
+              )}
+            </div>
           </Field>
         )}
         {feature('listPricing') && f.kind !== 'supplier' && (

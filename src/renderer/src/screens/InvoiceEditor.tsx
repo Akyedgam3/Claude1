@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { computeTaxes, niceUnitCost, PRICE_SCALE, roundPrice, findRate, itemPlace, listPrices, withPlace, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
+import { computeTaxes, PRICE_TIER_NAMES, tierPrice, niceUnitCost, PRICE_SCALE, roundPrice, findRate, itemPlace, listPrices, withPlace, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
 import { convertPrice, fxRates, money, parseAmount, parsePrice, rateInverted, toInput, today, uid, useCompany } from '../api';
 import { askConfirm, CurrencySelect, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
 import { invoiceDrafts } from '../drafts';
@@ -84,14 +84,16 @@ export function itemPrice(state: CompanyState, item: Item, opts: { party?: Party
   }
   const unit = item.units?.find((u) => u.name === opts.unit);
   const tier = opts.party?.priceTier;
-  let price = tier === 'wholesale' ? (item.wholesalePrice ?? item.price) : tier === 'special' ? (item.specialPrice ?? item.wholesalePrice ?? item.price) : item.price;
+  let price = tierPrice(item, tier);
   // المورد (صندوقه الخاص) بيبيع أدوية الصيدلية بسعره الأعلى إذا محطوط
   const dealerPrice = opts.dealer && !item.hidden && item.dealerPrice ? item.dealerPrice : undefined;
   if (dealerPrice) price = dealerPrice;
   // زبون إلو حسم خاص من النشرة (معلم مميز)
   const special = partyListPrice(item, opts.party);
   if (special !== undefined && !dealerPrice) price = special;
-  if (unit) price = !dealerPrice && special === undefined && unit.price !== undefined ? unit.price : roundPrice(price * unit.factor);
+  // سعر الوحدة الخاص (كرتونة بسعر محدد) هو سعر المفرق؛ باقي الأنواع بياخدوا سعرهم × عدد القطع
+  const retailTier = !tier || tier === 'retail';
+  if (unit) price = !dealerPrice && special === undefined && unit.price !== undefined && retailTier ? unit.price : roundPrice(price * unit.factor);
   const v = convert(price, item.priceCurrency);
   return v === null ? '' : toInput(state, v, opts.currency);
 }
@@ -542,7 +544,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
               </button>
             )}
           </div>
-          {party?.priceTier && party.priceTier !== 'retail' && <small className="muted">شريحة السعر: {party.priceTier === 'wholesale' ? 'جملة' : 'خاص'}</small>}
+          {party?.priceTier && party.priceTier !== 'retail' && <small className="tier-chip">أسعار {PRICE_TIER_NAMES[party.priceTier]}</small>}
         </Field>
         <Field label="التاريخ">
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />

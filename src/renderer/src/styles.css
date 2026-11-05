@@ -4184,3 +4184,16 @@ button.link { background: none; border: none; color: var(--primary); padding: 4p
 .assistant-msg:has(.divider) { align-self: center; max-width: 100%; }
 .auto-rates { display: flex; align-items: flex-start; gap: 8px; padding: 10px 14px; margin-bottom: 12px; border-radius: 12px; background: var(--primary-soft); }
 .auto-rates input { margin-top: 4px; }
+
+/* ───── أنواع الزباين وأسعارهم ───── */
+.tier-prices { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; background: var(--primary-soft); }
+.tier-prices-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.tier-prices-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.tier-prices label, .tier-legacy { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+.tier-prices label span { font-weight: 600; color: var(--text); }
+.tier-prices input { width: 100%; min-width: 0; background: var(--surface); }
+.tier-legacy { margin-top: 8px; max-width: 200px; }
+.tier-pick { display: flex; flex-wrap: wrap; gap: 6px; }
+.tier-pick button { flex: 1 1 0; min-width: 90px; padding: 9px 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); font-weight: 600; }
+.tier-pick button.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.tier-chip { display: inline-block; margin-inline-start: 6px; padding: 1px 8px; border-radius: 99px; background: var(--primary-soft); color: var(--primary); font-size: 11.5px; font-weight: 600; white-space: nowrap; }

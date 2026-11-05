@@ -69,7 +69,10 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
           kind: 'stock',
           unit: String(r['الوحدة'] ?? profile.units[0] ?? 'قطعة'),
           priceCurrency: currency,
-          price: parsePrice(state, String(r['سعر المبيع'] ?? '0'), currency),
+          price: parsePrice(state, String(r['سعر المبيع'] ?? r['سعر المفرق'] ?? '0'), currency),
+          ...(r['سعر الجملة'] ? { wholesalePrice: parsePrice(state, String(r['سعر الجملة']), currency) } : {}),
+          ...(r['سعر جملة الجملة'] ? { bulkPrice: parsePrice(state, String(r['سعر جملة الجملة']), currency) } : {}),
+          ...(r['سعر الوكيل'] ? { agentPrice: parsePrice(state, String(r['سعر الوكيل']), currency) } : {}),
           ...(r['الباركود'] ? { barcode: String(r['الباركود']) } : {}),
           ...(r['التصنيف'] ? { category: String(r['التصنيف']) } : {}),
           ...(r['الماركة'] ? { brand: String(r['الماركة']) } : {}),
@@ -137,6 +140,13 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
                 { header: 'الباركود', key: 'barcode' },
                 { header: 'الرصيد', key: 'qty', type: 'number' },
                 { header: 'سعر المبيع', key: 'price', type: 'money' },
+                ...(feature('priceTiers')
+                  ? [
+                      { header: 'سعر الجملة', key: 'wholesale', type: 'money' as const },
+                      { header: 'سعر جملة الجملة', key: 'bulk', type: 'money' as const },
+                      { header: 'سعر الوكيل', key: 'agent', type: 'money' as const },
+                    ]
+                  : []),
                 { header: 'العملة', key: 'currency' },
                 ...(showCost ? [{ header: 'متوسط التكلفة', key: 'cost', type: 'money' as const }] : []),
               ],
@@ -152,6 +162,9 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
                   barcode: i.barcode,
                   qty: i.kind === 'stock' ? (s?.totalQty ?? 0) : null,
                   price: major(state, i.price, i.priceCurrency),
+                  wholesale: i.wholesalePrice !== undefined ? major(state, i.wholesalePrice, i.priceCurrency) : null,
+                  bulk: i.bulkPrice !== undefined ? major(state, i.bulkPrice, i.priceCurrency) : null,
+                  agent: i.agentPrice !== undefined ? major(state, i.agentPrice, i.priceCurrency) : null,
                   currency: i.priceCurrency,
                   cost: s && s.totalQty > 0 ? major(state, niceUnitCost(s.value / s.totalQty, state.currencies[state.info!.baseCurrency]!.decimals)) : null,
                 };
@@ -260,6 +273,8 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
     listPrice: item?.listPrice !== undefined ? toInput(state, item.listPrice, item.priceCurrency) : '',
     buyDiscount: item?.buyDiscount !== undefined ? String(item.buyDiscount) : '',
     specialPrice: item?.specialPrice !== undefined ? toInput(state, item.specialPrice, item.priceCurrency) : '',
+    bulkPrice: item?.bulkPrice !== undefined ? toInput(state, item.bulkPrice, item.priceCurrency) : '',
+    agentPrice: item?.agentPrice !== undefined ? toInput(state, item.agentPrice, item.priceCurrency) : '',
     dealerPrice: item?.dealerPrice !== undefined ? toInput(state, item.dealerPrice, item.priceCurrency) : '',
     dealerId: item?.dealerId ?? '',
     hidden: !!item?.hidden,
@@ -308,6 +323,8 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
         ...(f.listPrice ? { listPrice: parseAmount(state, f.listPrice, cur) } : {}),
         ...(f.buyDiscount.trim() !== '' && Number.isFinite(Number(f.buyDiscount)) ? { buyDiscount: Number(f.buyDiscount) } : {}),
         ...(f.specialPrice ? { specialPrice: parsePrice(state, f.specialPrice, cur) } : {}),
+        ...(f.bulkPrice ? { bulkPrice: parsePrice(state, f.bulkPrice, cur) } : {}),
+        ...(f.agentPrice ? { agentPrice: parsePrice(state, f.agentPrice, cur) } : {}),
         ...(f.dealerPrice ? { dealerPrice: parsePrice(state, f.dealerPrice, cur) } : {}),
         ...(f.dealerId ? { dealerId: f.dealerId } : {}),
         ...(f.hidden ? { hidden: true } : {}),
@@ -472,7 +489,7 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
                 </Field>
               </>
             )}
-            {!(feature('dealers') && f.dealerId) && (
+            {!(feature('dealers') && f.dealerId) && !(feature('priceTiers') && !feature('dealers')) && (
               <Field label={feature('dealers') ? 'سعر الصيدلية (للزبون، وبيتحاسب فيه المورّد)' : 'سعر المبيع (مفرق)'}>
                 <input value={f.price} onChange={set('price')} inputMode="decimal" />
               </Field>
@@ -504,14 +521,36 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
               </>
             )}
             {feature('priceTiers') && (
-              <>
-                <Field label="سعر الجملة">
-                  <input value={f.wholesalePrice} onChange={set('wholesalePrice')} inputMode="decimal" />
-                </Field>
-                <Field label="سعر خاص">
-                  <input value={f.specialPrice} onChange={set('specialPrice')} inputMode="decimal" />
-                </Field>
-              </>
+              <div className="tier-prices wide">
+                <div className="tier-prices-head">
+                  <strong>سعر كل نوع زبون</strong>
+                  <small className="muted">الفاضي بياخد سعر اللي قبله</small>
+                </div>
+                <div className="tier-prices-row">
+                  <label>
+                    <span>مفرق</span>
+                    <input value={f.price} onChange={set('price')} inputMode="decimal" />
+                  </label>
+                  <label>
+                    <span>جملة</span>
+                    <input value={f.wholesalePrice} onChange={set('wholesalePrice')} inputMode="decimal" placeholder={f.price} />
+                  </label>
+                  <label>
+                    <span>جملة الجملة</span>
+                    <input value={f.bulkPrice} onChange={set('bulkPrice')} inputMode="decimal" placeholder={f.wholesalePrice || f.price} />
+                  </label>
+                  <label>
+                    <span>وكيل</span>
+                    <input value={f.agentPrice} onChange={set('agentPrice')} inputMode="decimal" placeholder={f.bulkPrice || f.wholesalePrice || f.price} />
+                  </label>
+                </div>
+                {(item?.specialPrice !== undefined || f.specialPrice) && (
+                  <label className="tier-legacy">
+                    <span>سعر خاص (قديم)</span>
+                    <input value={f.specialPrice} onChange={set('specialPrice')} inputMode="decimal" />
+                  </label>
+                )}
+              </div>
             )}
             {f.kind === 'stock' && (
               <Field label="الحد الأدنى للتنبيه">

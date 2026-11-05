@@ -17,7 +17,7 @@ test('supermarket: opening stock, fast checkout by barcode and scale barcode', a
     await m.locator('.field', { hasText: 'الاسم' }).first().locator('input').fill('علبة حليب');
     await m.locator('.field', { hasText: 'الباركود' }).locator('input').fill('6291000000017');
     await m.getByRole('button', { name: 'الأسعار والوحدات' }).click();
-    await m.locator('.field', { hasText: 'سعر المبيع' }).locator('input').fill('15000');
+    await m.locator('.field:has-text("سعر المبيع") input, .tier-prices label:has-text("مفرق") input').first().fill('15000');
     await m.getByRole('button', { name: 'حفظ' }).click();
     await toast(page, 'تم الحفظ');
 
@@ -26,7 +26,7 @@ test('supermarket: opening stock, fast checkout by barcode and scale barcode', a
     await m.locator('.field', { hasText: 'الرمز' }).locator('input').fill('00123');
     await m.getByRole('button', { name: 'الأسعار والوحدات' }).click();
     await m.locator('.field', { hasText: 'الوحدة الأساسية' }).locator('input').fill('كيلو');
-    await m.locator('.field', { hasText: 'سعر المبيع' }).locator('input').fill('80000');
+    await m.locator('.field:has-text("سعر المبيع") input, .tier-prices label:has-text("مفرق") input').first().fill('80000');
     await m.getByRole('button', { name: 'التتبع' }).click();
     await m.getByText('يُباع بالوزن').click();
     await m.getByRole('button', { name: 'حفظ' }).click();
@@ -81,7 +81,7 @@ test('pharmacy: batches with expiry dates are sold nearest-expiry first', async 
     await m.locator('.field', { hasText: 'الاسم' }).first().locator('input').fill('بنادول 500');
     await m.locator('.field', { hasText: 'الاسم العلمي' }).locator('input').fill('Paracetamol');
     await m.getByRole('button', { name: 'الأسعار والوحدات' }).click();
-    await m.locator('.field', { hasText: 'سعر المبيع' }).locator('input').fill('12000');
+    await m.locator('.field:has-text("سعر المبيع") input, .tier-prices label:has-text("مفرق") input').first().fill('12000');
     await m.getByRole('button', { name: 'حفظ' }).click();
     await toast(page, 'تم الحفظ');
 
@@ -139,7 +139,7 @@ test('restaurant: table order with recipe deducts ingredients', async () => {
     await m.locator('.field', { hasText: 'النوع' }).locator('select').selectOption('composite');
     await m.locator('.field', { hasText: 'التصنيف' }).locator('input').fill('وجبات رئيسية');
     await m.getByRole('button', { name: 'الأسعار والوحدات' }).click();
-    await m.locator('.field', { hasText: 'سعر المبيع' }).locator('input').fill('60000');
+    await m.locator('.field:has-text("سعر المبيع") input, .tier-prices label:has-text("مفرق") input').first().fill('60000');
     await m.getByRole('button', { name: 'المكوّنات' }).click();
     await pick(page, m.locator('.picker input'), 'لحمة');
     await m.locator('table input').first().fill('0.25');

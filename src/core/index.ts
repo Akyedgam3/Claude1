@@ -15,6 +15,7 @@ export * from './electronics';
 export * from './partners';
 export * from './employees';
 export * from './feed-rates';
+export * from './price-tiers';
 export * from './poultry';
 export * from './printshop';
 export * from './dealers';

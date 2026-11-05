@@ -23,7 +23,7 @@ test('a full day in an auto parts shop and workshop', async () => {
     await m.locator('.field', { hasText: 'رقم القطعة' }).locator('input').fill('26300-35505');
     await m.locator('.field', { hasText: 'الباركود' }).locator('input').fill('8801234567890');
     await m.getByRole('button', { name: 'الأسعار والوحدات' }).click();
-    await m.locator('.field', { hasText: 'سعر المبيع' }).locator('input').fill('75000');
+    await m.locator('.field:has-text("سعر المبيع") input, .tier-prices label:has-text("مفرق") input').first().fill('75000');
     await m.getByRole('button', { name: 'حفظ' }).click();
     await toast(page, 'تم الحفظ');
 

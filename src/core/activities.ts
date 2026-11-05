@@ -489,7 +489,7 @@ export const FEATURE_INFO: Record<Feature, { name: string; description: string }
   production: { name: 'الإنتاج والتصنيع', description: 'تحويل مواد أولية إلى منتجات بتكلفتها' },
   tables: { name: 'الطاولات والطلبات', description: 'طلبات صالة وسفري وتوصيل وطباعة للمطبخ' },
   appointments: { name: 'المواعيد', description: 'حجز مواعيد للزبائن والمراجعين وفوترتها' },
-  priceTiers: { name: 'شرائح الأسعار', description: 'سعر مفرق وجملة وخاص حسب الزبون' },
+  priceTiers: { name: 'أنواع الزباين وأسعارهم', description: 'سعر مفرق وجملة وجملة الجملة ووكيل لكل مادة، وكل زبون بياخد سعر نوعه' },
   units: { name: 'وحدات متعددة', description: 'بيع وشراء بالقطعة والعلبة والكرتونة' },
   salesmen: { name: 'مندوبو المبيعات', description: 'تسجيل المندوب على الفاتورة وتقرير مبيعاته' },
   tailoring: { name: 'طلبات التفصيل والقياسات', description: 'قياسات الزبائن، طلبات بموعد تسليم وبروفة، عربون' },
