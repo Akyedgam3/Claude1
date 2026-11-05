@@ -461,7 +461,7 @@ export class CompanyStore {
     for (const file of [META, KEYRING, JOURNAL, HEAD]) {
       if (fs.existsSync(path.join(this.dir, file))) fs.copyFileSync(path.join(this.dir, file), path.join(dest, file));
     }
-    if (destRoot === path.join(this.dir, 'backups')) {
+    if (Number.isFinite(keep) && keep > 0) {
       const all = fs.readdirSync(destRoot).sort();
       for (const old of all.slice(0, Math.max(0, all.length - keep))) {
         fs.rmSync(path.join(destRoot, old), { recursive: true, force: true });

@@ -1,4 +1,5 @@
 import { applyEvent } from '../core/ledger';
+import { autoBackup } from './backup-location';
 import type { CompanyState, User } from '../core/types';
 import { execute } from '../app/executor';
 import { LanClient, type EventItem } from '../app/lan';
@@ -48,7 +49,7 @@ export class LocalBackend implements Backend {
     this.unsubscribe?.();
     if (!this.store.isOpen) return;
     try {
-      this.store.backup(); // نسخة احتياطية تلقائية عند كل إغلاق
+      autoBackup(this.store); // نسخة احتياطية تلقائية عند كل إغلاق (بالمكان اللي اختاره)
     } finally {
       this.store.close();
     }

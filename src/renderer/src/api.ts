@@ -8,6 +8,14 @@ export const IS_MOBILE = typeof __WAZN_MOBILE__ !== 'undefined' && __WAZN_MOBILE
 /** نسخة الويب (آيفون بالمتصفح): نفس نسخة الموبايل بس للاتصال عن بعد بجهاز المحل، بدون بيانات محلية. */
 export const IS_WEB = IS_MOBILE && typeof __WAZN_WEB__ !== 'undefined' && __WAZN_WEB__ === true;
 
+/** مكان النسخ الاحتياطي التلقائي بالكمبيوتر. */
+export interface BackupLocation {
+  dir?: string;
+  keep: number;
+  internal: boolean;
+  internalDir: string;
+}
+
 export interface SessionInfo {
   kind: 'local' | 'remote';
   user: User;
@@ -96,6 +104,10 @@ export const api = {
   backup: (external: boolean) => inv<string | null>('company:backup', external),
   wipe: (mode: 'transactions' | 'all', password: string) => inv<string>('company:wipe', { mode, password }),
   reveal: () => inv<void>('company:reveal'),
+  backupConfig: () => inv<BackupLocation>('backup:config'),
+  setBackupConfig: (cfg: Partial<BackupLocation>) => inv<BackupLocation>('backup:setConfig', cfg),
+  chooseBackupDir: () => inv<BackupLocation | null>('backup:chooseDir'),
+  revealBackups: () => inv<void>('backup:reveal'),
   lanStatus: () => inv<LanStatus>('lan:status'),
   lanHost: (enable: boolean, newCode?: boolean) => inv<boolean>('lan:host', enable, newCode),
   lanConnect: (o: { host?: string; port?: number; pairingCode?: string; username?: string; password: string; saved?: boolean }) => inv<SessionInfo>('lan:connect', o),

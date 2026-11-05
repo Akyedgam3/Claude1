@@ -3,7 +3,7 @@ import { ACTIVITIES, ACTIVITY_LIST, ALL_FEATURES, DEFAULT_SCALE, FEATURE_INFO, t
 import { Icon } from '../components/icons';
 import { startTour } from '../components/Tour';
 import { CommercialDoc, sampleModel } from '../components/CommercialDoc';
-import { api, dateText, IS_MOBILE, today, useCompany, type LanStatus } from '../api';
+import { api, dateText, IS_MOBILE, today, useCompany, type BackupLocation, type LanStatus } from '../api';
 import { PAPER_NAMES } from '../components/print';
 import { sampleReceipt, ThermalReceipt } from '../components/ThermalReceipt';
 import { Field, Modal, PageHeader, Tabs } from '../components/ui';
@@ -719,7 +719,75 @@ function BackupTab() {
         </button>
         {!IS_MOBILE && <button onClick={() => run(() => api.reveal())}>فتح مجلد الشركة</button>}
       </div>
+      {!IS_MOBILE && session.kind === 'local' && <BackupLocationBox />}
     </section>
+  );
+}
+
+/** مكان النسخ التلقائي: أي مجلد بيختاره (قرص تاني، فلاشة، مجلد درايف أو ون درايف بيتزامن لحالو). */
+function BackupLocationBox() {
+  const { notify } = useCompany();
+  const [cfg, setCfg] = useState<BackupLocation | null>(null);
+  useEffect(() => {
+    api.backupConfig().then(setCfg).catch(() => setCfg(null));
+  }, []);
+  if (!cfg) return null;
+  const save = async (patch: Partial<BackupLocation>) => {
+    try {
+      setCfg(await api.setBackupConfig(patch));
+      notify('تم حفظ إعداد النسخ');
+    } catch (e) {
+      notify((e as Error).message, 'error');
+    }
+  };
+  return (
+    <div className="backup-location">
+      <h4>مكان النسخ التلقائي</h4>
+      <p className="muted">
+        اختار أي مجلد بدك ياه: قرص تاني (D:)، فلاشة، أو مجلد Google Drive / OneDrive على الكمبيوتر فبتطلع النسخ عالنت لحالها. كل ما تسكّر البرنامج أو تكبس «نسخة احتياطية الآن» بتنحفظ نسخة هونيك.
+      </p>
+      <div className="backup-path">
+        <span className="muted">المكان الحالي:</span>
+        <b className="ltr">{cfg.dir ?? cfg.internalDir}</b>
+        {!cfg.dir && <small className="muted">(جوّا مجلد الشركة)</small>}
+      </div>
+      <div className="button-row">
+        <button
+          className="primary"
+          onClick={async () => {
+            try {
+              const next = await api.chooseBackupDir();
+              if (next) {
+                setCfg(next);
+                notify('صارت النسخ تنحفظ بالمكان الجديد');
+              }
+            } catch (e) {
+              notify((e as Error).message, 'error');
+            }
+          }}
+        >
+          {cfg.dir ? 'تغيير المكان...' : 'اختيار مكان...'}
+        </button>
+        {cfg.dir && <button onClick={() => save({ dir: '', internal: true })}>رجّع للمكان الافتراضي</button>}
+        <button onClick={() => api.revealBackups().catch((e: Error) => notify(e.message, 'error'))}>فتح مجلد النسخ</button>
+      </div>
+      {cfg.dir && (
+        <div className="form-grid">
+          <Field label="كم نسخة نخلي هونيك؟">
+            <select value={cfg.keep} onChange={(e) => save({ keep: Number(e.target.value) })}>
+              {[10, 30, 60, 100, 365, 0].map((n) => (
+                <option key={n} value={n}>
+                  {n === 0 ? 'كلها (ما نمسح شي)' : `آخر ${n} نسخة`}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <label className="check">
+            <input type="checkbox" checked={cfg.internal} onChange={(e) => save({ internal: e.target.checked })} /> كمان خلّي نسخة جوّا مجلد الشركة (أأمن)
+          </label>
+        </div>
+      )}
+    </div>
   );
 }
 

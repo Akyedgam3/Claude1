@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { ACTIVITIES, can, chartFor, DEFAULT_CURRENCIES, defaultTaxes, PERMISSIONS, whatsappUrl, type Activity, type Permission } from '../core';
 import { CloudSessions, CLOUD_MIN_DEVICES } from '../app/cloud-sessions';
 import { BACKUP_FILES, unpackBackup } from '../app/backup-pack';
+import { autoBackup, chosenBackupRoot, readBackupConfig, writeBackupConfig, type BackupConfig } from './backup-location';
 import { hostCompanyFor } from '../app/host-company';
 import { DEFAULT_LAN_PORT, discoverHosts, LanClient, LanHost, newPairingCode } from '../app/lan';
 import { OFFLINE } from '../cloud/client';
@@ -483,7 +484,11 @@ function registerIpc(): void {
       return res.filePath;
     }
     const store = localStore();
-    if (!toExternal) return store.backup();
+    if (!toExternal) {
+      const r = autoBackup(store);
+      if (r.failed) throw new Error(`انعملت النسخة جوّا مجلد الشركة بس: ${r.failed}`);
+      return r.path;
+    }
     const res = await afterDialog(dialog.showOpenDialog(win!, { title: 'اختر مكان النسخة الاحتياطية (فلاشة مثلاً)', properties: ['openDirectory'] }));
     if (res.canceled || !res.filePaths[0]) return null;
     return store.backup(path.join(res.filePaths[0], `Wazn-${safeFolderName(store.meta.name)}`), Infinity);
@@ -502,6 +507,36 @@ function registerIpc(): void {
     send('company:reset');
     if (wasHosting) await startHosting().catch((e: Error) => send('lan:error', e.message));
     return backupDir;
+  });
+
+  handle('backup:config', () => {
+    requirePermission('backup.manage');
+    const store = localStore();
+    return { ...readBackupConfig(store), internalDir: path.join(store.dir, 'backups') };
+  });
+  handle('backup:setConfig', (cfg: BackupConfig) => {
+    requirePermission('backup.manage');
+    const store = localStore();
+    const next = writeBackupConfig(store, { ...readBackupConfig(store), ...(cfg ?? {}) });
+    return { ...next, internalDir: path.join(store.dir, 'backups') };
+  });
+  handle('backup:chooseDir', async () => {
+    requirePermission('backup.manage');
+    const store = localStore();
+    const cur = readBackupConfig(store);
+    const res = await afterDialog(dialog.showOpenDialog(win!, { title: 'اختر مكان النسخ الاحتياطي التلقائي', ...(cur.dir ? { defaultPath: cur.dir } : {}), properties: ['openDirectory', 'createDirectory'] }));
+    if (res.canceled || !res.filePaths[0]) return null;
+    const dir = res.filePaths[0];
+    fs.accessSync(dir, fs.constants.W_OK);
+    return { ...writeBackupConfig(store, { ...cur, dir }), internalDir: path.join(store.dir, 'backups') };
+  });
+  handle('backup:reveal', () => {
+    requirePermission('backup.manage');
+    const store = localStore();
+    const root = chosenBackupRoot(store);
+    const dir = root && fs.existsSync(root) ? root : path.join(store.dir, 'backups');
+    fs.mkdirSync(dir, { recursive: true });
+    return shell.openPath(dir);
   });
 
   handle('company:reveal', () => {

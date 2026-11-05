@@ -123,7 +123,10 @@ function MobileInvoiceView({ inv }: { inv: Invoice }) {
     <div className="page m-inv-page">
       <section className={`m-inv-hero s-${status.c}`}>
         <div className="m-inv-top">
-          <span className="m-inv-kind">{INVOICE_KIND_NAMES[inv.kind]}</span>
+          <span className="m-inv-kind">
+            {state.info!.print?.logo && <img src={state.info!.print.logo} alt="" className="m-inv-logo" />}
+            {INVOICE_KIND_NAMES[inv.kind]}
+          </span>
           <span className={`m-inv-chip ${status.c}`}>{status.t}</span>
         </div>
         <div className="m-inv-num">
