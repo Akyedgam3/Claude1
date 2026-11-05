@@ -1,9 +1,11 @@
 import { amountInWords, findRate, INVOICE_KIND_NAMES, invoicePartyBalance, invoiceProfit, lineAmount, weighingText, type CompanyState, type Invoice } from '../../../core';
-import { dateText, money, plainMoney, qtyText, rateLine, today, useCompany } from '../api';
-import type { ReactNode } from 'react';
+import { dateText, IS_MOBILE, money, plainMoney, qtyText, rateLine, today, useCompany } from '../api';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { CommercialDoc, type DocModel } from '../components/CommercialDoc';
 import { ThermalReceipt, type ReceiptData } from '../components/ThermalReceipt';
-import { PrintButtons } from '../components/print';
+import { PAPER_NAMES, PrintButtons, usePrinter } from '../components/print';
+import { Icon } from '../components/icons';
+import type { Paper } from '../../../core';
 import { ConfirmButton, Empty, PageHeader } from '../components/ui';
 import { canEditInvoice } from './Invoices';
 
@@ -18,6 +20,7 @@ export function InvoiceView({ id }: { id: string }) {
   const { state, call, notify, navigate, can } = useCompany();
   const inv = state.invoices.find((i) => i.id === id);
   if (!inv) return <Empty>الفاتورة غير موجودة</Empty>;
+  if (IS_MOBILE) return <MobileInvoiceView inv={inv} />;
 
   return (
     <div className="page">
@@ -81,6 +84,222 @@ export function InvoiceView({ id }: { id: string }) {
       })()}
       <div className="paper-preview">
         <InvoiceDocument inv={inv} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * الفاتورة عالجوال: ملخص مرتب (المواد كبطاقات والإجماليات واضحة) مع أزرار «معاينة» و«طباعة».
+ * المعاينة بتعرض الورقة نفسها مصغّرة لتساع الشاشة (متل ما رح تنطبع)، والطباعة بتطبع الورقة الأصلية.
+ */
+function MobileInvoiceView({ inv }: { inv: Invoice }) {
+  const { state, call, notify, navigate, can } = useCompany();
+  const printer = usePrinter();
+  const kind = inv.kind === 'sale' || inv.kind === 'sale_return' ? 'invoice' : 'report';
+  const [paper, setPaper] = useState<Paper>(printer.defaultPaper(kind));
+  const [preview, setPreview] = useState(false);
+  const [more, setMore] = useState(false);
+  const party = inv.partyId ? state.parties[inv.partyId] : null;
+  const saleSide = inv.kind === 'sale' || inv.kind === 'sale_return';
+  const moneyIn = inv.kind === 'sale' || inv.kind === 'purchase_return';
+  const m = (v: number) => money(state, v, inv.currency);
+  const remaining = inv.total - inv.paid;
+  const status = inv.voidEntryId ? { t: inv.deleted ? 'محذوفة' : 'ملغاة', c: 'void' } : remaining > 0 ? { t: 'آجل', c: 'credit' } : { t: 'مدفوعة', c: 'paid' };
+  const name = `${INVOICE_KIND_NAMES[inv.kind]} ${inv.number}`;
+  const doPrint = (pdf: boolean) => {
+    setPreview(false);
+    // نسكّر المعاينة أول (الورقة بترجع لمكانها) وبعدين منطبع
+    setTimeout(() => void (pdf ? printer.pdf(name, paper) : printer.print(kind, paper)), 60);
+  };
+  const next = inv.voidEntryId ? state.invoices.find((x) => x.replaces === inv.id) : undefined;
+  // الفاتورة بتفتح من فوق (مش من مكان ما كنا نازلين بالسجل)
+  useLayoutEffect(() => {
+    document.querySelector('.content')?.scrollTo({ top: 0 });
+  }, [inv.id]);
+  const profit = inv.kind === 'sale' && !inv.voidEntryId && can('costs.view') && state.info!.print?.showInvoiceProfit !== false ? invoiceProfit(state, inv) : null;
+
+  return (
+    <div className="page m-inv-page">
+      <section className={`m-inv-hero s-${status.c}`}>
+        <div className="m-inv-top">
+          <span className="m-inv-kind">{INVOICE_KIND_NAMES[inv.kind]}</span>
+          <span className={`m-inv-chip ${status.c}`}>{status.t}</span>
+        </div>
+        <div className="m-inv-num">
+          رقم <b className="ltr">{inv.number}</b> · <span className="ltr">{dateText(inv.date)}</span>
+        </div>
+        <div className="m-inv-total ltr">{m(inv.total)}</div>
+        <div className="m-inv-party">{party?.name ?? (saleSide ? 'زبون نقدي' : 'مورد نقدي')}</div>
+      </section>
+
+      {inv.voidEntryId && next && (
+        <div className="banner bad">
+          انعدّلت هالفاتورة —{' '}
+          <button className="link" onClick={() => navigate('invoice', next.id)}>
+            افتح النسخة الجديدة
+          </button>
+        </div>
+      )}
+
+      <div className="m-inv-actions">
+        <button className="primary" onClick={() => setPreview(true)}>
+          <Icon name="eye" size={18} /> معاينة
+        </button>
+        <button onClick={() => doPrint(false)}>
+          <Icon name="printer" size={18} /> طباعة
+        </button>
+        <button onClick={() => setMore((v) => !v)}>{more ? 'أقل' : 'المزيد'}</button>
+      </div>
+      {more && (
+        <div className="m-inv-more">
+          <select className="paper-select" value={paper} onChange={(e) => setPaper(e.target.value as Paper)}>
+            {(['a4', 'a5', '80mm', '58mm'] as Paper[]).map((p) => (
+              <option key={p} value={p}>
+                ورق {PAPER_NAMES[p]}
+              </option>
+            ))}
+          </select>
+          <button onClick={() => doPrint(true)}>PDF / مشاركة</button>
+          <button onClick={() => void navigator.clipboard.writeText(invoiceText(state, inv)).then(() => notify('تم نسخ نص الفاتورة، الصقه في واتساب'))}>نسخ كنص</button>
+          {canEditInvoice(inv, can as never) && <button onClick={() => navigate(inv.kind, inv.id)}>تعديل</button>}
+          {inv.replaces && <button onClick={() => navigate('invoice', inv.replaces!)}>النسخة القديمة</button>}
+          {!inv.voidEntryId && can('sales.void') && (
+            <ConfirmButton
+              label="حذف الفاتورة"
+              confirmLabel="تأكيد الحذف"
+              onConfirm={async () => {
+                if (await call('deleteInvoice', inv.id, today())) {
+                  notify('انحذفت الفاتورة ورجع المخزون والحسابات متل ما كانوا');
+                  navigate('invoices');
+                }
+              }}
+            />
+          )}
+        </div>
+      )}
+
+      <section className="card m-inv-lines">
+        <h3>المواد ({inv.lines.length})</h3>
+        {inv.lines.map((l, i) => {
+          const item = l.itemId ? state.items[l.itemId] : null;
+          return (
+            <div className="m-inv-line" key={i}>
+              <div className="m-inv-line-main">
+                <b>{l.description}</b>
+                <small>
+                  <span className="ltr">{qtyText(l.qty)}</span> {l.unit ?? item?.unit ?? ''} × <span className="ltr">{m(l.price)}</span>
+                  {l.discount > 0 && <> · خصم <span className="ltr">{m(l.discount)}</span></>}
+                </small>
+                {l.costParts && (
+                  <small className="cost-line">
+                    معمل {plainMoney(state, l.costParts.factory, inv.currency)} + شحن {plainMoney(state, l.costParts.shipping, inv.currency)} + ضريبة {plainMoney(state, l.costParts.tax, inv.currency)} + جمارك{' '}
+                    {plainMoney(state, l.costParts.customs, inv.currency)}
+                  </small>
+                )}
+                {l.note && <small>{l.note}</small>}
+              </div>
+              <strong className="ltr">{m(lineAmount(l))}</strong>
+            </div>
+          );
+        })}
+      </section>
+
+      <section className="card m-inv-sums">
+        <div>
+          <span>المجموع</span>
+          <b className="ltr">{m(inv.subtotal)}</b>
+        </div>
+        {inv.discount > 0 && (
+          <div>
+            <span>الخصم</span>
+            <b className="ltr">{m(inv.discount)}</b>
+          </div>
+        )}
+        {inv.taxLines.map((t) => (
+          <div key={t.taxId}>
+            <span>{state.taxes[t.taxId]?.name ?? 'ضريبة'}</span>
+            <b className="ltr">{m(t.amount)}</b>
+          </div>
+        ))}
+        <div className="grand">
+          <span>الإجمالي</span>
+          <b className="ltr">{m(inv.total)}</b>
+        </div>
+        <div>
+          <span>{moneyIn ? 'المقبوض' : 'المدفوع'}</span>
+          <b className="ltr">{m(inv.paid)}</b>
+        </div>
+        {remaining > 0 && (
+          <div className="rest">
+            <span>الباقي</span>
+            <b className="ltr">{m(remaining)}</b>
+          </div>
+        )}
+        {profit && (
+          <div className={profit.profit < 0 ? 'loss' : 'gain'}>
+            <span>{profit.profit < 0 ? 'خسارة هالفاتورة' : 'ربح هالفاتورة'}</span>
+            <b className="ltr">{money(state, Math.abs(profit.profit))}</b>
+          </div>
+        )}
+        {inv.notes && <p className="muted">{inv.notes}</p>}
+      </section>
+
+      {/* الورقة الحقيقية: مخفية عالشاشة (بتطلع بالمعاينة) وبتنطبع متل ما هي */}
+      {preview ? (
+        <div className="m-preview no-print" role="dialog">
+          <div className="m-preview-bar">
+            <button className="m-preview-close" onClick={() => setPreview(false)}>
+              ✕ إغلاق
+            </button>
+            <span>{name}</span>
+            <button className="primary" onClick={() => doPrint(false)}>
+              <Icon name="printer" size={16} /> طباعة
+            </button>
+          </div>
+          <FitPage>
+            <div className="paper-preview m-paper">
+              <InvoiceDocument inv={inv} />
+            </div>
+          </FitPage>
+        </div>
+      ) : (
+        <div className="paper-preview m-doc-hidden">
+          <InvoiceDocument inv={inv} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** بتصغّر ورقة A4 (794px) لتساع عرض الشاشة، وكبسة عليها بتكبّرها للحجم الحقيقي. */
+function FitPage({ children }: { children: ReactNode }) {
+  const inner = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const [height, setHeight] = useState(0);
+  const [zoom, setZoom] = useState(false);
+  const PAGE = 794;
+  useLayoutEffect(() => {
+    const fit = () => setScale(Math.min(1, (window.innerWidth - 24) / PAGE));
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+  }, []);
+  useEffect(() => {
+    const el = inner.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setHeight(el.offsetHeight));
+    ro.observe(el);
+    setHeight(el.offsetHeight);
+    return () => ro.disconnect();
+  }, []);
+  const s = zoom ? 1 : scale;
+  return (
+    <div className="m-fit" onClick={() => setZoom((z) => !z)}>
+      <div style={{ width: PAGE * s, height: height * s, margin: '0 auto', position: 'relative' }}>
+        <div ref={inner} style={{ width: PAGE, transform: `scale(${s})`, transformOrigin: 'top right', position: 'absolute', top: 0, right: 0 }}>
+          {children}
+        </div>
       </div>
     </div>
   );
