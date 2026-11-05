@@ -1,0 +1,46 @@
+import { describe, expect, it } from 'vitest';
+import { COMMISSION_ACCOUNT, DEFAULT_CURRENCIES, Ledger, accountBalance, chartFor, defaultTaxes, incomeStatement, partyBalance } from '../src/core';
+
+function shop() {
+  const l = new Ledger(() => {});
+  l.createCompany({ name: 'محل', activity: 'general', baseCurrency: 'USD', fiscalYearStart: '01-01' }, DEFAULT_CURRENCIES, chartFor('general'), defaultTaxes());
+  l.saveParty({ id: 'ahmad', kind: 'supplier', name: 'أحمد (مسوّق)', marketerRate: 15 });
+  l.saveParty({ id: 'mhmd', kind: 'customer', name: 'محمد' });
+  return l;
+}
+
+describe('marketer commission', () => {
+  it('15% of a sale through Ahmad becomes an expense owed to him, hidden from the customer side', () => {
+    const l = shop();
+    const inv = l.postInvoice({ kind: 'sale', date: '2026-11-01', partyId: 'mhmd', currency: 'USD', lines: [{ itemId: null, description: 'خدمة', qty: 1, price: 20000 }], paid: 20000, marketerId: 'ahmad' });
+    expect(inv.marketerId).toBe('ahmad');
+    expect(accountBalance(l.state, COMMISSION_ACCOUNT).balance).toBe(3000);
+    expect(-partyBalance(l.state, 'ahmad').base).toBe(3000); // إلو علينا
+    expect(partyBalance(l.state, 'mhmd').base).toBe(0);
+    expect(incomeStatement(l.state, { from: '2026-11-01', to: '2026-11-30' }).netProfit).toBe(17000);
+    // تصفية حسابه بسند دفع
+    l.postVoucher({ kind: 'payment', date: '2026-11-05', amount: 3000, partyId: 'ahmad', memo: 'تصفية عمولة' });
+    expect(partyBalance(l.state, 'ahmad').base).toBe(0);
+  });
+
+  it('voiding or editing the invoice cancels / recalculates the commission', () => {
+    const l = shop();
+    const inv = l.postInvoice({ kind: 'sale', date: '2026-11-01', partyId: 'mhmd', currency: 'USD', lines: [{ itemId: null, description: 'خدمة', qty: 1, price: 10000 }], paid: 0, marketerId: 'ahmad' });
+    const edited = l.replaceInvoice(inv.id, { kind: 'sale', date: '2026-11-01', partyId: 'mhmd', currency: 'USD', lines: [{ itemId: null, description: 'خدمة', qty: 2, price: 10000 }], paid: 0, marketerId: 'ahmad' });
+    expect(-partyBalance(l.state, 'ahmad').base).toBe(3000);
+    l.deleteInvoice(edited.id, '2026-11-02');
+    expect(partyBalance(l.state, 'ahmad').base).toBe(0);
+    expect(accountBalance(l.state, COMMISSION_ACCOUNT).balance).toBe(0);
+  });
+});
+
+describe('purchase cost breakdown', () => {
+  it('factory 6 + shipping 2 + tax 2 + customs 2 = cost 12 per piece', () => {
+    const l = shop();
+    l.saveItem({ id: 'x', code: '1', name: 'قطعة', kind: 'stock', unit: 'قطعة', price: 1500, priceCurrency: 'USD' });
+    const inv = l.postInvoice({ kind: 'purchase', date: '2026-11-01', currency: 'USD', lines: [{ itemId: 'x', qty: 10, price: 1200, costParts: { factory: 600, shipping: 200, tax: 200, customs: 200 } }] });
+    expect(inv.lines[0]!.costParts).toEqual({ factory: 600, shipping: 200, tax: 200, customs: 200 });
+    expect(l.state.stock['x']!.value).toBe(12000);
+    expect(() => l.postInvoice({ kind: 'purchase', date: '2026-11-01', currency: 'USD', lines: [{ itemId: 'x', qty: 1, price: 1200, costParts: { factory: -1, shipping: 0, tax: 0, customs: 0 } }] })).toThrow();
+  });
+});

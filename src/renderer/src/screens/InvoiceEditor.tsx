@@ -26,6 +26,7 @@ interface LineState {
   weighing?: Weighing; // وزنات قفص قفص (الكمية = الصافي)
   sell?: string; // فاتورة الشراء (صيدلية مع موردين): سعر الصيدلية الجديد
   dealer?: string; // وسعر المورّد الجديد
+  parts?: { factory: string; shipping: string; tax: string; customs: string }; // تفصيل تكلفة القطعة بفاتورة الشراء
 }
 
 /** حالة الفاتورة المفتوحة اللي بتنحفظ لما المستخدم يروح على شاشة تانية. */
@@ -42,6 +43,7 @@ interface DraftData {
   payMode: 'cash' | 'credit' | 'partial';
   cashAccountId: string;
   salesman: string;
+  marketerId?: string;
   notes: string;
 }
 
@@ -133,6 +135,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
             src: { amount: l.price, currency: editing.currency },
             ...(l.note ? { note: l.note } : {}),
             ...(l.weighing ? { weighing: l.weighing } : {}),
+            ...(l.costParts ? { parts: { factory: editInput(l.costParts.factory), shipping: editInput(l.costParts.shipping), tax: editInput(l.costParts.tax), customs: editInput(l.costParts.customs) } } : {}),
           })),
           emptyLine(),
         ]
@@ -166,11 +169,39 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
   };
   const [cashAccountId, setCashAccountId] = useState(lockedBox ?? editing?.cashAccountId ?? d?.cashAccountId ?? user.cashAccountId ?? '');
   const [salesman, setSalesman] = useState(editing?.salesman ?? d?.salesman ?? '');
+  const [marketerId, setMarketerId] = useState(editing?.marketerId ?? d?.marketerId ?? '');
+  const marketers = useMemo(() => Object.values(state.parties).filter((p) => p.marketerRate && !p.archived), [state.parties]);
   const [notes, setNotes] = useState(editing?.notes ?? d?.notes ?? '');
   const [newItem, setNewItem] = useState<string | null>(null);
   const [weighLine, setWeighLine] = useState<string | null>(null);
   // صيدلية مع موردين: بفاتورة الشراء منحط سعر الصيدلية وسعر المورّد لكل مادة
-  const setPrices = feature('dealers') && kind === 'purchase' && can('items.manage');
+  // تفصيل التكلفة (معمل + شحن + ضريبة + جمارك) بفاتورة الشراء: اختياري
+  const [breakdown, setBreakdown] = useState(() => kind === 'purchase' && (lines.some((l) => l.parts) || (() => { try { return localStorage.getItem('wazn.costBreakdown') === '1'; } catch { return false; } })()));
+  const toggleBreakdown = (v: boolean) => {
+    setBreakdown(v);
+    try {
+      localStorage.setItem('wazn.costBreakdown', v ? '1' : '0');
+    } catch {
+      // مش مهم
+    }
+  };
+  const dealersMode = feature('dealers');
+  const setPrices = kind === 'purchase' && can('items.manage') && (dealersMode || breakdown);
+  /** سعر القطعة = مجموع الأجزاء الأربعة. */
+  const setPart = (key: string, part: 'factory' | 'shipping' | 'tax' | 'customs', value: string) =>
+    setLines((ls) =>
+      ls.map((x) => {
+        if (x.key !== key) return x;
+        const parts = { factory: '', shipping: '', tax: '', customs: '', ...x.parts, [part]: value };
+        let sum = 0;
+        try {
+          sum = (['factory', 'shipping', 'tax', 'customs'] as const).reduce((s, k) => s + (parts[k].trim() ? parsePrice(state, parts[k], currency) : 0), 0);
+        } catch {
+          return { ...x, parts };
+        }
+        return { ...x, parts, price: sum ? toInput(state, Math.round(sum * 1e6) / 1e6, currency) : '', manualPrice: true };
+      }),
+    );
   const margins = state.info?.pricing ?? {};
   const costOf = (l: LineState) => {
     const item = l.itemId ? state.items[l.itemId] : null;
@@ -337,9 +368,9 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
   useEffect(() => {
     if (editing || savedRef.current) return;
     if (!used.length && !partyId && !notes.trim()) return invoiceDrafts.remove(company, draftId);
-    const data: DraftData = { partyId, date, currency, rateText, warehouseId, lines, discount, taxIds, paidText, payMode, cashAccountId, salesman, notes };
+    const data: DraftData = { partyId, date, currency, rateText, warehouseId, lines, discount, taxIds, paidText, payMode, cashAccountId, salesman, marketerId, notes };
     invoiceDrafts.save(company, { id: draftId, kind, title: (partyId && state.parties[partyId]?.name) || (isSale ? 'زبون نقدي' : 'مورد نقدي'), count: used.length, updated: Date.now(), data });
-  }, [editing, company, draftId, kind, isSale, state.parties, used, partyId, date, currency, rateText, warehouseId, lines, discount, taxIds, paidText, payMode, cashAccountId, salesman, notes]);
+  }, [editing, company, draftId, kind, isSale, state.parties, used, partyId, date, currency, rateText, warehouseId, lines, discount, taxIds, paidText, payMode, cashAccountId, salesman, marketerId, notes]);
   const preview = useMemo(() => {
     try {
       const amounts = used.map((l) => Math.round(Number(l.qty || 0) * parsePrice(state, l.price, currency)) - parseAmount(state, l.discount, currency));
@@ -409,12 +440,16 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
           ...(l.serials.trim() ? { serials: l.serials.split(/[\s,،]+/).map((s) => s.trim()).filter(Boolean) } : {}),
           ...(l.note ? { note: l.note } : {}),
           ...(l.weighing ? { weighing: l.weighing } : {}),
+          ...(kind === 'purchase' && breakdown && l.parts && Object.values(l.parts).some((v) => v.trim())
+            ? { costParts: { factory: parsePrice(state, l.parts.factory || '0', currency), shipping: parsePrice(state, l.parts.shipping || '0', currency), tax: parsePrice(state, l.parts.tax || '0', currency), customs: parsePrice(state, l.parts.customs || '0', currency) } }
+            : {}),
         })),
         discount: preview.disc,
         taxIds,
         paid: extra > 0 ? preview.total : paid,
         cashAccountId: cashId,
         ...(salesman.trim() ? { salesman: salesman.trim() } : {}),
+        ...(kind === 'sale' && marketerId && state.parties[marketerId]?.marketerRate ? { marketerId } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
       };
       const res = editing ? await call<Invoice>('replaceInvoice', editing.id, draft) : await call<Invoice>('postInvoice', draft);
@@ -531,6 +566,23 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
             </select>
           </Field>
         )}
+        {kind === 'sale' && marketers.length > 0 && (
+          <Field label="عن طريق مسوّق (ما بيطلع بالفاتورة)">
+            <select value={marketerId} onChange={(e) => setMarketerId(e.target.value)}>
+              <option value="">— لأ —</option>
+              {marketers.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name} ({m.marketerRate}%)
+                </option>
+              ))}
+            </select>
+            {marketerId && state.parties[marketerId]?.marketerRate && !preview.error && preview.subtotal > 0 && can('costs.view') && (
+              <small className="muted">
+                عمولتو: {money(state, Math.round(((preview.subtotal - preview.disc) * state.parties[marketerId]!.marketerRate!) / 100), currency)} بتنسجّل مصروف ودين إلو
+              </small>
+            )}
+          </Field>
+        )}
         {feature('salesmen') && isSale && (
           <Field label="المندوب">
             <input value={salesman} onChange={(e) => setSalesman(e.target.value)} list="salesmen" />
@@ -547,7 +599,12 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
         <div className="scan-row">
           <ScanInput onScan={scan} placeholder={feature('serials') ? 'امسح الباركود أو اكتب الرمز / آخر أرقام الـ IMEI ثم Enter' : 'امسح الباركود (أو باركود الميزان) أو اكتب الرمز / رقم القطعة ثم Enter'} />
         </div>
-        {setPrices && (
+        {kind === 'purchase' && (
+          <label className="check cost-toggle">
+            <input type="checkbox" checked={breakdown} onChange={(e) => toggleBreakdown(e.target.checked)} /> تفصيل تكلفة القطعة (سعر المعمل + الشحن + الضريبة + الجمارك) وسعر المبيع
+          </label>
+        )}
+        {setPrices && dealersMode && (
           <div className="sell-prices-bar">
             <span className="muted">
               أسعار البيع: اكتب سعر الصيدلية وسعر المورّد تحت كل مادة، أو احسبهن من سعر الشراء
@@ -592,7 +649,44 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
                           {[item?.code, item?.partNumber, stock !== null ? `الرصيد: ${stock}` : null].filter(Boolean).join(' · ')}
                           {short && <span className="bad"> — الكمية أكبر من الرصيد</span>}
                         </small>
-                        {setPrices && (
+                        {kind === 'purchase' && breakdown && (
+                          <span className="cost-parts">
+                            {(
+                              [
+                                ['factory', 'سعر المعمل'],
+                                ['shipping', 'الشحن'],
+                                ['tax', 'الضريبة'],
+                                ['customs', 'الجمارك'],
+                              ] as const
+                            ).map(([k, label]) => (
+                              <label key={k}>
+                                {label}
+                                <input className="num-input" inputMode="decimal" value={l.parts?.[k] ?? ''} onChange={(e) => setPart(l.key, k, e.target.value)} placeholder="0" />
+                              </label>
+                            ))}
+                            <b className="cost-sum">= رأس مال القطعة {l.price || '0'}</b>
+                          </span>
+                        )}
+                        {setPrices && !dealersMode && (
+                          <span className="sell-prices">
+                            <label>
+                              سعر المبيع
+                              <input className="num-input" inputMode="decimal" placeholder={item ? toInput(state, item.price, item.priceCurrency) : ''} value={l.sell ?? ''} onChange={(e) => setLine(l.key, { sell: e.target.value })} />
+                            </label>
+                            {(() => {
+                              try {
+                                const cost = l.price.trim() ? parsePrice(state, l.price, currency) : 0;
+                                const sell = l.sell?.trim() && item ? parsePrice(state, l.sell, item.priceCurrency) : 0;
+                                if (!cost || !sell || item?.priceCurrency !== currency) return null;
+                                const pct = Math.round(((sell - cost) / cost) * 100);
+                                return <small className={pct < 0 ? 'bad' : 'good'}>ربح {pct}% ({toInput(state, Math.round((sell - cost) * 1e6) / 1e6, currency)} بالقطعة)</small>;
+                              } catch {
+                                return null;
+                              }
+                            })()}
+                          </span>
+                        )}
+                        {setPrices && dealersMode && (
                           <span className="sell-prices">
                             <label>
                               سعر الصيدلية

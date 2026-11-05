@@ -162,6 +162,17 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
       if (item?.warrantyMonths && inv.kind === 'sale') sub.push(`كفالة ${item.warrantyMonths} شهراً`);
       if (l.weighing) sub.push(weighingText(l.weighing, l.unit ?? item?.unit ?? 'كغ'));
       if (l.note) sub.push(l.note);
+      if (l.costParts) {
+        const cp = l.costParts;
+        const pm = (v: number) => plainMoney(state, v, inv.currency);
+        sub.push(
+          <span className="cost-line">
+            {[['معمل', cp.factory], ['شحن', cp.shipping], ['ضريبة', cp.tax], ['جمارك', cp.customs]].map(([k, v], i) => (
+              <span key={k as string}>{i > 0 ? '+ ' : ''}{k} {pm(v as number)} </span>
+            ))}
+          </span>,
+        );
+      }
       return {
         description: l.description,
         sub,

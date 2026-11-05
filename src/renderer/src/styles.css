@@ -4122,3 +4122,12 @@ button.link { background: none; border: none; color: var(--primary); padding: 4p
 .item-name, .pos-item strong, .label-pick-row span, .formula-card h4, .wood-card h4 { overflow-wrap: anywhere; }
 .labels .label-name { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.15; overflow-wrap: anywhere; }
 .labels[style] .label-name { font-size: min(calc(var(--lh) * 0.09), 3.2mm); }
+
+/* تفصيل تكلفة القطعة بفاتورة الشراء */
+.cost-toggle { margin: 6px 0 10px; }
+.cost-parts { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: flex-end; margin-top: 6px; padding: 8px; border-radius: 10px; background: var(--primary-soft); }
+.cost-parts label { display: flex; flex-direction: column; font-size: 12px; color: var(--muted); gap: 2px; }
+.cost-parts input { width: 86px; }
+.cost-parts .cost-sum { color: var(--primary); font-size: 14px; padding-bottom: 6px; }
+.sell-prices small { display: block; margin-top: 2px; }
+.cost-line span { white-space: nowrap; }

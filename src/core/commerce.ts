@@ -6,7 +6,7 @@ import { adjustmentMoves, applyMove, assertMovesPossible, invoiceMoves, negate, 
 import { bookingConflicts } from './halls';
 import { cleanWeighing, weighingNet } from './poultry';
 import { computeTaxes } from './tax';
-import type { CompanyEvent, CompanyState, FabricRoll, Invoice, InvoiceKind, InvoiceLine, JournalEntry, LengthUnit, Order, Quote, RepairOrder, Shipment, ShipmentStatus, SiteJob, SiteJobLine, StoneBlock, TailorOrder, Weighing, WorkOrder, WorkStage } from './types';
+import type { CompanyEvent, CostParts, CompanyState, FabricRoll, Invoice, InvoiceKind, InvoiceLine, JournalEntry, LengthUnit, Order, Quote, RepairOrder, Shipment, ShipmentStatus, SiteJob, SiteJobLine, StoneBlock, TailorOrder, Weighing, WorkOrder, WorkStage } from './types';
 
 function fail(message: string): never {
   throw new Error(message);
@@ -37,6 +37,7 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
   switch (event.type) {
     case 'party.saved':
       if (!event.party.name.trim()) fail('الاسم مطلوب');
+      if (event.party.marketerRate !== undefined && !(event.party.marketerRate > 0 && event.party.marketerRate <= 100)) fail('نسبة المسوّق بين 0 و100');
       return;
     case 'warehouse.saved':
       if (!event.warehouse.name.trim()) fail('اسم المستودع مطلوب');
@@ -754,6 +755,7 @@ export interface InvoiceLineDraft {
   serials?: string[];
   note?: string;
   weighing?: Weighing;
+  costParts?: CostParts;
 }
 
 export interface InvoiceDraft {
@@ -769,6 +771,7 @@ export interface InvoiceDraft {
   paid?: number; // الافتراضي: كامل المبلغ للزبون النقدي، وصفر لغيره
   cashAccountId?: string;
   salesman?: string;
+  marketerId?: string;
   notes?: string;
   source?: { type: string; id: string };
   createdBy?: string;
@@ -791,6 +794,13 @@ export function allocate(total: number, weights: number[]): number[] {
   const last = parts.map((p, i) => [p, i] as const).filter(([, i]) => weights[i]! > 0).pop();
   if (last) parts[last[1]]! += diff;
   return parts;
+}
+
+/** تفصيل تكلفة القطعة: كل جزء سعر وحدة صالح. */
+function cleanCostParts(p: CostParts, n: number): CostParts {
+  const out = { factory: p.factory ?? 0, shipping: p.shipping ?? 0, tax: p.tax ?? 0, customs: p.customs ?? 0 };
+  for (const v of Object.values(out)) if (!isUnitPrice(v)) fail(`السطر ${n}: تفصيل التكلفة غير صالح`);
+  return out;
 }
 
 export function lineAmount(l: Pick<InvoiceLine, 'qty' | 'price' | 'discount'>): number {
@@ -842,6 +852,7 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft, opts: { n
       discount,
       ...(d.note ? { note: d.note } : {}),
       ...(weighing ? { weighing } : {}),
+      ...(d.costParts && (draft.kind === 'purchase') ? { costParts: cleanCostParts(d.costParts, n) } : {}),
     };
   });
 
@@ -982,6 +993,7 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft, opts: { n
     paid,
     cashAccountId,
     ...(draft.salesman ? { salesman: draft.salesman } : {}),
+    ...(draft.marketerId ? { marketerId: draft.marketerId } : {}),
     ...(draft.notes ? { notes: draft.notes } : {}),
     ...(draft.source ? { source: draft.source } : {}),
     ...(opts.replaces ? { replaces: opts.replaces } : {}),

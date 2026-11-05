@@ -221,6 +221,8 @@ export interface Party {
   notes?: string;
   measurements?: Record<string, string>; // قياسات الزبون (خياطة): اسم القياس ← القيمة
   debtDue?: string; // موعد السداد المتّفق عليه (قسم الديون)
+  /** مسوّق بيجيب زباين: نسبته % من كل فاتورة مبيع بتنعمل عن طريقه (بتنسجّل مصروف ودين إلو). */
+  marketerRate?: number;
   archived?: boolean;
 }
 
@@ -334,6 +336,15 @@ export interface InvoiceLine {
   note?: string;
   /** وزنات على دفعات (قفص قفص): الكمية = مجموع الوزنات − وزن الفارغ. */
   weighing?: Weighing;
+  /** تفصيل تكلفة القطعة بفاتورة الشراء (المعمل + الشحن + الضريبة + الجمارك = السعر). */
+  costParts?: CostParts;
+}
+
+export interface CostParts {
+  factory: number;
+  shipping: number;
+  tax: number;
+  customs: number;
 }
 
 /** وزن على دفعات متل ما بيوزن موزع الفروج: كل وزنة لحال، وزن الأقفاص الفاضية بينطرح، وعدد الطيور والنافق. */
@@ -372,6 +383,8 @@ export interface Invoice {
   paid: number; // المدفوع نقداً عند الفاتورة
   cashAccountId: string;
   salesman?: string;
+  /** المسوّق اللي جاب الزبون (ما بيطلع بالفاتورة المطبوعة). */
+  marketerId?: string;
   notes?: string;
   source?: { type: string; id: string };
   /** فاتورة معدّلة: رقم (id) الفاتورة الملغاة اللي حلّت محلها (بنفس الرقم). */

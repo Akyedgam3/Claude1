@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { accountBalance, type Account } from '../../../core';
-import { money, useCompany } from '../api';
+import { IS_MOBILE, money, useCompany } from '../api';
 import { Field, Modal, PageHeader } from '../components/ui';
 
 const TYPE_NAMES: Record<Account['type'], string> = {
@@ -26,7 +26,7 @@ export function Accounts() {
     const bal = accountBalance(state, a.id).balance;
     return (
       <div key={a.id}>
-        <div className={`tree-row ${a.isGroup ? 'group' : ''} ${a.archived ? 'muted' : ''}`} style={{ paddingInlineStart: level * 22 }}>
+        <div className={`tree-row ${a.isGroup ? 'group' : ''} ${a.archived ? 'muted' : ''}`} style={{ paddingInlineStart: level * (IS_MOBILE ? 10 : 22) }}>
           <span className="mono">{a.id}</span>
           <span className="tree-name" onClick={() => setEditing(a)}>
             {a.name}

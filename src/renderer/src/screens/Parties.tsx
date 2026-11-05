@@ -326,6 +326,7 @@ export function PartyForm({
     priceTier: party?.priceTier ?? 'retail',
     listDiscount: party?.listDiscount !== undefined ? String(party.listDiscount) : '',
     creditLimit: party?.creditLimit ? toInput(state, party.creditLimit, base) : '',
+    marketerRate: party?.marketerRate ? String(party.marketerRate) : '',
   });
   const [measurements, setMeasurements] = useState<Record<string, string>>(party?.measurements ?? {});
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
@@ -347,6 +348,7 @@ export function PartyForm({
             kind: f.kind as Party['kind'],
             ...(f.priceTier !== 'retail' ? { priceTier: f.priceTier as Party['priceTier'] } : {}),
             ...(creditLimit > 0 ? { creditLimit } : {}),
+            ...(Number(f.marketerRate) > 0 ? { marketerRate: Math.min(100, Number(f.marketerRate)) } : {}),
             ...(feature('listPricing') && f.listDiscount.trim() !== '' && Number.isFinite(Number(f.listDiscount)) ? { listDiscount: Number(f.listDiscount) } : {}),
             ...(f.phone.trim() ? { phone: f.phone.trim() } : {}),
             ...(f.address.trim() ? { address: f.address.trim() } : {}),
@@ -401,6 +403,9 @@ export function PartyForm({
             <input value={f.creditLimit} onChange={set('creditLimit')} inputMode="decimal" />
           </Field>
         )}
+        <Field label="مسوّق بيجيب زباين؟ نسبته % (فاضي = لأ)">
+          <input value={f.marketerRate} onChange={(e) => setF({ ...f, marketerRate: e.target.value.replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/[^\d.]/g, '') })} inputMode="decimal" placeholder="مثلاً 15" />
+        </Field>
         <Field label="ملاحظات" wide>
           <textarea value={f.notes} onChange={set('notes')} rows={2} />
         </Field>

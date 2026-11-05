@@ -10,6 +10,9 @@ import { POULTRY_CUTS } from './poultry';
 import { dealerStock, dealerUnitCost } from './dealers';
 import { HALL_PERIODS, bookingDeposits, bookingToInvoiceLines, bookingTotals } from './halls';
 import { woodExpenseAccount, woodLotSales } from './woodlots';
+
+/** حساب عمولات المسوّقين (بينعمل لحالو أول مرة). */
+export const COMMISSION_ACCOUNT = '5211';
 import { printJobDeposits, printJobToInvoiceLines, printJobTotals } from './printshop';
 import { solarDeposits, solarToInvoiceLines, solarTotals } from './solar';
 import { DEALER_BOX_ID } from './dealerbox';
@@ -788,8 +791,36 @@ export class Ledger {
       { ...draft, createdBy: draft.createdBy ?? this.actor },
       opts,
     );
+    if (draft.marketerId) {
+      const m = this.state.parties[draft.marketerId];
+      if (!m?.marketerRate) fail('المسوّق غير موجود أو ما إلو نسبة');
+      if (invoice.kind !== 'sale') fail('المسوّق بس لفواتير المبيع');
+    }
     this.emit({ type: 'invoice.posted', invoice, entry });
+    if (invoice.marketerId) this.postCommission(invoice);
     return invoice;
+  }
+
+  /** عمولة المسوّق عن فاتورة: مصروف «عمولات المسوّقين» ودين إلو (بيتصفّى بسند دفع). */
+  private postCommission(invoice: Invoice): void {
+    const m = this.state.parties[invoice.marketerId!];
+    if (!m?.marketerRate) return;
+    const amount = Math.round(((invoice.subtotal - invoice.discount) * m.marketerRate) / 100);
+    if (amount <= 0) return;
+    if (!this.state.accounts[COMMISSION_ACCOUNT]) {
+      const parent = this.state.accounts['52'] ? '52' : this.state.accounts['5'] ? '5' : null;
+      this.saveAccount({ id: COMMISSION_ACCOUNT, name: 'عمولات المسوّقين', type: 'expense', parentId: parent, isGroup: false, currency: null });
+    }
+    const cur = invoice.currency !== this.base.code ? { currency: invoice.currency, rate: invoice.rate } : {};
+    this.postEntry({
+      date: invoice.date,
+      memo: `عمولة ${m.name} (${m.marketerRate}%) عن فاتورة مبيع رقم ${invoice.number}${invoice.partyId ? ` — ${this.state.parties[invoice.partyId]?.name ?? ''}` : ''}`,
+      lines: [
+        { accountId: COMMISSION_ACCOUNT, debit: amount, ...cur },
+        { accountId: SYSTEM_ACCOUNTS.suppliers, credit: amount, partyId: m.id, ...cur },
+      ],
+      source: { type: 'commission', id: invoice.id },
+    });
   }
 
   /**
@@ -915,6 +946,9 @@ export class Ledger {
     const invoice = this.state.invoices.find((i) => i.id === invoiceId) ?? fail('الفاتورة غير موجودة');
     const original = this.state.entries.find((e) => e.id === invoice.entryId)!;
     this.emit({ type: 'invoice.voided', invoiceId, entry: this.reversal(original, date), ...(opts.deleted ? { deleted: true } : {}) });
+    // عمولة المسوّق عن هالفاتورة بتنلغى معها
+    for (const c of this.state.entries.filter((e) => e.source?.type === 'commission' && e.source.id === invoiceId && !this.state.voided[e.id] && !e.voidOf))
+      this.emit({ type: 'entry.posted', entry: this.reversal(c, date) });
     // إعادة فتح المستند المرتبط إن وُجد لتعديله وفوترته من جديد
     const src = invoice.source;
     if (src?.type === 'repair') {

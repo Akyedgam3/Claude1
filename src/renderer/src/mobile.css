@@ -1008,3 +1008,24 @@ body.mobile .pos-item .badge { top: -8px; left: -8px; min-width: 26px; height: 2
 body.mobile .pos-tile { overflow: visible; }
 body.mobile .modal .form-actions { flex-wrap: wrap; }
 body.mobile .modal .form-actions > .push-start { flex-basis: 100%; }
+
+/* دليل الحسابات على الجوال: الرمز والاسم والرصيد بسطر، وزر «فرعي» تحت بدل ما يطلع برّا الشاشة */
+body.mobile .tree-row { grid-template-columns: 50px minmax(0, 1fr) auto; gap: 2px 8px; padding: 9px 6px; }
+body.mobile .tree-row > .mono { font-size: 12px; color: var(--muted); }
+body.mobile .tree-row > .num { white-space: nowrap; font-weight: 600; }
+body.mobile .tree-row > :nth-child(4) { grid-column: 2 / -1; justify-self: start; }
+body.mobile .tree-row > :nth-child(4):empty { display: none; }
+
+/* الفاتورة على الجوال: المجاميع تحت النص بعرض كامل، والمبالغ ما بتتكسّر */
+body.mobile .paper-preview .invoice-doc .doc-bottom { flex-direction: column; align-items: stretch; }
+body.mobile .paper-preview .invoice-doc .doc-totals { width: 100%; }
+body.mobile .paper-preview .invoice-doc .doc-totals > div { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+body.mobile .paper-preview .invoice-doc .doc-totals strong { white-space: nowrap; direction: ltr; }
+body.mobile .paper-preview .invoice-doc .doc-side { flex-direction: row; align-items: center; }
+body.mobile .paper-preview .invoice-doc .doc-words { flex: 1; min-width: 0; }
+body.mobile .paper-preview .invoice-doc .doc-lines td.num, body.mobile .paper-preview .invoice-doc .doc-lines th { white-space: nowrap; }
+
+/* تفصيل التكلفة بفاتورة الشراء: خانتين بكل سطر */
+body.mobile .cost-parts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+body.mobile .cost-parts input { width: 100%; min-width: 0; }
+body.mobile .cost-parts .cost-sum { grid-column: 1 / -1; white-space: nowrap; padding-bottom: 0; }
