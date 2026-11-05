@@ -241,6 +241,8 @@ export class RegistryDO extends DurableObject<Env> {
     data.agents!.sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
     const upd = this.kvGet('update');
     if (upd) data.update = JSON.parse(upd);
+    const rates = this.kvGet('rates');
+    if (rates) data.rates = JSON.parse(rates);
     const lp = this.kvGet('lastPublished');
     if (lp) data.lastPublished = lp;
     for (const row of this.sql.exec<{ v: string }>(`SELECT v FROM (SELECT id, v FROM log ORDER BY id DESC LIMIT 5000) ORDER BY id`)) {
@@ -275,6 +277,7 @@ export class RegistryDO extends DurableObject<Env> {
       }
     }
     this.kvSet('update', d.update ? JSON.stringify(d.update) : null);
+    this.kvSet('rates', d.rates ? JSON.stringify(d.rates) : null);
     this.kvSet('cards', d.cards?.length ? JSON.stringify(d.cards) : null);
     this.kvSet('lastPublished', d.lastPublished ?? null);
     for (const e of d.log ?? []) {
@@ -628,6 +631,7 @@ export class RegistryDO extends DurableObject<Env> {
         customers: reg.customers,
         agents: reg.agents.map((a) => ({ ...a, balance: agentBalance(a), username: users[a.id] ?? null })),
         update: reg.appUpdate ?? null,
+        rates: reg.rates ?? null,
         cards: reg.cards,
         tiers: AGENT_TIERS,
         plans: PLANS,
@@ -806,6 +810,12 @@ export class RegistryDO extends DurableObject<Env> {
       if (body['clear']) return touch({ update: reg.setUpdate(null) ?? null });
       return touch({ update: reg.setUpdate({ version: str('version'), url: str('url'), notes: str('notes'), ...(str('minVersion') ? { minVersion: str('minVersion') } : {}) }) });
     }
+    if (path === '/api/rates' && req.method === 'POST') {
+      // سعر الصرف لكل البرامج: كم ليرة سورية جديدة لكل وحدة (USD, EUR, TRY...)
+      if (body['clear']) return touch({ rates: reg.setRates(null) ?? null });
+      const values = body['values'] && typeof body['values'] === 'object' ? (body['values'] as Record<string, string | number>) : {};
+      return touch({ rates: reg.setRates(values) ?? null });
+    }
     if (path === '/api/backup' && req.method === 'GET') {
       // نسخة احتياطية من كل السجل (بدون المفتاح الخاص ورمز GitHub): بتنفتح بلوحة الإدارة القديمة كمان
       const stamp = new Date().toISOString().slice(0, 10);
@@ -856,6 +866,7 @@ export class RegistryDO extends DurableObject<Env> {
       reg.raw.customers.push(...data.customers);
       reg.raw.agents = [...(data.agents ?? [])];
       if (data.update) reg.raw.update = data.update;
+      if (data.rates) reg.raw.rates = data.rates;
       reg.record(`استيراد السجل القديم: ${data.customers.length} زبون و${(data.agents ?? []).length} وكيل`);
       this.schedulePublish();
       return json({ customers: data.customers.length, agents: (data.agents ?? []).length });

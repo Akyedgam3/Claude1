@@ -4182,3 +4182,5 @@ button.link { background: none; border: none; color: var(--primary); padding: 4p
 .assistant-clear { background: rgba(255, 255, 255, 0.15); color: #fff; border: none; border-radius: 10px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
 .assistant-msg .bubble.divider { background: none; color: var(--muted); font-size: 12px; text-align: center; padding: 2px; }
 .assistant-msg:has(.divider) { align-self: center; max-width: 100%; }
+.auto-rates { display: flex; align-items: flex-start; gap: 8px; padding: 10px 14px; margin-bottom: 12px; border-radius: 12px; background: var(--primary-soft); }
+.auto-rates input { margin-top: 4px; }

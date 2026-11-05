@@ -127,6 +127,8 @@ export interface RegistryFile {
   customers: Customer[];
   agents?: Agent[];
   update?: UpdateInfo;
+  /** سعر الصرف المنشور للبرامج: كم ليرة سورية جديدة بتساوي وحدة من كل عملة. */
+  rates?: { date: string; values: Record<string, number> };
   lastPublished?: string;
   log?: LogEntry[];
   cards?: Card[];
@@ -207,6 +209,35 @@ export class RegistryCore {
 
   get appUpdate(): UpdateInfo | undefined {
     return this.data.update;
+  }
+
+  get rates(): RegistryFile['rates'] {
+    return this.data.rates;
+  }
+
+  /** سعر الصرف لكل البرامج (بيوصل مع النشر الجاي). null بيوقف النشر (البرامج بتضل عآخر سعر وصلها). */
+  setRates(values: Record<string, number | string> | null): RegistryFile['rates'] {
+    if (!values) {
+      delete this.data.rates;
+      this.record('إيقاف نشر سعر الصرف');
+      this.save();
+      return undefined;
+    }
+    const clean: Record<string, number> = {};
+    for (const [k, raw] of Object.entries(values)) {
+      const code = k.trim().toUpperCase();
+      const text = String(raw ?? '').trim().replace(/,/g, '');
+      if (!text) continue;
+      const v = Number(text);
+      if (!/^[A-Z][A-Z0-9]{1,7}$/.test(code) || code === 'SYP') throw new Error(`رمز عملة غير صالح: ${k}`);
+      if (!(v > 0) || !Number.isFinite(v)) throw new Error(`سعر ${code} لازم يكون رقم أكبر من صفر`);
+      clean[code] = v;
+    }
+    if (!Object.keys(clean).length) throw new Error('حط سعر عملة وحدة عالأقل');
+    this.data.rates = { date: new Date().toISOString(), values: clean };
+    this.note(`سعر الصرف: ${Object.entries(clean).map(([c, v]) => `${c} = ${v}`).join('، ')}`, {});
+    this.save();
+    return this.data.rates;
   }
 
   get lastPublished(): string | undefined {
@@ -733,6 +764,7 @@ export class RegistryCore {
         ]),
       ),
       ...(this.data.update ? { update: this.data.update } : {}),
+      ...(this.data.rates ? { rates: this.data.rates } : {}),
     };
     const text = signFeed(feed, this.privateKey);
     this.data.lastPublished = feed.issuedAt;

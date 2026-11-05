@@ -130,10 +130,10 @@ function render() {
   $('#pw').onclick = changePassword;
   const m = $('#m');
   if (!owner) return renderAgent(m);
-  const tabs = [['home', 'الرئيسية'], ['agents', 'الوكلاء'], ['customers', 'الزباين'], ['invoices', 'فواتير الاشتراك'], ['updates', 'التحديثات'], ['settings', 'الإعدادات']];
+  const tabs = [['home', 'الرئيسية'], ['agents', 'الوكلاء'], ['customers', 'الزباين'], ['invoices', 'فواتير الاشتراك'], ['updates', 'التحديثات'], ['rates', 'سعر الصرف'], ['settings', 'الإعدادات']];
   m.innerHTML = `<nav class="tabs">${tabs.map(([k, n]) => `<button class="${tab === k ? 'on' : ''}" data-t="${k}">${n}</button>`).join('')}</nav><div id="body"></div>`;
   m.querySelectorAll('[data-t]').forEach((b) => (b.onclick = () => { tab = b.dataset.t; q = ''; render(); }));
-  ({ home: ownerHome, agents: ownerAgents, customers: ownerCustomers, invoices: ownerInvoices, updates: ownerUpdates, settings: ownerSettings })[tab]($('#body'));
+  ({ home: ownerHome, agents: ownerAgents, customers: ownerCustomers, invoices: ownerInvoices, updates: ownerUpdates, rates: ownerRates, settings: ownerSettings })[tab]($('#body'));
 }
 function changePassword() {
   const m = modal(`<h2>تغيير كلمة السر</h2><form class="list" id="f"><label>كلمة السر الحالية<input name="old" type="password" required /></label><label>كلمة السر الجديدة<input name="new" type="password" required minlength="8" /></label><div class="row"><button class="primary">حفظ</button><button type="button" id="x">إلغاء</button></div></form>`);
@@ -553,6 +553,30 @@ function ownerUpdates(el) {
     <div class="row"><button class="primary">نشر الإعلان</button>${u ? '<button type="button" class="danger" id="clr">إلغاء الإعلان</button>' : ''}</div></form></div>`;
   $('#uf').onsubmit = (e) => { e.preventDefault(); run(() => api('/api/update', Object.fromEntries(new FormData(e.target))), 'انعلن التحديث، وبيوصل للبرامج لحالو'); };
   if (u) $('#clr').onclick = () => confirm('إلغاء الإعلان؟') && run(() => api('/api/update', { clear: true }), 'انلغى');
+}
+function ownerRates(el) {
+  const r = S.rates;
+  const v = r?.values ?? {};
+  const known = [['USD', 'دولار أمريكي'], ['EUR', 'يورو'], ['TRY', 'ليرة تركية'], ['SAR', 'ريال سعودي'], ['AED', 'درهم إماراتي'], ['GBP', 'جنيه إسترليني']];
+  const extra = Object.keys(v).filter((c) => !known.some(([k]) => k === c));
+  el.innerHTML = publishBanner() + `<div class="card"><h2>سعر الصرف لكل البرامج</h2>
+    <p class="muted">اكتب كم <b>ليرة سورية جديدة</b> بتساوي وحدة من كل عملة. بعد النشر بيوصل لكل البرامج المنصّبة (كمبيوتر وجوال) خلال ساعة، وبينسجّل لحالو بأسعار الصرف عندهم. الزبون اللي بدو يحط سعره بإيدو بيقدر يطفّي «السعر التلقائي» من شاشة العملات، وأي سعر يدوي بنفس اليوم ما بنكتب فوقه. خلي الخانة فاضية للعملة اللي ما بدك تنشرها.</p>
+    ${r ? `<p>آخر سعر منشور: <span class="muted">${esc(fmtDate(r.date))}</span> · ${Object.entries(v).map(([c, x]) => `<b class="mono">${esc(c)}</b> = ${esc(x)}`).join(' · ')}</p>` : '<p class="muted">ما في سعر منشور لهلق.</p>'}
+    <form id="rf" class="list"><div class="grid">
+      ${known.map(([c, n]) => `<label>${n} (${c})<input name="${c}" dir="ltr" inputmode="decimal" value="${esc(v[c] ?? '')}" ${c === 'USD' ? 'placeholder="مثلاً 110"' : ''} /></label>`).join('')}
+      ${extra.map((c) => `<label>${esc(c)}<input name="${esc(c)}" dir="ltr" inputmode="decimal" value="${esc(v[c])}" /></label>`).join('')}
+    </div>
+    <div class="grid"><label>عملة تانية (رمزها بالإنكليزي)<input name="_code" dir="ltr" placeholder="QAR" /></label><label>سعرها<input name="_value" dir="ltr" inputmode="decimal" /></label></div>
+    <div class="row"><button class="primary">نشر السعر</button>${r ? '<button type="button" class="danger" id="rclr">إيقاف نشر السعر</button>' : ''}</div></form></div>`;
+  $('#rf').onsubmit = (e) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+    const values = {};
+    for (const [k, x] of Object.entries(f)) if (!k.startsWith('_') && String(x).trim()) values[k] = String(x).trim();
+    if (String(f._code ?? '').trim() && String(f._value ?? '').trim()) values[String(f._code).trim().toUpperCase()] = String(f._value).trim();
+    run(() => api('/api/rates', { values }), 'انحفظ السعر، وبيوصل للبرامج لحالو');
+  };
+  if (r) $('#rclr').onclick = () => confirm('إيقاف نشر سعر الصرف؟ البرامج بتضل عآخر سعر وصلها.') && run(() => api('/api/rates', { clear: true }), 'وقف نشر السعر');
 }
 function ownerSettings(el) {
   const st = S.settings;

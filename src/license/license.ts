@@ -63,6 +63,8 @@ export interface LicenseFeed {
   issuedAt: string; // وقت النشر — يُستخدم كوقت موثوق لكشف تلاعب الساعة
   entries: Record<string, FeedEntry>;
   update?: UpdateInfo;
+  /** سعر الصرف من لوحة الإدارة: كم ليرة سورية جديدة بتساوي وحدة من كل عملة. */
+  rates?: { date: string; values: Record<string, number> };
 }
 
 /** مقارنة أرقام النسخ (1.2.10 > 1.2.9). */

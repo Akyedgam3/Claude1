@@ -54,6 +54,19 @@ export function Rates() {
         </div>
       )}
 
+      {can('settings.manage') && (
+        <label className="check auto-rates">
+          <input type="checkbox" checked={state.info!.autoRates !== false} onChange={async (e) => (await call('updateCompany', { autoRates: e.target.checked })) && notify(e.target.checked ? 'صار سعر الصرف يتحدّث لحالو' : 'صار سعر الصرف يدوي بس')} />
+          <span>
+            <b>سعر الصرف التلقائي من وزن</b>
+            <small className="muted">
+              {' '}
+              — كل ما ننشر سعر جديد (الدولار وغيره) بينسجّل هون لحالو بس يكون في نت. السعر اللي بتحطه بإيدك بنفس اليوم هو اللي بيمشي.
+            </small>
+          </span>
+        </label>
+      )}
+
       {cur && (
         <>
           <div className="stats">
@@ -111,7 +124,10 @@ export function Rates() {
                   {history.map((r) => (
                     <tr key={`${r.date}-${r.kind}`}>
                       <td>{dateText(r.date)}</td>
-                      <td>{r.kind === 'market' ? 'سوق' : 'رسمي'}</td>
+                      <td>
+                        {r.kind === 'market' ? 'سوق' : 'رسمي'}
+                        {r.auto && <small className="tag"> تلقائي</small>}
+                      </td>
                       <td className="num">{shown(r.rate)!.toLocaleString('en')}</td>
                     </tr>
                   ))}

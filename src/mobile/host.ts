@@ -112,6 +112,7 @@ async function refreshLicense(): Promise<void> {
   if (!before || before.locked !== now.locked || before.message !== now.message || before.daysLeft !== now.daysLeft || before.devices !== now.devices || before.cloud !== now.cloud || before.expiresAt !== now.expiresAt || before.update?.version !== now.update?.version) {
     send('license:changed', now);
   }
+  if (!now.locked) syncFeedRates();
   if (now.locked && store && !remote) {
     closeStore();
     send('company:closed', now.message);
@@ -138,6 +139,17 @@ function requirePermission(p: Permission): void {
 function attach(s: CompanyStore): void {
   store = s;
   unsubscribe = s.onEvent((event: CompanyEvent, seq: number) => send('company:events', structuredClone([{ event, seq }])));
+  syncFeedRates();
+}
+
+/** سعر الصرف من لوحة الإدارة بينسجّل لحالو بالشركة المفتوحة. */
+function syncFeedRates(): void {
+  if (!store || remote) return;
+  try {
+    store.ledger.applyFeedRates((lastLicense ?? licenseStatus()).rates);
+  } catch (e) {
+    console.error('feed rates', e);
+  }
 }
 
 function closeStore(): void {

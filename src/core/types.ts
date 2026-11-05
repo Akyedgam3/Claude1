@@ -21,6 +21,8 @@ export interface ExchangeRate {
   currency: string;
   kind: RateKind;
   rate: number; // كم وحدة من العملة الأساسية تساوي وحدة واحدة
+  /** انسجّل لحالو من سعر لوحة الإدارة (مش يدوي). */
+  auto?: boolean;
 }
 
 export interface Tax {
@@ -162,6 +164,8 @@ export interface CompanyInfo {
   taxNumber?: string;
   address?: string;
   phone?: string;
+  /** سعر الصرف التلقائي من وزن (افتراضياً نعم). */
+  autoRates?: boolean;
   lockedUntil?: string; // لا تُقبل أي حركة بتاريخ أقدم أو يساوي هذا التاريخ (فترة مقفلة)
   allowNegativeStock?: boolean;
   print?: PrintSettings;

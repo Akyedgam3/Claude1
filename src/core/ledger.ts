@@ -1,6 +1,7 @@
 import { applyCommerceEvent, buildInvoice, convertOrder, orderTotals, piecesTotal, repairToInvoiceLines, rollRemaining, siteJobDeposits, siteJobToInvoiceLines, siteJobTotals, stoneBlockUsage, shipmentSummary, UNIT_NAMES, tailorDeposits, tailorToInvoiceLines, validateCommerceEvent, workOrderProgress, type InvoiceDraft, type InvoiceLineDraft } from './commerce';
 import { ACTIVITIES } from './activities';
 import { PARTNER_MOVE_NAMES, partnerSourceId, type PartnerMoveKind } from './partners';
+import { feedRatesFor, type FeedRates } from './feed-rates';
 import { accruedFor, EMPLOYEE_ACCOUNTS, EMPLOYEE_MOVE_NAMES, employeeSourceId, type EmployeeMoveKind } from './employees';
 import { loadDemo } from './demo';
 import { buildSchedule, installmentState } from './electronics';
@@ -514,6 +515,13 @@ export class Ledger {
   }
 
   /** عملة جديدة أو تعديل اسمها ورمزها. العملة الجديدة بيتعمللها صندوق خاص فيها. */
+  /** أسعار لوحة الإدارة (من feed.txt الموقّع): بتنسجّل لحالها. بيرجّع كم سعر انسجّل. */
+  applyFeedRates(rates: FeedRates | null | undefined): number {
+    const list = feedRatesFor(this.state, rates);
+    for (const rate of list) this.emit({ type: 'rate.set', rate });
+    return list.length;
+  }
+
   saveCurrency(currency: Currency): Currency {
     const c: Currency = {
       code: String(currency?.code ?? '').trim().toUpperCase(),
@@ -578,7 +586,10 @@ export class Ledger {
   }
 
   setRate(rate: ExchangeRate): void {
-    this.emit({ type: 'rate.set', rate });
+    // التعديل اليدوي بيشيل علامة «تلقائي»
+    const { auto: _auto, ...manual } = rate;
+    void _auto;
+    this.emit({ type: 'rate.set', rate: manual });
   }
 
   saveUser(user: User): void {

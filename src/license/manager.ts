@@ -2,6 +2,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:
 import fs from 'node:fs';
 import path from 'node:path';
 import { normalizeShortCode } from './format';
+import { cleanFeedRates, type FeedRates } from '../core/feed-rates';
 import { checkLicense, machineIds as readMachineIds, offlineDaysOf, parseFeed, parseLicense, PLANS, updateFor, type LicenseCheck, type LicenseFeed, type UpdateInfo } from './license';
 
 // يحفظ مفتاح الترخيص وآخر قائمة حالة ووقت آخر تحقق في ملف مشفّر على الجهاز.
@@ -35,6 +36,8 @@ export interface LicenseStatus {
   offlineDaysLeft?: number;
   /** نسخة أحدث منشورة (من القائمة الموقّعة). */
   update?: UpdateInfo & { mandatory: boolean };
+  /** سعر الصرف المنشور من لوحة الإدارة (من القائمة الموقّعة). */
+  rates?: FeedRates;
 }
 
 export interface ManagerOptions {
@@ -136,6 +139,7 @@ export class LicenseManager {
       ...(data.lastOnline ? { lastOnline: data.lastOnline } : {}),
       ...(this.feedOf(data) ? { feedIssuedAt: this.feedOf(data)!.issuedAt } : {}),
       ...(update ? { update } : {}),
+      ...(cleanFeedRates(this.feedOf(data)?.rates) ? { rates: cleanFeedRates(this.feedOf(data)?.rates)! } : {}),
       ...(payload ? { licenseId: payload.id, customer: payload.customer, planName: PLANS[payload.plan].nameAr } : {}),
     };
     if (check.status === 'locked') return { ...base, reason: check.reason, message: check.message };

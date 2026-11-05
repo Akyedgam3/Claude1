@@ -125,6 +125,7 @@ async function refreshLicenseNow(): Promise<void> {
   if (!before || before.locked !== now.locked || before.message !== now.message || before.daysLeft !== now.daysLeft || before.devices !== now.devices || before.cloud !== now.cloud || before.expiresAt !== now.expiresAt || before.update?.version !== now.update?.version) {
     send('license:changed', now);
   }
+  if (!now.locked) syncFeedRates();
   // إيقاف فوري عند قفل الترخيص (إلا الأجهزة الفرعية التي يتحكم بها الجهاز الرئيسي)
   if (now.locked && backend?.kind === 'local') {
     stopHosting();
@@ -164,6 +165,17 @@ function attach(b: Backend): void {
     () => send('company:reset'),
     (message) => send('lan:error', message),
   );
+  syncFeedRates();
+}
+
+/** سعر الصرف من لوحة الإدارة (بالقائمة الموقّعة) بينسجّل لحالو بالشركة المفتوحة على هالجهاز. */
+function syncFeedRates(): void {
+  if (backend?.kind !== 'local') return;
+  try {
+    localStore().ledger.applyFeedRates((lastLicense ?? licenseStatus()).rates);
+  } catch (e) {
+    console.error('feed rates', e);
+  }
 }
 
 async function closeBackend(): Promise<void> {
