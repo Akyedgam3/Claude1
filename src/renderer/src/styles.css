@@ -4178,3 +4178,7 @@ button.link { background: none; border: none; color: var(--primary); padding: 4p
 .assistant-input { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--border); }
 .assistant-input input { flex: 1; min-width: 0; }
 @media print { .assistant-fab, .assistant-panel { display: none !important; } }
+.assistant-actions { display: flex; align-items: center; gap: 6px; }
+.assistant-clear { background: rgba(255, 255, 255, 0.15); color: #fff; border: none; border-radius: 10px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
+.assistant-msg .bubble.divider { background: none; color: var(--muted); font-size: 12px; text-align: center; padding: 2px; }
+.assistant-msg:has(.divider) { align-self: center; max-width: 100%; }

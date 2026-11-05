@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CURRENCIES, Ledger, chartFor, defaultTaxes } from '../src/core';
-import { ask } from '../src/renderer/src/assistant/answer';
+import { ask, askInContext, withContext } from '../src/renderer/src/assistant/answer';
 import { Brain, tokens } from '../src/renderer/src/assistant/engine';
 import { TOPICS } from '../src/renderer/src/assistant/knowledge';
 
@@ -169,5 +169,19 @@ describe('assistant: answers from the company data', () => {
     expect(hidden.text).toContain('مش ظاهر عندك');
     expect(ask('مرحبا', ctx).suggest.length).toBeGreaterThan(0);
     expect(ask('قثصيبلا', ctx).text).toContain('ما فهمت');
+  });
+  it('follow-up questions remember the previous one', () => {
+    expect(withContext('وهالشهر؟', 'شقد بعت اليوم؟')).toContain('شهر');
+    expect(withContext('وهالشهر؟', 'شقد بعت اليوم؟')).not.toContain('اليوم');
+    expect(withContext('كيف بضيف موظف', 'شقد بعت اليوم؟')).toBeNull();
+    const month = askInContext('وهالشهر؟', ctx, 'شقد بعت اليوم؟');
+    expect(month.text).toContain('المبيعات هالشهر');
+    expect(askInContext('والربح؟', ctx, 'شقد بعت هالشهر؟').text).toContain('صافي الربح هالشهر');
+    expect(askInContext('ومحمد الأحمد؟', ctx, 'شو عليه سامي').text).toContain('محمد الأحمد');
+    // سلسلة: اليوم ← وهالشهر ← والربح (السؤال التالت بيفهم «هالشهر» من التاني)
+    const a = askInContext('شقد بعت اليوم؟', ctx);
+    const b = askInContext('وهالشهر؟', ctx, a.asked);
+    const c = askInContext('والربح؟', ctx, b.asked);
+    expect(c.text).toContain('صافي الربح هالشهر');
   });
 });

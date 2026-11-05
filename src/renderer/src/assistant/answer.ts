@@ -7,6 +7,10 @@ export interface Reply {
   links: Link[];
   /** اقتراحات أسئلة (لما ما نكون متأكدين، أو مواضيع قريبة). */
   suggest: string[];
+  /** الجواب رقم من بيانات الشركة (مش شرح). */
+  data?: boolean;
+  /** السؤال الكامل اللي انفهم (بعد دمج السؤال التكميلي باللي قبله) — بيصير «السابق» للسؤال الجاي. */
+  asked?: string;
 }
 
 export interface AskContext {
@@ -89,7 +93,7 @@ function looseItems<T extends { name: string }>(norm: string, list: T[]): T[] {
 const allowedLinks = (links: Link[] | undefined, ctx: AskContext) => (links ?? []).filter((l) => ctx.screens.has(l.screen));
 
 /** جواب من بيانات الشركة نفسها (مبيعات، ربح، صندوق، ديون، مادة، زبون، موظف). null إذا السؤال مش عن رقم. */
-function fromData(question: string, ctx: AskContext): Reply | null {
+function fromData(question: string, ctx: AskContext, focus?: string): Reply | null {
   const { state, can, fmt } = ctx;
   const norm = normalizeText(question);
   const t = new Set(tokens(question));
@@ -98,10 +102,18 @@ function fromData(question: string, ctx: AskContext): Reply | null {
   const asks = HOW_MUCH.test(norm) && !howTo;
   const fin = can('reports.financial');
   const p = period(norm, ctx.today);
-  const reply = (text: string, links: Link[] = []): Reply => ({ text, links: allowedLinks(links, ctx), suggest: [] });
+  const reply = (text: string, links: Link[] = []): Reply => ({ text, links: allowedLinks(links, ctx), suggest: [], data: true });
 
   // موظف بالاسم
-  const emp = findName(norm, Object.values(state.employees ?? {}), (e) => e.name);
+  // بسؤال تكميلي («ومحمد؟») الاسم الجديد أولى من اسم السؤال القديم
+  const fNorm = focus ? normalizeText(focus) : norm;
+  const focusHasName =
+    !!focus &&
+    (!!findName(fNorm, Object.values(state.employees ?? {}), (e) => e.name) ||
+      !!findName(fNorm, Object.values(state.parties), (x) => x.name) ||
+      !!findName(fNorm, Object.values(state.items), (i) => i.name));
+  const pickAny = <T,>(list: T[], name: (x: T) => string) => (focusHasName ? findName(fNorm, list, name) : findName(norm, list, name));
+  const emp = pickAny(Object.values(state.employees ?? {}), (e) => e.name);
   if (emp && can('employees.manage') && (asks || t.has('راتب') || t.has('سلفه') || t.has('موظف') || /(^| )(عليه|الو|اله|له|حسابه)( |$)/.test(norm))) {
     const b = employeeBalance(state, emp.id);
     return reply(
@@ -111,7 +123,7 @@ function fromData(question: string, ctx: AskContext): Reply | null {
   }
 
   // زبون أو مورد بالاسم
-  const party = findName(norm, Object.values(state.parties), (x) => x.name);
+  const party = pickAny(Object.values(state.parties), (x) => x.name);
   if (party && (asks || t.has('دين') || t.has('كشف') || t.has('حساب') || /(^| )(عليه|عليها|الو|الها|اله|له|لها|حسابه|حسابها|رصيده)( |$)/.test(norm))) {
     const b = partyBalance(state, party.id);
     const cur = Object.entries(b.byCurrency).filter(([, v]) => v !== 0);
@@ -124,8 +136,8 @@ function fromData(question: string, ctx: AskContext): Reply | null {
 
   // مادة بالاسم (كامل أو أول كلمة منه: «الرز» بتلاقي «رز مصري 1 كغ»)
   const items = Object.values(state.items).filter((i) => !i.archived);
-  const item = findName(norm, items, (i) => i.name);
-  const loose = item ? [] : looseItems(norm, items);
+  const item = pickAny(items, (i) => i.name);
+  const loose = item ? [] : looseItems(focusHasName ? fNorm : norm, items);
   if (!item && loose.length > 1 && (asks || t.has('سعر') || t.has('مخزون'))) {
     const rows = loose.slice(0, 6).map((i) => `• ${i.name}: ${i.kind === 'service' ? '' : `${(state.stock[i.id]?.totalQty ?? 0).toLocaleString('en')} ${i.unit} · `}${fmt(i.price, i.priceCurrency)}`);
     return reply(`لقيت ${loose.length} مواد:\n${rows.join('\n')}${loose.length > 6 ? '\n…' : ''}`, [{ label: 'المواد', screen: 'items', param: loose[0]!.name.split(' ')[0] }]);
@@ -211,15 +223,46 @@ const GREET = /^(مرحبا|مرحبتين|هلا|اهلين|اهلا|السلا
 
 export const STARTERS = ['كيف بعمل فاتورة مبيع؟', 'شقد بعت اليوم؟', 'كيف بسجل مصروف؟', 'كيف بضيف موظف وراتبه؟', 'وين بشوف الديون؟', 'كيف باخد نسخة احتياطية؟'];
 
+const TIME_WORDS = /(^| )(اليوم|هاليوم|امبارح|البارحه|مبارح|امس|الاسبوع|هالاسبوع|اسبوع|الشهر|هالشهر|شهر|شهري|السنه|هالسنه|سنوي|العام)(?= |$)/g;
+
+/**
+ * سؤال تكميلي («وهالشهر؟»، «والربح؟»، «وأحمد؟») بيتفهم مع السؤال اللي قبله.
+ * إذا السؤال الجديد فيه وقت، منشيل الوقت القديم حتى ما يتلخبطوا.
+ */
+export function withContext(question: string, previous: string | undefined): string | null {
+  if (!previous) return null;
+  const norm = normalizeText(question);
+  const words = norm.split(' ').filter(Boolean);
+  const followUp = /^و/.test(words[0] ?? '') || tokens(question).length <= 1 || /^(طيب|اوكي|وكمان|كمان|بس)( |$)/.test(norm);
+  if (!followUp) return null;
+  let prev = normalizeText(previous);
+  const cleaned = words.map((w, i) => (i === 0 && /^و../.test(w) ? w.slice(1) : w)).join(' ');
+  if (cleaned.match(TIME_WORDS)) prev = prev.replace(TIME_WORDS, ' ');
+  return `${prev} ${cleaned}`.replace(/\s+/g, ' ').trim();
+}
+
+/** الجواب مع تذكّر السؤال اللي قبله (للأسئلة التكميلية). */
+export function askInContext(question: string, ctx: AskContext, previous?: string): Reply {
+  const alone = { ...ask(question, ctx), asked: question };
+  const combined = withContext(question, previous);
+  if (!combined) return alone;
+  const merged = { ...ask(combined, ctx, question.trim().replace(/^و(?=\S\S)/, '')), asked: combined };
+  // منفضّل الجواب المدموج إذا السؤال لحالو ما انفهم، أو إذا المدموج طلع رقم من البيانات
+  const aloneWeak = alone.text.startsWith('ما فهمت') || alone.text.startsWith('اكتبلي');
+  if (aloneWeak && !merged.text.startsWith('ما فهمت')) return merged;
+  if (merged.data && !alone.data) return merged;
+  return alone;
+}
+
 /** الجواب على أي سؤال: أول شي من البيانات، وبعدين من دليل البرنامج. */
-export function ask(question: string, ctx: AskContext): Reply {
+export function ask(question: string, ctx: AskContext, focus?: string): Reply {
   const q = question.trim();
   const norm = normalizeText(q);
   if (!norm) return { text: 'اكتبلي سؤالك 🙂', links: [], suggest: STARTERS };
   if (GREET.test(norm) && norm.split(' ').length <= 3) return { text: 'أهلين! أنا مساعد وزن. اسألني عن أي شي بالبرنامج: كيف بتعمل شي، وين بتلاقي شي، أو أرقامك (مبيعات، ربح، صندوق، دين زبون، كمية مادة).', links: [], suggest: STARTERS };
   if (/^(شكرا|مشكور|يسلمو|تسلم|يعطيك العافيه|ممتاز|تمام)/.test(norm)) return { text: 'تكرم 🌷 أي سؤال تاني أنا هون.', links: [], suggest: [] };
 
-  const data = fromData(q, ctx);
+  const data = fromData(q, ctx, focus);
   const found = getBrain().search(q, 4);
   const top = found[0];
   const sure = top && top.score >= 2.2 && (found.length < 2 || top.score >= found[1]!.score * 1.15);
