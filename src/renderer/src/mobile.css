@@ -1029,3 +1029,5 @@ body.mobile .paper-preview .invoice-doc .doc-lines td.num, body.mobile .paper-pr
 body.mobile .cost-parts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 body.mobile .cost-parts input { width: 100%; min-width: 0; }
 body.mobile .cost-parts .cost-sum { grid-column: 1 / -1; white-space: nowrap; padding-bottom: 0; }
+body.mobile .invoice-sides { width: 100%; }
+body.mobile .invoice-sides button { flex: 1; padding: 10px 6px; }

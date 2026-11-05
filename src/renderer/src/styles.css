@@ -4133,3 +4133,5 @@ button.link { background: none; border: none; color: var(--primary); padding: 4p
 .cost-line span { white-space: nowrap; }
 .doc-qr-box { display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0; }
 .doc-qr-box small { font-size: 10px; color: #555; max-width: 110px; text-align: center; }
+.invoice-sides { display: flex; width: fit-content; }
+.invoice-sides button { padding: 9px 22px; font-weight: 600; }

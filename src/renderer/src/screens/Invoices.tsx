@@ -11,11 +11,37 @@ export function canEditInvoice(inv: Invoice, can: (p: never) => boolean): boolea
   return !inv.voidEntryId && !inv.source && can('sales.void' as never) && can(create as never);
 }
 
+type Side = 'sale' | 'purchase';
+const sideOf = (k: InvoiceKind): Side => (k === 'purchase' || k === 'purchase_return' ? 'purchase' : 'sale');
+const SIDE_KINDS: Record<Side, InvoiceKind[]> = { sale: ['sale', 'sale_return'], purchase: ['purchase', 'purchase_return'] };
+
 export function Invoices() {
   const { state, navigate, can, call, notify } = useCompany();
   const users = state.users;
   const [query, setQuery] = useState('');
+  // قسمين: فواتير المبيع (مع مرتجعاتها) وفواتير الشراء (مع مرتجعاتها)، والقسم بينحفظ
+  const [side, setSideState] = useState<Side>(() => {
+    try {
+      return localStorage.getItem('wazn.invoiceSide') === 'purchase' ? 'purchase' : 'sale';
+    } catch {
+      return 'sale';
+    }
+  });
+  const setSide = (v: Side) => {
+    setSideState(v);
+    setKind('all');
+    try {
+      localStorage.setItem('wazn.invoiceSide', v);
+    } catch {
+      /* ما في تخزين */
+    }
+  };
   const [kind, setKind] = useState<InvoiceKind | 'all'>('all');
+  const counts = useMemo(() => {
+    const c = { sale: 0, purchase: 0 };
+    for (const i of state.invoices) if (!i.deleted) c[sideOf(i.kind)]++;
+    return c;
+  }, [state.invoices]);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [showDeleted, setShowDeleted] = useState(false);
@@ -31,6 +57,7 @@ export function Invoices() {
         .filter(
           (i) =>
             (showDeleted || !i.deleted) &&
+            sideOf(i.kind) === side &&
             (kind === 'all' || i.kind === kind) &&
             (!from || i.date >= from) &&
             (!to || i.date <= to) &&
@@ -38,19 +65,19 @@ export function Invoices() {
         )
         .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
         .slice(0, 1000),
-    [state, query, kind, from, to, showDeleted],
+    [state, query, side, kind, from, to, showDeleted],
   );
 
   return (
     <div className="page">
       <PageHeader title="سجل الفواتير">
-        {can('returns.create') && <button onClick={() => navigate('sale_return')}>مرتجع مبيع</button>}
-        {can('purchases.create') && <button onClick={() => navigate('purchase_return')}>مرتجع شراء</button>}
+        {side === 'sale' && can('returns.create') && <button onClick={() => navigate('sale_return')}>مرتجع مبيع</button>}
+        {side === 'purchase' && can('purchases.create') && <button onClick={() => navigate('purchase_return')}>مرتجع شراء</button>}
         <ExportButtons
-          name="الفواتير"
+          name={side === 'sale' ? 'فواتير المبيع' : 'فواتير الشراء'}
           sheets={() => [
             {
-              name: 'الفواتير',
+              name: side === 'sale' ? 'فواتير المبيع' : 'فواتير الشراء',
               columns: [
                 { header: 'النوع', key: 'kind' },
                 { header: 'الرقم', key: 'number', type: 'number' },
@@ -79,11 +106,19 @@ export function Invoices() {
           ]}
         />
       </PageHeader>
+      <div className="segmented invoice-sides">
+        <button className={side === 'sale' ? 'active' : ''} onClick={() => setSide('sale')}>
+          فواتير المبيع ({counts.sale})
+        </button>
+        <button className={side === 'purchase' ? 'active' : ''} onClick={() => setSide('purchase')}>
+          فواتير الشراء ({counts.purchase})
+        </button>
+      </div>
       <div className="toolbar">
         <SearchBox value={query} onChange={setQuery} placeholder="ابحث برقم الفاتورة، اسم العميل، المندوب، أو رقم IMEI..." />
         <select value={kind} onChange={(e) => setKind(e.target.value as InvoiceKind | 'all')}>
-          <option value="all">كل الأنواع</option>
-          {Object.entries(INVOICE_KIND_NAMES).map(([k, v]) => (
+          <option value="all">الكل (مع المرتجعات)</option>
+          {SIDE_KINDS[side].map((k) => [k, INVOICE_KIND_NAMES[k]] as const).map(([k, v]) => (
             <option key={k} value={k}>
               {v}
             </option>
@@ -104,7 +139,7 @@ export function Invoices() {
         )}
       </div>
       {rows.length === 0 ? (
-        <Empty>لا توجد فواتير</Empty>
+        <Empty>{side === 'sale' ? 'لا توجد فواتير مبيع' : 'لا توجد فواتير شراء'}</Empty>
       ) : (
         <table className="table">
           <thead>
@@ -112,10 +147,10 @@ export function Invoices() {
               <th>النوع</th>
               <th>الرقم</th>
               <th>التاريخ</th>
-              <th>العميل / المورد</th>
+              <th>{side === 'sale' ? 'العميل' : 'المورد'}</th>
               <th className="num">الإجمالي</th>
               <th className="num">المدفوع</th>
-              {showProfit && <th className="num">الربح</th>}
+              {showProfit && side === 'sale' && <th className="num">الربح</th>}
               <th>المستخدم</th>
               <th />
             </tr>
@@ -137,7 +172,7 @@ export function Invoices() {
                 <td>{i.partyId ? state.parties[i.partyId]?.name : 'نقدي'}</td>
                 <td className="num">{money(state, i.total, i.currency)}</td>
                 <td className="num">{money(state, i.paid, i.currency)}</td>
-                {showProfit && (
+                {showProfit && side === 'sale' && (
                   <td className="num">
                     {i.kind === 'sale' && !i.voidEntryId
                       ? (() => {
