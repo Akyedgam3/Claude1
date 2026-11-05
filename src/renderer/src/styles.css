@@ -4135,3 +4135,14 @@ button.link { background: none; border: none; color: var(--primary); padding: 4p
 .doc-qr-box small { font-size: 10px; color: #555; max-width: 110px; text-align: center; }
 .invoice-sides { display: flex; width: fit-content; }
 .invoice-sides button { padding: 9px 22px; font-weight: 600; }
+.page-tabs-wrap { padding: 16px 24px 0; }
+.badge { display: inline-block; min-width: 18px; padding: 0 6px; margin-inline-start: 6px; border-radius: 99px; background: var(--danger, #c0392b); color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
+.emp-mini { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 8px 12px; margin-bottom: 10px; border-radius: 10px; background: var(--primary-soft); font-size: 13px; }
+.emp-card { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 10px 0 16px; }
+.emp-card .kv { align-content: start; }
+.emp-balance { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.emp-balance > div { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; }
+.emp-balance span { font-size: 12px; color: var(--muted); }
+.emp-balance .net { grid-column: 1 / -1; background: var(--primary-soft); border-color: transparent; }
+.emp-balance .net b { font-size: 18px; color: var(--primary); }
+.emp-balance .net.neg b { color: var(--danger, #c0392b); }

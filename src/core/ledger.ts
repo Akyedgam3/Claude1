@@ -1,6 +1,7 @@
 import { applyCommerceEvent, buildInvoice, convertOrder, orderTotals, piecesTotal, repairToInvoiceLines, rollRemaining, siteJobDeposits, siteJobToInvoiceLines, siteJobTotals, stoneBlockUsage, shipmentSummary, UNIT_NAMES, tailorDeposits, tailorToInvoiceLines, validateCommerceEvent, workOrderProgress, type InvoiceDraft, type InvoiceLineDraft } from './commerce';
 import { ACTIVITIES } from './activities';
 import { PARTNER_MOVE_NAMES, partnerSourceId, type PartnerMoveKind } from './partners';
+import { accruedFor, EMPLOYEE_ACCOUNTS, EMPLOYEE_MOVE_NAMES, employeeSourceId, type EmployeeMoveKind } from './employees';
 import { loadDemo } from './demo';
 import { buildSchedule, installmentState } from './electronics';
 import { cashAccountFor, SYSTEM_ACCOUNTS } from './chart-templates';
@@ -31,6 +32,7 @@ import type {
   WoodExpense,
   WoodLot,
   Partner,
+  Employee,
   PriceBoard,
   HallBooking,
   Dealer,
@@ -1461,6 +1463,87 @@ export class Ledger {
   voidPartnerMove(entryId: string, date: string): JournalEntry {
     const e = this.state.entries.find((x) => x.id === entryId) ?? fail('الحركة غير موجودة');
     if (e.source?.type !== 'partner') fail('هذا القيد مش حركة شريك');
+    if (this.state.entries.some((x) => x.voidOf === e.id)) fail('الحركة ملغاة من قبل');
+    const entry = this.reversal(e, date);
+    this.emit({ type: 'entry.posted', entry });
+    return entry;
+  }
+
+  // ───────────── الموظفين والرواتب ─────────────
+
+  saveEmployee(e: Omit<Employee, 'createdAt' | 'active'> & { active?: boolean }): Employee {
+    const prev = this.state.employees?.[e.id];
+    const t = (v?: string) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
+    const employee: Employee = {
+      id: e.id || crypto.randomUUID(),
+      name: String(e.name ?? '').trim(),
+      ...(t(e.phone) ? { phone: t(e.phone)! } : {}),
+      ...(t(e.jobTitle) ? { jobTitle: t(e.jobTitle)! } : {}),
+      ...(t(e.nationalId) ? { nationalId: t(e.nationalId)! } : {}),
+      ...(t(e.address) ? { address: t(e.address)! } : {}),
+      salary: Number(e.salary ?? 0),
+      payPeriod: e.payPeriod ?? 'monthly',
+      ...(t(e.startDate) ? { startDate: t(e.startDate)! } : {}),
+      ...(t(e.notes) ? { notes: t(e.notes)! } : {}),
+      active: e.active ?? prev?.active ?? true,
+      createdAt: prev?.createdAt ?? new Date().toISOString(),
+    };
+    this.emit({ type: 'employee.saved', employee });
+    return employee;
+  }
+
+  private employeeAccount(key: keyof typeof EMPLOYEE_ACCOUNTS): string {
+    const a = EMPLOYEE_ACCOUNTS[key];
+    if (!this.state.accounts[a.id]) {
+      const parent = a.parents.find((p) => this.state.accounts[p]?.isGroup) ?? null;
+      this.saveAccount({ id: a.id, name: a.name, type: a.type, parentId: parent, isGroup: false, currency: null });
+    }
+    return a.id;
+  }
+
+  /** حركة على موظف (راتب، مكافأة، خصم، دفع، سلفة، خصم سلفة). */
+  employeeMove(d: { employeeId: string; kind: EmployeeMoveKind; amount: number; date: string; memo?: string; period?: string; cashAccountId?: string }): JournalEntry {
+    const emp = this.state.employees?.[d.employeeId] ?? fail('الموظف غير موجود');
+    if (!(d.kind in EMPLOYEE_MOVE_NAMES)) fail('نوع الحركة غير معروف');
+    if (!(d.amount > 0) || !Number.isSafeInteger(d.amount)) fail('المبلغ يجب أن يكون أكبر من صفر');
+    const period = d.kind === 'accrual' ? (d.period && /^\d{4}-\d{2}(-\d{2})?$/.test(d.period) ? d.period : d.date.slice(0, 7)) : undefined;
+    if (period && emp.payPeriod === 'monthly' && accruedFor(this.state, emp.id, period)) fail(`راتب ${emp.name} عن ${period} مستحق من قبل`);
+    const cash = d.cashAccountId ?? cashAccountFor(this.state, this.base.code);
+    const sal = () => this.employeeAccount('salaries');
+    const pay = () => this.employeeAccount('payable');
+    const adv = () => this.employeeAccount('advances');
+    const [debit, credit] =
+      d.kind === 'accrual' || d.kind === 'bonus' ? [sal(), pay()]
+      : d.kind === 'deduction' ? [pay(), sal()]
+      : d.kind === 'payment' ? [pay(), cash]
+      : d.kind === 'advance' ? [adv(), cash]
+      : [pay(), adv()];
+    return this.postEntry({
+      date: d.date,
+      memo: `${EMPLOYEE_MOVE_NAMES[d.kind]}${period ? ` ${period}` : ''} — ${emp.name}${d.memo?.trim() ? `: ${d.memo.trim()}` : ''}`,
+      lines: [
+        { accountId: debit, debit: d.amount },
+        { accountId: credit, credit: d.amount },
+      ],
+      source: { type: 'employee', id: employeeSourceId(emp.id, d.kind, period) },
+    });
+  }
+
+  /** استحقاق رواتب الشهر لكل الموظفين الشهريين الفعّالين (اللي ما انسجّللهم بعد). بيرجّع عدد اللي انسجلوا. */
+  accrueSalaries(d: { period: string; date: string }): number {
+    if (!/^\d{4}-\d{2}$/.test(d.period)) fail('الشهر غير صالح');
+    let n = 0;
+    for (const emp of Object.values(this.state.employees ?? {})) {
+      if (!emp.active || emp.payPeriod !== 'monthly' || emp.salary <= 0 || accruedFor(this.state, emp.id, d.period)) continue;
+      this.employeeMove({ employeeId: emp.id, kind: 'accrual', amount: emp.salary, date: d.date, period: d.period });
+      n++;
+    }
+    return n;
+  }
+
+  voidEmployeeMove(entryId: string, date: string): JournalEntry {
+    const e = this.state.entries.find((x) => x.id === entryId) ?? fail('الحركة غير موجودة');
+    if (e.source?.type !== 'employee') fail('هذا القيد مش حركة موظف');
     if (this.state.entries.some((x) => x.voidOf === e.id)) fail('الحركة ملغاة من قبل');
     const entry = this.reversal(e, date);
     this.emit({ type: 'entry.posted', entry });

@@ -5,6 +5,7 @@ import { DocHeader, ExportButtons, PrintButtons } from '../components/print';
 import { askConfirm, Empty, Field, Modal, PageHeader } from '../components/ui';
 import { Icon } from '../components/icons';
 import { cashAccounts } from './InvoiceEditor';
+import { Employees } from './Employees';
 
 // الشركاء والمساهمين: رأس مال كل واحد ونسبته، ونصيبه من الأرباح، وكل إيداع أو سحب بتاريخه.
 
@@ -16,7 +17,54 @@ function yearStart(fys: string | undefined): string {
   return start <= d ? start : `${Number(d.slice(0, 4)) - 1}-${fys ?? '01-01'}`;
 }
 
+/** قسم الشركاء والموظفين: تبويبين بنفس الشاشة للوصول السريع. */
 export function Partners() {
+  const { can } = useCompany();
+  const [tab, setTabState] = useState<'partners' | 'employees'>(() => {
+    if (!can('partners.manage')) return 'employees';
+    if (!can('employees.manage')) return 'partners';
+    try {
+      return localStorage.getItem('wazn.partnersTab') === 'employees' ? 'employees' : 'partners';
+    } catch {
+      return 'partners';
+    }
+  });
+  const setTab = (t: 'partners' | 'employees') => {
+    setTabState(t);
+    try {
+      localStorage.setItem('wazn.partnersTab', t);
+    } catch {
+      /* ما في تخزين */
+    }
+  };
+  const both = can('partners.manage') && can('employees.manage');
+  return (
+    <>
+      {both && (
+        <div className="page-tabs-wrap">
+          <div className="segmented invoice-sides">
+            <button className={tab === 'partners' ? 'active' : ''} onClick={() => setTab('partners')}>
+              الشركاء والمساهمين
+            </button>
+            <button className={tab === 'employees' ? 'active' : ''} onClick={() => setTab('employees')}>
+              الموظفين والرواتب
+            </button>
+          </div>
+        </div>
+      )}
+      {tab === 'employees' ? (
+        <div className="page">
+          <PageHeader title="الموظفين والرواتب" />
+          <Employees />
+        </div>
+      ) : (
+        <PartnersList />
+      )}
+    </>
+  );
+}
+
+function PartnersList() {
   const { state, call, notify, can } = useCompany();
   const [from, setFrom] = useState(() => yearStart(state.info?.fiscalYearStart));
   const [to, setTo] = useState(today());

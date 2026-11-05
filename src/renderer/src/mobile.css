@@ -1088,3 +1088,5 @@ body.mobile .m-preview-bar button { display: flex; align-items: center; gap: 6px
 body.mobile .m-fit { flex: 1; overflow: auto; padding: 12px 0 calc(env(safe-area-inset-bottom, 0px) + 24px); -webkit-overflow-scrolling: touch; }
 body.mobile .m-fit .paper-preview.m-paper { max-width: none; margin: 0; border-radius: 4px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35); overflow: visible; padding: 32px; }
 body.mobile .m-preview-bar .m-preview-close { background: rgba(255, 255, 255, 0.12); color: #fff; border: 1px solid rgba(255, 255, 255, 0.2); }
+body.mobile .page-tabs-wrap { padding: 12px 12px 0; }
+body.mobile .emp-card { grid-template-columns: 1fr; }

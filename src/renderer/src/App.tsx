@@ -111,7 +111,7 @@ const NAV: (NavItem | string)[] = [
   { key: 'reports', label: 'التقارير', icon: 'reports', perms: ['reports.financial', 'reports.stock', 'sales.create'] },
   { key: 'journal', label: 'القيود اليومية', icon: 'journal', perm: 'journal.create' },
   { key: 'rates', label: 'العملات وسعر الصرف', icon: 'dollar', perm: 'rates.manage' },
-  { key: 'partners', label: 'الشركاء والمساهمين', icon: 'users', perm: 'partners.manage' },
+  { key: 'partners', label: 'الشركاء والموظفين', icon: 'users', perms: ['partners.manage', 'employees.manage'] },
   { key: 'accounts', label: 'دليل الحسابات', icon: 'accounts', perm: 'accounts.manage' },
   'الإدارة',
   { key: 'users', label: 'المستخدمون', icon: 'user-cog', perm: 'users.manage' },

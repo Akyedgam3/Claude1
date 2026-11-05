@@ -38,6 +38,7 @@ export const PERMISSIONS = {
   'period.close': 'إقفال الفترات والسنة المالية',
   'backup.manage': 'النسخ الاحتياطي والتصدير',
   'partners.manage': 'الشركاء ورأس المال والأرباح',
+  'employees.manage': 'الموظفين والرواتب',
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;
@@ -143,6 +144,10 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
   savePartner: 'partners.manage',
   partnerMove: 'partners.manage',
   voidPartnerMove: 'partners.manage',
+  saveEmployee: 'employees.manage',
+  employeeMove: 'employees.manage',
+  accrueSalaries: 'employees.manage',
+  voidEmployeeMove: 'employees.manage',
   addSiteJobDeposit: 'vouchers.create',
   deliverSiteJob: 'sales.create',
   savePrintJob: 'printjobs.manage',

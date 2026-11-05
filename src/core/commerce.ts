@@ -176,6 +176,13 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       if (p.active && p.profitPercent !== undefined && others.reduce((s, x) => s + x.profitPercent!, p.profitPercent) > 100.0001) fail('مجموع نسب الأرباح للشركاء أكتر من 100٪');
       return;
     }
+    case 'employee.saved': {
+      const e = event.employee;
+      if (!e.id || !e.name?.trim()) fail('اسم الموظف مطلوب');
+      if (!Number.isSafeInteger(e.salary) || e.salary < 0) fail('الراتب غير صالح');
+      if (!['monthly', 'weekly', 'daily'].includes(e.payPeriod)) fail('فترة الراتب غير صالحة');
+      return;
+    }
     case 'sitejob.saved': {
       const j = event.job;
       if (!state.parties[j.partyId]) fail('الزبون غير موجود');
@@ -612,6 +619,9 @@ export function applyCommerceEvent(state: CompanyState, event: CompanyEvent): vo
       return;
     case 'partner.saved':
       (state.partners ??= {})[event.partner.id] = { ...event.partner };
+      return;
+    case 'employee.saved':
+      (state.employees ??= {})[event.employee.id] = { ...event.employee };
       return;
     case 'sitejob.saved':
       state.siteJobs[event.job.id] = { ...event.job };

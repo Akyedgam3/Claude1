@@ -13,6 +13,7 @@ export * from './words';
 export * from './barcode';
 export * from './electronics';
 export * from './partners';
+export * from './employees';
 export * from './poultry';
 export * from './printshop';
 export * from './dealers';

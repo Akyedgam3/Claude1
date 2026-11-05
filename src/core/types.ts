@@ -614,6 +614,22 @@ export interface Partner {
   createdAt: string;
 }
 
+export interface Employee {
+  id: string;
+  name: string;
+  phone?: string;
+  jobTitle?: string; // العمل / الوظيفة
+  nationalId?: string; // الرقم الوطني
+  address?: string;
+  /** الراتب بالعملة الأساسية (أصغر وحدة) لكل فترة. */
+  salary: number;
+  payPeriod: 'monthly' | 'weekly' | 'daily';
+  startDate?: string;
+  notes?: string;
+  active: boolean;
+  createdAt: string;
+}
+
 export interface SiteJob {
   id: string;
   number: number;
@@ -1076,6 +1092,7 @@ export interface CompanyState {
   dealerSales?: DealerSale[];
   dealerMoves?: DealerMove[];
   partners: Record<string, Partner>;
+  employees?: Record<string, Employee>;
   quotes: Record<string, Quote>;
   rolls: Record<string, FabricRoll>;
   workOrders: Record<string, WorkOrder>;
@@ -1129,6 +1146,7 @@ export type CompanyEvent =
   | { type: 'dealermove.posted'; move: DealerMove }
   | { type: 'dealermove.voided'; moveId: string; date: string; by: string }
   | { type: 'partner.saved'; partner: Partner }
+  | { type: 'employee.saved'; employee: Employee }
   | { type: 'quote.saved'; quote: Quote }
   | { type: 'rolls.saved'; rolls: FabricRoll[] }
   | { type: 'workorder.saved'; order: WorkOrder }
