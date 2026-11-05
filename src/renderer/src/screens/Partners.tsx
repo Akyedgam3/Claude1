@@ -18,11 +18,12 @@ function yearStart(fys: string | undefined): string {
 }
 
 /** قسم الشركاء والموظفين: تبويبين بنفس الشاشة للوصول السريع. */
-export function Partners() {
+export function Partners({ tab: initial }: { tab?: string } = {}) {
   const { can } = useCompany();
   const [tab, setTabState] = useState<'partners' | 'employees'>(() => {
     if (!can('partners.manage')) return 'employees';
     if (!can('employees.manage')) return 'partners';
+    if (initial === 'employees' || initial === 'partners') return initial;
     try {
       return localStorage.getItem('wazn.partnersTab') === 'employees' ? 'employees' : 'partners';
     } catch {

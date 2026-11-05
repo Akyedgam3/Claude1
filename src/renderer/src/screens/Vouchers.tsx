@@ -5,10 +5,10 @@ import { DocHeader, ExportButtons, PrintButtons } from '../components/print';
 import { ConfirmButton, CurrencySelect, Empty, Field, Modal, PageHeader, partyOptions, Picker } from '../components/ui';
 import { cashAccounts } from './InvoiceEditor';
 
-export function Vouchers() {
+export function Vouchers({ initialKind }: { initialKind?: 'receipt' | 'payment' } = {}) {
   const { state, call, notify, can } = useCompany();
   const base = state.info!.baseCurrency;
-  const [kind, setKind] = useState<'receipt' | 'payment'>('receipt');
+  const [kind, setKind] = useState<'receipt' | 'payment'>(initialKind ?? 'receipt');
   const [target, setTarget] = useState<'party' | 'account'>('party');
   const [partyId, setPartyId] = useState<string | null>(null);
   const [accountId, setAccountId] = useState('5209');

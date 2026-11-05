@@ -8,6 +8,7 @@ import { ConfirmHost, justClosedModal } from './components/ui';
 import logo from './assets/logo.png';
 import { Icon } from './components/icons';
 import { QuickSearch } from './components/QuickSearch';
+import { Assistant, openAssistant } from './assistant/Assistant';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { UpdateNotice } from './components/UpdateNotice';
 import { Accounts } from './screens/Accounts';
@@ -368,6 +369,9 @@ export function App() {
             <button className="icon" aria-label="بحث" onClick={() => setSearching(true)}>
               <Icon name="search" size={20} />
             </button>
+            <button className="icon" aria-label="المساعد" onClick={openAssistant}>
+              <Icon name="sparkles" size={20} />
+            </button>
           </header>
         )}
         {IS_MOBILE && navOpen && <div className="nav-backdrop" onClick={() => setNavOpen(false)} />}
@@ -387,6 +391,9 @@ export function App() {
           </div>
           <button className="quick-search-button" data-tour="search" onClick={() => setSearching(true)}>
             <Icon name="search" size={16} /> بحث سريع {!IS_MOBILE && <kbd>Ctrl+K</kbd>}
+          </button>
+          <button className="quick-search-button assistant-nav" onClick={openAssistant}>
+            <Icon name="sparkles" size={16} /> اسأل المساعد {!IS_MOBILE && <kbd>Ctrl+J</kbd>}
           </button>
           <nav>
             {visible.map((n) =>
@@ -467,6 +474,7 @@ export function App() {
         </main>
       </div>
       {searching && <QuickSearch screens={screens} onClose={() => setSearching(false)} />}
+      <Assistant screens={screens} />
       {toastEl}
     </Company.Provider>
   );
@@ -560,9 +568,9 @@ function Screen({ screen }: { screen: { key: string; param?: string } }) {
     case 'debts':
       return <Debts />;
     case 'partners':
-      return <Partners />;
+      return <Partners key={p ?? ''} {...(p ? { tab: p } : {})} />;
     case 'vouchers':
-      return <Vouchers />;
+      return <Vouchers key={p ?? ''} {...(p === 'payment' || p === 'receipt' ? { initialKind: p } : {})} />;
     case 'rates':
       return <Rates />;
     case 'reports':
