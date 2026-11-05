@@ -102,6 +102,9 @@ export interface PrintSettings {
   template?: 'modern' | 'classic' | 'minimal'; // تصميم الفاتورة
   color?: string; // لون الشركة في الفواتير (#rrggbb)
   showQr?: boolean; // رمز QR بملخص الفاتورة (افتراضياً نعم)
+  /** بدل ملخص الفاتورة: رابط واتساب/موقع/فيسبوك أو رقم هاتف (بيصير رابط واتساب). */
+  qrLink?: string;
+  qrCaption?: string; // كلمة تحت الـQR («تواصل معنا عالواتساب»)
   showStamp?: boolean; // ختم مدفوعة / آجل / ملغاة (افتراضياً نعم)
   showSignatures?: boolean; // خانات التوقيع
   terms?: string; // الشروط والأحكام أسفل الفاتورة

@@ -1,6 +1,7 @@
 import qrcode from 'qrcode-generator';
 import type { ReactNode } from 'react';
 import type { ReceiptSettings } from '../../../core';
+import { qrLinkTarget } from '../../../core';
 import { useCompany } from '../api';
 
 // الإيصال الحراري (80/58mm): تصميم مستقل عن الفاتورة الكاملة، وصاحب المحل بيتحكم بكل سطر فيه من الإعدادات.
@@ -150,7 +151,8 @@ export function ThermalReceipt({ data, preview, always, logo }: { data: ReceiptD
           {r.contactLabel || 'للاستفسار'} <b className="ltr">{r.contactPhone}</b>
         </div>
       )}
-      {r.showQr && data.qrText && <Qr text={data.qrText} />}
+      {r.showQr && (qrLinkTarget(c.print?.qrLink) ?? data.qrText) && <Qr text={(qrLinkTarget(c.print?.qrLink) ?? data.qrText)!} />}
+      {r.showQr && c.print?.qrLink?.trim() && c.print.qrCaption?.trim() && <div className="t-footer">{c.print.qrCaption}</div>}
       <div className="t-thanks">{r.thanks ?? 'شكراً لزيارتكم'}</div>
       {r.footer && <div className="t-footer">{r.footer}</div>}
     </div>

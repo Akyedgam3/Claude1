@@ -17,3 +17,19 @@ export function whatsappUrl(phone: string, text: string): string {
   if (text.length > 6000) throw new Error('الرسالة طويلة');
   return `https://wa.me/${n}?text=${encodeURIComponent(text)}`;
 }
+
+/**
+ * رابط الـQR المخصص بالفواتير (من الإعدادات): رقم هاتف ← رابط واتساب، رابط بدون https ← منضيفه،
+ * وأي نص تاني بينحط متل ما هو. فاضي ← null (يعني ملخص الفاتورة).
+ */
+export function qrLinkTarget(value: string | undefined): string | null {
+  const v = (value ?? '').trim();
+  if (!v) return null;
+  if (/^[+\d٠-٩\s()-]+$/.test(v)) {
+    const n = whatsappNumber(v);
+    if (n) return `https://wa.me/${n}`;
+  }
+  if (/^[a-z][a-z0-9+.-]*:/i.test(v)) return v;
+  if (/^(www\.)?[\w-]+(\.[\w-]+)+(\/\S*)?$/i.test(v)) return `https://${v}`;
+  return v;
+}

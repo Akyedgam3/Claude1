@@ -406,7 +406,7 @@ function PrintTab() {
           <div className="toggles">
             <label className="check">
               <input type="checkbox" checked={p.showQr !== false} onChange={(e) => setP({ ...p, showQr: e.target.checked })} />
-              رمز QR بملخص الفاتورة
+              رمز QR بالفاتورة
             </label>
             <label className="check">
               <input type="checkbox" checked={p.showStamp !== false} onChange={(e) => setP({ ...p, showStamp: e.target.checked })} />
@@ -417,6 +417,17 @@ function PrintTab() {
               خانات التوقيع
             </label>
           </div>
+          {p.showQr !== false && (
+            <div className="form-grid">
+              <Field label="شو بيفتح الـQR؟ (فاضي = ملخص الفاتورة)">
+                <input className="ltr" value={p.qrLink ?? ''} onChange={(e) => setP({ ...p, qrLink: e.target.value })} placeholder="0999123456 أو facebook.com/..." />
+              </Field>
+              <Field label="كلمة تحت الـQR (اختياري)">
+                <input value={p.qrCaption ?? ''} onChange={(e) => setP({ ...p, qrCaption: e.target.value })} placeholder="امسح وتواصل معنا عالواتساب" />
+              </Field>
+              <p className="muted wide">اكتب رقم واتساب (بيصير رابط محادثة معك)، أو رابط موقعك أو صفحتك أو موقعك عالخريطة.</p>
+            </div>
+          )}
           <Field label="الشروط والأحكام (اختياري)">
             <textarea rows={3} value={p.terms ?? ''} onChange={(e) => setP({ ...p, terms: e.target.value })} placeholder={'البضاعة المباعة لا ترد بعد 7 أيام\nالكفالة لا تشمل سوء الاستخدام'} />
           </Field>

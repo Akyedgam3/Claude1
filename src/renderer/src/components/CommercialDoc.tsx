@@ -1,6 +1,7 @@
 import qrcode from 'qrcode-generator';
 import { useMemo, type CSSProperties, type ReactNode } from 'react';
 import type { PrintSettings } from '../../../core';
+import { qrLinkTarget } from '../../../core';
 import { useCompany } from '../api';
 
 // قالب موحّد لكل المستندات التجارية (فاتورة، مرتجع، عرض سعر...) بثلاثة تصاميم:
@@ -90,7 +91,8 @@ export function CommercialDoc({ model, className, preview }: { model: DocModel; 
   const template: DocTemplate = p.template ?? 'modern';
   const color = p.color ?? '#0f6e5c';
   const style = { ['--doc-color' as string]: color } as CSSProperties;
-  const showQr = p.showQr !== false && !!model.qrText;
+  const qrText = qrLinkTarget(p.qrLink) ?? model.qrText;
+  const showQr = p.showQr !== false && !!qrText;
   const showStamp = p.showStamp !== false && model.stamp;
   const signatures = model.signatures ?? (p.showSignatures ? (['توقيع المستلم', 'توقيع المحاسب'] as [string, string]) : undefined);
 
@@ -176,7 +178,12 @@ export function CommercialDoc({ model, className, preview }: { model: DocModel; 
 
       <section className="doc-bottom">
         <div className="doc-side">
-          {showQr && <Qr text={model.qrText!} />}
+          {showQr && (
+            <div className="doc-qr-box">
+              <Qr text={qrText!} />
+              {p.qrLink?.trim() && p.qrCaption?.trim() && <small>{p.qrCaption}</small>}
+            </div>
+          )}
           <div>
             {model.words && <p className="doc-words">{model.words}</p>}
             {model.notes && <p className="doc-notes">{model.notes}</p>}

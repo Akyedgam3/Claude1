@@ -4131,3 +4131,5 @@ button.link { background: none; border: none; color: var(--primary); padding: 4p
 .cost-parts .cost-sum { color: var(--primary); font-size: 14px; padding-bottom: 6px; }
 .sell-prices small { display: block; margin-top: 2px; }
 .cost-line span { white-space: nowrap; }
+.doc-qr-box { display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0; }
+.doc-qr-box small { font-size: 10px; color: #555; max-width: 110px; text-align: center; }
