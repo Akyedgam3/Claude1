@@ -18,6 +18,8 @@ import { flushVfs } from './shims/fs';
 import fs from './shims/fs';
 import { Capacitor } from '@capacitor/core';
 import { native } from './native';
+import { DEFAULT_LAN_PORT, LanClient } from '../app/lan-proto';
+import { LanRemote, nativeLanFetch } from './lan-remote';
 
 
 const ROOT = '/data';
@@ -34,6 +36,8 @@ interface Settings {
   lastCloud?: { code: string; username: string; name?: string };
   /** للعمل والجهاز الرئيسي مطفي: بصمة كلمة السر لكل (رمز + حساب) دخل قبل، والعمليات المأجّلة. */
   cloudOffline?: Record<string, { verifier: string; pending?: { id: string; method: string; at: number }[] }>;
+  /** آخر كمبيوتر رئيسي بالشبكة المحلية (بعد أول مرة بتكفي كلمة السر). */
+  lastRemote?: { host: string; port: number; pairingCode?: string; username?: string; name?: string; id?: string };
 }
 
 type Listener = (payload: unknown) => void;
@@ -49,6 +53,8 @@ let license: LicenseManager;
 let lastLicense: LicenseStatus | null = null;
 // جوال متصل عن بعد بجهاز رئيسي (بدل شركة محلية)
 let remote: CloudClient | null = null;
+/** متصل بكمبيوتر رئيسي على نفس الشبكة (Wi-Fi). */
+let lan: LanRemote | null = null;
 const cloudSessions = new CloudSessions(() => activeStore(), () => Math.max(CLOUD_MIN_DEVICES, (lastLicense ?? licenseStatus()).devices - 1));
 
 // ───────── الإعدادات ─────────
@@ -154,6 +160,10 @@ function syncFeedRates(): void {
 
 function closeStore(): void {
   cloudSessions.clear();
+  if (lan) {
+    void lan.close();
+    lan = null;
+  }
   if (remote) {
     void remote.close();
     remote = null;
@@ -172,6 +182,7 @@ function closeStore(): void {
 }
 
 function sessionInfo() {
+  if (lan) return { kind: 'remote' as const, user: lan.user, company: lan.companyName, address: lan.address };
   if (remote) return { kind: 'remote' as const, user: remote.user!, company: remote.companyName, address: 'عن بعد', cloud: { offline: remote.offline, syncedAt: remote.syncedAt, pending: remote.pending.length } };
   if (!store) return null;
   return {
@@ -223,7 +234,7 @@ function registerHandlers(): void {
         license: licenseStatus(),
         recent: s.recent.filter((r) => fs.existsSync(path.join(r.dir, 'company.json'))),
         session: sessionInfo(),
-        lastRemote: null,
+        lastRemote: s.lastRemote ? { host: s.lastRemote.host, port: s.lastRemote.port, username: s.lastRemote.username ?? '', name: s.lastRemote.name ?? '', saved: !!(s.lastRemote.pairingCode && s.lastRemote.username) } : null,
         deviceName: 'Android',
         mobile: true,
       };
@@ -359,11 +370,13 @@ function registerHandlers(): void {
 
   handle('company:close', () => closeStore(), { allowLocked: true });
   handle('company:state', () => {
+    if (lan) return lan.snapshot();
     if (remote) return remote.snapshot();
     const s = activeStore();
     return { state: s.ledger.state, seq: s.lastSeq };
   });
   handle('company:call', (method: string, args: unknown[]) => {
+    if (lan) return lan.call(method, args);
     if (remote) return remote.call(method, args);
     const s = activeStore();
     return execute(s, currentUser(s), method, args);
@@ -371,6 +384,7 @@ function registerHandlers(): void {
 
   // نسخة احتياطية: داخلية، أو ملف بينبعت (واتساب، درايف، فلاشة...)
   handle('company:backup', async (toExternal: boolean) => {
+    if (lan) throw new Error('النسخة الاحتياطية بتنعمل على الكمبيوتر الرئيسي نفسه (البيانات محفوظة عليه)');
     if (remote) {
       // جوال بعيد: النسخة من الجهاز الرئيسي عبر السحابة
       const bytes = await remote.backup();
@@ -398,9 +412,54 @@ function registerHandlers(): void {
   });
 
   handle('company:reveal', notOnMobile('فتح مجلد الشركة'));
-  handle('lan:status', notOnMobile('الشبكة المحلية'));
-  handle('lan:host', notOnMobile('الشبكة المحلية'));
-  handle('lan:connect', notOnMobile('الشبكة المحلية'), { allowLocked: true });
+  handle('lan:status', notOnMobile('تشغيل الجوال كجهاز رئيسي بالشبكة المحلية'));
+  handle('lan:host', notOnMobile('تشغيل الجوال كجهاز رئيسي بالشبكة المحلية'));
+  // الجوال كجهاز فرعي: بيوصل لكمبيوتر رئيسي على نفس الـ Wi-Fi (بالعنوان أو بمسح QR من الكمبيوتر)
+  handle('lan:discover', () => [], { allowLocked: true });
+  handle('lan:connect', async (o: { host?: string; port?: number; pairingCode?: string; username?: string; password: string; saved?: boolean }) => {
+    const s = readSettings();
+    const last = s.lastRemote;
+    if (o?.saved && !(last?.pairingCode && last.username)) throw new Error('ما في جهاز رئيسي محفوظ، دخّل البيانات مرة وحدة');
+    const target = o?.saved
+      ? { host: last!.host, port: last!.port, pairingCode: last!.pairingCode!, username: last!.username! }
+      : { host: String(o?.host ?? '').trim(), port: Number(o?.port) || DEFAULT_LAN_PORT, pairingCode: String(o?.pairingCode ?? ''), username: String(o?.username ?? '') };
+    if (!target.host) throw new Error('اكتب عنوان الكمبيوتر الرئيسي أو امسح الـ QR من عنده');
+    closeStore();
+    // الـ QR فيه كل عناوين الكمبيوتر (Wi-Fi وسلك...): منجرّبهن لنلاقي اللي بيرد
+    let client: LanClient | null = null;
+    let hello: { name: string; id: string } | null = null;
+    let lastErr: unknown = null;
+    for (const host of target.host.split(/[,\s]+/).filter(Boolean)) {
+      const c = new LanClient(host, target.port, target.pairingCode, nativeLanFetch);
+      try {
+        hello = await c.hello();
+        client = c;
+        target.host = host;
+        break;
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    if (!client || !hello) throw lastErr ?? new Error('تعذر الاتصال بالكمبيوتر الرئيسي');
+    const r = await client.login(target.username, String(o?.password ?? ''), s.deviceId, 'جوال');
+    const conn = new LanRemote(client, r.user, hello.name, r.state, r.seq);
+    lan = conn;
+    conn.listen(
+      (items) => send('company:events', structuredClone(items)),
+      () => send('company:reset'),
+      (message) => send('lan:error', message),
+    );
+    const cur = readSettings();
+    cur.lastRemote = { host: target.host, port: target.port, pairingCode: target.pairingCode, username: target.username, name: hello.name, id: hello.id };
+    writeSettings(cur);
+    return sessionInfo();
+  }, { allowLocked: true });
+  handle('lan:forget', () => {
+    const s = readSettings();
+    if (s.lastRemote) s.lastRemote = { host: s.lastRemote.host, port: s.lastRemote.port };
+    writeSettings(s);
+    return true;
+  }, { allowLocked: true });
 
   // شاشة الزبون ما إلها معنى على الموبايل: التحديثات بتنتجاهل بهدوء
   handle('display:open', notOnMobile('شاشة الزبون'), { allowLocked: true });
@@ -558,7 +617,7 @@ function registerHandlers(): void {
 async function invoke(channel: string, ...args: unknown[]): Promise<unknown> {
   const h = handlers.get(channel);
   if (!h) throw new Error(`قناة غير معروفة: ${channel}`);
-  if (!h.allowLocked && licenseBlocked() && !remote) throw new Error(licenseBlocked()!);
+  if (!h.allowLocked && licenseBlocked() && !remote && !lan) throw new Error(licenseBlocked()!);
   // نسخة منفصلة من البيانات متل الكمبيوتر (IPC بينسخ)، حتى ما تعدّل الواجهة حالة الشركة مباشرة
   const value = await (h.fn as (...a: unknown[]) => unknown)(...structuredClone(args));
   return value === undefined ? undefined : structuredClone(value);

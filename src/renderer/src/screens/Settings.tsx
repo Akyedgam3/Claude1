@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ACTIVITIES, ACTIVITY_LIST, ALL_FEATURES, DEFAULT_SCALE, FEATURE_INFO, type Activity, type ActivityCustomization, type Feature, type Paper, type PrintSettings, type ReceiptSettings } from '../../../core';
 import { Icon } from '../components/icons';
 import { startTour } from '../components/Tour';
-import { CommercialDoc, sampleModel } from '../components/CommercialDoc';
+import { CommercialDoc, QrImage, sampleModel } from '../components/CommercialDoc';
 import { api, dateText, IS_MOBILE, today, useCompany, type BackupLocation, type LanStatus } from '../api';
 import { PAPER_NAMES } from '../components/print';
 import { sampleReceipt, ThermalReceipt } from '../components/ThermalReceipt';
@@ -632,6 +632,9 @@ function TaxesTab() {
   );
 }
 
+/** QR الربط بالشبكة المحلية: عناوين الجهاز والمنفذ ورمز الربط (الجوال بيمسحه بدل ما يكتبهن). */
+export const lanQrText = (s: { addresses: string[]; port: number; pairingCode: string }) => `wazn-lan:${JSON.stringify({ h: s.addresses, p: s.port, c: s.pairingCode })}`;
+
 function LanTab() {
   const { notify, state } = useCompany();
   const [s, setS] = useState<LanStatus | null>(null);
@@ -671,6 +674,15 @@ function LanTab() {
           <strong className="mono selectable big-code">{s.pairingCode}</strong>
           <span>الأجهزة المتصلة</span>
           <strong>{s.devices.length ? s.devices.map((d) => `${d.deviceName} (${d.user})`).join('، ') : 'لا يوجد'}</strong>
+        </div>
+      )}
+      {s.enabled && s.addresses.length > 0 && (
+        <div className="lan-qr">
+          <QrImage text={lanQrText(s)} size={170} />
+          <div>
+            <b>ربط جوال بثانية</b>
+            <p className="muted">على الجوال (نفس الـ Wi-Fi): شاشة البداية ← «على نفس الشبكة» ← «مسح QR من الكمبيوتر»، وبعدين اسم المستخدم وكلمة السر.</p>
+          </div>
         </div>
       )}
       {s.enabled && <button onClick={() => toggle(true, true)}>تغيير رمز الربط (يفصل كل الأجهزة)</button>}

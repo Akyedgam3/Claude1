@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ACTIVITY_LIST } from '../../../core';
 import logo from '../assets/logo.png';
 import { Icon } from '../components/icons';
-import { api, IS_MOBILE, type AppInfo, type CompanyPeek } from '../api';
+import { api, IS_MOBILE, IS_WEB, type AppInfo, type CompanyPeek } from '../api';
 import { Field, Modal } from '../components/ui';
 import { CloudConnectForm } from '../cloud/CloudConnect';
 
@@ -45,14 +45,14 @@ export function Welcome({
         )}
       </div>
 
-      <div className="segmented center">
+      <div className="segmented center welcome-tabs">
         <button className={tab === 'open' ? 'active' : ''} onClick={() => setTab('open')}>
           فتح شركة
         </button>
         <button className={tab === 'new' ? 'active' : ''} onClick={() => setTab('new')}>
           شركة جديدة
         </button>
-        {!IS_MOBILE && (
+        {!IS_WEB && (
           <button className={tab === 'connect' ? 'active' : ''} onClick={() => setTab('connect')}>
             على نفس الشبكة
           </button>
@@ -309,9 +309,9 @@ export function ConnectForm({ info, notify, onConnected }: { info: AppInfo; noti
       setSearching(false);
     }
   };
-  // أول مرة: منفتّش لحالنا على الجهاز الرئيسي بالشبكة
+  // أول مرة: منفتّش لحالنا على الجهاز الرئيسي بالشبكة (الجوال ما بيقدر يدوّر، بيمسح QR من الكمبيوتر)
   useEffect(() => {
-    if (!quick && !f.host) void search();
+    if (!quick && !f.host && !IS_MOBILE) void search();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quick]);
   return (
@@ -345,8 +345,29 @@ export function ConnectForm({ info, notify, onConnected }: { info: AppInfo; noti
         </div>
       ) : (
         <>
-          <p className="muted wide">على الجهاز الرئيسي: الإعدادات ← الشبكة المحلية ← تفعيل وضع الخادم، وهناك بتلاقي رمز الربط. بعد أول مرة بيكفي كلمة السر.</p>
-          <div className="lan-found wide">
+          <p className="muted wide">على الكمبيوتر الرئيسي: الإعدادات ← الشبكة المحلية ← تفعيل وضع الخادم، وهناك بتلاقي رمز الربط{IS_MOBILE ? ' والـ QR' : ''}. بعد أول مرة بيكفي كلمة السر.</p>
+          {IS_MOBILE && (
+            <button
+              type="button"
+              className="primary wide lan-scan"
+              onClick={async () => {
+                try {
+                  const v = await api.scanBarcode();
+                  if (!v) return;
+                  const m = /^wazn-lan:(.+)$/s.exec(v.trim());
+                  if (!m) return notify('هاد مش QR الشبكة المحلية. امسح اللي بالكمبيوتر: الإعدادات ← الشبكة المحلية', 'error');
+                  const d = JSON.parse(m[1]!) as { h: string[]; p: number; c: string };
+                  setF((x) => ({ ...x, host: d.h.join(','), port: String(d.p), pairingCode: d.c }));
+                  notify('تمام، هلق اكتب اسم المستخدم وكلمة السر');
+                } catch (e) {
+                  notify((e as Error).message, 'error');
+                }
+              }}
+            >
+              <Icon name="camera" size={18} /> مسح QR من الكمبيوتر
+            </button>
+          )}
+          <div className={`lan-found wide ${IS_MOBILE ? 'hidden' : ''}`}>
             <button type="button" onClick={() => void search()} disabled={searching}>
               <Icon name="search" size={16} /> {searching ? 'عم يدوّر على الجهاز الرئيسي...' : 'بحث عن الجهاز الرئيسي بالشبكة'}
             </button>

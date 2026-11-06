@@ -1098,3 +1098,8 @@ body.mobile .assistant-panel { inset: 0; width: auto; max-width: none; height: a
 body.mobile .assistant-input input { font-size: 16px; }
 body.mobile .tier-prices-row { grid-template-columns: 1fr 1fr; }
 body.mobile .tier-pick button { min-width: calc(50% - 6px); }
+/* شاشة البداية: 4 تبويبات (فتح، جديدة، الشبكة، عن بعد) بسطرين */
+body.mobile .welcome-tabs { display: grid; grid-template-columns: 1fr 1fr; width: 100%; border-radius: 16px; }
+body.mobile .welcome-tabs button { padding: 11px 6px; border-inline-start: none; border-top: 1px solid var(--border); }
+body.mobile .welcome-tabs button:nth-child(-n + 2) { border-top: none; }
+body.mobile .welcome-tabs button:nth-child(even) { border-inline-start: 1px solid var(--border); }

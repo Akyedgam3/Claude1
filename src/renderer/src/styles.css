@@ -4197,3 +4197,7 @@ button.link { background: none; border: none; color: var(--primary); padding: 4p
 .tier-pick button { flex: 1 1 0; min-width: 90px; padding: 9px 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); font-weight: 600; }
 .tier-pick button.active { background: var(--primary); border-color: var(--primary); color: #fff; }
 .tier-chip { display: inline-block; margin-inline-start: 6px; padding: 1px 8px; border-radius: 99px; background: var(--primary-soft); color: var(--primary); font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+.lan-found.hidden { display: none; }
+.lan-scan { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; font-size: 15px; }
+.lan-qr { display: flex; align-items: center; gap: 16px; margin: 12px 0; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
+.lan-qr p { margin: 4px 0 0; }

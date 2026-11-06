@@ -1,4 +1,6 @@
-import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
+import { DEFAULT_LAN_PORT, LONG_POLL_MS, lanKey, seal, unseal, type Envelope, type EventItem } from './lan-proto';
+export { DEFAULT_LAN_PORT, LanClient, lanKey, type EventItem, type LanFetch } from './lan-proto';
 import dgram from 'node:dgram';
 import http from 'node:http';
 import os from 'node:os';
@@ -9,48 +11,15 @@ import type { CompanyEvent, CompanyState, User } from '../core/types';
 // كل الرسائل مشفّرة (AES-256-GCM) بمفتاح مشتق من "رمز الربط" الظاهر على الجهاز الرئيسي،
 // ومربوطة بالوقت ورقم عشوائي لمنع إعادة إرسالها، ثم يدخل كل مستخدم باسمه وكلمة سره.
 
-export const DEFAULT_LAN_PORT = 47100;
 /** البحث عن الجهاز الرئيسي بالشبكة (UDP): الجهاز الفرعي بينادي، والرئيسي بيرد باسم الشركة والمنفذ. */
 export const DISCOVERY_PORT = 47101;
 const DISCOVER_MSG = 'wazn-discover-v1';
 const MAX_SKEW_MS = 2 * 60_000;
-const LONG_POLL_MS = 25_000;
 const RING_SIZE = 2000;
-
-export function lanKey(pairingCode: string): Buffer {
-  const clean = pairingCode.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  return scryptSync(clean, 'mizan-lan-v1', 32, { N: 1 << 14, r: 8, p: 1 });
-}
 
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export function newPairingCode(): string {
   return [...randomBytes(8)].map((b) => ALPHABET[b % ALPHABET.length]).join('').replace(/^(.{4})/, '$1-');
-}
-
-interface Envelope {
-  iv: string;
-  ct: string;
-  tag: string;
-}
-
-function seal(key: Buffer, data: unknown, aad: string): Envelope {
-  const iv = randomBytes(12);
-  const c = createCipheriv('aes-256-gcm', key, iv);
-  c.setAAD(Buffer.from(aad));
-  const ct = Buffer.concat([c.update(JSON.stringify(data), 'utf8'), c.final()]);
-  return { iv: iv.toString('base64'), ct: ct.toString('base64'), tag: c.getAuthTag().toString('base64') };
-}
-
-function unseal<T>(key: Buffer, env: Envelope, aad: string): T {
-  const d = createDecipheriv('aes-256-gcm', key, Buffer.from(env.iv, 'base64'));
-  d.setAAD(Buffer.from(aad));
-  d.setAuthTag(Buffer.from(env.tag, 'base64'));
-  return JSON.parse(Buffer.concat([d.update(Buffer.from(env.ct, 'base64')), d.final()]).toString('utf8')) as T;
-}
-
-export interface EventItem {
-  event: CompanyEvent;
-  seq: number;
 }
 
 /** ما يحتاجه الخادم من الشركة المفتوحة على الجهاز الرئيسي. */
@@ -152,8 +121,15 @@ export class LanHost {
 
   private async handle(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
     const path = req.url ?? '';
+    // الجوال (تطبيق وزن) بيبعت من صفحة ويب، فبدو إذن CORS. الأمان مش من هون: كل رسالة مشفّرة برمز الربط
+    const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Max-Age': '600' };
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, cors);
+      res.end();
+      return;
+    }
     const reply = (status: number, body: unknown, nonce = '') => {
-      res.writeHead(status, { 'Content-Type': 'application/json' });
+      res.writeHead(status, { 'Content-Type': 'application/json', ...cors });
       res.end(JSON.stringify(status === 200 ? seal(this.key, body, `${path}|res|${nonce}`) : body));
     };
     if (req.method !== 'POST' || !['/hello', '/login', '/call', '/events', '/snapshot', '/logout'].includes(path)) return reply(404, { error: 'not found' });
@@ -313,91 +289,3 @@ export function discoverHosts(timeoutMs = 1500, targets = broadcastAddresses()):
   });
 }
 
-// ───────────── الجهاز الفرعي ─────────────
-
-export class LanClient {
-  private readonly key: Buffer;
-  private token = '';
-  private polling = false;
-
-  constructor(
-    readonly host: string,
-    readonly port: number,
-    pairingCode: string,
-  ) {
-    this.key = lanKey(pairingCode);
-  }
-
-  private async post<T>(path: string, payload: Record<string, unknown>, timeoutMs = 15_000): Promise<T> {
-    const nonce = randomBytes(12).toString('hex');
-    let res: Response;
-    try {
-      res = await fetch(`http://${this.host}:${this.port}${path}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(seal(this.key, { ...payload, ts: Date.now(), nonce }, path)),
-        signal: AbortSignal.timeout(timeoutMs),
-      });
-    } catch {
-      throw new Error('تعذر الاتصال بالجهاز الرئيسي. تأكد أنه يعمل وأنكما على نفس الشبكة.');
-    }
-    if (res.status === 401) throw new Error('رمز الربط غير صحيح، أو ساعة الجهاز مختلفة عن الجهاز الرئيسي');
-    if (res.status !== 200) throw new Error('رد غير متوقع من الجهاز الرئيسي');
-    let body: { ok: boolean; error?: string } & T;
-    try {
-      body = unseal(this.key, (await res.json()) as Envelope, `${path}|res|${nonce}`);
-    } catch {
-      throw new Error('رد غير صالح من الجهاز الرئيسي');
-    }
-    if (!body.ok) throw new Error(body.error ?? 'خطأ');
-    return body;
-  }
-
-  hello(): Promise<{ name: string; id: string }> {
-    return this.post('/hello', {});
-  }
-
-  async login(username: string, password: string, deviceId: string, deviceName: string): Promise<{ user: User; state: CompanyState; seq: number }> {
-    const r = await this.post<{ token: string; user: User; state: CompanyState; seq: number }>('/login', { username, password, deviceId, deviceName }, 60_000);
-    this.token = r.token;
-    return r;
-  }
-
-  async call(method: string, args: unknown[]): Promise<{ value: unknown; seq: number }> {
-    return this.post('/call', { token: this.token, method, args }, 60_000);
-  }
-
-  snapshot(): Promise<{ state: CompanyState; seq: number }> {
-    return this.post('/snapshot', { token: this.token }, 60_000);
-  }
-
-  /** يستقبل الأحداث الجديدة باستمرار حتى استدعاء stop(). */
-  startEvents(since: number, onEvents: (items: EventItem[]) => void, onResync: () => Promise<number>, onError: (e: Error) => void): void {
-    this.polling = true;
-    let cursor = since;
-    const loop = async () => {
-      while (this.polling) {
-        try {
-          const r = await this.post<{ events?: EventItem[]; resync?: boolean }>('/events', { token: this.token, since: cursor }, LONG_POLL_MS + 10_000);
-          if (!this.polling) return;
-          if (r.resync) cursor = await onResync();
-          else if (r.events?.length) {
-            onEvents(r.events);
-            cursor = r.events[r.events.length - 1]!.seq;
-          }
-        } catch (e) {
-          if (!this.polling) return;
-          onError(e as Error);
-          await new Promise((r) => setTimeout(r, 3000));
-        }
-      }
-    };
-    void loop();
-  }
-
-  async stop(): Promise<void> {
-    this.polling = false;
-    if (this.token) await this.post('/logout', { token: this.token }).catch(() => undefined);
-    this.token = '';
-  }
-}
