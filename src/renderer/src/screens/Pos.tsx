@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { itemTitle, resolveScan, type Invoice, type Item } from '../../../core';
-import { convertPrice, fxRates, money, parseAmount, parsePrice, qtyText, shownCurrencies, today, toInput, uid, useCompany } from '../api';
+import { convertPrice, fxRates, money, cleanNumber, parseAmount, parseDiscount, parsePrice, qtyText, shownCurrencies, today, toInput, uid, useCompany } from '../api';
 import { usePrinter } from '../components/print';
 import { ItemName, matches, partyOptions, Picker, ScanInput } from '../components/ui';
 import { InvoiceDocument } from './InvoiceView';
@@ -173,12 +173,7 @@ export function Pos() {
 
   const mobileTab = useCartTab();
   const subtotal = cart.reduce((s, l) => s + Math.round(l.qty * l.price), 0);
-  let disc = 0;
-  try {
-    disc = parseAmount(state, discount, cur);
-  } catch {
-    disc = 0;
-  }
+  const disc = parseDiscount(state, discount, cur, subtotal);
   const taxes = Object.values(state.taxes).filter((t) => t.active && t.percent > 0);
   const net = subtotal - disc;
   const total = net + taxes.reduce((s, t) => s + Math.round((net * t.percent) / 100), 0);
@@ -477,7 +472,7 @@ export function Pos() {
           {can('discount.give') && (
             <>
               <span>خصم</span>
-              <input className="num-input" value={discount} onChange={(e) => setDiscount(e.target.value)} inputMode="decimal" />
+              <input className="num-input" value={discount} onChange={(e) => setDiscount(e.target.value)} placeholder="مبلغ أو %" />
             </>
           )}
           {taxes.map((t) => (

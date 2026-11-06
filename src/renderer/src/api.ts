@@ -371,15 +371,43 @@ export function toInput(state: CompanyState, minor: number, currency: string): s
   return formatMinor(minor, c.decimals).replace(/,/g, '').replace(/\.0+$/, '');
 }
 
+/** أرقام عربية/فارسية وفواصل الآلاف والفاصلة العربية ← رقم عادي («١٬٥٠٠٫٥» = 1500.5، «10.» = 10). */
+export function cleanNumber(text: string): string {
+  return text
+    .replace(/[٠-٩]/g, (c) => String(c.charCodeAt(0) - 0x0660))
+    .replace(/[۰-۹]/g, (c) => String(c.charCodeAt(0) - 0x06f0))
+    .replace(/٫/g, '.')
+    .replace(/٪/g, '%')
+    .replace(/[٬،,\s]/g, '')
+    .replace(/\.$/, '');
+}
+
 export function parseAmount(state: CompanyState, text: string, currency: string): number {
-  if (!text.trim()) return 0;
-  return toMinor(text, state.currencies[currency]!.decimals);
+  const t = cleanNumber(text ?? '');
+  if (!t) return 0;
+  return toMinor(t, state.currencies[currency]!.decimals);
 }
 
 /** سعر الوحدة بسطر الفاتورة: بيقبل منازل زيادة (0.076$ للقطعة). */
 export function parsePrice(state: CompanyState, text: string, currency: string): number {
-  if (!text.trim()) return 0;
-  return toUnitPrice(text, state.currencies[currency]!.decimals);
+  const t = cleanNumber(text ?? '');
+  if (!t) return 0;
+  return toUnitPrice(t, state.currencies[currency]!.decimals);
+}
+
+/**
+ * الخصم: مبلغ («50») أو نسبة («10%» أو «%10») من المبلغ `of`، بأي أرقام.
+ * ما بيرمي غلط أبداً (نص ما بينفهم = بلا خصم) حتى ما يتصفّر حساب الفاتورة وقت الكتابة، وما بيتجاوز المبلغ نفسه.
+ */
+export function parseDiscount(state: CompanyState, text: string, currency: string, of: number): number {
+  const t = cleanNumber(text ?? '');
+  if (!t) return 0;
+  const max = Math.max(0, of);
+  const pct = /^(\d+(?:\.\d+)?)%$|^%(\d+(?:\.\d+)?)$/.exec(t);
+  if (pct) return Math.min(max, Math.round((max * Math.min(100, Number(pct[1] ?? pct[2]))) / 100));
+  const n = Number(t);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.min(max, Math.round(n * 10 ** (state.currencies[currency]?.decimals ?? 2)));
 }
 
 export function qtyText(q: number): string {

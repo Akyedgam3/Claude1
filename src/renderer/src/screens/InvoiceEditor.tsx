@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { computeTaxes, PRICE_TIER_NAMES, tierPrice, niceUnitCost, PRICE_SCALE, roundPrice, findRate, itemPlace, listPrices, withPlace, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
-import { convertPrice, fxRates, money, parseAmount, parsePrice, rateInverted, toInput, today, uid, useCompany } from '../api';
+import { convertPrice, fxRates, money, cleanNumber, parseAmount, parseDiscount, parsePrice, rateInverted, toInput, today, uid, useCompany } from '../api';
 import { askConfirm, CurrencySelect, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
 import { invoiceDrafts } from '../drafts';
 import { ItemForm } from './Items';
@@ -375,9 +375,12 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
   }, [editing, company, draftId, kind, isSale, state.parties, used, partyId, date, currency, rateText, warehouseId, lines, discount, taxIds, paidText, payMode, cashAccountId, salesman, marketerId, notes]);
   const preview = useMemo(() => {
     try {
-      const amounts = used.map((l) => Math.round(Number(l.qty || 0) * parsePrice(state, l.price, currency)) - parseAmount(state, l.discount, currency));
+      const amounts = used.map((l) => {
+        const gross = Math.round(Number(cleanNumber(l.qty || '0')) * parsePrice(state, l.price, currency));
+        return gross - parseDiscount(state, l.discount, currency, gross);
+      });
       const subtotal = amounts.reduce((s, a) => s + a, 0);
-      const disc = parseAmount(state, discount, currency);
+      const disc = parseDiscount(state, discount, currency, subtotal);
       const t = computeTaxes(subtotal - disc, taxIds.map((id) => ({ ...state.taxes[id]!, active: true })));
       return { amounts, subtotal, disc, taxes: t.taxes, total: t.total, error: null as string | null };
     } catch (e) {
@@ -433,10 +436,10 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
         lines: used.map((l) => ({
           itemId: l.itemId,
           description: l.description,
-          qty: Number(l.qty),
+          qty: Number(cleanNumber(l.qty)),
           ...(l.unit ? { unit: l.unit } : {}),
           price: parsePrice(state, l.price, currency),
-          discount: parseAmount(state, l.discount, currency),
+          discount: parseDiscount(state, l.discount, currency, Math.round(Number(cleanNumber(l.qty || '0')) * parsePrice(state, l.price, currency))),
           ...(l.batch.trim() ? { batch: l.batch.trim() } : {}),
           ...(l.expiry ? { expiry: l.expiry } : {}),
           ...(l.serials.trim() ? { serials: l.serials.split(/[\s,،]+/).map((s) => s.trim()).filter(Boolean) } : {}),
@@ -796,7 +799,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
                   </td>
                   {allowDiscount && (
                     <td>
-                      <input className="num-input" value={l.discount} onChange={(e) => setLine(l.key, { discount: e.target.value })} inputMode="decimal" />
+                      <input className="num-input" value={l.discount} onChange={(e) => setLine(l.key, { discount: e.target.value })} placeholder="مبلغ أو %" title="مبلغ (50) أو نسبة (10%)" />
                     </td>
                   )}
                   <td className="num">{idx >= 0 ? money(state, preview.amounts[idx] ?? 0, currency) : ''}</td>
@@ -843,7 +846,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
             {allowDiscount && (
               <>
                 <span>خصم على الفاتورة</span>
-                <input className="num-input" value={discount} onChange={(e) => setDiscount(e.target.value)} inputMode="decimal" />
+                <input className="num-input" value={discount} onChange={(e) => setDiscount(e.target.value)} placeholder="مبلغ أو %" title="مبلغ (500) أو نسبة (10%)" />
               </>
             )}
             {preview.taxes.map((t) => (

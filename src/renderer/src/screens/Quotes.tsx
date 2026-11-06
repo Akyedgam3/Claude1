@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { amountInWords, quoteTotals, type Invoice, type Quote, type QuoteStatus } from '../../../core';
-import { addDays, dateText, money, parseAmount, parsePrice, qtyText, toInput, today, uid, useCompany } from '../api';
+import { addDays, dateText, money, cleanNumber, parseAmount, parseDiscount, parsePrice, qtyText, toInput, today, uid, useCompany } from '../api';
 import { CommercialDoc, type DocModel } from '../components/CommercialDoc';
 import { Icon } from '../components/icons';
 import { PrintButtons } from '../components/print';
@@ -114,27 +114,30 @@ export function QuoteEditor({ id }: { id?: string }) {
   const items = useMemo(() => itemOptions(state), [state]);
   const party = partyId ? state.parties[partyId] : null;
 
-  const build = (): Omit<Quote, 'number' | 'invoiceId' | 'createdBy'> => ({
+  const build = (): Omit<Quote, 'number' | 'invoiceId' | 'createdBy'> => {
+    const lines = rows
+      .filter((r) => r.itemId || r.description.trim())
+      .map((r) => {
+        const qty = Number(cleanNumber(r.qty)) || 0;
+        const price = parsePrice(state, r.price, currency);
+        const d = parseDiscount(state, r.discount, currency, Math.round(qty * price));
+        return { ...(r.itemId ? { itemId: r.itemId } : {}), description: r.description.trim(), qty, price, ...(d ? { discount: d } : {}) };
+      });
+    const subtotal = lines.reduce((s, l) => s + Math.round(l.qty * l.price) - (l.discount ?? 0), 0);
+    return {
     id: existing?.id ?? uid(),
     date,
     partyId,
     currency,
     status: status === 'converted' ? 'accepted' : status,
-    lines: rows
-      .filter((r) => r.itemId || r.description.trim())
-      .map((r) => ({
-        ...(r.itemId ? { itemId: r.itemId } : {}),
-        description: r.description.trim(),
-        qty: Number(r.qty) || 0,
-        price: parsePrice(state, r.price, currency),
-        ...(r.discount ? { discount: parseAmount(state, r.discount, currency) } : {}),
-      })),
-    discount: discount ? parseAmount(state, discount, currency) : 0,
+    lines,
+    discount: parseDiscount(state, discount, currency, subtotal),
     taxIds,
     ...(validUntil ? { validUntil } : {}),
     ...(!partyId && customerName.trim() ? { customerName: customerName.trim() } : {}),
     ...(notes.trim() ? { notes: notes.trim() } : {}),
-  });
+    };
+  };
 
   const totals = (() => {
     try {
@@ -236,7 +239,7 @@ export function QuoteEditor({ id }: { id?: string }) {
                 const upd = (k: keyof Row) => (e: { target: { value: string } }) => setRows((rs) => rs.map((x) => (x.key === r.key ? { ...x, [k]: e.target.value } : x)));
                 let total = '';
                 try {
-                  total = money(state, Math.round((Number(r.qty) || 0) * parsePrice(state, r.price, currency)) - (r.discount ? parseAmount(state, r.discount, currency) : 0), currency);
+                  { const g = Math.round((Number(cleanNumber(r.qty)) || 0) * parsePrice(state, r.price, currency)); total = money(state, g - parseDiscount(state, r.discount, currency, g), currency); }
                 } catch {
                   total = '—';
                 }
@@ -250,7 +253,7 @@ export function QuoteEditor({ id }: { id?: string }) {
                       <input className="num-input" value={r.price} onChange={upd('price')} />
                     </td>
                     <td>
-                      <input className="num-input" value={r.discount} onChange={upd('discount')} disabled={!can('discount.give')} />
+                      <input className="num-input" value={r.discount} onChange={upd('discount')} disabled={!can('discount.give')} placeholder="مبلغ أو %" />
                     </td>
                     <td className="num">{total}</td>
                     <td>
@@ -291,7 +294,7 @@ export function QuoteEditor({ id }: { id?: string }) {
           </section>
           <section className="card totals">
             <Field label="خصم على العرض">
-              <input value={discount} onChange={(e) => setDiscount(e.target.value)} disabled={!can('discount.give')} inputMode="decimal" />
+              <input value={discount} onChange={(e) => setDiscount(e.target.value)} disabled={!can('discount.give')} placeholder="مبلغ أو %" />
             </Field>
             {totals && (
               <div className="kv">
