@@ -57,6 +57,29 @@ export const native = {
     return name;
   },
 
+  /**
+   * نسخة احتياطية بمجلد Documents/Wazn بالجوال (بتضل لو انحذف التطبيق، وبتنفتح من «استعادة نسخة»).
+   * بنخلي آخر `keep` نسخ من هالشركة بس. بيرجّع مكان الملف.
+   */
+  async saveToDocuments(name: string, bytes: Uint8Array, keep: number, prefix: string): Promise<string> {
+    if (!isNative()) return `Documents/Wazn/${name}`;
+    try {
+      const p = await Filesystem.checkPermissions();
+      if (p.publicStorage !== 'granted') await Filesystem.requestPermissions();
+    } catch {
+      /* أندرويد 11+ ما بيحتاج إذن لملفات التطبيق نفسه */
+    }
+    await Filesystem.writeFile({ path: `Wazn/${name}`, data: Buffer.from(bytes).toString('base64'), directory: Directory.Documents, recursive: true });
+    try {
+      const { files } = await Filesystem.readdir({ path: 'Wazn', directory: Directory.Documents });
+      const mine = files.map((f) => f.name).filter((n) => n.startsWith(prefix) && n.endsWith('.wazn')).sort();
+      for (const old of mine.slice(0, Math.max(0, mine.length - keep))) await Filesystem.deleteFile({ path: `Wazn/${old}`, directory: Directory.Documents }).catch(() => undefined);
+    } catch {
+      /* التنظيف مش ضروري */
+    }
+    return `Documents/Wazn/${name}`;
+  },
+
   /** اختيار ملف من الجهاز (نافذة أندرويد للملفات). null إذا تراجع المستخدم. */
   pickFile(accept: string): Promise<{ name: string; bytes: Uint8Array } | null> {
     return new Promise((resolve) => {

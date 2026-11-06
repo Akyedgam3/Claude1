@@ -721,7 +721,7 @@ function BackupTab() {
       <h3>النسخ الاحتياطي</h3>
       <p className="muted">
         {IS_MOBILE
-          ? 'يأخذ البرنامج نسخة تلقائية داخل الجوال عند كل خروج. يُنصح بإرسال نسخة أسبوعياً لمكان آمن (واتساب، درايف، أو كمبيوتر). النسخ مشفّرة وتُفتح بنفس كلمات السر. لاستعادة نسخة: شاشة البداية ← فتح شركة ← استعادة نسخة احتياطية.'
+          ? 'يأخذ البرنامج نسخة تلقائية داخل الجوال كل فترة وعند كل خروج، وكمان بمجلد Documents/Wazn بالجوال. ويُنصح بإرسال نسخة أسبوعياً لمكان آمن (واتساب، درايف، أو كمبيوتر). النسخ مشفّرة وتُفتح بنفس كلمات السر. لاستعادة نسخة: شاشة البداية ← فتح شركة ← استعادة نسخة احتياطية.'
           : 'يأخذ البرنامج نسخة تلقائية عند كل خروج (آخر 30 نسخة داخل مجلد الشركة). يُنصح بنسخة أسبوعية على فلاشة. النسخ مشفّرة وتُفتح بنفس كلمات السر. لاستعادة نسخة: شاشة البداية ← فتح شركة ← استعادة نسخة احتياطية.'}
       </p>
       <div className="button-row">
@@ -731,7 +731,7 @@ function BackupTab() {
         </button>
         {!IS_MOBILE && <button onClick={() => run(() => api.reveal())}>فتح مجلد الشركة</button>}
       </div>
-      {!IS_MOBILE && session.kind === 'local' && <BackupLocationBox />}
+      {session.kind === 'local' && <BackupLocationBox />}
     </section>
   );
 }
@@ -752,9 +752,43 @@ function BackupLocationBox() {
       notify((e as Error).message, 'error');
     }
   };
+  const everySelect = (
+    <Field label="نسخة تلقائية وقت البرنامج مفتوح">
+      <select value={cfg.every} onChange={(e) => save({ every: Number(e.target.value) })}>
+        <option value={60}>كل ساعة</option>
+        <option value={180}>كل 3 ساعات</option>
+        <option value={360}>كل 6 ساعات</option>
+        <option value={1440}>كل يوم</option>
+        <option value={0}>بس لما سكّر البرنامج</option>
+      </select>
+      <small className="muted">بتنعمل بس إذا في شغل جديد من آخر نسخة، وكمان عند كل إغلاق.</small>
+    </Field>
+  );
+  const last = cfg.lastAuto ? (
+    <p className={cfg.lastAuto.error ? 'bad' : 'muted'}>
+      آخر نسخة تلقائية: {new Date(cfg.lastAuto.at).toLocaleString('en-GB')}
+      {cfg.lastAuto.error ? ` — ${cfg.lastAuto.error}` : ''}
+    </p>
+  ) : null;
+  if (IS_MOBILE) {
+    return (
+      <div className="backup-location">
+        <h4>النسخ التلقائي بالجوال</h4>
+        <div className="form-grid">
+          {everySelect}
+          <label className="check wide">
+            <input type="checkbox" checked={cfg.external !== false} onChange={(e) => save({ external: e.target.checked })} /> كمان احفظ نسخة بمجلد <b dir="ltr">Documents/Wazn</b> بالجوال (بتضل إذا انحذف التطبيق)
+          </label>
+        </div>
+        {last}
+      </div>
+    );
+  }
   return (
     <div className="backup-location">
       <h4>مكان النسخ التلقائي</h4>
+      <div className="form-grid">{everySelect}</div>
+      {last}
       <p className="muted">
         اختار أي مجلد بدك ياه: قرص تاني (D:)، فلاشة، أو مجلد Google Drive / OneDrive على الكمبيوتر فبتطلع النسخ عالنت لحالها. كل ما تسكّر البرنامج أو تكبس «نسخة احتياطية الآن» بتنحفظ نسخة هونيك.
       </p>

@@ -14,6 +14,11 @@ export interface BackupLocation {
   keep: number;
   internal: boolean;
   internalDir: string;
+  /** نسخة تلقائية كل كم دقيقة (0 = بس عند الإغلاق). */
+  every: number;
+  /** الجوال: نسخة تلقائية بمجلد Documents/Wazn بالجهاز. */
+  external?: boolean;
+  lastAuto?: { at: number; path?: string; error?: string } | null;
 }
 
 export interface SessionInfo {

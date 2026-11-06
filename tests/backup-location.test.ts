@@ -4,7 +4,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_CURRENCIES, chartFor } from '../src/core';
 import { CompanyStore } from '../src/storage/company-store';
-import { autoBackup, readBackupConfig, writeBackupConfig } from '../src/main/backup-location';
+import { autoBackup, periodicBackup, readBackupConfig, writeBackupConfig } from '../src/main/backup-location';
 
 let dir: string;
 let ext: string;
@@ -28,7 +28,7 @@ const make = () =>
 describe('backup location', () => {
   it('defaults to the company folder', () => {
     const store = make();
-    expect(readBackupConfig(store)).toEqual({ keep: 30, internal: true });
+    expect(readBackupConfig(store)).toEqual({ keep: 30, internal: true, every: 60 });
     const r = autoBackup(store);
     expect(r.path.startsWith(path.join(dir, 'backups'))).toBe(true);
     store.close();
@@ -53,6 +53,22 @@ describe('backup location', () => {
     expect(r.path.startsWith(path.join(dir, 'backups'))).toBe(true);
     // بدون مجلد مختار النسخة الداخلية ما بتنطفى
     expect(writeBackupConfig(store, { keep: 30, internal: false }).internal).toBe(true);
+    store.close();
+  });
+
+  it('periodic backup: only after the chosen period and only when something changed', () => {
+    const store = make();
+    writeBackupConfig(store, { dir: ext, keep: 30, internal: false, every: 60 });
+    const t0 = 1_000_000;
+    expect(periodicBackup(store, t0)).toBe(false); // أول مرة: بيبلّش العدّاد
+    store.ledger.saveParty({ id: 'p', kind: 'customer', name: 'زبون' });
+    expect(periodicBackup(store, t0 + 30 * 60_000)).toBe(false); // لسا ما مرّت ساعة
+    expect(periodicBackup(store, t0 + 61 * 60_000)).toBe(true);
+    expect(fs.readdirSync(path.join(ext, 'Wazn-محل')).length).toBe(1);
+    expect(periodicBackup(store, t0 + 200 * 60_000)).toBe(false); // ما في شي جديد
+    writeBackupConfig(store, { dir: ext, keep: 30, internal: false, every: 0 });
+    store.ledger.saveParty({ id: 'q', kind: 'customer', name: 'زبون ٢' });
+    expect(periodicBackup(store, t0 + 999 * 60_000)).toBe(false); // مطفي: بس عند الإغلاق
     store.close();
   });
 });

@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { ACTIVITIES, can, chartFor, DEFAULT_CURRENCIES, defaultTaxes, PERMISSIONS, whatsappUrl, type Activity, type Permission } from '../core';
 import { CloudSessions, CLOUD_MIN_DEVICES } from '../app/cloud-sessions';
 import { BACKUP_FILES, unpackBackup } from '../app/backup-pack';
-import { autoBackup, chosenBackupRoot, readBackupConfig, writeBackupConfig, type BackupConfig } from './backup-location';
+import { autoBackup, chosenBackupRoot, lastAutoBackup, periodicBackup, readBackupConfig, writeBackupConfig, type BackupConfig } from './backup-location';
 import { hostCompanyFor } from '../app/host-company';
 import { DEFAULT_LAN_PORT, discoverHosts, LanClient, LanHost, newPairingCode } from '../app/lan';
 import { OFFLINE } from '../cloud/client';
@@ -166,6 +166,13 @@ function attach(b: Backend): void {
     (message) => send('lan:error', message),
   );
   syncFeedRates();
+  if (b.kind === 'local') {
+    try {
+      periodicBackup(localStore()); // بيبلّش عدّاد النسخ الدوري من لحظة فتح الشركة
+    } catch {
+      /* ما في شركة محلية */
+    }
+  }
 }
 
 /** سعر الصرف من لوحة الإدارة (بالقائمة الموقّعة) بينسجّل لحالو بالشركة المفتوحة على هالجهاز. */
@@ -524,13 +531,13 @@ function registerIpc(): void {
   handle('backup:config', () => {
     requirePermission('backup.manage');
     const store = localStore();
-    return { ...readBackupConfig(store), internalDir: path.join(store.dir, 'backups') };
+    return { ...readBackupConfig(store), internalDir: path.join(store.dir, 'backups'), lastAuto: lastAutoBackup(store) };
   });
   handle('backup:setConfig', (cfg: BackupConfig) => {
     requirePermission('backup.manage');
     const store = localStore();
     const next = writeBackupConfig(store, { ...readBackupConfig(store), ...(cfg ?? {}) });
-    return { ...next, internalDir: path.join(store.dir, 'backups') };
+    return { ...next, internalDir: path.join(store.dir, 'backups'), lastAuto: lastAutoBackup(store) };
   });
   handle('backup:chooseDir', async () => {
     requirePermission('backup.manage');
@@ -855,6 +862,15 @@ if (!app.requestSingleInstanceLock()) {
     createWindow();
     void refreshLicense();
     setInterval(() => void refreshLicense(), FEED_CHECK_HOURS * 3600_000);
+    // نسخة احتياطية دورية وقت البرنامج مفتوح (حسب الفترة المختارة، وبس إذا في حركات جديدة)
+    setInterval(() => {
+      if (backend?.kind !== 'local') return;
+      try {
+        periodicBackup(localStore());
+      } catch (e) {
+        console.error('periodic backup', e);
+      }
+    }, 5 * 60_000);
   });
   app.on('before-quit', () => {
     stopHosting();

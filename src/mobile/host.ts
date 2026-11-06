@@ -36,6 +36,8 @@ interface Settings {
   lastCloud?: { code: string; username: string; name?: string };
   /** للعمل والجهاز الرئيسي مطفي: بصمة كلمة السر لكل (رمز + حساب) دخل قبل، والعمليات المأجّلة. */
   cloudOffline?: Record<string, { verifier: string; pending?: { id: string; method: string; at: number }[] }>;
+  /** النسخ التلقائي بالجوال: كل كم دقيقة (0 = بس عند الإغلاق)، وكمان بمجلد Documents/Wazn. */
+  autoBackup?: { every: number; external: boolean };
   /** آخر كمبيوتر رئيسي بالشبكة المحلية (بعد أول مرة بتكفي كلمة السر). */
   lastRemote?: { host: string; port: number; pairingCode?: string; username?: string; name?: string; id?: string };
 }
@@ -146,6 +148,8 @@ function attach(s: CompanyStore): void {
   store = s;
   unsubscribe = s.onEvent((event: CompanyEvent, seq: number) => send('company:events', structuredClone([{ event, seq }])));
   syncFeedRates();
+  autoState = null;
+  void mobileAutoBackup(); // بيبلّش العدّاد من لحظة فتح الشركة
 }
 
 /** سعر الصرف من لوحة الإدارة بينسجّل لحالو بالشركة المفتوحة. */
@@ -193,6 +197,46 @@ function sessionInfo() {
     viaRecovery: store.viaRecovery,
     recoveredTail: store.recoveredTail,
   };
+}
+
+// ───────── النسخ الاحتياطي التلقائي بالجوال ─────────
+
+const EVERY = [0, 60, 180, 360, 1440];
+const autoCfg = () => {
+  const a = readSettings().autoBackup;
+  return { every: a && EVERY.includes(a.every) ? a.every : 60, external: a?.external !== false };
+};
+let autoState: { at: number; seq: number; path?: string; error?: string } | null = null;
+
+/**
+ * نسخة تلقائية: كل الفترة المختارة (force = التطبيق راح عالخلفية، فمنعملها إذا في جديد بدون ما نستنى).
+ * بتنعمل بس إذا في حركات جديدة من آخر نسخة: داخل التطبيق (آخر 5)، وبمجلد Documents/Wazn (آخر 10).
+ */
+async function mobileAutoBackup(force = false): Promise<void> {
+  const s = store;
+  if (!s || !s.isOpen || remote || lan) return;
+  const cfg = autoCfg();
+  const now = Date.now();
+  if (!autoState) {
+    autoState = { at: now, seq: s.lastSeq };
+    return;
+  }
+  if (s.lastSeq === autoState.seq) return;
+  if (!force && (!cfg.every || now - autoState.at < cfg.every * 60_000)) return;
+  const seq = s.lastSeq;
+  try {
+    s.backup(path.join(s.dir, 'backups'), 5);
+    let where = 'داخل التطبيق';
+    if (cfg.external) {
+      const prefix = `Wazn-${safeFolderName(s.ledger.state.info?.name ?? s.meta.name)}-`;
+      const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+      where = await native.saveToDocuments(`${prefix}${stamp}.wazn`, packCompany(s.dir), 10, prefix);
+    }
+    autoState = { at: now, seq, path: where };
+  } catch (e) {
+    autoState = { ...autoState, at: now, error: `ما انحفظت النسخة برّا التطبيق: ${(e as Error).message}` };
+  }
+  await flushVfs().catch(() => undefined);
 }
 
 // ───────── ملفات: مشاركة واختيار ─────────
@@ -383,6 +427,23 @@ function registerHandlers(): void {
   });
 
   // نسخة احتياطية: داخلية، أو ملف بينبعت (واتساب، درايف، فلاشة...)
+  handle('backup:config', () => {
+    requirePermission('backup.manage');
+    const c = autoCfg();
+    return { keep: 5, internal: true, internalDir: 'داخل التطبيق', every: c.every, external: c.external, lastAuto: autoState?.path || autoState?.error ? { at: autoState.at, ...(autoState.path ? { path: autoState.path } : {}), ...(autoState.error ? { error: autoState.error } : {}) } : null };
+  });
+  handle('backup:setConfig', (cfg: { every?: number; external?: boolean }) => {
+    requirePermission('backup.manage');
+    const s = readSettings();
+    const cur = autoCfg();
+    s.autoBackup = { every: EVERY.includes(Number(cfg?.every)) ? Number(cfg.every) : cur.every, external: cfg?.external ?? cur.external };
+    writeSettings(s);
+    const c = autoCfg();
+    return { keep: 5, internal: true, internalDir: 'داخل التطبيق', every: c.every, external: c.external, lastAuto: null };
+  });
+  handle('backup:chooseDir', notOnMobile('اختيار مجلد للنسخ'));
+  handle('backup:reveal', notOnMobile('فتح مجلد النسخ'));
+
   handle('company:backup', async (toExternal: boolean) => {
     if (lan) throw new Error('النسخة الاحتياطية بتنعمل على الكمبيوتر الرئيسي نفسه (البيانات محفوظة عليه)');
     if (remote) {
@@ -646,5 +707,6 @@ export async function startHost(): Promise<void> {
   setInterval(() => void refreshLicense(), FEED_CHECK_HOURS * 3600_000);
   native.onResume(() => void refreshLicense());
   // قبل ما يروح التطبيق للخلفية: منتأكد إنو كل شي انحفظ
-  native.onPause(() => void flushVfs().catch(() => undefined));
+  native.onPause(() => void mobileAutoBackup(true).then(() => flushVfs()).catch(() => undefined));
+  setInterval(() => void mobileAutoBackup(), 5 * 60_000);
 }
