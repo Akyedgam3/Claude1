@@ -1,6 +1,17 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+
+// سر تطبيق Google Drive (مش بـ git، بمجلد keys المستثنى)
+const gdriveSecret = (() => {
+  const f = resolve(__dirname, 'keys/gdrive-client.json');
+  try {
+    return existsSync(f) ? String(JSON.parse(readFileSync(f, 'utf8')).clientSecret ?? '') : '';
+  } catch {
+    return '';
+  }
+})();
 
 export default defineConfig(({ command }) => {
   const production = command === 'build';
@@ -9,7 +20,7 @@ export default defineConfig(({ command }) => {
     main: {
       plugins: [externalizeDepsPlugin()],
       // نسخة الاختبارات الآلية بتثق بمفتاح التطوير وما بتتصل بالنت؛ نسخة البيع ما فيها هالشي أبداً
-      define: { __MIZAN_TEST_BUILD__: JSON.stringify(process.env['MIZAN_TEST_BUILD'] === '1') },
+      define: { __MIZAN_TEST_BUILD__: JSON.stringify(process.env['MIZAN_TEST_BUILD'] === '1'), __GDRIVE_SECRET__: JSON.stringify(gdriveSecret) },
       build: {
         minify: production,
         sourcemap: false,

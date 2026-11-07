@@ -73,7 +73,7 @@
 
 ## النسخ على Google Drive (كمبيوتر، من 1.2.64)
 - صلاحية `drive.file` بس (البرنامج بيشوف بس الملفات اللي عملها)، ملفات `.wazn` بمجلد «Wazn Backups»، وكل ملف عليه `appProperties` (wazn, company, companyName). الكود: `src/app/gdrive.ts` (عام، fetch بينحقن) و`src/main/gdrive-desktop.ts` (دخول بالمتصفح على 127.0.0.1 + PKCE، والرمز الدائم بـ `userData/gdrive.json` مشفّر بـ safeStorage). حالة الرفع لكل شركة بـ `gdrive-state.json` بمجلدها، والإعداد (`drive`, `driveEvery`, `driveKeep`) بـ `backup-location.json`.
-- **الميزة مخفية لحد ما ينحط معرّف التطبيق** بـ `src/app/gdrive-config.ts` (OAuth client نوع Desktop app بمشروع Google Cloud `wazn-5d0f2`، مع تفعيل Google Drive API وشاشة الموافقة منشورة Production). للتجربة: `WAZN_GDRIVE_CLIENT_ID`/`WAZN_GDRIVE_CLIENT_SECRET`.
+- **المعرّف** بـ `src/app/gdrive-config.ts` و**السر مش بـ git**: `keys/gdrive-client.json` (`{"clientSecret":"GOCSPX-..."}`) وبينحط وقت البناء (`__GDRIVE_SECRET__` بـ `electron.vite.config.ts`)؛ إذا ناقص بالبناء الربط بيفشل، فاطلبه من صاحب المشروع (Google Cloud ← Clients ← Wazn Desktop). الميزة مخفية لحد ما ينحط معرّف التطبيق بـ `src/app/gdrive-config.ts` (OAuth client نوع Desktop app بمشروع Google Cloud `wazn-5d0f2`، مع تفعيل Google Drive API وشاشة الموافقة منشورة Production). للتجربة: `WAZN_GDRIVE_CLIENT_ID`/`WAZN_GDRIVE_CLIENT_SECRET`.
 - الاستعادة: شاشة البداية ← فتح شركة ← «استعادة من Google Drive». اختبارات: `tests/gdrive.test.ts` (درايف وهمي)، `tests/e2e/gdrive.e2e.ts`. الجوال لسا بيشارك ملف `.wazn` يدوياً (قائمة المشاركة ← Drive).
 
 ## الفيديوهات
