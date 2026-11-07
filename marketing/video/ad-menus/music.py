@@ -35,7 +35,7 @@ def saw(f, n, ph=0.0):
 def noise(n): return rng.standard_normal(n)
 
 # ── الشبكة: 120 BPM، الـ drop على 5.85 بالضبط
-BEAT = 0.5; BAR = 2.0; T0 = 7.42
+BEAT = 0.5; BAR = 2.0; T0 = 4.95
 def beats(a, b, step=BEAT, off=0.0):
     k0 = int(np.ceil((a - T0 - off) / step)); out = []
     while True:
@@ -122,36 +122,43 @@ def snare_roll(a, b, g=0.5):
         add(M, snare(), t, g * (0.25 + 0.75 * x), (-1) ** i * 0.15)
         t += 0.125 if x < 0.5 else 0.0625; i += 1
 
-# ── المقدمة القاتمة (0 → 5.9)
-n = int(5.9 * SR); t = tarr(n)
-drone = (np.sin(2 * np.pi * 41.2 * t) * 0.8 + filt(saw(55, n) + saw(55.3, n), hi=260) * 0.5) * env(n, 1.2, 0.08)
-drone *= 0.6 + 0.4 * np.sin(2 * np.pi * 0.5 * t) ** 2
-add(M, drone, 0.0, 0.55)
-for k_ in range(14):  # نبض قلب
-    at = 0.6 + k_ * 0.4
-    if at > 5.6: break
+# ── المقدمة المتوترة (0 → 3.73): درون + نبض سريع + تكتكة
+n = int(3.9 * SR); t = tarr(n)
+drone = (np.sin(2 * np.pi * 41.2 * t) * 0.8 + filt(saw(55, n) + saw(58.3, n), hi=300) * 0.5) * env(n, 0.4, 0.05)
+drone *= 0.6 + 0.4 * np.sin(2 * np.pi * 2.0 * t) ** 2
+add(M, drone, 0.0, 0.6)
+for k_ in range(14):
+    at = 0.1 + k_ * 0.27
+    if at > 3.6: break
     nn = int(0.3 * SR); tt = tarr(nn)
-    add(M, np.sin(2 * np.pi * (48 + 30 * np.exp(-tt * 20)) * tt) * np.exp(-tt * 12), at, 0.5)
-n = int(1.5 * SR); t = tarr(n); x = t / t[-1]
-add(F, filt(noise(n), lo=600, hi=7000) * x ** 2 * 0.7 + np.sin(2 * np.pi * np.cumsum(180 + 900 * x ** 2) / SR) * x * 0.25, 4.4, 0.45)
-# «خلص.» ← هدوء قصير ← riser ← وزن
-n = int(1.5 * SR); t = tarr(n); x = t / t[-1]
-add(F, filt(noise(n), lo=800, hi=9000) * x ** 2 * 0.5 + np.sin(2 * np.pi * np.cumsum(220 + 1200 * x ** 2) / SR) * x * 0.2, 5.92, 0.4)
-c = crash(1.25)[::-1]; add(F, c * np.linspace(0, 1, len(c)) ** 2, 7.42 - 1.25, 0.55)
-section_music(7.42, 42.2, cutoff=4200)
-for a_, b_ in [(15.1, 15.8), (21.0, 21.6), (27.3, 27.9), (34.5, 35.1)]: snare_roll(a_, b_, 0.3)
-# بدون نت: أخف
-section_music(42.2, 46.4, cutoff=2600, arp=False, gain=0.85, half=True)
-snare_roll(45.8, 46.75, 0.45)
-section_music(46.75, 52.7, cutoff=4800, gain=1.0)
-snare_roll(51.9, 52.7, 0.55)
-section_music(52.7, 55.3, cutoff=6500, arp=False, bright=1.3, half=True, gain=1.05)
-section_music(55.3, 59.9, cutoff=2400, arp=False, gain=0.8)
-n = int(1.6 * SR)
+    add(M, np.sin(2 * np.pi * (48 + 30 * np.exp(-tt * 20)) * tt) * np.exp(-tt * 12), at, 0.55 + 0.03 * k_)
+n = int(1.4 * SR); t = tarr(n); x = t / t[-1]
+add(F, filt(noise(n), lo=600, hi=7000) * x ** 2 * 0.7 + np.sin(2 * np.pi * np.cumsum(180 + 900 * x ** 2) / SR) * x * 0.25, 2.33, 0.5)
+# «خلص.» قطع حاد، سكون، riser لوزن
+n = int(1.2 * SR); t = tarr(n); x = t / t[-1]
+add(F, filt(noise(n), lo=800, hi=9000) * x ** 2 * 0.5 + np.sin(2 * np.pi * np.cumsum(220 + 1200 * x ** 2) / SR) * x * 0.2, 3.75, 0.45)
+cc = crash(1.0)[::-1]; add(F, cc * np.linspace(0, 1, len(cc)) ** 2, 4.95 - 1.0, 0.55)
+# باص 808 تحت كل الموسيقى
+def sub808(at, g=1.0):
+    nn = int(0.55 * SR); tt = tarr(nn)
+    f = 46 + 60 * np.exp(-tt * 30)
+    add(M, np.tanh(np.sin(2 * np.pi * np.cumsum(f) / SR) * 2.2) * np.exp(-tt * 4.5), at, 0.55 * g)
+section_music(4.95, 33.0, cutoff=4600)
+for bt in np.arange(4.95, 33.0, 2.0): sub808(bt); sub808(bt + 0.75, 0.7); sub808(bt + 1.5, 0.8)
+for a_, b_ in [(10.0, 10.55), (15.4, 15.95), (21.3, 21.8), (27.7, 28.2)]: snare_roll(a_, b_, 0.32)
+section_music(33.0, 39.1, cutoff=2600, arp=False, gain=0.85, half=True)
+snare_roll(38.4, 39.16, 0.5)
+section_music(39.16, 46.6, cutoff=5000, gain=1.0)
+for bt in np.arange(39.16, 46.6, 2.0): sub808(bt); sub808(bt + 0.75, 0.7); sub808(bt + 1.5, 0.8)
+snare_roll(45.8, 46.73, 0.55)
+section_music(46.73, 49.2, cutoff=6500, arp=False, bright=1.3, half=True, gain=1.05)
+section_music(49.2, 59.7, cutoff=2400, arp=False, gain=0.8)
+n = int(1.4 * SR)
 fin = chord_bar([57, 64, 69, 72], n, 3000, 1.2) * np.exp(-tarr(n) * 1.6)
-add(M, fin, 59.4, 0.7, -0.2); add(M, fin, 59.41, 0.7, 0.2)
+add(M, fin, 59.7, 0.7, -0.2); add(M, fin, 59.71, 0.7, 0.2)
+sub808(59.7, 1.2)
 
-fade = np.ones(N); fi = int(0.05 * SR); fo0 = int(60.3 * SR)
+fade = np.ones(N); fi = int(0.05 * SR); fo0 = int(60.4 * SR)
 fade[:fi] = np.linspace(0, 1, fi); fade[fo0:] = np.linspace(1, 0, N - fo0)
 M *= fade[:, None]
 
@@ -220,40 +227,41 @@ def shimmer(at, g=1.0):
         add(F, np.sin(2 * np.pi * f * t) * np.exp(-t * 7), at + i * 0.035, 0.035 * g, rng.uniform(-0.8, 0.8))
 
 # المقدمة
-rustle(0.6, 5.2)
-for i in range(8): beep(1.5 + i / 3.5, f=1900 + 200 * (i % 3), d=0.06, g=0.6)
-beep(2.36, f=330, d=0.28, g=1.1)
-[tick(0.5 + 0.5 * i, 0.8) for i in range(10)]
-implode(5.35, 5.9)
-glitch(5.88, 0.55, 1.2)
-impact(7.42, 1.6, big=True); shimmer(7.47, 1.4)
+rustle(0.0, 3.7)
+for i in range(9): beep(1.0 + i / 3.6, f=1900 + 200 * (i % 3), d=0.06, g=0.6)
+beep(3.2, f=330, d=0.28, g=1.1)
+[tick(0.1 + 0.27 * i, 0.8) for i in range(13)]
+impact(0.88, 0.6); impact(1.82, 0.5); impact(2.62, 0.7); impact(3.06, 0.9)
+glitch(3.73, 0.5, 1.3); impact(3.73, 1.0)
+implode(3.85, 4.3)
+impact(4.95, 1.7, big=True); shimmer(5.0, 1.4)
 # الجوال
-whoosh(8.3, 1.0)
-for at in [9.35, 17.2, 18.35, 23.0, 36.9, 41.0]: click(at, 1.2)
-for at in [9.6, 12.45, 17.45, 18.6, 23.25, 28.9, 35.6, 37.15, 39.0]: whoosh(at - 0.05, 0.45, 0.3)
-for at in [15.8, 21.6, 27.9, 35.1, 42.1, 46.5, 52.6, 55.25]: whoosh(at, 0.9)
-whoosh(10.6, 0.6, 0.35); scan(11.05, 11.6); beep(11.55, f=2800, d=0.11, g=1.1)
-whoosh(11.9, 0.5, 0.35); pop(12.55, 0.6); pop(12.85, 0.6)
-stamp(14.3); chime(14.35, 0.9)
-pop(20.15, 0.6); pop(20.45, 0.6)
-pop(24.1, 0.6); pop(24.4, 0.6); notif(25.55)
-for at in [30.1, 30.9, 31.7]: whoosh(at, 0.5, 0.35)
-for i in range(30): tick(30.2 + i * 0.08, 0.6)
-impact(31.9, 0.7); shimmer(31.95, 0.7)
-coin(33.15); coin(33.45)
-pop(37.6, 0.7); notif(39.25)
+whoosh(5.75, 1.0)
+for at, _ in [(6.72, 0), (11.4, 0), (12.4, 0), (17.18, 0), (29.1, 0), (31.86, 0)]: click(at, 1.3); whoosh(at + 0.05, 0.4, 0.3)
+for at in [10.55, 15.95, 21.8, 28.2, 33.0, 39.0, 46.55, 49.15]: whoosh(at, 0.9)
+whoosh(7.3, 0.6, 0.35); scan(7.62, 8.1); beep(8.08, f=2800, d=0.11, g=1.1)
+whoosh(8.1, 0.5, 0.35); pop(8.6, 0.6); pop(8.85, 0.6)
+stamp(9.68); chime(9.73, 0.9)
+pop(14.29, 0.7); pop(15.06, 0.7)
+pop(19.0, 0.6); pop(19.42, 0.6); notif(20.6)
+for at in [24.0, 24.66, 25.51]: whoosh(at - 0.1, 0.5, 0.35); pop(at, 0.6)
+for i in range(26): tick(24.0 + i * 0.08, 0.5)
+impact(25.51, 0.6); shimmer(25.55, 0.6)
+coin(26.36); coin(27.03)
+pop(29.5, 0.7); notif(31.4)
 # بدون نت
-glitch(42.85, 0.3, 0.9); click(44.3, 1.3); impact(44.4, 0.5)
-whoosh(45.2, 0.8); whoosh(45.45, 0.9); impact(45.95, 0.5)
+glitch(34.14, 0.3, 0.9); click(35.84, 1.3); impact(35.9, 0.5)
+whoosh(36.83, 0.8); whoosh(37.76, 0.9); impact(38.25, 0.5)
 # المجالات
-for at in [46.75, 47.5, 48.2, 49.3]: impact(at, 0.7)
-for i in range(16): pop(50.1 + i * 0.045, 0.5)
-for i in range(16): tick(50.3 + i * 0.05)
-impact(50.3, 0.9); chime(50.35, 0.8)
-impact(52.7, 1.6, big=True); shimmer(52.75, 1.5)
-pop(55.4, 0.9); notif(55.65)
-pop(56.1, 0.55); pop(56.4, 0.55)
-impact(59.4, 0.9, big=True); shimmer(59.45, 0.8)
+for at in [39.16, 40.08, 40.65, 41.43]: impact(at, 0.75)
+for i in range(16): pop(42.4 + i * 0.05, 0.5)
+for i in range(18): tick(42.4 + i * 0.066)
+impact(43.6, 0.8); chime(43.65, 0.8)
+for at in [44.4, 44.6, 45.12]: whoosh(at, 0.5, 0.35)
+impact(46.73, 1.6, big=True); shimmer(46.78, 1.5)
+pop(49.25, 0.9); notif(50.0)
+for a_, _ in [(51.37, 0), (52.74, 0), (53.95, 0), (55.98, 0), (57.38, 0), (58.68, 0)]: pop(a_ - 0.04, 0.5)
+impact(59.7, 0.9, big=True); shimmer(59.75, 0.8)
 
 # ── المزج
 raw = subprocess.run(['ffmpeg', '-v', 'quiet', '-i', vo_path, '-f', 's16le', '-ac', '1', '-ar', str(SR), '-'], capture_output=True).stdout
@@ -265,7 +273,7 @@ active = np.clip((envv - 0.012) / 0.03, 0, 1)
 kk = int(0.22 * SR); active = np.convolve(active, np.ones(kk) / kk, mode='same')
 duck = 1 - 0.5 * active
 tt = tarr(N)
-duck *= np.where((tt > 55.3) & (tt < 59.4), 0.75, 1.0)
+duck *= np.where((tt > 51.2) & (tt < 59.7), 0.75, 1.0)
 M *= duck[:, None]
 F *= (1 - 0.25 * active)[:, None]
 M = M / np.max(np.abs(M)) * 0.32

@@ -29,23 +29,31 @@ canvas { position: absolute; inset: 0; }
 #vig { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0, 0, 0, 0.6) 100%); }
 .ring { position: absolute; left: 50%; top: 50%; width: 200px; height: 200px; margin: -100px 0 0 -100px; border-radius: 50%; border: 6px solid var(--mint); opacity: 0; }
 
-/* الفوضى */
-#A { background: radial-gradient(ellipse at 50% 40%, #1c2633 0%, #0b1017 60%, #05070a 100%); }
-.note { position: absolute; width: 640px; height: 820px; left: 250px; top: 470px; background: repeating-linear-gradient(180deg, #f3efe2 0 58px, #b8c7d9 58px 60px); border-radius: 10px; box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6); filter: saturate(0.4) brightness(0.8); padding: 70px 70px 0 40px; color: #29408a; font-weight: 700; font-size: 44px; line-height: 60px; }
-.note::before { content: ''; position: absolute; top: 0; bottom: 0; right: 90px; width: 4px; background: #d27a7a; opacity: 0.7; }
-.note p { position: relative; }
-.note s { text-decoration-color: #c0392b; text-decoration-thickness: 5px; }
-.calc { position: absolute; width: 330px; height: 480px; left: 70px; top: 1000px; background: linear-gradient(160deg, #3a414b, #20252c); border-radius: 36px; box-shadow: 0 40px 80px rgba(0, 0, 0, 0.7); padding: 34px; }
-.calc .lcd { height: 110px; border-radius: 14px; background: #9fb59a; color: #24331f; font: 900 66px/110px Cairo; text-align: left; padding: 0 20px; direction: ltr; letter-spacing: 4px; opacity: 0.85; }
+/* المقدمة: إيصالات عم تطير بـ 3D */
+#A { background: radial-gradient(ellipse at 50% 35%, #2a1418 0%, #120a0d 55%, #050304 100%); }
+#Apersp { position: absolute; inset: 0; perspective: 1400px; perspective-origin: 50% 40%; }
+.rc { position: absolute; left: 0; top: 0; width: 250px; padding: 22px 22px 34px; background: #f4efe3; color: #2a2a2a; font-weight: 700; font-size: 30px; line-height: 1.45; box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6); -webkit-mask: linear-gradient(#000, #000) top / 100% calc(100% - 14px) no-repeat, radial-gradient(circle at 9px 100%, transparent 8px, #000 9px) bottom / 18px 15px repeat-x; filter: brightness(0.82) saturate(0.6); }
+.rc b { display: block; font-size: 26px; color: #777; border-bottom: 3px dashed #bbb; margin-bottom: 6px; }
+.rc s { text-decoration-color: #d0302a; text-decoration-thickness: 4px; }
+.rc .x { color: #d0302a; font-weight: 900; }
+.qm { position: absolute; font: 900 160px Cairo; color: #ff4b4b; text-shadow: 0 0 40px rgba(255, 60, 60, 0.8); opacity: 0; }
+.calc { position: absolute; width: 330px; height: 480px; left: 90px; top: 1060px; background: linear-gradient(160deg, #3a414b, #20252c); border-radius: 36px; box-shadow: 0 40px 80px rgba(0, 0, 0, 0.7); padding: 34px; opacity: 0; }
+.calc .lcd { height: 110px; border-radius: 14px; background: #9fb59a; color: #24331f; font: 900 66px/110px Cairo; text-align: left; padding: 0 20px; direction: ltr; letter-spacing: 4px; }
 .calc .keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 28px; }
 .calc .keys i { height: 62px; border-radius: 14px; background: #4b535e; box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.3); }
 .calc .keys i:nth-child(4n) { background: #b8742b; }
-.clock { position: absolute; top: 300px; left: 0; right: 0; text-align: center; font: 900 104px Cairo; color: #ff5148; letter-spacing: 8px; direction: ltr; text-shadow: 0 0 30px rgba(255, 60, 50, 0.7); }
-.paper { position: absolute; width: 170px; height: 230px; background: #ece6d6; border-radius: 6px; box-shadow: 0 16px 30px rgba(0, 0, 0, 0.5); filter: saturate(0.3) brightness(0.75); }
-.paper::after { content: ''; position: absolute; inset: 24px 18px; background: repeating-linear-gradient(180deg, rgba(60, 60, 60, 0.35) 0 4px, transparent 4px 22px); }
+.clock { position: absolute; top: 1150px; right: 90px; font: 900 150px Cairo; color: #ff5148; letter-spacing: 6px; direction: ltr; text-shadow: 0 0 40px rgba(255, 60, 50, 0.8); opacity: 0; }
+.pl { position: absolute; left: 0; right: 0; text-align: center; font-weight: 900; font-size: 190px; line-height: 1; opacity: 0; }
+.pl .ic { display: inline-block; width: 150px; height: 150px; vertical-align: middle; }
 .bigword { font-size: 300px; }
 #logoB { position: absolute; left: 50%; top: 640px; width: 460px; height: 460px; margin-left: -230px; border-radius: 120px; box-shadow: 0 40px 120px rgba(0, 0, 0, 0.6), 0 0 160px rgba(95, 224, 191, 0.35); opacity: 0; }
+#slice { position: absolute; left: -200px; right: -200px; top: 50%; height: 14px; margin-top: -7px; background: #fff; box-shadow: 0 0 60px 20px rgba(255, 255, 255, 0.7); transform: rotate(-24deg) scaleX(0); opacity: 0; }
 
+/* كلمات الكابشن، كل كلمة بوقتها */
+.ln { position: absolute; left: 30px; right: 30px; text-align: center; font-weight: 900; line-height: 1.2; text-shadow: 0 6px 30px rgba(0, 0, 0, 0.6); }
+.ln .w { display: inline-block; margin: 0 12px; opacity: 0; }
+.fan { position: absolute; width: 300px; border-radius: 40px; border: 10px solid #0a1210; box-shadow: 0 40px 90px rgba(0, 0, 0, 0.6); opacity: 0; }
+.dig { color: rgba(255, 255, 255, 0.5); display: inline-block; }
 /* الجوال الثابت */
 #phW { position: absolute; inset: 0; perspective: 2200px; perspective-origin: 50% 45%; display: none; }
 #ph { position: absolute; left: 240px; top: 470px; width: 600px; background: linear-gradient(160deg, #1d2a27, #070d0b); border-radius: 84px; padding: 14px; box-shadow: 0 60px 140px rgba(0, 0, 0, 0.7), 0 0 0 3px rgba(255, 255, 255, 0.12), inset 0 0 0 2px rgba(255, 255, 255, 0.06); transform-origin: 50% 50%; }
@@ -122,30 +130,23 @@ canvas { position: absolute; inset: 0; }
   <canvas id="bg" width="1080" height="1920"></canvas>
   <div id="cam">
 
-    <!-- 1. الفوضى -->
+    <!-- 1. الفوضى: إيصالات وحسابات ضايعة -->
     <section class="sc" id="A">
       <div id="Awrap" class="abs" style="inset:0">
-        <div class="clock" id="clock">02:47</div>
-        <div class="note" id="note">
-          <p class="ltr" style="display:block;text-align:right">12,500 + 3,750 =</p>
-          <p class="ltr" style="display:block;text-align:right"><s>7,200 - 1,350</s></p>
-          <p>ديون أبو خالد ؟؟</p>
-          <p><s>البضاعة 48 ...</s> 46 ؟</p>
-          <p>الدولار بكم ؟</p>
-          <p>المجموع = ؟؟؟</p>
-        </div>
+        <div id="Apersp"><div id="rcs"></div></div>
         <div class="calc" id="calc"><div class="lcd" id="lcd">0.</div><div class="keys"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
-        <div id="papers"></div>
-        <div class="kt" id="a1" style="top:140px;font-size:120px">دفاتر…</div>
-        <div class="kt" id="a2" style="top:1520px;font-size:108px">آلة حاسبة…</div>
-        <div class="kt" id="a3" style="top:1650px;font-size:96px">ربحت ولا <span style="color:#ff6a5e">خسرت؟</span></div>
+        <div class="clock" id="clock">02:47</div>
+        <div id="qms"></div>
+        <div class="pl" id="pUp" style="top:640px;color:#3ce68a"><span class="ic" style="color:#3ce68a">{{icon:trending-up}}</span> ربحت؟</div>
+        <div class="pl" id="pOr" style="top:850px;font-size:110px;color:#fff">ولا</div>
+        <div class="pl" id="pDn" style="top:1000px;color:#ff4b4b"><span class="ic" style="transform:scaleY(-1);color:#ff4b4b">{{icon:trending-up}}</span> خسرت؟</div>
       </div>
+      <div id="slice"></div>
     </section>
 
     <!-- 2. خلص… صار في وزن -->
     <section class="sc" id="B">
       <div class="kt bigword" id="b1" style="top:760px">خلص.</div>
-      <div class="kt" id="b2" style="top:380px;font-size:110px">صار في</div>
       <img id="logoB" src="logo.png" alt="" />
       <div class="kt gold" id="b3" style="top:1150px;font-size:250px">وزن</div>
       <div class="ring" id="rB1"></div><div class="ring" id="rB2"></div><div class="ring" id="rB3"></div>
@@ -172,46 +173,24 @@ canvas { position: absolute; inset: 0; }
       </div></div>
     </div>
 
+
     <section class="sc" id="OV" style="display:block">
       <div id="chap"><span class="ic" id="chapI"></span><span id="chapT"></span></div>
-      <!-- الفاتورة -->
-      <div class="kt cap" id="c31">فاتورة؟</div>
-      <div class="kt cap" id="c32"><span class="gold">كبسة</span> وحدة</div>
-      <div class="kt cap" id="c33">بتمسح <span class="gold">الباركود</span></div>
-      <div class="kt cap" id="c34">بتنضاف المادة…</div>
-      <div class="kt cap" id="c35">والحساب <span class="gold">جاهز</span></div>
       <div class="prod" id="prod" style="left:50px;top:1230px"><h4>رز مصري 1 كغ</h4><div class="bars" id="bars"></div><div class="laser" id="laser"></div></div>
       <div class="chip w" id="ch31" style="left:60px;top:1310px"><span class="ic">{{icon:check}}</span><span>سكر 1 كغ</span></div>
       <div class="chip w" id="ch32" style="left:60px;top:1440px"><span class="ic">{{icon:check}}</span><span>شاي أسود</span></div>
       <div class="stamp" id="st3" style="top:820px"><span class="ic">{{icon:check}}</span></div>
       <div class="chip o" id="ch33" style="left:300px;top:1170px"><span class="ltr">6,800 ل.س</span></div>
-      <!-- المواد -->
-      <div class="kt cap" id="c41">شو باقي <span class="gold">بالمستودع؟</span></div>
-      <div class="kt cap" id="c42">قائمة <span class="gold">المواد</span></div>
-      <div class="kt cap" id="c43">بالكمية <span class="gold">والسعر</span></div>
       <div class="chip w" id="ch41" style="left:40px;top:1130px"><span class="ic">{{icon:layers}}</span><span>الرصيد: 17.25 كيلو</span></div>
       <div class="chip g" id="ch42" style="right:40px;top:1290px"><span class="ic">{{icon:receipt}}</span><span>المبيع: 9,000</span></div>
-      <!-- الديون -->
-      <div class="kt cap" id="c51">زبون عليه <span class="gold">دين؟</span></div>
-      <div class="kt cap" id="c52">مين إلو… <span class="gold">ومين عليه</span></div>
-      <div class="kt cap" id="c53">تذكير <span style="color:#3ce68a">عالواتساب</span></div>
-      <div class="chip g" id="ch51" style="right:40px;top:1060px"><span class="ic">{{icon:hand-coins}}</span><span>لنا: 30,220</span></div>
-      <div class="chip w" id="ch52" style="left:40px;top:1210px"><span class="ic">{{icon:wallet}}</span><span>علينا: 0</span></div>
-      <div class="notif" id="n5" style="top:1380px"><span class="ic">{{icon:message-circle}}</span><div><b>تذكير بالدفع</b><span>مطعم الضيعة · مرسل عالواتساب</span></div></div>
-      <!-- التقارير -->
-      <div class="kt cap" id="c61">وآخر <span class="gold">النهار؟</span></div>
-      <div class="kt cap" id="c62"><span class="gold">التقارير</span></div>
-      <div class="kt cap" id="c63">بالليرة <span class="gold">وبالدولار</span></div>
+      <div class="chip g" id="ch51" style="right:40px;top:1060px"><span class="ic">{{icon:hand-coins}}</span><span>إلك: 30,220</span></div>
+      <div class="chip w" id="ch52" style="left:40px;top:1210px"><span class="ic">{{icon:wallet}}</span><span>عليك: 0</span></div>
+      <div class="notif" id="n5" style="top:1380px"><span class="ic">{{icon:message-circle}}</span><div><b>تذكير بالدفع</b><span>مطعم الضيعة · انبعت عالواتساب</span></div></div>
       <div class="stat" id="sv1" style="top:900px"><span class="ic">{{icon:chart-column}}</span><span>مبيعاتك</span><strong id="v1">0</strong></div>
       <div class="stat" id="sv2" style="top:1130px"><span class="ic">{{icon:wallet}}</span><span>مصاريفك</span><strong id="v2">0</strong></div>
       <div class="stat" id="sv3" style="top:1360px;border-color:var(--mint)"><span class="ic">{{icon:trending-up}}</span><span>ربحك الصافي</span><strong class="mint" id="v3">0</strong></div>
       <div class="coin" id="co1" style="left:150px;top:1580px">ل.س</div>
       <div class="coin" id="co2" style="left:690px;top:1580px">$</div>
-      <!-- المساعد -->
-      <div class="kt cap" id="c71">ما عرفت <span class="gold">شي؟</span></div>
-      <div class="kt cap" id="c72">اسأل <span class="gold">المساعد</span></div>
-      <div class="kt cap" id="c73">بيفهم عليك <span class="gold">بلهجتك</span></div>
-      <div class="kt cap" id="c74">وبيفتحلك <span class="gold">القسم</span></div>
       <div class="bub u" id="bu1" style="right:60px;top:1250px">كيف بسجل مصروف كهربا؟</div>
       <div class="bub" id="bu2" style="left:60px;top:1420px">سندات القبض والدفع ← دفع ← مصروف</div>
     </section>
@@ -232,9 +211,6 @@ canvas { position: absolute; inset: 0; }
       <div class="ring" id="rI1" style="top:720px"></div>
       <div class="persp"><div class="laptop" id="lapI" style="top:640px"><div class="lid"><img src="shots/d-dashboard.png" alt="" /></div><div class="base"></div></div></div>
       <div class="phone2" id="phI" style="left:620px;top:860px"><img src="shots/m-home.png" alt="" /></div>
-      <div class="kt" id="i1" style="top:200px;font-size:112px">بدون <span class="gold">إنترنت</span></div>
-      <div class="kt" id="i2" style="top:1120px;font-size:100px">بياناتك <span class="gold">مشفّرة</span> عندك</div>
-      <div class="kt" id="i3" style="top:240px;font-size:100px">عالكمبيوتر <span class="gold">وعالجوال</span></div>
     </section>
 
     <!-- 9. المجالات -->
@@ -245,8 +221,9 @@ canvas { position: absolute; inset: 0; }
       <div class="tile" id="t4" style="left:80px;top:840px;background:linear-gradient(135deg,#a77bff,#5b3bc4)"><span class="ic">{{icon:smartphone}}</span><b>موبايلات</b></div>
       <div id="minis"></div>
       <div class="kt" id="d1" style="top:1100px"><span class="counter gold ltr" id="cnt">+0</span></div>
-      <div class="kt" id="d2" style="top:1480px;font-size:92px">مجال عمل</div>
-      <div class="kt" id="d3" style="top:1610px;font-size:66px;color:rgba(255,255,255,.85)">وكل واحد إلو <span class="mint">شاشاته</span></div>
+      <img class="fan" id="fa1" src="shots/m-items.png" style="left:390px;top:560px" alt="" />
+      <img class="fan" id="fa2" src="shots/m-debts.png" style="left:390px;top:560px" alt="" />
+      <img class="fan" id="fa3" src="shots/m-reports.png" style="left:390px;top:560px" alt="" />
     </section>
 
     <!-- 10. الشعار -->
@@ -254,7 +231,6 @@ canvas { position: absolute; inset: 0; }
       <div class="rays" id="rays"></div>
       <img id="logoK" class="abs" src="logo.png" style="left:310px;top:560px;width:460px;height:460px;border-radius:120px;box-shadow:0 40px 120px rgba(0,0,0,.55),0 0 160px rgba(231,183,90,.4);opacity:0" alt="" />
       <div class="kt" id="k1t" style="top:1080px;font-size:230px">وزن</div>
-      <div class="kt" id="k2t" style="top:1390px;font-size:96px">حساباتك صارت <span class="gold">بوزنها</span></div>
       <div class="ring" id="rK1" style="top:790px"></div><div class="ring" id="rK2" style="top:790px"></div>
     </section>
 
@@ -263,22 +239,21 @@ canvas { position: absolute; inset: 0; }
       <div class="free" id="free">جرّبه ببلاش</div>
       <div class="wa" id="wa"><span class="ic">{{icon:message-circle}}</span></div>
       <div class="ring" id="rM1" style="top:540px;border-color:#2fe07a"></div>
-      <div class="kt" id="m1" style="top:690px;font-size:90px">راسلنا <span style="color:#3ce68a">عالواتساب</span></div>
-      <div class="num" id="nm1" style="top:880px"><span>0968</span><span>037</span><span>609</span></div>
-      <div class="num" id="nm2" style="top:1120px"><span>0980</span><span>072</span><span>891</span></div>
+      <div class="num" id="nm1" style="top:880px"><span class="dig" id="g11">0968</span><span class="dig" id="g12">037</span><span class="dig" id="g13">609</span></div>
+      <div class="num" id="nm2" style="top:1120px"><span class="dig" id="g21">0980</span><span class="dig" id="g22">072</span><span class="dig" id="g23">891</span></div>
       <div id="endc" class="abs" style="left:0;right:0;top:1380px;text-align:center;opacity:0">
         <div style="display:inline-flex;align-items:center;gap:22px"><img src="logo.png" style="width:110px;height:110px;border-radius:30px" alt="" /><b style="font-size:100px;font-weight:900">وزن</b></div>
         <div class="ltr" style="display:block;font-size:56px;font-weight:900;color:var(--mint);margin-top:16px">waznsy.com</div>
       </div>
     </section>
 
+    <div id="caps"></div>
   </div>
   <canvas id="fx" width="1080" height="1920"></canvas>
   <div id="flash"></div>
   <div id="grain"></div>
   <div id="vig"></div>
 </div>
-
 <script>
 const $ = (id) => document.getElementById(id);
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
@@ -295,34 +270,92 @@ const fmt = (n) => Math.round(n).toLocaleString('en');
 const ICONS = __ICONS__;
 window.DURATION = 61;
 
-// ── مواعيد (من سكتات التسجيل) ──
-const K = 572 / 390; // من بكسلات الجوال لبكسلات الشاشة بالفيديو
+// ── كل المواعيد مأخوذة من توقيت الكلمات بالتسجيل (words.json) ──
+const K = 572 / 390;
 const BOX = __BOXES__;
 const center = (b) => [(b.x + b.width / 2) * K, (b.y + b.height / 2) * K];
-// [الوقت، الشاشة]
-const SHOTS = [[8.3, 'm-home'], [9.6, 'm-sale-empty'], [12.45, 'm-sale-filled'], [14.3, 'm-invoice'], [17.45, 'm-menu'], [18.6, 'm-items'], [23.25, 'm-debts'], [28.9, 'm-reports'], [35.6, 'm-home'], [37.15, 'm-ai-empty'], [39.0, 'm-ai-answer']];
-// [وقت الكبسة، المكان]
-const TAPS = [[9.35, center(BOX['home-sale'])], [17.2, center(BOX['menu-btn'])], [18.35, center(BOX['menu-items'])], [23.0, center(BOX['nav-debts'])], [36.9, center(BOX['ai-btn'])], [41.0, [303 * K, 698 * K]]];
-// حركة الجوال: [الوقت، x، y، تكبير، دوران Y، دوران X]
+const SHOTS = [[5.75, 'm-home'], [6.95, 'm-sale-empty'], [8.45, 'm-sale-filled'], [9.6, 'm-invoice'], [11.6, 'm-menu'], [12.6, 'm-items'], [17.4, 'm-debts'], [22.95, 'm-reports'], [28.25, 'm-home'], [29.3, 'm-ai-empty'], [30.05, 'm-ai-answer']];
+const TAPS = [[6.72, center(BOX['home-sale'])], [11.4, center(BOX['menu-btn'])], [12.4, center(BOX['menu-items'])], [17.18, center(BOX['nav-debts'])], [29.1, center(BOX['ai-btn'])], [31.86, [303 * K, 698 * K]]];
 const PH = [
-  [8.3, 0, 1300, 0.8, -30, 30], [8.95, 0, 40, 0.95, -8, 6], [10.5, 0, 40, 0.95, -6, 4], [10.9, 160, 0, 0.86, -14, 4], [12.2, 160, 0, 0.86, -14, 4], [12.6, 0, 40, 0.95, 6, 4],
-  [15.6, 0, 40, 0.95, 4, 4], [16.2, 0, 40, 0.92, -8, 6], [19.6, 0, 40, 0.92, 8, 4], [20.2, 0, -40, 0.85, 0, 4],
-  [21.6, 0, -40, 0.85, 0, 4], [22.2, 0, 40, 0.95, 8, 4], [24.0, 0, -40, 0.85, -6, 4], [25.3, 0, -120, 0.8, -6, 4],
-  [27.8, 0, -120, 0.8, -6, 4], [28.5, 0, 40, 0.95, 8, 4], [29.7, 0, -200, 0.86, 0, 18], [34.8, 0, -200, 0.86, 0, 18],
-  [35.4, 0, 40, 0.95, -6, 4], [38.6, 0, -60, 0.88, 6, 4], [41.6, 0, -60, 0.88, 6, 4], [42.3, 0, 1400, 0.7, 20, -30],
+  [5.75, 0, 1300, 0.8, -30, 30], [6.3, 0, 40, 0.95, -8, 6], [7.3, 0, 40, 0.95, -6, 4], [7.65, 160, 0, 0.86, -14, 4], [8.2, 160, 0, 0.86, -14, 4], [8.55, 0, 40, 0.95, 6, 4],
+  [10.5, 0, 40, 0.95, 4, 4], [11.0, 0, 40, 0.92, -8, 6], [14.0, 0, 40, 0.92, 8, 4], [14.35, 0, -40, 0.85, 0, 4],
+  [15.85, 0, -40, 0.85, 0, 4], [16.35, 0, 40, 0.95, 8, 4], [18.5, 0, -40, 0.85, -6, 4], [20.3, 0, -120, 0.8, -6, 4],
+  [21.7, 0, -120, 0.8, -6, 4], [22.25, 0, 40, 0.95, 8, 4], [23.85, 0, -200, 0.86, 0, 18], [27.9, 0, -200, 0.86, 0, 18],
+  [28.35, 0, 40, 0.95, -6, 4], [29.6, 0, -60, 0.88, 6, 4], [32.6, 0, -60, 0.88, 6, 4], [33.15, 0, 1400, 0.7, 20, -30],
 ];
-const CHAP = [[8.3, 'receipt', 'فاتورة مبيع'], [15.8, 'layers', 'المواد'], [21.6, 'hand-coins', 'الديون'], [27.9, 'chart-column', 'التقارير'], [35.1, 'sparkles', 'المساعد']];
-const IMPACTS = [[7.42, 26], [9.35, 5], [14.3, 10], [18.35, 5], [23.0, 5], [31.9, 8], [36.9, 5], [44.3, 10], [46.75, 9], [47.5, 9], [48.2, 9], [49.3, 9], [50.3, 12], [52.7, 22], [55.4, 8]];
+const CHAP = [[5.75, 'receipt', 'فاتورة مبيع'], [10.55, 'layers', 'المواد'], [15.95, 'hand-coins', 'الديون'], [21.8, 'chart-column', 'التقارير'], [28.2, 'sparkles', 'المساعد']];
+// سطور الكابشن: [فوق، حجم، وقت الاختفاء، [[كلمة، وقتها، لون]]]
+const G = 'gold', M = 'mint', W = 'cwa', R = 'cred';
+const CAPS = [
+  [150, 130, 3.6, [['دفاتر…', 0.05]]],
+  [1560, 112, 3.6, [['آلة', 0.88], ['حاسبة…', 1.2]]],
+  [1360, 90, 2.55, [['وآخر', 1.82], ['الليل…', 2.06, R]]],
+  // الجوال
+  [210, 104, 6.62, [['فاتورة؟', 5.87]]],
+  [210, 120, 7.3, [['كبسة', 6.7, G]]],
+  [210, 100, 8.35, [['بتمسح', 7.42], ['الباركود', 7.7, G]]],
+  [210, 100, 9.25, [['بتنضاف', 8.44], ['المادة…', 8.76]]],
+  [210, 104, 10.45, [['والحساب', 9.32], ['جاهز', 9.68, G]]],
+  [210, 96, 12.3, [['بدك', 10.64], ['تعرف', 10.86], ['شو', 11.06], ['باقي', 11.2], ['بالمستودع؟', 11.34, G]]],
+  [210, 104, 13.4, [['قائمة', 12.39], ['المواد', 12.76, G]]],
+  [210, 104, 14.2, [['كل', 13.52], ['شي', 13.62], ['قدامك', 13.82, G]]],
+  [210, 104, 15.9, [['بالكمية', 14.29, G], ['والسعر', 15.06, G]]],
+  [210, 104, 17.1, [['زبون', 16.06], ['عليه', 16.36], ['دين؟', 16.5, G]]],
+  [210, 104, 18.15, [['قسم', 17.18], ['الديون', 17.44, G]]],
+  [210, 100, 18.95, [['بكبسة', 18.24], ['بتعرف', 18.62]]],
+  [210, 100, 20.2, [['مين', 19.0], ['إلو', 19.2], ['ومين', 19.42], ['عليه', 19.84, G]]],
+  [210, 100, 21.75, [['وبتبعتلو', 20.26], ['تذكير', 20.68], ['عالواتساب', 21.08, W]]],
+  [210, 110, 22.9, [['وآخر', 21.87], ['النهار؟', 22.22, G]]],
+  [210, 120, 23.95, [['التقارير', 22.97, G]]],
+  [210, 96, 26.15, [['مبيعاتك', 24.02], ['مصاريفك', 24.66], ['ربحك', 25.51, M]]],
+  [210, 110, 28.1, [['بالليرة', 26.36], ['وبالدولار', 27.03, G]]],
+  [210, 110, 29.05, [['ما', 28.27], ['عرفت', 28.38], ['شي؟', 28.66, G]]],
+  [210, 110, 30.0, [['اسأل', 29.1], ['المساعد', 29.36, G]]],
+  [210, 100, 31.35, [['بيفهم', 30.05], ['عليك', 30.44], ['بلهجتك', 30.7, G]]],
+  [210, 100, 32.95, [['وبيفتحلك', 31.4], ['القسم', 31.86, G], ['عطول', 32.2]]],
+  // بدون نت
+  [200, 110, 34.1, [['وكلو', 33.06], ['بيشتغل…', 33.66]]],
+  [1080, 130, 35.25, [['بدون', 34.14], ['إنترنت', 34.54, G]]],
+  [1080, 100, 36.75, [['بياناتك', 35.34], ['مشفّرة', 35.84, G], ['عندك', 36.18]]],
+  [230, 100, 39.0, [['عالكمبيوتر', 36.83], ['وعالجوال', 37.76, G]]],
+  // المجالات
+  [1490, 100, 44.15, [['مجال', 43.6]]],
+  [1320, 92, 46.5, [['وكل', 44.26], ['واحد', 44.6], ['إلو', 45.12], ['شاشاته', 45.32, M]]],
+  // الشعار
+  [1390, 96, 49.0, [['حساباتك', 47.49], ['صارت', 48.1], ['بوزنها', 48.36, G]]],
+  // التواصل
+  [690, 92, 99, [['راسلنا', 50.32], ['عالواتساب', 50.66, W]]],
+];
+const NUMS = [[51.37, 52.7], [52.74, 53.9], [53.95, 55.2], [55.98, 57.3], [57.38, 58.6], [58.68, 59.7]];
+const IMPACTS = [[3.06, 14], [3.73, 18], [4.95, 26], [6.7, 6], [9.68, 10], [12.4, 5], [17.18, 6], [22.97, 8], [25.51, 8], [29.1, 5], [34.54, 8], [35.84, 10], [39.16, 9], [40.08, 9], [40.65, 9], [41.43, 9], [42.4, 12], [46.73, 22], [49.25, 8]];
 
 (function init() {
   const r = rnd(11);
   let html = '';
   for (let i = 0; i < 46; i++) { const w = 3 + Math.floor(r() * 4) * 3; html += `<i style="width:${w}px;margin-right:${3 + Math.floor(r() * 3) * 3}px"></i>`; }
   $('bars').innerHTML = html;
-  const pp = rnd(5); let ph = '';
-  for (let i = 0; i < 9; i++) ph += `<div class="paper" id="pp${i}"></div>`;
-  $('papers').innerHTML = ph;
-  window.PAP = Array.from({ length: 9 }, () => ({ x: 80 + pp() * 900, y: 250 + pp() * 1500, r: pp() * 360, s: 0.6 + pp() * 0.6, vx: (pp() - 0.5) * 60, vr: (pp() - 0.5) * 50 }));
+  // إيصالات
+  const rr0 = rnd(5);
+  const lines = [['12,500', '3,750 +', '<s>7,200</s>', '<span class="x">؟؟</span>'], ['دين أبو خالد', '<s>45,000</s>', '38,000 ؟', '<span class="x">!!</span>'], ['بضاعة 48', '<s>46</s> 44 ؟', 'كهربا ؟', '<span class="x">= ؟</span>'], ['الدولار ؟', '<s>14,800</s>', '15,200 ؟', '<span class="x">؟؟؟</span>']];
+  let rh = '';
+  window.RC = [];
+  for (let i = 0; i < 18; i++) {
+    const L = lines[i % 4];
+    rh += `<div class="rc" id="rc${i}"><b>إيصال ${100 + i * 7}</b>${L.join('<br>')}</div>`;
+    RC.push({ x: rr0() * 900 - 60, y0: -500 - rr0() * 1600, v: 520 + rr0() * 420, z: -700 + rr0() * 900, rx: rr0() * 360, ry: rr0() * 360, rz: rr0() * 360, vr: (rr0() - 0.5) * 260, s: 0.7 + rr0() * 0.5 });
+  }
+  $('rcs').innerHTML = rh;
+  let qh = '';
+  window.QM = [];
+  const q0 = rnd(17);
+  for (let i = 0; i < 9; i++) { qh += `<div class="qm" id="qm${i}">؟</div>`; QM.push({ x: 60 + q0() * 860, y: 250 + q0() * 1300, at: 0.4 + i * 0.36, s: 0.6 + q0() * 0.9, r: (q0() - 0.5) * 50 }); }
+  $('qms').innerHTML = qh;
+  // سطور الكابشن
+  let ch = '';
+  CAPS.forEach(([top, size, , ws], i) => {
+    ch += `<div class="ln" id="cp${i}" style="top:${top}px;font-size:${size}px">` + ws.map(([w, , c], j) => `<span class="w${c ? ' ' + c : ''}" id="cp${i}_${j}"${c === 'cwa' ? ' style="color:#3ce68a"' : c === 'cred' ? ' style="color:#ff5a50"' : ''}>${w}</span>`).join('') + '</div>';
+  });
+  $('caps').innerHTML = ch;
   const icons = ['shirt', 'car', 'brick-wall', 'beef', 'croissant', 'truck', 'stethoscope', 'store', 'ice-cream', 'scissors', 'chef-hat', 'monitor', 'printer', 'ruler', 'palette', 'laptop'];
   let mh = '';
   icons.forEach((n, i) => { const c = i % 4, row = Math.floor(i / 4); mh += `<div class="mini" id="mi${i}" style="left:${70 + c * 240}px;top:${300 + row * 225}px"><span class="ic">${ICONS[n]}</span></div>`; });
@@ -337,7 +370,7 @@ const IMPACTS = [[7.42, 26], [9.35, 5], [14.3, 10], [18.35, 5], [23.0, 5], [31.9
   const dr = rnd(21); window.DUST = Array.from({ length: 70 }, () => ({ x: dr() * 1080, y: dr() * 1920, s: 1 + dr() * 3.5, v: 8 + dr() * 30, a: 0.15 + dr() * 0.45, ph: dr() * 6.28 }));
   const mk = (t0, x, y, n, sp, cols, seed, g = 900) => { const q = rnd(seed); return { t0, x, y, g, parts: Array.from({ length: n }, () => { const a = q() * Math.PI * 2, v = sp * (0.35 + q() * 0.75); return { vx: Math.cos(a) * v, vy: Math.sin(a) * v - sp * 0.25, s: 3 + q() * 9, life: 0.9 + q() * 1.2, c: cols[Math.floor(q() * cols.length)] }; }) }; };
   const GOLD = ['#ffe29a', '#e7b75a', '#fff6d8'], MINT = ['#5fe0bf', '#9ff5df', '#ffffff'];
-  window.BURSTS = [mk(7.42, 540, 870, 260, 1700, GOLD.concat(MINT), 1), mk(14.3, 540, 970, 120, 1100, MINT, 2), mk(31.9, 540, 1460, 100, 1000, GOLD, 3), mk(50.3, 540, 1270, 140, 1200, GOLD, 4), mk(52.7, 540, 790, 280, 1800, GOLD, 5), mk(25.6, 540, 1470, 70, 800, ['#3ce68a', '#ffffff'], 6)];
+  window.BURSTS = [mk(4.95, 540, 870, 280, 1800, GOLD.concat(MINT), 1), mk(9.68, 540, 970, 120, 1100, MINT, 2), mk(25.51, 540, 1460, 100, 1000, GOLD, 3), mk(42.4, 540, 1270, 140, 1200, GOLD, 4), mk(46.73, 540, 790, 280, 1800, GOLD, 5), mk(21.08, 540, 1470, 70, 800, ['#3ce68a', '#ffffff'], 6), mk(3.73, 540, 960, 160, 1500, ['#ffffff', '#f4efe3', '#ff6a5e'], 7)];
 })();
 
 function vis(el, t, a, b, inD = 0.3, outD = 0.25) {
@@ -350,16 +383,6 @@ function vis(el, t, a, b, inD = 0.3, outD = 0.25) {
   const bl = (1 - i) * 16 + (1 - o) * 12;
   el.style.filter = bl > 0.05 ? `blur(${bl.toFixed(2)}px)` : 'none';
   return true;
-}
-function word(el, t, at, out = 1e9, dur = 0.38, dy = 70) {
-  const x = P(t, at, at + dur);
-  const o = 1 - P(t, out, out + 0.22);
-  if (x <= 0 || o <= 0) { el.style.opacity = 0; return; }
-  const b = back(x);
-  el.style.opacity = (Math.min(1, x * 1.6) * o).toFixed(3);
-  el.style.transform = `translateY(${((1 - b) * dy - (1 - o) * 40).toFixed(1)}px) scale(${(1.18 - 0.18 * Math.min(1, b)).toFixed(4)})`;
-  const bl = (1 - x) * 14 + (1 - o) * 10;
-  el.style.filter = bl > 0.05 ? `blur(${bl.toFixed(1)}px)` : 'none';
 }
 function slam(el, t, at, from = 2.2, dur = 0.55, rot = 0) {
   const x = P(t, at, at + dur);
@@ -375,9 +398,8 @@ function ring(el, t, at, max = 9, dur = 0.9) {
   el.style.transform = `scale(${(0.4 + eo(x) * max).toFixed(3)})`;
   el.style.borderWidth = `${(10 * (1 - x) + 1).toFixed(1)}px`;
 }
-// شي بيطلع ويختفي (شرائح وبطاقات)
 function pop(el, t, at, out = 1e9, from = 'translateY(120px)') {
-  const x = P(t, at, at + 0.45), o = P(t, out, out + 0.3);
+  const x = P(t, at, at + 0.4), o = P(t, out, out + 0.25);
   if (x <= 0 || o >= 1) { el.style.opacity = 0; return; }
   el.style.opacity = (Math.min(1, x * 3) * (1 - o)).toFixed(3);
   const k = back(x);
@@ -385,12 +407,35 @@ function pop(el, t, at, out = 1e9, from = 'translateY(120px)') {
 }
 const count = (t, a, b, to) => to * eo(P(t, a, b));
 
+// الكابشن: كل كلمة بتنط بوقت ما تنقال
+function captions(t) {
+  CAPS.forEach(([, , out, ws], i) => {
+    const ln = $('cp' + i);
+    const first = ws[0][1];
+    if (t < first - 0.05 || t > out + 0.25) { ln.style.display = 'none'; return; }
+    ln.style.display = 'block';
+    const o = P(t, out, out + 0.22);
+    ln.style.opacity = (1 - o).toFixed(3);
+    ln.style.transform = `translateY(${(-o * 50).toFixed(1)}px) scale(${(1 - o * 0.08).toFixed(3)})`;
+    ln.style.filter = o > 0.02 ? `blur(${(o * 10).toFixed(1)}px)` : 'none';
+    ws.forEach(([, at], j) => {
+      const el = $(`cp${i}_${j}`);
+      const x = P(t, at - 0.04, at + 0.3);
+      if (x <= 0) { el.style.opacity = 0; return; }
+      const b = back(x);
+      el.style.opacity = Math.min(1, x * 2.5).toFixed(3);
+      el.style.transform = `translateY(${((1 - b) * 60).toFixed(1)}px) scale(${(1.35 - 0.35 * Math.min(1.05, b)).toFixed(4)}) rotate(${((1 - b) * (j % 2 ? 6 : -6)).toFixed(2)}deg)`;
+      el.style.filter = x < 0.6 ? `blur(${((1 - x / 0.6) * 8).toFixed(1)}px)` : 'none';
+    });
+  });
+}
+
 const bg = $('bg').getContext('2d');
 const fx = $('fx').getContext('2d');
 function drawBg(t) {
-  const green = P(t, 7.4, 7.8);
+  const green = P(t, 4.9, 5.3);
   const W = 1080, H = 1920;
-  const c0 = [Math.round(lerp(8, 3, green)), Math.round(lerp(11, 22, green)), Math.round(lerp(16, 18, green))];
+  const c0 = [Math.round(lerp(14, 3, green)), Math.round(lerp(8, 22, green)), Math.round(lerp(10, 18, green))];
   bg.fillStyle = `rgb(${c0})`; bg.fillRect(0, 0, W, H);
   const blob = (x, y, r, col, a) => { const g = bg.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, col.replace('A', a)); g.addColorStop(1, col.replace('A', 0)); bg.fillStyle = g; bg.fillRect(0, 0, W, H); };
   if (green > 0) {
@@ -399,14 +444,13 @@ function drawBg(t) {
     blob(560 + Math.sin(t * 0.25) * 260, 1000 + Math.sin(t * 0.33) * 300, 700, 'rgba(201,149,47,A)', 0.16 * green);
   }
   if (green < 1) {
-    blob(540, 700, 900, 'rgba(60,80,110,A)', 0.35 * (1 - green));
-    const fl = 0.08 * (Math.sin(t * 37) > 0.7 ? 1 : 0) * (1 - green);
-    if (fl) { bg.fillStyle = `rgba(0,0,0,${fl})`; bg.fillRect(0, 0, W, H); }
+    // ضو أحمر بينبض متل إنذار
+    blob(540, 800, 1000, 'rgba(160,30,30,A)', (0.25 + 0.15 * Math.sin(t * 9)) * (1 - green));
   }
   for (const d of DUST) {
     const y = ((d.y - t * d.v) % H + H) % H;
     const x = d.x + Math.sin(t * 0.6 + d.ph) * 18;
-    bg.fillStyle = green > 0.5 ? `rgba(255,226,154,${d.a * 0.6})` : `rgba(200,210,230,${d.a * 0.4})`;
+    bg.fillStyle = green > 0.5 ? `rgba(255,226,154,${d.a * 0.6})` : `rgba(255,190,180,${d.a * 0.3})`;
     bg.beginPath(); bg.arc(x, y, d.s, 0, 6.283); bg.fill();
   }
 }
@@ -434,108 +478,129 @@ function camera(t) {
     const e = amp * Math.exp(-dt * 9);
     sx += Math.sin(dt * 90) * e; sy += Math.cos(dt * 77) * e * 0.8; rz += Math.sin(dt * 60) * e * 0.02;
   }
-  const z = 1 + 0.012 * Math.sin(t * 0.7);
+  // بالمقدمة الكاميرا بتقرّب شوي شوي (توتر)
+  const z = 1 + 0.012 * Math.sin(t * 0.7) + (t < 3.73 ? 0.06 * (t / 3.73) : 0);
   $('cam').style.transform = `translate(${sx.toFixed(1)}px,${sy.toFixed(1)}px) rotate(${rz.toFixed(3)}deg) scale(${z.toFixed(4)})`;
 }
 function flashes(t) {
   let f = 0;
-  for (const [at, s, d] of [[7.42, 1, 0.45], [52.7, 0.85, 0.5], [5.9, 0.25, 0.25], [14.3, 0.25, 0.3], [50.3, 0.3, 0.3]]) {
+  for (const [at, s, d] of [[4.95, 1, 0.45], [46.73, 0.85, 0.5], [3.73, 0.6, 0.3], [9.68, 0.25, 0.3], [42.4, 0.3, 0.3]]) {
     const x = P(t, at, at + d); if (x > 0 && x < 1) f = Math.max(f, s * (1 - eo(x)));
   }
   $('flash').style.opacity = f.toFixed(3);
 }
 
-// ── المشاهد ──
+// ── المقدمة ──
 function sceneA(t) {
   const el = $('A');
-  if (t > 5.92) { el.style.display = 'none'; return; }
+  if (t > 4.3) { el.style.display = 'none'; return; }
   el.style.display = 'block';
-  el.style.opacity = eo(P(t, 0, 0.8)).toFixed(3);
-  const imp = ei(P(t, 5.35, 5.9));
-  $('Awrap').style.transform = `scale(${(1 - imp * 0.97).toFixed(4)}) rotate(${(imp * 38).toFixed(2)}deg)`;
-  $('Awrap').style.filter = imp > 0 ? `blur(${(imp * 16).toFixed(1)}px)` : 'none';
+  el.style.opacity = eo(P(t, 0, 0.25)).toFixed(3);
+  // عند «خلص» كل شي بيوقف، بينقصّ، وبينسحب
+  const tf = Math.min(t, 3.73);
+  const imp = ei(P(t, 3.85, 4.3));
+  $('Awrap').style.transform = `scale(${(1 - imp * 0.95).toFixed(4)}) rotate(${(imp * 30).toFixed(2)}deg)`;
   $('Awrap').style.opacity = (1 - imp).toFixed(3);
-  $('clock').textContent = Math.floor(t * 2) % 2 ? '02:47' : '02 47';
-  $('note').style.transform = `rotate(${(-7 + Math.sin(t * 1.3) * 1.2).toFixed(2)}deg) translateY(${(Math.sin(t * 0.9) * 10).toFixed(1)}px)`;
-  const sh = t > 1.5 && t < 3.4 ? Math.sin(t * 60) * 4 : 0;
-  $('calc').style.transform = `rotate(${(9 + sh).toFixed(2)}deg)`;
-  const vals = ['0.', '12500', '16250', 'ERR', '7200', '5850', '?????', 'E 0.'];
-  $('lcd').textContent = vals[Math.min(vals.length - 1, Math.floor(Math.max(0, t - 1.5) * 3.5))];
-  PAP.forEach((p, i) => {
-    const tt = Math.max(0, t - 0.4);
-    $('pp' + i).style.transform = `translate(${(p.x + p.vx * tt + Math.sin(tt * 2 + i) * 30).toFixed(1)}px,${(p.y + Math.cos(tt * 1.6 + i) * 40).toFixed(1)}px) rotate(${(p.r + p.vr * tt).toFixed(1)}deg) scale(${p.s})`;
+  $('Awrap').style.filter = t >= 3.73 ? `grayscale(1) brightness(${(0.8 - imp * 0.5).toFixed(2)}) blur(${(imp * 14).toFixed(1)}px)` : 'none';
+  const sx = P(t, 3.73, 3.9);
+  $('slice').style.opacity = sx > 0 ? (1 - P(t, 3.95, 4.15)).toFixed(3) : 0;
+  $('slice').style.transform = `rotate(-24deg) scaleX(${eo(sx).toFixed(3)})`;
+  RC.forEach((p, i) => {
+    const y = p.y0 + p.v * tf;
+    $('rc' + i).style.transform = `translate3d(${(p.x + Math.sin(tf * 1.4 + i) * 60).toFixed(1)}px,${y.toFixed(1)}px,${p.z.toFixed(1)}px) rotateX(${(p.rx + p.vr * tf).toFixed(1)}deg) rotateY(${(p.ry + p.vr * 0.6 * tf).toFixed(1)}deg) rotateZ(${(p.rz + p.vr * 0.3 * tf).toFixed(1)}deg) scale(${p.s})`;
   });
-  word($('a1'), t, 0.25); word($('a2'), t, 1.45); word($('a3'), t, 3.75);
+  QM.forEach((q, i) => {
+    const x = P(t, q.at, q.at + 0.35);
+    const e = $('qm' + i);
+    e.style.left = q.x + 'px'; e.style.top = q.y + 'px';
+    e.style.opacity = (Math.min(1, x * 3) * (0.55 + 0.45 * Math.sin(tf * 8 + i))).toFixed(3);
+    e.style.transform = `scale(${(q.s * (0.4 + 0.6 * back(x))).toFixed(3)}) rotate(${q.r}deg)`;
+  });
+  // الآلة الحاسبة: بتنزل مع «آلة حاسبة» وبتجنّ
+  slam($('calc'), tf, 0.88, 2.0, 0.5, -20);
+  if (tf > 1.4) $('calc').style.transform = `rotate(${(8 + Math.sin(tf * 50) * (tf > 2.6 ? 4 : 1.5)).toFixed(2)}deg)`;
+  const vals = ['0.', '12500', '16250', '9,140', '7200', '?????', 'ERR', 'ERR'];
+  $('lcd').textContent = vals[Math.min(vals.length - 1, Math.floor(Math.max(0, tf - 1.0) * 3.2))];
+  // الساعة مع «آخر الليل»
+  slam($('clock'), tf, 1.82, 1.8, 0.45, 8);
+  if (tf > 2.3) $('clock').style.opacity = Math.floor(tf * 4) % 2 ? 1 : 0.55;
+  $('clock').textContent = Math.floor(tf * 2) % 2 ? '02:47' : '02 47';
+  // ربحت؟ ولا خسرت؟
+  slam($('pUp'), tf, 2.62, 2.4, 0.4, -8);
+  slam($('pOr'), tf, 2.94, 1.8, 0.3);
+  slam($('pDn'), tf, 3.06, 2.4, 0.4, 8);
+  if (tf > 3.25) { const f = Math.floor(tf * 14) % 2; $('pUp').style.opacity = f ? 1 : 0.35; $('pDn').style.opacity = f ? 0.35 : 1; }
 }
 
 function sceneB(t) {
-  if (!vis($('B'), t, 5.85, 8.45, 0.05, 0.3)) return;
+  if (!vis($('B'), t, 3.73, 5.95, 0.02, 0.3)) return;
   const b1 = $('b1');
-  if (t < 6.75) {
+  if (t < 4.6) {
     const r = rnd(Math.floor(t * 30));
-    const j = t < 6.1 || r() > 0.7 ? 1 : 0;
-    b1.style.opacity = (1 - P(t, 6.5, 6.75)).toFixed(3);
-    b1.style.transform = `translate(${((r() - 0.5) * 30 * j).toFixed(1)}px,${((r() - 0.5) * 12 * j).toFixed(1)}px)`;
+    const j = t < 3.95 || r() > 0.7 ? 1 : 0;
+    const x = P(t, 3.73, 3.95);
+    b1.style.opacity = (Math.min(1, x * 3) * (1 - P(t, 4.4, 4.6))).toFixed(3);
+    b1.style.transform = `translate(${((r() - 0.5) * 30 * j).toFixed(1)}px,${((r() - 0.5) * 12 * j).toFixed(1)}px) scale(${(1.6 - 0.6 * eo(x)).toFixed(3)})`;
     b1.style.textShadow = j ? `${(-14 * r()).toFixed(1)}px 0 #ff2a6d, ${(14 * r()).toFixed(1)}px 0 #2af0ff` : 'none';
   } else b1.style.opacity = 0;
-  word($('b2'), t, 6.7, 8.2);
-  slam($('logoB'), t, 7.42, 3.2, 0.7, -14);
-  slam($('b3'), t, 7.54, 1.8, 0.6);
-  ring($('rB1'), t, 7.42, 10, 1.0); ring($('rB2'), t, 7.54, 8, 1.0); ring($('rB3'), t, 7.68, 6, 1.0);
-  if (t > 8.12) $('logoB').style.transform = `scale(${(1 + 0.025 * Math.sin((t - 7.42) * 5)).toFixed(4)})`;
+  slam($('logoB'), t, 4.95, 3.2, 0.7, -14);
+  slam($('b3'), t, 5.07, 1.8, 0.6);
+  ring($('rB1'), t, 4.95, 10, 1.0); ring($('rB2'), t, 5.07, 8, 1.0); ring($('rB3'), t, 5.21, 6, 1.0);
+  if (t > 5.65) $('logoB').style.transform = `scale(${(1 + 0.025 * Math.sin((t - 4.95) * 5)).toFixed(4)})`;
 }
+// «صار في» بالمشهد التاني: سطر لحالو
+CAPS.push([380, 110, 4.85, [['صار', 4.49], ['في', 4.75]]]);
 
-// الجوال: كيفريمات + شاشات + كبسات
 function phone(t) {
   const w = $('phW');
-  if (t < 8.3 || t > 42.4) { w.style.display = 'none'; return; }
+  if (t < 5.75 || t > 33.3) { w.style.display = 'none'; return; }
   w.style.display = 'block';
   let i = 0; while (i < PH.length - 2 && t > PH[i + 1][0]) i++;
   const a = PH[i], b = PH[i + 1];
   const x = i === 0 ? eo(P(t, a[0], b[0])) : eio(P(t, a[0], b[0]));
   const v = a.map((q, k) => (k === 0 ? 0 : lerp(q, b[k], x)));
   const fl = Math.sin(t * 1.3) * 10;
-  // نبضة مع كل كبسة
-  let push = 0;
-  for (const [tt] of TAPS) { const d = t - tt; if (d > 0 && d < 0.35) push = Math.max(push, Math.sin((d / 0.35) * Math.PI) * 0.02); }
-  $('ph').style.transform = `translate(${v[1].toFixed(1)}px,${(v[2] + fl).toFixed(1)}px) rotateY(${(v[4] + Math.sin(t * 0.8) * 2).toFixed(2)}deg) rotateX(${v[5].toFixed(2)}deg) scale(${(v[3] - push).toFixed(4)})`;
-  w.style.opacity = (1 - P(t, 42.0, 42.35)).toFixed(3);
-  // الشاشات: الجديدة بتطلع فوق القديمة
+  // زوم لجوّا مكان الكبسة
+  let zoom = 0, org = '50% 50%';
+  for (const [tt, [cx, cy]] of TAPS) {
+    const d = t - tt;
+    if (d > -0.3 && d < 0.55) { zoom = Math.max(zoom, 0.16 * Math.sin(Math.PI * P(d, -0.3, 0.55))); org = `${(cx + 14).toFixed(0)}px ${(cy + 14).toFixed(0)}px`; }
+  }
+  const ph = $('ph');
+  ph.style.transformOrigin = org;
+  ph.style.transform = `translate(${v[1].toFixed(1)}px,${(v[2] + fl).toFixed(1)}px) rotateY(${(v[4] + Math.sin(t * 0.8) * 2).toFixed(2)}deg) rotateX(${v[5].toFixed(2)}deg) scale(${(v[3] * (1 + zoom)).toFixed(4)})`;
+  w.style.opacity = (1 - P(t, 32.95, 33.3)).toFixed(3);
   let cur = 0; while (cur < SHOTS.length - 1 && t >= SHOTS[cur + 1][0]) cur++;
   SHOTS.forEach(([at, n], k) => {
     const img = $('s-' + n);
     if (k === cur) {
-      const e = eo(P(t, at, at + 0.32));
+      const e = eo(P(t, at, at + 0.3));
       img.style.opacity = k === 0 ? 1 : e.toFixed(3);
-      img.style.transform = `scale(${(1.04 - 0.04 * e).toFixed(4)}) translateX(${((1 - e) * -40).toFixed(1)}px)`;
+      img.style.transform = `scale(${(1.08 - 0.08 * e).toFixed(4)})`;
+      img.style.filter = e < 1 ? `blur(${((1 - e) * 10).toFixed(1)}px)` : 'none';
       img.style.zIndex = 2;
-    } else if (k === cur - 1 && t < SHOTS[cur][0] + 0.32) {
-      img.style.opacity = 1; img.style.transform = 'none'; img.style.zIndex = 1;
+    } else if (k === cur - 1 && t < SHOTS[cur][0] + 0.3) {
+      img.style.opacity = 1; img.style.transform = 'none'; img.style.filter = 'none'; img.style.zIndex = 1;
     } else if (SHOTS[cur][1] !== n) img.style.opacity = 0;
   });
-  // لمعة الزجاج
   $('glare').style.backgroundPosition = `${(120 - ((t * 25) % 240)).toFixed(1)}% 0`;
-  // تعتيم الشاشة لما في بطاقات فوقها
-  const dim = Math.max(Math.min(eo(P(t, 29.9, 30.4)), 1 - P(t, 34.6, 35.0)) * 0.55, Math.min(eo(P(t, 25.4, 25.8)), 1 - P(t, 27.6, 27.9)) * 0.35);
+  const dim = Math.max(Math.min(eo(P(t, 23.95, 24.3)), 1 - P(t, 27.6, 27.95)) * 0.55, Math.min(eo(P(t, 20.3, 20.6)), 1 - P(t, 21.5, 21.8)) * 0.35);
   $('dimS').style.opacity = dim.toFixed(3);
-  // الإصبع
   const f = $('finger'), rp = $('ripple');
   f.style.opacity = 0; rp.style.opacity = 0;
   for (const [tt, [cx, cy]] of TAPS) {
     const d = t - tt;
-    if (d < -0.55 || d > 0.45) continue;
-    const inn = eo(P(d, -0.55, -0.1));
+    if (d < -0.5 || d > 0.45) continue;
+    const inn = eo(P(d, -0.5, -0.08));
     f.style.left = `${lerp(cx + 160, cx, inn).toFixed(1)}px`;
     f.style.top = `${lerp(cy + 260, cy, inn).toFixed(1)}px`;
-    const pr = d > -0.05 && d < 0.12 ? 0.78 : 1;
-    f.style.transform = `scale(${pr})`;
+    f.style.transform = `scale(${d > -0.05 && d < 0.12 ? 0.78 : 1})`;
     f.style.opacity = (Math.min(1, inn * 2) * (1 - P(d, 0.2, 0.45))).toFixed(3);
     const r = P(d, 0, 0.55);
     if (r > 0 && r < 1) { rp.style.left = `${cx}px`; rp.style.top = `${cy}px`; rp.style.opacity = (1 - r).toFixed(3); rp.style.transform = `scale(${(0.5 + eo(r) * 2.6).toFixed(3)})`; }
   }
-  // تأشير على زر المواد بالقائمة
   const h = $('hl'), hb = BOX['menu-items'];
-  const hx = Math.min(P(t, 17.7, 17.95), 1 - P(t, 18.45, 18.6));
+  const hx = Math.min(P(t, 11.85, 12.05), 1 - P(t, 12.5, 12.65));
   h.style.left = `${(hb.x * K - 8).toFixed(1)}px`; h.style.top = `${(hb.y * K - 8).toFixed(1)}px`;
   h.style.width = `${(hb.width * K + 16).toFixed(1)}px`; h.style.height = `${(hb.height * K + 16).toFixed(1)}px`;
   h.style.opacity = hx.toFixed(3);
@@ -545,118 +610,126 @@ function phone(t) {
 function chapter(t) {
   const c = $('chap');
   let k = -1; CHAP.forEach((q, i) => { if (t >= q[0]) k = i; });
-  if (k < 0 || t > 41.9) { c.style.opacity = 0; return; }
-  const at = CHAP[k][0];
-  const x = P(t, at, at + 0.4);
+  if (k < 0 || t > 33.0) { c.style.opacity = 0; return; }
+  const x = P(t, CHAP[k][0], CHAP[k][0] + 0.4);
   $('chapI').innerHTML = ICONS[CHAP[k][1]];
   $('chapT').innerHTML = `<span class="n">${k + 1}/5</span> ${CHAP[k][2]}`;
-  c.style.opacity = (Math.min(1, x * 2.5) * (1 - P(t, 41.6, 41.9))).toFixed(3);
+  c.style.opacity = (Math.min(1, x * 2.5) * (1 - P(t, 32.7, 33.0))).toFixed(3);
   c.style.transform = `translateX(-50%) translateY(${((1 - back(x)) * -60).toFixed(1)}px) scale(${(0.8 + 0.2 * back(x)).toFixed(3)})`;
 }
 
 function overlays(t) {
   // الفاتورة
-  word($('c31'), t, 8.45, 9.25); word($('c32'), t, 9.35, 10.55); word($('c33'), t, 10.65, 12.25); word($('c34'), t, 12.4, 14.15); word($('c35'), t, 14.3, 15.7);
   const pr = $('prod');
-  const px = eo(P(t, 10.6, 11.0)), fly = eio(P(t, 11.85, 12.4));
+  const px = eo(P(t, 7.3, 7.65)), fly = eio(P(t, 8.1, 8.45));
   pr.style.opacity = (Math.min(1, px * 2) * (1 - fly)).toFixed(3);
-  pr.style.transform = `translate(${lerp(-300, 0, px) + fly * 360}px,${(-fly * 520).toFixed(1)}px) rotate(${lerp(-12, -4, px).toFixed(2)}deg) scale(${(1 - fly * 0.7).toFixed(3)})`;
-  const lz = P(t, 11.05, 11.6);
+  pr.style.transform = `translate(${(lerp(-300, 0, px) + fly * 360).toFixed(1)}px,${(-fly * 520).toFixed(1)}px) rotate(${lerp(-12, -4, px).toFixed(2)}deg) scale(${(1 - fly * 0.7).toFixed(3)})`;
+  const lz = P(t, 7.62, 8.1);
   $('laser').style.top = `${lerp(80, 240, Math.sin(lz * Math.PI))}px`;
   $('laser').style.opacity = lz > 0 && lz < 1 ? 1 : 0;
-  pop($('ch31'), t, 12.55, 14.1, 'translateX(-200px)'); pop($('ch32'), t, 12.85, 14.1, 'translateX(-200px)');
-  slam($('st3'), t, 14.3, 3, 0.55, -25);
-  if (t > 15.4) $('st3').style.opacity = (1 - P(t, 15.4, 15.7)).toFixed(3);
-  pop($('ch33'), t, 14.6, 15.6);
+  pop($('ch31'), t, 8.6, 9.3, 'translateX(-200px)'); pop($('ch32'), t, 8.85, 9.3, 'translateX(-200px)');
+  slam($('st3'), t, 9.68, 3, 0.55, -25);
+  if (t > 10.2) $('st3').style.opacity = (1 - P(t, 10.2, 10.45)).toFixed(3);
+  pop($('ch33'), t, 9.85, 10.3);
   // المواد
-  word($('c41'), t, 16.06, 18.2); word($('c42'), t, 18.35, 19.85); word($('c43'), t, 20.0, 21.45);
-  pop($('ch41'), t, 20.15, 21.45, 'translateX(-250px)'); pop($('ch42'), t, 20.45, 21.45, 'translateX(250px)');
+  pop($('ch41'), t, 14.29, 15.85, 'translateX(-250px)'); pop($('ch42'), t, 15.06, 15.85, 'translateX(250px)');
   // الديون
-  word($('c51'), t, 21.9, 23.85); word($('c52'), t, 24.0, 25.45); word($('c53'), t, 25.6, 27.7);
-  pop($('ch51'), t, 24.1, 27.7, 'translateX(250px)'); pop($('ch52'), t, 24.4, 27.7, 'translateX(-250px)');
-  pop($('n5'), t, 25.55, 27.7, 'translateY(-300px)');
+  pop($('ch51'), t, 19.0, 21.7, 'translateX(250px)'); pop($('ch52'), t, 19.42, 21.7, 'translateX(-250px)');
+  pop($('n5'), t, 20.6, 21.7, 'translateY(-300px)');
   // التقارير
-  word($('c61'), t, 28.3, 28.95); word($('c62'), t, 29.05, 32.95); word($('c63'), t, 33.1, 34.95);
-  [['sv1', 30.1], ['sv2', 30.9], ['sv3', 31.7]].forEach(([id, at], i) => pop($(id), t, at, 34.8, `translateX(${i % 2 ? -600 : 600}px)`));
-  $('v1').textContent = fmt(count(t, 30.2, 31.0, 78800));
-  $('v2').textContent = fmt(count(t, 31.0, 31.7, 62083));
-  $('v3').textContent = '+' + fmt(count(t, 31.8, 32.6, 16717));
-  slam($('co1'), t, 33.15, 2.4, 0.55, -30); slam($('co2'), t, 33.45, 2.4, 0.55, 30);
-  ['co1', 'co2'].forEach((id, i) => { if (t > 33.15 + i * 0.3 + 0.55) $(id).style.transform = `translateY(${(Math.sin(t * 3 + i * 2) * 12).toFixed(1)}px) rotateY(${(Math.sin(t * 2 + i) * 25).toFixed(1)}deg)`; if (t > 34.7) $(id).style.opacity = (1 - P(t, 34.7, 35.0)).toFixed(3); });
+  [['sv1', 24.02], ['sv2', 24.66], ['sv3', 25.51]].forEach(([id, at], i) => pop($(id), t, at - 0.1, 27.85, `translateX(${i % 2 ? -600 : 600}px)`));
+  $('v1').textContent = fmt(count(t, 24.0, 24.6, 78800));
+  $('v2').textContent = fmt(count(t, 24.65, 25.3, 62083));
+  $('v3').textContent = '+' + fmt(count(t, 25.5, 26.2, 16717));
+  slam($('co1'), t, 26.36, 2.4, 0.55, -30); slam($('co2'), t, 27.03, 2.4, 0.55, 30);
+  ['co1', 'co2'].forEach((id, i) => { const at = i ? 27.03 : 26.36; if (t > at + 0.55) $(id).style.transform = `translateY(${(Math.sin(t * 3 + i * 2) * 12).toFixed(1)}px) rotateY(${(Math.sin(t * 2 + i) * 25).toFixed(1)}deg)`; if (t > 27.85) $(id).style.opacity = (1 - P(t, 27.85, 28.1)).toFixed(3); });
   // المساعد
-  word($('c71'), t, 35.3, 36.75); word($('c72'), t, 36.85, 38.95); word($('c73'), t, 39.15, 40.5); word($('c74'), t, 40.6, 41.85);
-  pop($('bu1'), t, 37.6, 39.0, 'translateX(200px)');
-  pop($('bu2'), t, 39.25, 40.4, 'translateX(-200px)');
+  pop($('bu1'), t, 29.5, 30.0, 'translateX(200px)');
+  pop($('bu2'), t, 31.4, 32.9, 'translateX(-200px)');
 }
 
 function sceneI(t) {
-  if (!vis($('I'), t, 42.1, 46.6)) return;
-  word($('i1'), t, 42.4, 44.15);
-  const wx = eo(P(t, 42.35, 42.75)), wo = P(t, 43.95, 44.2);
+  if (!vis($('I'), t, 33.0, 39.2)) return;
+  const wx = eo(P(t, 33.1, 33.5)), wo = P(t, 35.05, 35.3);
   $('wifi').style.opacity = (wx * (1 - wo)).toFixed(3);
   $('wifi').style.transform = `scale(${(0.7 + 0.3 * wx - wo * 0.4).toFixed(3)})`;
   const sl = $('slash'); const L = 125;
-  sl.style.strokeDasharray = L; sl.style.strokeDashoffset = (L * (1 - eo(P(t, 42.85, 43.15)))).toFixed(1);
-  const lx = P(t, 44.15, 44.5), lo = P(t, 45.15, 45.4);
+  sl.style.strokeDasharray = L; sl.style.strokeDashoffset = (L * (1 - eo(P(t, 34.14, 34.45)))).toFixed(1);
+  const lx = P(t, 35.3, 35.65), lo = P(t, 36.6, 36.85);
   $('lock').style.opacity = (Math.min(1, lx * 3) * (1 - lo)).toFixed(3);
   $('lock').style.transform = `scale(${(0.5 + 0.5 * back(lx) - lo * 0.3).toFixed(3)})`;
-  $('shackle').setAttribute('transform', `translate(0 ${(-16 * (1 - eo(P(t, 44.3, 44.4)))).toFixed(1)})`);
-  ring($('rI1'), t, 44.4, 7, 0.9);
-  $('rain').style.opacity = (0.9 * P(t, 44.15, 44.6) * (1 - P(t, 45.1, 45.4))).toFixed(3);
-  $('rain').style.transform = `translateY(${(-((t - 44) * 220) % 40).toFixed(1)}px)`;
-  word($('i2'), t, 44.3, 45.15);
-  word($('i3'), t, 45.25);
-  const x = eo(P(t, 45.2, 45.9));
-  $('lapI').style.opacity = P(t, 45.2, 45.35).toFixed(3);
+  $('shackle').setAttribute('transform', `translate(0 ${(-16 * (1 - eo(P(t, 35.84, 35.95)))).toFixed(1)})`);
+  ring($('rI1'), t, 35.9, 7, 0.9);
+  $('rain').style.opacity = (0.9 * P(t, 35.3, 35.8) * (1 - P(t, 36.6, 36.9))).toFixed(3);
+  $('rain').style.transform = `translateY(${(-((t - 35) * 220) % 40).toFixed(1)}px)`;
+  const x = eo(P(t, 36.83, 37.5));
+  $('lapI').style.opacity = P(t, 36.83, 37.0).toFixed(3);
   $('lapI').style.transform = `translateX(${lerp(-1100, -40, x).toFixed(1)}px) rotateY(${lerp(-40, -14, x).toFixed(1)}deg) rotateX(6deg) scale(0.9)`;
-  const y = back(P(t, 45.45, 46.0));
-  $('phI').style.opacity = P(t, 45.45, 45.6).toFixed(3);
+  const y = back(P(t, 37.76, 38.3));
+  $('phI').style.opacity = P(t, 37.76, 37.9).toFixed(3);
   $('phI').style.transform = `translateX(${lerp(900, 0, y).toFixed(1)}px) rotate(${lerp(18, 5, y).toFixed(2)}deg)`;
 }
 
 function sceneD(t) {
-  if (!vis($('D'), t, 46.5, 52.75)) return;
-  const T4 = [46.75, 47.5, 48.2, 49.3];
-  const out = eo(P(t, 50.0, 50.35));
+  if (!vis($('D'), t, 39.0, 46.7)) return;
+  const T4 = [39.16, 40.08, 40.65, 41.43];
+  const out = eo(P(t, 42.1, 42.4));
   ['t1', 't2', 't3', 't4'].forEach((id, i) => {
     const el = $(id);
-    slam(el, t, T4[i], 2.4, 0.55, i % 2 ? 10 : -10);
+    slam(el, t, T4[i], 2.4, 0.5, i % 2 ? 10 : -10);
     if (out > 0 && t >= T4[i]) { el.style.opacity = (1 - out).toFixed(3); el.style.transform = `scale(${(1 - out * 0.6).toFixed(3)}) translateY(${(-out * 200).toFixed(1)}px)`; }
   });
+  const mout = P(t, 44.1, 44.4);
   for (let i = 0; i < 16; i++) {
-    const m = $('mi' + i), at = 50.1 + i * 0.045;
+    const m = $('mi' + i), at = 42.4 + i * 0.05;
     const x = P(t, at, at + 0.4);
-    m.style.opacity = Math.min(1, x * 3).toFixed(3);
+    m.style.opacity = (Math.min(1, x * 3) * (1 - mout * 0.85)).toFixed(3);
     m.style.transform = `scale(${(0.3 + 0.7 * back(x)).toFixed(3)}) translateY(${(Math.sin(t * 2 + i) * 6).toFixed(1)}px)`;
   }
-  $('cnt').textContent = '+' + Math.round(count(t, 50.3, 51.1, 25));
-  word($('d1'), t, 50.25, 1e9, 0.45, 120);
-  word($('d2'), t, 50.8); word($('d3'), t, 51.4);
+  $('cnt').textContent = '+' + Math.round(count(t, 42.4, 43.6, 25));
+  const cx = P(t, 42.35, 42.8), co = P(t, 44.1, 44.35);
+  $('d1').style.opacity = (Math.min(1, cx * 2) * (1 - co)).toFixed(3);
+  $('d1').style.transform = `translateY(${((1 - back(cx)) * 120).toFixed(1)}px) scale(${(1 - co * 0.3).toFixed(3)})`;
+  // «وكل واحد إلو شاشاته»: تلت شاشات بيتفتحوا متل المروحة
+  [['fa1', -22, -330, 44.4], ['fa2', 0, 0, 44.6], ['fa3', 22, 330, 45.12]].forEach(([id, r, dx, at]) => {
+    const x = back(P(t, at, at + 0.5));
+    const el = $(id);
+    el.style.opacity = P(t, at, at + 0.15).toFixed(3);
+    el.style.transform = `translateX(${(dx * x - 150).toFixed(1)}px) translateY(${((1 - x) * 300 + Math.abs(r) * 4).toFixed(1)}px) rotate(${(r * x).toFixed(2)}deg) scale(${(0.8 + 0.2 * x).toFixed(3)})`;
+    el.style.zIndex = id === 'fa2' ? 3 : 2;
+  });
 }
 
 function sceneK(t) {
-  if (!vis($('K'), t, 52.6, 55.4)) return;
-  $('rays').style.opacity = eo(P(t, 52.65, 53.2)).toFixed(3);
-  $('rays').style.transform = `rotate(${((t - 52.6) * 14).toFixed(2)}deg)`;
-  slam($('logoK'), t, 52.7, 2.8, 0.7, 12);
-  if (t > 53.4) $('logoK').style.transform = `scale(${(1 + 0.03 * Math.sin((t - 52.7) * 4)).toFixed(4)})`;
-  ring($('rK1'), t, 52.7, 10, 1.1); ring($('rK2'), t, 52.85, 7, 1.1);
-  slam($('k1t'), t, 52.8, 1.7, 0.55);
-  word($('k2t'), t, 53.65, 1e9, 0.45);
+  if (!vis($('K'), t, 46.55, 49.3)) return;
+  $('rays').style.opacity = eo(P(t, 46.6, 47.1)).toFixed(3);
+  $('rays').style.transform = `rotate(${((t - 46.6) * 14).toFixed(2)}deg)`;
+  slam($('logoK'), t, 46.73, 2.8, 0.7, 12);
+  if (t > 47.43) $('logoK').style.transform = `scale(${(1 + 0.03 * Math.sin((t - 46.73) * 4)).toFixed(4)})`;
+  ring($('rK1'), t, 46.73, 10, 1.1); ring($('rK2'), t, 46.88, 7, 1.1);
+  slam($('k1t'), t, 46.83, 1.7, 0.55);
 }
 
 function sceneM(t) {
-  if (!vis($('M'), t, 55.25, 61, 0.3, 0.6)) return;
-  const fr = P(t, 55.35, 55.8);
+  if (!vis($('M'), t, 49.15, 61, 0.25, 0.6)) return;
+  const fr = P(t, 49.25, 49.65);
   $('free').style.opacity = Math.min(1, fr * 3).toFixed(3);
   $('free').style.transform = `translateX(-50%) scale(${(0.4 + 0.6 * back(fr) + 0.02 * Math.sin(t * 6)).toFixed(4)})`;
-  const w = P(t, 55.6, 56.2);
+  const w = P(t, 50.0, 50.5);
   $('wa').style.opacity = Math.min(1, w * 3).toFixed(3);
   $('wa').style.transform = `scale(${(0.3 + 0.7 * back(w) + 0.03 * Math.sin(t * 4)).toFixed(4)})`;
-  ring($('rM1'), t, 55.7 + Math.max(0, Math.floor((t - 55.7) / 1.6)) * 1.6, 5, 1.0);
-  word($('m1'), t, 55.8);
-  pop($('nm1'), t, 56.1, 1e9, 'translateY(160px)'); pop($('nm2'), t, 56.4, 1e9, 'translateY(160px)');
-  const e = P(t, 56.8, 57.4);
+  ring($('rM1'), t, 50.1 + Math.max(0, Math.floor((t - 50.1) / 1.6)) * 1.6, 5, 1.0);
+  pop($('nm1'), t, 51.1, 1e9, 'translateY(160px)'); pop($('nm2'), t, 55.6, 1e9, 'translateY(160px)');
+  ['g11', 'g12', 'g13', 'g21', 'g22', 'g23'].forEach((id, i) => {
+    const [a, b] = NUMS[i];
+    const el = $(id);
+    const on = t >= a - 0.05, act = on && t <= b + 0.1;
+    const k = act ? back(P(t, a - 0.05, a + 0.3)) : 0;
+    el.style.color = act ? '#ffe29a' : on ? '#fff' : '';
+    el.style.transform = `scale(${(1 + 0.18 * k * (1 - P(t, b, b + 0.2))).toFixed(3)})`;
+    el.style.textShadow = act ? '0 0 40px rgba(231,183,90,.7)' : 'none';
+  });
+  const e = P(t, 59.6, 60.1);
   $('endc').style.opacity = e.toFixed(3);
   $('endc').style.transform = `translateY(${((1 - eo(e)) * 80).toFixed(1)}px)`;
 }
@@ -665,12 +738,19 @@ window.render = function (t) {
   drawBg(t);
   camera(t);
   sceneA(t); sceneB(t); phone(t); chapter(t); overlays(t); sceneI(t); sceneD(t); sceneK(t); sceneM(t);
+  captions(t);
   drawFx(t);
   flashes(t);
   const gr = rnd(Math.floor(t * 30) + 1);
   $('grain').style.transform = `translate(${Math.floor(gr() * 100)}px,${Math.floor(gr() * 100)}px)`;
-  $('stage').style.opacity = (1 - P(t, 60.4, 61)).toFixed(3);
+  $('stage').style.opacity = (1 - P(t, 60.5, 61)).toFixed(3);
 };
+
+// سطر «صار في» انضاف بعد init، فمنبنيه هون
+(function () {
+  const i = CAPS.length - 1, [top, size, , ws] = CAPS[i];
+  $('caps').insertAdjacentHTML('beforeend', `<div class="ln" id="cp${i}" style="top:${top}px;font-size:${size}px">` + ws.map(([w], j) => `<span class="w" id="cp${i}_${j}">${w}</span>`).join('') + '</div>');
+})();
 
 Promise.all([document.fonts.ready, ...[...document.images].map((im) => (im.complete ? 1 : new Promise((r) => { im.onload = im.onerror = r; })))]).then(() => {
   window.render(0);
