@@ -13,11 +13,19 @@ export interface BackupConfig {
   internal: boolean;
   /** نسخة تلقائية كل كم دقيقة وقت البرنامج مفتوح (0 = بس عند الإغلاق). */
   every: number;
+  /** رفع نسخة على Google Drive (لازم يكون الحساب مربوط بهالجهاز). */
+  drive: boolean;
+  /** كل كم دقيقة منرفع على الدرايف (إذا في شغل جديد). */
+  driveEvery: number;
+  /** كم نسخة منخلي عالدرايف لهالشركة (0 = كلها). */
+  driveKeep: number;
 }
 
 const FILE = 'backup-location.json';
-const DEFAULT: BackupConfig = { keep: 30, internal: true, every: 60 };
+const DEFAULT: BackupConfig = { keep: 30, internal: true, every: 60, drive: false, driveEvery: 1440, driveKeep: 30 };
 const EVERY = [0, 60, 180, 360, 1440];
+const DRIVE_EVERY = [60, 360, 1440];
+const DRIVE_KEEP = [10, 30, 60, 100, 0];
 
 export function readBackupConfig(store: CompanyStore): BackupConfig {
   try {
@@ -27,19 +35,25 @@ export function readBackupConfig(store: CompanyStore): BackupConfig {
       keep: Number.isInteger(raw.keep) && raw.keep! >= 0 ? raw.keep! : DEFAULT.keep,
       internal: raw.internal !== false,
       every: EVERY.includes(Number(raw.every)) ? Number(raw.every) : DEFAULT.every,
+      drive: raw.drive === true,
+      driveEvery: DRIVE_EVERY.includes(Number(raw.driveEvery)) ? Number(raw.driveEvery) : DEFAULT.driveEvery,
+      driveKeep: DRIVE_KEEP.includes(Number(raw.driveKeep)) ? Number(raw.driveKeep) : DEFAULT.driveKeep,
     };
   } catch {
     return { ...DEFAULT };
   }
 }
 
-export function writeBackupConfig(store: CompanyStore, cfg: Omit<BackupConfig, 'every'> & { every?: number }): BackupConfig {
+export function writeBackupConfig(store: CompanyStore, cfg: Omit<BackupConfig, 'every' | 'drive' | 'driveEvery' | 'driveKeep'> & Partial<Pick<BackupConfig, 'every' | 'drive' | 'driveEvery' | 'driveKeep'>>): BackupConfig {
   const clean: BackupConfig = {
     ...(cfg.dir?.trim() ? { dir: path.resolve(cfg.dir.trim()) } : {}),
     keep: Number.isInteger(cfg.keep) && cfg.keep >= 0 && cfg.keep <= 10000 ? cfg.keep : DEFAULT.keep,
     // بدون مجلد مختار لازم تضل النسخة الداخلية
     internal: cfg.dir?.trim() ? cfg.internal !== false : true,
     every: EVERY.includes(Number(cfg.every)) ? Number(cfg.every) : DEFAULT.every,
+    drive: cfg.drive === true,
+    driveEvery: DRIVE_EVERY.includes(Number(cfg.driveEvery)) ? Number(cfg.driveEvery) : DEFAULT.driveEvery,
+    driveKeep: DRIVE_KEEP.includes(Number(cfg.driveKeep)) ? Number(cfg.driveKeep) : DEFAULT.driveKeep,
   };
   fs.writeFileSync(path.join(store.dir, FILE), JSON.stringify(clean, null, 2));
   return clean;

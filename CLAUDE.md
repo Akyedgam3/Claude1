@@ -71,6 +71,11 @@
 - **نسخة الويب للآيفون** (اتصال عن بعد بس، بدون بيانات محلية ولا ترخيص): نفس بناء الموبايل بـ `WAZN_WEB=1` (`npm run build:web` ← `web-dist/`، والواجهة بتعرفها بـ `IS_WEB`: شاشة `cloud/WebConnect.tsx` بدل البداية/القفل). بتنرفع نسخ `web-dist/*` لـ `mizan-updates/app/` (https://waznsy.com/app/ — الدومين `waznsy.com` مربوط بـ GitHub Pages من هوستنجر، والرابط القديم github.io بيحوّل عليه). رابط QR (`cloudCodeLink`) = `https://waznsy.com/app/#c=<الرمز>` من 1.2.16: كاميرا الآيفون بتفتحه بسفاري والرمز معبّى، وتطبيق أندرويد بيقبله (والقديم `wazn://connect/` كمان). إذا تغيّر الدومين غيّر `CLOUD_WEB_APP` بـ `src/cloud/code.ts`. بعد أي تعديل بالواجهة أعد بناء الويب وارفعه مع النسخة.
 - الاختبارات: `tests/cloud.test.ts` (بالذاكرة). مع المحاكي (`npx firebase emulators:start --only firestore` بمجلد فيه firebase.json والقواعد، بورت 8085): `FIRESTORE_EMULATOR=127.0.0.1:8085` لـ `tests/cloud-firestore.test.ts` و`tests/e2e/cloud.e2e.ts`، و`tests/mobile/cloud.mts` (جوالين بالمتصفح)، و`tests/mobile/cloud-web.mts` (آيفون بنسخة الويب: www على 8790 وweb-dist على 8791).
 
+## النسخ على Google Drive (كمبيوتر، من 1.2.64)
+- صلاحية `drive.file` بس (البرنامج بيشوف بس الملفات اللي عملها)، ملفات `.wazn` بمجلد «Wazn Backups»، وكل ملف عليه `appProperties` (wazn, company, companyName). الكود: `src/app/gdrive.ts` (عام، fetch بينحقن) و`src/main/gdrive-desktop.ts` (دخول بالمتصفح على 127.0.0.1 + PKCE، والرمز الدائم بـ `userData/gdrive.json` مشفّر بـ safeStorage). حالة الرفع لكل شركة بـ `gdrive-state.json` بمجلدها، والإعداد (`drive`, `driveEvery`, `driveKeep`) بـ `backup-location.json`.
+- **الميزة مخفية لحد ما ينحط معرّف التطبيق** بـ `src/app/gdrive-config.ts` (OAuth client نوع Desktop app بمشروع Google Cloud `wazn-5d0f2`، مع تفعيل Google Drive API وشاشة الموافقة منشورة Production). للتجربة: `WAZN_GDRIVE_CLIENT_ID`/`WAZN_GDRIVE_CLIENT_SECRET`.
+- الاستعادة: شاشة البداية ← فتح شركة ← «استعادة من Google Drive». اختبارات: `tests/gdrive.test.ts` (درايف وهمي)، `tests/e2e/gdrive.e2e.ts`. الجوال لسا بيشارك ملف `.wazn` يدوياً (قائمة المشاركة ← Drive).
+
 ## الفيديوهات
 - أدوات صناعة الفيديوهات في `marketing/video/` (اقرأ README هناك). الأسلوب: لقطات حقيقية من البرنامج عبر Playwright + كاميرا وتأشيرات تلقائية + موسيقى مولّدة + صوت من صاحب المشروع.
 - الإعلان (`ad`) يذكر الرقم القديم 981 **بالصوت** — يحتاج تسجيل جملة الرقم من جديد قبل نشره.

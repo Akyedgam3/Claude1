@@ -833,6 +833,93 @@ function BackupLocationBox() {
           </label>
         </div>
       )}
+      {cfg.gdrive?.available && <DriveBox cfg={cfg} setCfg={setCfg} save={save} />}
+    </div>
+  );
+}
+
+/** النسخ على Google Drive: ربط الحساب مرة وحدة، وبعدها بترفع لحالها. */
+function DriveBox({ cfg, setCfg, save }: { cfg: BackupLocation; setCfg: (c: BackupLocation) => void; save: (p: Partial<BackupLocation>) => Promise<void> }) {
+  const { notify } = useCompany();
+  const [busy, setBusy] = useState('');
+  const g = cfg.gdrive!;
+  const reload = () => api.backupConfig().then(setCfg).catch(() => undefined);
+  const act = async (label: string, fn: () => Promise<unknown>, done: string) => {
+    setBusy(label);
+    try {
+      await fn();
+      notify(done);
+    } catch (e) {
+      notify((e as Error).message, 'error');
+    } finally {
+      setBusy('');
+      void reload();
+    }
+  };
+  return (
+    <div className="backup-location drive-box">
+      <h4>
+        <Icon name="cloud" /> النسخ على Google Drive
+      </h4>
+      {!g.linked ? (
+        <>
+          <p className="muted">
+            اربط حساب Google مرة وحدة، وبعدها البرنامج بيرفع نسخة مشفّرة على الدرايف لحاله. إذا خرب الكمبيوتر أو انسرق، بترجّع شغلك من أي جهاز. البرنامج بيشوف بس ملفات النسخ اللي هو عملها، وما بيقرا باقي ملفاتك.
+          </p>
+          <div className="button-row">
+            <button className="primary" disabled={!!busy} onClick={() => act('link', () => api.driveLink(), 'تم ربط Google Drive وعم ترتفع أول نسخة')}>
+              {busy === 'link' ? 'كمّل تسجيل الدخول بالمتصفح...' : 'ربط حساب Google Drive'}
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="backup-path">
+            <span className="muted">الحساب:</span>
+            <b className="ltr">{g.email}</b>
+          </div>
+          <div className="form-grid">
+            <label className="check wide">
+              <input type="checkbox" checked={!!cfg.drive} onChange={(e) => save({ drive: e.target.checked })} /> ارفع نسخة تلقائياً على الدرايف لهالشركة
+            </label>
+            {cfg.drive && (
+              <>
+                <Field label="كل قديش؟">
+                  <select value={cfg.driveEvery ?? 1440} onChange={(e) => save({ driveEvery: Number(e.target.value) })}>
+                    <option value={60}>كل ساعة</option>
+                    <option value={360}>كل 6 ساعات</option>
+                    <option value={1440}>كل يوم</option>
+                  </select>
+                  <small className="muted">بس إذا في شغل جديد، وبيحتاج إنترنت. إذا ما في نت بيرجع يجرّب لحاله.</small>
+                </Field>
+                <Field label="كم نسخة نخلي عالدرايف؟">
+                  <select value={cfg.driveKeep ?? 30} onChange={(e) => save({ driveKeep: Number(e.target.value) })}>
+                    {[10, 30, 60, 100, 0].map((n) => (
+                      <option key={n} value={n}>
+                        {n === 0 ? 'كلها' : `آخر ${n} نسخة`}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </>
+            )}
+          </div>
+          {g.last && (g.last.at > 0 || g.last.error) && (
+            <p className={g.last.error ? 'bad' : 'muted'}>
+              {g.last.at > 0 && <>آخر رفع: {new Date(g.last.at).toLocaleString('en-GB')}</>}
+              {g.last.error ? ` — ما زبط آخر مرة: ${g.last.error}` : ''}
+            </p>
+          )}
+          <div className="button-row">
+            <button className="primary" disabled={!!busy} onClick={() => act('up', () => api.driveUploadNow(), 'انرفعت النسخة على Google Drive')}>
+              {busy === 'up' ? 'عم يرفع...' : 'ارفع نسخة الآن'}
+            </button>
+            <button disabled={!!busy} onClick={() => act('unlink', () => api.driveUnlink(), 'انفصل حساب Google Drive عن هالجهاز')}>
+              فصل الحساب
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

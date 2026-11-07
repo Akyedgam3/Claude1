@@ -28,7 +28,7 @@ const make = () =>
 describe('backup location', () => {
   it('defaults to the company folder', () => {
     const store = make();
-    expect(readBackupConfig(store)).toEqual({ keep: 30, internal: true, every: 60 });
+    expect(readBackupConfig(store)).toEqual({ keep: 30, internal: true, every: 60, drive: false, driveEvery: 1440, driveKeep: 30 });
     const r = autoBackup(store);
     expect(r.path.startsWith(path.join(dir, 'backups'))).toBe(true);
     store.close();
@@ -70,5 +70,12 @@ describe('backup location', () => {
     store.ledger.saveParty({ id: 'q', kind: 'customer', name: 'زبون ٢' });
     expect(periodicBackup(store, t0 + 999 * 60_000)).toBe(false); // مطفي: بس عند الإغلاق
     store.close();
+  });
+  it('إعداد Google Drive: قيم غلط بترجع للافتراضي', () => {
+    const store = make();
+    const c = writeBackupConfig(store, { keep: 30, internal: true, drive: true, driveEvery: 7, driveKeep: 5 });
+    expect(c).toMatchObject({ drive: true, driveEvery: 1440, driveKeep: 30 });
+    expect(writeBackupConfig(store, { ...c, driveEvery: 60, driveKeep: 0 })).toMatchObject({ drive: true, driveEvery: 60, driveKeep: 0 });
+    expect(readBackupConfig(store)).toMatchObject({ drive: true, driveEvery: 60, driveKeep: 0 });
   });
 });

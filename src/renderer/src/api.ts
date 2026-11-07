@@ -19,6 +19,26 @@ export interface BackupLocation {
   /** الجوال: نسخة تلقائية بمجلد Documents/Wazn بالجهاز. */
   external?: boolean;
   lastAuto?: { at: number; path?: string; error?: string } | null;
+  /** Google Drive (بالكمبيوتر بس). */
+  drive?: boolean;
+  driveEvery?: number;
+  driveKeep?: number;
+  gdrive?: DriveStatus & { last?: { at: number; file?: string; error?: string } | null };
+}
+
+export interface DriveStatus {
+  /** الميزة جاهزة بهالنسخة (في معرّف تطبيق Google). */
+  available: boolean;
+  linked: boolean;
+  email?: string;
+  name?: string;
+}
+export interface DriveBackupFile {
+  id: string;
+  name: string;
+  size: number;
+  createdTime: string;
+  companyName: string;
 }
 
 export interface SessionInfo {
@@ -113,6 +133,12 @@ export const api = {
   setBackupConfig: (cfg: Partial<BackupLocation>) => inv<BackupLocation>('backup:setConfig', cfg),
   chooseBackupDir: () => inv<BackupLocation | null>('backup:chooseDir'),
   revealBackups: () => inv<void>('backup:reveal'),
+  driveStatus: () => inv<DriveStatus>('gdrive:status'),
+  driveLink: () => inv<{ email: string; name: string }>('gdrive:link'),
+  driveUnlink: () => inv<void>('gdrive:unlink'),
+  driveUploadNow: () => inv<string>('gdrive:uploadNow'),
+  driveList: () => inv<DriveBackupFile[]>('gdrive:list'),
+  driveRestore: (id: string) => inv<CompanyPeek>('gdrive:restore', id),
   lanStatus: () => inv<LanStatus>('lan:status'),
   lanHost: (enable: boolean, newCode?: boolean) => inv<boolean>('lan:host', enable, newCode),
   lanConnect: (o: { host?: string; port?: number; pairingCode?: string; username?: string; password: string; saved?: boolean }) => inv<SessionInfo>('lan:connect', o),

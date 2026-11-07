@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ACTIVITY_LIST } from '../../../core';
 import logo from '../assets/logo.png';
 import { Icon } from '../components/icons';
-import { api, IS_MOBILE, IS_WEB, type AppInfo, type CompanyPeek } from '../api';
+import { api, IS_MOBILE, IS_WEB, type AppInfo, type CompanyPeek, type DriveBackupFile } from '../api';
 import { Field, Modal } from '../components/ui';
 import { CloudConnectForm } from '../cloud/CloudConnect';
 
@@ -20,6 +20,11 @@ export function Welcome({
 }) {
   const [tab, setTab] = useState<Tab>(info.recent.length ? 'open' : 'new');
   const [login, setLogin] = useState<CompanyPeek | null>(null);
+  const [driveOk, setDriveOk] = useState(false);
+  const [drivePick, setDrivePick] = useState(false);
+  useEffect(() => {
+    if (!IS_MOBILE) api.driveStatus().then((d) => setDriveOk(d.available)).catch(() => setDriveOk(false));
+  }, []);
   const [recovery, setRecovery] = useState<string | null>(null);
 
   const peek = async (dir?: string) => {
@@ -92,6 +97,7 @@ export function Welcome({
             >
               {IS_MOBILE ? 'استعادة نسخة احتياطية (ملف .wazn)' : 'استعادة نسخة احتياطية...'}
             </button>
+            {driveOk && <button onClick={() => setDrivePick(true)}>استعادة من Google Drive</button>}
           </div>
         </section>
       )}
@@ -109,6 +115,17 @@ export function Welcome({
         </section>
       )}
 
+      {drivePick && (
+        <DriveRestore
+          notify={notify}
+          onClose={() => setDrivePick(false)}
+          onRestored={(p) => {
+            setDrivePick(false);
+            notify('تم تنزيل النسخة من Google Drive. سجّل الدخول لفتحها.');
+            setLogin(p);
+          }}
+        />
+      )}
       {login && <LoginDialog peek={login} onClose={() => setLogin(null)} notify={notify} onOpened={onOpened} />}
       {recovery && (
         <Modal title="احفظ رمز الاسترداد" onClose={() => undefined}>
@@ -133,6 +150,68 @@ export function Welcome({
       )}
       <footer className="muted">الإصدار {info.version}</footer>
     </div>
+  );
+}
+
+/** استعادة من Google Drive: ربط (إذا مش مربوط) ← قائمة النسخ ← تنزيل وفتح. */
+function DriveRestore({ notify, onClose, onRestored }: { notify: (m: string, k?: 'ok' | 'error') => void; onClose: () => void; onRestored: (p: CompanyPeek) => void }) {
+  const [files, setFiles] = useState<DriveBackupFile[] | null>(null);
+  const [busy, setBusy] = useState('');
+  const load = async () => {
+    setBusy('list');
+    try {
+      const st = await api.driveStatus();
+      if (!st.linked) {
+        setBusy('link');
+        await api.driveLink();
+      }
+      setBusy('list');
+      setFiles(await api.driveList());
+    } catch (e) {
+      notify((e as Error).message, 'error');
+      onClose();
+    } finally {
+      setBusy('');
+    }
+  };
+  useEffect(() => {
+    void load();
+  }, []);
+  return (
+    <Modal title="استعادة من Google Drive" onClose={onClose}>
+      {busy === 'link' && <p>كمّل تسجيل الدخول بحساب Google بالمتصفح، وبعدين ارجع لهون.</p>}
+      {busy === 'list' && <p className="muted">عم جيب النسخ...</p>}
+      {files && files.length === 0 && <p className="muted">ما في نسخ من وزن على هالحساب.</p>}
+      {files && files.length > 0 && (
+        <ul className="recent drive-files">
+          {files.slice(0, 60).map((f) => (
+            <li key={f.id}>
+              <button
+                disabled={!!busy}
+                onClick={async () => {
+                  setBusy(f.id);
+                  try {
+                    onRestored(await api.driveRestore(f.id));
+                  } catch (e) {
+                    notify((e as Error).message, 'error');
+                  } finally {
+                    setBusy('');
+                  }
+                }}
+              >
+                <strong>{f.companyName || f.name}</strong>
+                <small dir="ltr">
+                  {new Date(f.createdTime).toLocaleString('en-GB')} · {(f.size / 1024).toFixed(0)} KB{busy === f.id ? ' · ...' : ''}
+                </small>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="form-actions">
+        <button onClick={onClose}>إغلاق</button>
+      </div>
+    </Modal>
   );
 }
 

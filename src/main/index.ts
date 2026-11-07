@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { ACTIVITIES, can, chartFor, DEFAULT_CURRENCIES, defaultTaxes, PERMISSIONS, whatsappUrl, type Activity, type Permission } from '../core';
 import { CloudSessions, CLOUD_MIN_DEVICES } from '../app/cloud-sessions';
 import { BACKUP_FILES, unpackBackup } from '../app/backup-pack';
+import { driveDownload, driveLink, driveList, driveState, driveStatus, driveUnlink, driveUploadNow, periodicDrive } from './gdrive-desktop';
 import { autoBackup, chosenBackupRoot, lastAutoBackup, periodicBackup, readBackupConfig, writeBackupConfig, type BackupConfig } from './backup-location';
 import { hostCompanyFor } from '../app/host-company';
 import { DEFAULT_LAN_PORT, discoverHosts, LanClient, LanHost, newPairingCode } from '../app/lan';
@@ -86,6 +87,22 @@ function companiesRoot(): string {
   const main = path.join(app.getPath('documents'), 'Mizan');
   const alt = path.join(app.getPath('documents'), 'Miyar');
   return !fs.existsSync(main) && fs.existsSync(alt) ? alt : main;
+}
+
+/** نسخة .wazn (من ملف أو من الدرايف) ← مجلد شركة جديد «(مستعادة)». */
+function restoreWazn(bytes: Uint8Array): { dir: string; name: string; usernames: string[] } {
+  const files = unpackBackup(bytes);
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wazn-restore-'));
+  try {
+    for (const [f, data] of Object.entries(files)) fs.writeFileSync(path.join(tmp, f), data);
+    const { meta, usernames } = peekCompany(tmp);
+    const dir = uniqueDir(`${meta.name} (مستعادة)`);
+    fs.mkdirSync(dir, { recursive: true });
+    for (const f of Object.keys(files)) fs.copyFileSync(path.join(tmp, f), path.join(dir, f));
+    return { dir, name: meta.name, usernames };
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
 }
 
 function safeFolderName(name: string): string {
@@ -460,20 +477,7 @@ function registerIpc(): void {
     }));
     if (res.canceled || !res.filePaths[0]) return null;
     const picked = res.filePaths[0];
-    if (picked.toLowerCase().endsWith('.wazn')) {
-      const files = unpackBackup(new Uint8Array(fs.readFileSync(picked)));
-      const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wazn-restore-'));
-      try {
-        for (const [f, data] of Object.entries(files)) fs.writeFileSync(path.join(tmp, f), data);
-        const { meta, usernames } = peekCompany(tmp);
-        const dir = uniqueDir(`${meta.name} (مستعادة)`);
-        fs.mkdirSync(dir, { recursive: true });
-        for (const f of Object.keys(files)) fs.copyFileSync(path.join(tmp, f), path.join(dir, f));
-        return { dir, name: meta.name, usernames };
-      } finally {
-        fs.rmSync(tmp, { recursive: true, force: true });
-      }
-    }
+    if (picked.toLowerCase().endsWith('.wazn')) return restoreWazn(new Uint8Array(fs.readFileSync(picked)));
     const src = path.dirname(picked);
     const { meta, usernames } = peekCompany(src);
     const dir = uniqueDir(`${meta.name} (مستعادة)`);
@@ -531,14 +535,46 @@ function registerIpc(): void {
   handle('backup:config', () => {
     requirePermission('backup.manage');
     const store = localStore();
-    return { ...readBackupConfig(store), internalDir: path.join(store.dir, 'backups'), lastAuto: lastAutoBackup(store) };
+    return { ...readBackupConfig(store), internalDir: path.join(store.dir, 'backups'), lastAuto: lastAutoBackup(store), gdrive: { ...driveStatus(), last: driveState(store) } };
   });
   handle('backup:setConfig', (cfg: BackupConfig) => {
     requirePermission('backup.manage');
     const store = localStore();
     const next = writeBackupConfig(store, { ...readBackupConfig(store), ...(cfg ?? {}) });
-    return { ...next, internalDir: path.join(store.dir, 'backups'), lastAuto: lastAutoBackup(store) };
+    if (next.drive) periodicDrive(store);
+    return { ...next, internalDir: path.join(store.dir, 'backups'), lastAuto: lastAutoBackup(store), gdrive: { ...driveStatus(), last: driveState(store) } };
   });
+  // ── Google Drive ──
+  handle('gdrive:status', () => driveStatus(), { allowLocked: true });
+  handle('gdrive:link', async () => {
+    const who = await driveLink();
+    if (backend?.kind === 'local') {
+      try {
+        requirePermission('backup.manage');
+        const store = localStore();
+        writeBackupConfig(store, { ...readBackupConfig(store), drive: true });
+        void driveUploadNow(store).catch(() => undefined);
+      } catch {
+        /* ما في شركة مفتوحة: ربط من شاشة البداية للاستعادة بس */
+      }
+    }
+    win?.focus();
+    return who;
+  });
+  handle('gdrive:unlink', () => {
+    requirePermission('backup.manage');
+    driveUnlink();
+  });
+  handle('gdrive:uploadNow', async () => {
+    requirePermission('backup.manage');
+    const up = await driveUploadNow(localStore());
+    return up.name;
+  });
+  handle('gdrive:list', async () => {
+    const all = await driveList();
+    return all.map((f) => ({ id: f.id, name: f.name, size: f.size, createdTime: f.createdTime, companyName: f.companyName ?? '' }));
+  });
+  handle('gdrive:restore', async (id: string) => restoreWazn(await driveDownload(String(id))));
   handle('backup:chooseDir', async () => {
     requirePermission('backup.manage');
     const store = localStore();
@@ -867,6 +903,7 @@ if (!app.requestSingleInstanceLock()) {
       if (backend?.kind !== 'local') return;
       try {
         periodicBackup(localStore());
+        periodicDrive(localStore());
       } catch (e) {
         console.error('periodic backup', e);
       }
