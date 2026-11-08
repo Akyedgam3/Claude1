@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<title>وزن — أكشن موشن</title>
+<style>
+@font-face { font-family: Cairo; font-weight: 700; src: url(fonts/cairo-arabic-700-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 900; src: url(fonts/cairo-arabic-900-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 700; src: url(fonts/cairo-latin-700-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F, U+20AC; }
+@font-face { font-family: Cairo; font-weight: 900; src: url(fonts/cairo-latin-900-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F, U+20AC; }
+:root { --g: #0f6e5c; --g2: #14957c; --mint: #5fe0bf; --gold: #ffcf5a; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; }
+body { font-family: Cairo, sans-serif; color: #fff; }
+#stage { position: absolute; inset: 0; overflow: hidden; }
+#cam { position: absolute; inset: 0; transform-origin: 50% 45%; }
+.beat { position: absolute; inset: 0; display: none; overflow: hidden; transform-origin: 50% 45%; }
+.abs { position: absolute; }
+.ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+.ic svg { width: 100%; height: 100%; display: block; }
+/* الكلمة الكبيرة والعناوين (جوّا المنطقة الآمنة: x 140–940، y 230–1480) */
+.hw { position: absolute; left: 100px; right: 100px; text-align: center; font-weight: 900; line-height: 1.05; opacity: 0; white-space: nowrap; }
+.hl { position: absolute; left: 120px; right: 120px; text-align: center; font-weight: 900; font-size: 104px; line-height: 1.15; opacity: 0; }
+.acc { color: var(--gold); }
+.shadow { text-shadow: 0 10px 40px rgba(0, 0, 0, 0.35); }
+/* الجوال */
+.phone { position: absolute; width: 470px; left: 305px; border-radius: 70px; padding: 12px; background: linear-gradient(150deg, #2a3532, #050807); box-shadow: 0 60px 120px rgba(0, 0, 0, 0.55), 0 0 0 3px rgba(255, 255, 255, 0.14); }
+.phone canvas, .phone img { display: block; width: 446px; height: 965px; border-radius: 58px; background: #f4f7f6; }
+.phone::after { content: ''; position: absolute; top: 26px; left: 50%; width: 120px; height: 30px; margin-left: -60px; background: #000; border-radius: 16px; }
+/* أيقونات «3D» (لامعة، منفوخة) */
+.i3d { position: absolute; width: 220px; height: 220px; border-radius: 64px; display: grid; place-items: center; box-shadow: inset 0 -16px 30px rgba(0, 0, 0, 0.28), inset 0 14px 24px rgba(255, 255, 255, 0.55), 0 30px 60px rgba(0, 0, 0, 0.35); opacity: 0; }
+.i3d::before { content: ''; position: absolute; left: 18%; top: 9%; width: 46%; height: 24%; border-radius: 50%; background: linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0)); }
+.i3d .ic { width: 52%; height: 52%; color: #fff; filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.25)); }
+.chip { position: absolute; padding: 18px 40px; border-radius: 999px; font-size: 54px; font-weight: 900; white-space: nowrap; opacity: 0; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3); }
+.card { position: absolute; left: 150px; right: 150px; height: 190px; border-radius: 48px; background: #fff; color: #10211d; padding: 26px 40px; opacity: 0; box-shadow: 0 30px 70px rgba(0, 0, 0, 0.25); }
+.card span { font-size: 40px; font-weight: 700; color: #50625d; }
+.card b { display: block; font-size: 84px; font-weight: 900; direction: ltr; text-align: right; line-height: 1.15; }
+.notif { position: absolute; left: 150px; right: 150px; height: 170px; border-radius: 44px; background: #fff; color: #10211d; display: flex; align-items: center; gap: 26px; padding: 0 34px; opacity: 0; box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3); }
+.notif .ic { width: 104px; height: 104px; padding: 20px; border-radius: 28px; background: linear-gradient(135deg, #3be47b, #15a854); color: #fff; flex: none; }
+.notif b { display: block; font-size: 44px; font-weight: 900; }
+.notif small { font-size: 32px; font-weight: 700; color: #5d6b67; }
+.ring { position: absolute; left: 50%; top: 50%; width: 200px; height: 200px; margin: -100px 0 0 -100px; border-radius: 50%; border: 8px solid #fff; opacity: 0; }
+.rays { position: absolute; left: 50%; top: 50%; width: 2800px; height: 2800px; margin: -1400px 0 0 -1400px; border-radius: 50%; background: repeating-conic-gradient(rgba(255, 255, 255, 0.16) 0deg 7deg, transparent 7deg 20deg); -webkit-mask: radial-gradient(circle, #000 0%, transparent 60%); opacity: 0; }
+.logo { position: absolute; width: 380px; height: 380px; left: 350px; border-radius: 100px; box-shadow: 0 40px 100px rgba(0, 0, 0, 0.45); opacity: 0; }
+.prod { position: absolute; width: 380px; border-radius: 36px; background: #fff; color: #111; padding: 26px 34px; opacity: 0; box-shadow: 0 30px 70px rgba(0, 0, 0, 0.35); }
+.prod h4 { font-size: 42px; font-weight: 900; }
+.bars { display: flex; height: 110px; margin-top: 14px; direction: ltr; }
+.bars i { display: block; height: 100%; background: #111; }
+.laser { position: absolute; left: -20px; right: -20px; height: 8px; background: #ff2b2b; box-shadow: 0 0 30px 10px rgba(255, 40, 40, 0.6); opacity: 0; }
+.stamp { position: absolute; left: 50%; padding: 10px 50px; border: 14px solid currentColor; border-radius: 34px; font-size: 150px; font-weight: 900; transform-origin: 50% 50%; opacity: 0; }
+.coin { position: absolute; width: 300px; height: 300px; border-radius: 50%; display: grid; place-items: center; font-size: 120px; font-weight: 900; color: #6b4708; background: radial-gradient(circle at 35% 28%, #fff7d6, #f2cf76 30%, #e2a93c 62%, #a46d16); box-shadow: inset 0 0 0 14px rgba(120, 80, 10, 0.2), 0 40px 80px rgba(0, 0, 0, 0.35); opacity: 0; }
+.bub { position: absolute; max-width: 720px; padding: 26px 40px; border-radius: 46px 46px 46px 12px; font-size: 48px; font-weight: 900; opacity: 0; box-shadow: 0 24px 50px rgba(0, 0, 0, 0.3); }
+.tile { position: absolute; left: 0; top: 0; width: 150px; height: 150px; border-radius: 42px; display: grid; place-items: center; opacity: 0; box-shadow: inset 0 -10px 20px rgba(0, 0, 0, 0.25), inset 0 10px 16px rgba(255, 255, 255, 0.45), 0 18px 40px rgba(0, 0, 0, 0.3); }
+.tile .ic { width: 58%; height: 58%; color: #fff; }
+.num { position: absolute; left: 140px; right: 140px; height: 180px; border-radius: 56px; background: rgba(255, 255, 255, 0.1); border: 3px solid rgba(255, 255, 255, 0.25); display: flex; justify-content: center; align-items: center; gap: 28px; direction: ltr; opacity: 0; }
+.num span { font-size: 104px; font-weight: 900; color: rgba(255, 255, 255, 0.5); display: inline-block; }
+.pill { position: absolute; left: 50%; padding: 26px 74px; border-radius: 999px; background: linear-gradient(135deg, #3be47b, #15a854); font-size: 84px; font-weight: 900; white-space: nowrap; box-shadow: 0 30px 80px rgba(21, 168, 84, 0.5); opacity: 0; }
+.laptop { position: absolute; width: 760px; left: 160px; }
+.laptop .lid { background: #0b1210; border-radius: 30px 30px 8px 8px; padding: 16px; box-shadow: 0 40px 100px rgba(0, 0, 0, 0.5); }
+.laptop .lid img { width: 100%; display: block; border-radius: 10px; aspect-ratio: 16/10; object-fit: cover; object-position: top right; }
+.laptop .base { height: 30px; margin: 0 -40px; background: linear-gradient(180deg, #e4e9ec, #8c959c); border-radius: 0 0 36px 36px; }
+#strobe, #flash { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
+#flash { background: #fff; }
+#grain { position: absolute; inset: -100px; opacity: 0.05; mix-blend-mode: overlay; pointer-events: none; }
+canvas.fx { position: absolute; inset: 0; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="cam"><div id="beats"></div></div>
+  <canvas class="fx" id="fx" width="1080" height="1920"></canvas>
+  <div id="strobe"></div>
+  <div id="flash"></div>
+  <div id="grain"></div>
+</div>
+<script>
+const $ = (id) => document.getElementById(id);
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const P = (t, a, b) => clamp((t - a) / (b - a));
+const eo = (x) => 1 - Math.pow(1 - x, 3);
+const ei = (x) => x * x * x;
+const eio = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const back = (x) => { const c1 = 2.2, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+const spring = (x) => (x <= 0 ? 0 : 1 - Math.exp(-7 * x) * Math.cos(11 * x));
+const lerp = (a, b, x) => a + (b - a) * x;
+function rnd(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+const fmt = (n) => Math.round(n).toLocaleString('en');
+const ICONS = __ICONS__;
+const icon = (n) => `<span class="ic">${ICONS[n]}</span>`;
+window.DURATION = 61;
+
+// ── الصوت هو الساعة: كل بيت بيبلّش على كلمة (توقيت الكلمات من التسجيل) ──
+// [بداية، نهاية، خلفية، نوع القطع]
+const B = {};
+const BEATS = [
+  ['paper', 0.0, 0.88, '#efe6d2', 'flash'],
+  ['calc', 0.88, 1.82, '#272b31', 'glitch'],
+  ['night', 1.82, 2.62, 'radial-gradient(circle at 50% 40%,#1d2a52,#070b18)', 'whip'],
+  ['win', 2.62, 3.06, '#0f6e5c', 'punch'],
+  ['lose', 3.06, 3.73, '#c3141f', 'punch'],
+  ['enough', 3.73, 4.95, '#000', 'glitch'],
+  ['lock1', 4.95, 5.72, 'radial-gradient(circle at 50% 40%,#16a487,#063b31)', 'flash'],
+  ['tap', 5.72, 7.3, '#5fe0bf', 'zoom'],
+  ['sale', 7.3, 10.52, 'linear-gradient(160deg,#0c3b33,#06201b)', 'whip'],
+  ['stock', 10.52, 12.39, '#13294b', 'tape'],
+  ['items', 12.39, 15.94, 'linear-gradient(180deg,#ffffff,#e9f2ef)', 'zoom'],
+  ['debt', 15.94, 18.12, '#ff7a1a', 'punch'],
+  ['debts', 18.12, 20.26, 'linear-gradient(160deg,#20160f,#3a2210)', 'whip'],
+  ['wa', 20.26, 21.76, '#16b25a', 'glitch'],
+  ['day', 21.76, 22.97, '#3b1d8f', 'whip'],
+  ['reports', 22.97, 26.36, 'linear-gradient(180deg,#f6f2ff,#e6defa)', 'dive'],
+  ['money', 26.36, 28.2, 'radial-gradient(circle at 50% 40%,#ffd66b,#c98a12)', 'flash'],
+  ['setup', 28.2, 29.36, '#000', 'flash'],
+  ['ai', 29.36, 33.02, 'linear-gradient(170deg,#0d5e50,#04241e)', 'dive'],
+  ['offline', 33.02, 35.34, '#05070a', 'glitch'],
+  ['secure', 35.34, 36.76, '#0f6e5c', 'zoom'],
+  ['devices', 36.76, 39.08, '#1f63c9', 'whip'],
+  ['s1', 39.08, 40.08, '#14a37f', 'punch'],
+  ['s2', 40.08, 40.65, '#ff6a2b', 'punch'],
+  ['s3', 40.65, 41.43, '#1aa5e6', 'punch'],
+  ['s4', 41.43, 42.32, '#7a45ff', 'punch'],
+  ['wall', 42.32, 44.26, 'radial-gradient(circle at 50% 50%,#173b35,#050d0b)', 'zoom'],
+  ['screens', 44.26, 46.62, '#f2f6f5', 'whip'],
+  ['lock2', 46.62, 49.2, 'radial-gradient(circle at 50% 40%,#16a487,#052e26)', 'flash'],
+  ['offer', 49.2, 61, 'radial-gradient(circle at 50% 30%,#103a32,#040c0a)', 'zoom'],
+];
+const NUMS = [[51.37, 52.7], [52.74, 53.9], [53.95, 55.2], [55.98, 57.3], [57.38, 58.6], [58.68, 59.7]];
+const STROBES = [4.95, 46.73];
+const IMPACTS = [[0.05, 8], [0.88, 10], [2.62, 10], [3.06, 14], [3.73, 16], [4.95, 28], [6.7, 12], [9.68, 14], [11.34, 10], [16.5, 14], [21.08, 10], [22.97, 14], [25.51, 10], [26.36, 10], [27.03, 10], [29.36, 18], [34.54, 10], [35.84, 12], [39.08, 9], [40.08, 9], [40.65, 9], [41.43, 9], [43.6, 14], [46.73, 26], [49.25, 10]];
+
+// ── أدوات الحركة ──
+// كلمة بتنزل ضخمة: من 2.2× مضبّبة، بتتخطى وبترجع، وبتطلع (بتصغر وبتضبّب) قبل الكلمة الجاية
+function slam(el, t, at, out = 1e9, from = 2.2, rot = 0) {
+  const x = P(t, at, at + 0.42), o = P(t, out - 0.16, out);
+  if (t < at || o >= 1) { el.style.opacity = 0; return; }
+  const s = from - (from - 1) * spring(x * 1.15);
+  el.style.opacity = (Math.min(1, x * 4) * (1 - o)).toFixed(3);
+  el.style.transform = `scale(${(s * (1 - 0.25 * o)).toFixed(4)}) rotate(${(rot * (1 - eo(x))).toFixed(2)}deg)`;
+  const bl = (1 - Math.min(1, x * 2.2)) * 18 + o * 16;
+  el.style.filter = bl > 0.1 ? `blur(${bl.toFixed(1)}px)` : 'none';
+}
+function rise(el, t, at, out = 1e9, dy = 90) {
+  const x = P(t, at, at + 0.4), o = P(t, out - 0.16, out);
+  if (t < at || o >= 1) { el.style.opacity = 0; return; }
+  const k = back(x);
+  el.style.opacity = (Math.min(1, x * 3) * (1 - o)).toFixed(3);
+  el.style.transform = `translateY(${((1 - k) * dy - o * 40).toFixed(1)}px) scale(${(1.12 - 0.12 * Math.min(1, k) - o * 0.1).toFixed(4)})`;
+  const bl = (1 - Math.min(1, x * 2.5)) * 12 + o * 12;
+  el.style.filter = bl > 0.1 ? `blur(${bl.toFixed(1)}px)` : 'none';
+}
+function pop(el, t, at, out = 1e9, fromX = 0, fromY = 120) {
+  const x = P(t, at, at + 0.38), o = P(t, out - 0.16, out);
+  if (t < at || o >= 1) { el.style.opacity = 0; return; }
+  const k = back(x);
+  el.style.opacity = (Math.min(1, x * 3) * (1 - o)).toFixed(3);
+  el.style.transform = `translate(${(fromX * (1 - k)).toFixed(1)}px,${(fromY * (1 - k)).toFixed(1)}px) scale(${(0.6 + 0.4 * k - 0.2 * o).toFixed(3)})`;
+}
+function ringFx(el, t, at, max = 9, dur = 0.9) {
+  const x = P(t, at, at + dur);
+  if (x <= 0 || x >= 1) { el.style.opacity = 0; return; }
+  el.style.opacity = ((1 - x) * 0.9).toFixed(3);
+  el.style.transform = `scale(${(0.4 + eo(x) * max).toFixed(3)})`;
+}
+const count = (t, a, b, to) => to * eo(P(t, a, b));
+
+// ── شاشات الجوال المسجّلة (فريم فريم) ──
+const REC = __REC__;
+const FR = {};
+const imgs = [];
+for (const [name, n] of Object.entries(REC)) {
+  FR[name] = Array.from({ length: n }, (_, i) => { const im = new Image(); im.src = `rec/${name}/${String(i).padStart(3, '0')}.jpg`; imgs.push(im); return im; });
+}
+function phoneHTML(id, top, extra = '') { return `<div class="phone" id="${id}" style="top:${top}px;${extra}"><canvas width="780" height="1688"></canvas></div>`; }
+/** بيرسم فريم الشاشة حسب التقدّم (0..1) بالتمرير. */
+function drawRec(id, name, x) {
+  const c = $(id).querySelector('canvas');
+  const f = FR[name];
+  const im = f[Math.min(f.length - 1, Math.max(0, Math.round(x * (f.length - 1))))];
+  if (c._last !== im) { c.getContext('2d').drawImage(im, 0, 0, 780, 1688); c._last = im; }
+}
+
+// ── بناء البيتات ──
+const H = {
+  paper: `<div class="hw" id="p1" style="top:700px;font-size:330px;color:#2a2116">دفاتر…</div>
+    <div class="abs" id="pl" style="inset:0;background:repeating-linear-gradient(180deg,transparent 0 78px,rgba(70,90,140,.25) 78px 81px)"></div>`,
+  calc: `<div class="hw" id="c1" style="top:1080px;font-size:250px">حاسبة…</div>
+    <div class="abs" id="c2" style="left:340px;top:420px;width:400px;height:560px;border-radius:44px;background:linear-gradient(160deg,#4a525d,#1c2026);padding:36px;box-shadow:0 40px 80px rgba(0,0,0,.6)">
+      <div id="lcd" style="height:120px;border-radius:16px;background:#a6bf9f;color:#24331f;font:900 76px/120px Cairo;text-align:left;padding:0 22px;direction:ltr">0.</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:30px">${'<i style="height:70px;border-radius:16px;background:#5b636e;display:block"></i>'.repeat(16)}</div></div>`,
+  night: `<div class="hl" id="n1" style="top:420px;font-size:120px">وآخر الليل…</div>
+    <div class="hw ltr" id="n2" style="top:780px;font-size:300px;color:#ff4d4d;letter-spacing:10px;text-shadow:0 0 60px rgba(255,60,60,.7)">02:47</div>`,
+  win: `<div class="hw" id="w1" style="top:640px;font-size:330px">ربحت؟</div><div class="i3d" id="w2" style="left:430px;top:1120px;background:linear-gradient(135deg,#3be47b,#0f8a4f)">${icon('trending-up')}</div>`,
+  lose: `<div class="hw" id="l1" style="top:640px;font-size:330px">خسرت؟</div><div class="i3d" id="l2" style="left:430px;top:1120px;background:linear-gradient(135deg,#ff6b6b,#a50e17)"><span class="ic" style="transform:scaleY(-1)">${ICONS['trending-up']}</span></div>`,
+  enough: `<div class="hw" id="e1" style="top:700px;font-size:380px">خلص.</div><div class="hl" id="e2" style="top:760px;font-size:130px">صار في…</div>`,
+  lock1: `<div class="rays" id="r1"></div><div class="ring" id="g1"></div><div class="ring" id="g2"></div><img class="logo" id="lg1" src="logo.png" style="top:520px" alt="" /><div class="hw" id="k1" style="top:960px;font-size:300px">وزن</div>`,
+  tap: `<div class="hl" id="t1" style="top:330px;color:#06352d">فاتورة؟</div>
+    <div class="abs" id="t2" style="left:190px;right:190px;top:760px;height:300px;border-radius:90px;background:linear-gradient(180deg,#1aa588,#0b5c4c);box-shadow:inset 0 -18px 0 #07443a,0 40px 70px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;gap:24px;font-size:96px;font-weight:900;opacity:0">${icon('receipt').replace('class="ic"', 'class="ic" style="width:100px;height:100px"')}فاتورة مبيع</div>
+    <div class="hw" id="t3" style="top:1180px;font-size:260px;color:#06352d">كبسة</div>
+    <div class="ring" id="t4" style="top:910px;border-color:#06352d"></div>`,
+  sale: `${phoneHTML('ph1', 520)}
+    <div class="prod" id="pr" style="left:110px;top:1180px"><h4>رز مصري 1 كغ</h4><div class="bars" id="bars"></div><div class="laser" id="lz"></div></div>
+    <div class="hl" id="s1" style="top:250px;font-size:100px">بتمسح <span class="acc">الباركود</span></div>
+    <div class="hl" id="s2" style="top:250px;font-size:100px">بتنضاف المادة…</div>
+    <div class="stamp" id="s3" style="top:880px;color:#5fe0bf;margin-left:-230px;background:rgba(4,30,25,.75)">جاهز ✓</div>`,
+  stock: `<div class="hl" id="k3" style="top:430px;font-size:110px">شو باقي…</div><div class="hw" id="k4" style="top:760px;font-size:200px">بالمستودع؟</div>
+    <div class="i3d" id="k5" style="left:430px;top:1140px;background:linear-gradient(135deg,#6ea0ff,#2346a6)">${icon('layers')}</div>`,
+  items: `${phoneHTML('ph2', 520)}<div class="hl" id="i1" style="top:250px;color:#0b2e27">قائمة <span style="color:#14957c">المواد</span></div>
+    <div class="chip" id="i2" style="left:110px;top:1150px;background:#14957c;color:#fff">بالكمية</div>
+    <div class="chip" id="i3" style="right:110px;top:1300px;background:#ffcf5a;color:#3b2a03">والسعر</div>`,
+  debt: `<div class="hl" id="d1" style="top:430px;font-size:110px">زبون عليه…</div><div class="hw" id="d2" style="top:740px;font-size:380px">دين؟</div>`,
+  debts: `${phoneHTML('ph3', 520)}<div class="hl" id="d3" style="top:250px;font-size:96px">مين إلو… <span class="acc">ومين عليه</span></div>`,
+  wa: `<div class="hl" id="a1" style="top:330px;font-size:110px">تذكير…</div>
+    <div class="notif" id="a2" style="top:620px">${icon('message-circle')}<div><b>أبو خالد</b><small>عليك 11,000 ل.س · تذكير بالدفع</small></div></div>
+    <div class="notif" id="a3" style="top:820px">${icon('message-circle')}<div><b>أم محمد</b><small>عليك 6,420 ل.س · تذكير بالدفع</small></div></div>
+    <div class="notif" id="a4" style="top:1020px">${icon('message-circle')}<div><b>مطعم الضيعة</b><small>تذكير لطيف بموعد السداد</small></div></div>
+    <div class="hw" id="a5" style="top:1230px;font-size:170px">عالواتساب</div>`,
+  day: `<div class="hw" id="y1" style="top:700px;font-size:220px">وآخر النهار؟</div>`,
+  reports: `${phoneHTML('ph4', 600, 'opacity:.95')}<div class="hw" id="r0" style="top:700px;font-size:250px;color:#3b1d8f">التقارير</div>
+    <div class="card" id="v1c" style="top:640px"><span>مبيعاتك</span><b id="v1">0</b></div>
+    <div class="card" id="v2c" style="top:860px"><span>مصاريفك</span><b id="v2">0</b></div>
+    <div class="card" id="v3c" style="top:1080px;background:#0f6e5c;color:#fff"><span style="color:#bdf3e3">ربحك الصافي</span><b id="v3">0</b></div>`,
+  money: `<div class="coin" id="m1" style="left:170px;top:640px">ل.س</div><div class="coin" id="m2" style="left:610px;top:640px">$</div>
+    <div class="hw" id="m3" style="top:1040px;font-size:170px;color:#3b2603">بالليرة</div><div class="hw" id="m4" style="top:1040px;font-size:170px;color:#3b2603">وبالدولار</div>`,
+  setup: `<div class="hl" id="u1" style="top:780px;font-size:120px;text-shadow:0 0 60px rgba(95,224,191,.7)">ما عرفت شي؟</div>`,
+  ai: `<div class="hw" id="q1" style="top:720px;font-size:250px">المساعد</div>${phoneHTML('ph5', 560)}
+    <div class="bub" id="q2" style="right:120px;top:1080px;background:#fff;color:#0b2e27;border-radius:46px 46px 12px 46px">كيف بسجل مصروف كهربا؟</div>
+    <div class="hl" id="q3" style="top:260px;font-size:100px">بيفهم عليك <span class="acc">بلهجتك</span></div>
+    <div class="hl" id="q4" style="top:260px;font-size:100px">وبيفتحلك <span class="acc">القسم</span></div>`,
+  offline: `<div id="rain" class="abs" style="inset:0;font:700 34px/40px monospace;color:rgba(95,224,191,.18);white-space:pre;overflow:hidden;direction:ltr"></div>
+    <div class="hl" id="o1" style="top:380px;font-size:100px">وكلو بيشتغل…</div>
+    <svg id="o2" class="abs" style="left:340px;top:640px;opacity:0" width="400" height="340" viewBox="0 0 120 100" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round"><path d="M10 40 a72 72 0 0 1 100 0"/><path d="M27 57 a48 48 0 0 1 66 0"/><path d="M44 74 a24 24 0 0 1 32 0"/><circle cx="60" cy="88" r="6" fill="#fff" stroke="none"/><line id="o3" x1="18" y1="8" x2="102" y2="96" stroke="#ff4d4d" stroke-width="11"/></svg>
+    <div class="hw" id="o4" style="top:1060px;font-size:220px">بدون <span class="acc">إنترنت</span></div>`,
+  secure: `<div class="i3d" id="z1" style="left:390px;top:520px;width:300px;height:300px;border-radius:90px;background:linear-gradient(135deg,#7ff0d0,#0e7a62)">${icon('lock')}</div>
+    <div class="hw" id="z2" style="top:900px;font-size:250px">مشفّرة</div><div class="hl" id="z3" style="top:1200px;font-size:96px">وعندك إنت بس</div>`,
+  devices: `<div class="laptop" id="x1" style="top:520px"><div class="lid"><img src="shots/d-dashboard.png" alt="" /></div><div class="base"></div></div>
+    ${phoneHTML('ph6', 860, 'width:300px;left:700px;padding:8px;border-radius:46px')}
+    <div class="hl" id="x2" style="top:260px">عالكمبيوتر</div><div class="hl" id="x3" style="top:390px"><span class="acc">وعالجوال</span></div>`,
+  s1: `<div class="i3d" id="h1" style="left:430px;top:500px;background:linear-gradient(135deg,#5ff0c4,#0b7a5c)">${icon('shopping-cart')}</div><div class="hw" id="h2" style="top:820px;font-size:200px">سوبرماركت</div>`,
+  s2: `<div class="i3d" id="h3" style="left:430px;top:500px;background:linear-gradient(135deg,#ffb07a,#d24413)">${icon('utensils')}</div><div class="hw" id="h4" style="top:820px;font-size:260px">مطعم</div>`,
+  s3: `<div class="i3d" id="h5" style="left:430px;top:500px;background:linear-gradient(135deg,#8fdcff,#1477c2)">${icon('pill')}</div><div class="hw" id="h6" style="top:820px;font-size:240px">صيدلية</div>`,
+  s4: `<div class="i3d" id="h7" style="left:430px;top:500px;background:linear-gradient(135deg,#c2a3ff,#5223d6)">${icon('smartphone')}</div><div class="hw" id="h8" style="top:820px;font-size:220px">موبايلات</div>`,
+  wall: `<div id="tiles"></div><div class="hw ltr" id="b1" style="top:700px;font-size:380px;color:#ffcf5a;text-shadow:0 0 80px rgba(255,207,90,.5)">+0</div><div class="hw" id="b2" style="top:1120px;font-size:140px">مجال</div>`,
+  screens: `${phoneHTML('f1', 560, 'transform-origin:50% 120%')}${phoneHTML('f2', 560, 'transform-origin:50% 120%')}${phoneHTML('f3', 560, 'transform-origin:50% 120%')}
+    <div class="hl" id="f4" style="top:260px;color:#0b2e27">وكل واحد إلو <span style="color:#14957c">شاشاته</span></div>`,
+  lock2: `<div class="rays" id="r2"></div><div class="ring" id="g3"></div><div class="ring" id="g4"></div><img class="logo" id="lg2" src="logo.png" style="top:470px" alt="" /><div class="hw" id="k6" style="top:900px;font-size:280px">وزن</div>
+    <div class="hl" id="k7" style="top:1250px;font-size:96px">حساباتك صارت <span class="acc">بوزنها</span></div>`,
+  offer: `<div class="pill" id="w0" style="top:300px">جرّبه ببلاش</div>
+    <div class="i3d" id="w9" style="left:450px;top:520px;width:180px;height:180px;border-radius:52px;background:linear-gradient(135deg,#3be47b,#15a854)">${icon('message-circle')}</div>
+    <div class="hl" id="w8" style="top:730px;font-size:84px">راسلنا <span style="color:#3be47b">عالواتساب</span></div>
+    <div class="num" id="nm1" style="top:900px"><span id="g0">0968</span><span id="g1n">037</span><span id="g2n">609</span></div>
+    <div class="num" id="nm2" style="top:1110px"><span id="g3n">0980</span><span id="g4n">072</span><span id="g5n">891</span></div>
+    <div class="abs" id="endc" style="left:0;right:0;top:1320px;text-align:center;opacity:0"><div style="display:inline-flex;align-items:center;gap:20px"><img src="logo.png" style="width:100px;height:100px;border-radius:28px" alt="" /><b style="font-size:90px;font-weight:900">وزن</b></div><div class="ltr" style="display:block;font-size:52px;font-weight:900;color:#5fe0bf">waznsy.com</div></div>`,
+};
+
+(function build() {
+  let html = '';
+  for (const [id, , , bg] of BEATS) html += `<section class="beat" id="B_${id}" style="background:${bg}">${H[id]}</section>`;
+  $('beats').innerHTML = html;
+  const r = rnd(11); let bars = '';
+  for (let i = 0; i < 44; i++) bars += `<i style="width:${3 + Math.floor(r() * 4) * 3}px;margin-right:${3 + Math.floor(r() * 3) * 3}px"></i>`;
+  $('bars').innerHTML = bars;
+  const rr = rnd(9), ch = '0123456789ABCDEFابتثجحخدذرزسشصضطظعغفقكلمنهوي#*%'; let rain = '';
+  for (let l = 0; l < 52; l++) { let s = ''; for (let c = 0; c < 48; c++) s += ch[Math.floor(rr() * ch.length)]; rain += s + '\n'; }
+  $('rain').textContent = rain;
+  // جدار المجالات: 25 بلاطة بتنفجر من النص
+  const names = ['shopping-cart', 'utensils', 'pill', 'smartphone', 'shirt', 'car', 'brick-wall', 'beef', 'croissant', 'truck', 'stethoscope', 'store', 'ice-cream', 'scissors', 'chef-hat', 'monitor', 'printer', 'ruler', 'palette', 'laptop', 'layers', 'receipt', 'wallet', 'hand-coins', 'chart-column'];
+  const cols = ['#14a37f', '#ff6a2b', '#1aa5e6', '#7a45ff', '#e23d7a', '#f2a516', '#2fb36b', '#d9480f'];
+  const rt = rnd(5); let th = ''; window.TILES = [];
+  names.forEach((n, i) => {
+    const a = (i / names.length) * Math.PI * 2 + rt() * 0.3, R = 300 + rt() * 230;
+    TILES.push({ x: 540 + Math.cos(a) * R * 1.05 - 75, y: 900 + Math.sin(a) * R * 1.3 - 75, d: i * 0.035, r: (rt() - 0.5) * 40 });
+    th += `<div class="tile" id="tl${i}" style="background:linear-gradient(135deg,${cols[i % cols.length]},${cols[(i + 3) % cols.length]})">${icon(n)}</div>`;
+  });
+  $('tiles').innerHTML = th;
+  const g = document.createElement('canvas'); g.width = g.height = 320; const gx = g.getContext('2d'); const id = gx.createImageData(320, 320); const gr = rnd(3);
+  for (let i = 0; i < id.data.length; i += 4) { const v = gr() * 255; id.data[i] = id.data[i + 1] = id.data[i + 2] = v; id.data[i + 3] = 255; }
+  gx.putImageData(id, 0, 0); $('grain').style.backgroundImage = `url(${g.toDataURL()})`;
+  const mk = (t0, x, y, n, sp, cols2, seed, gv = 1000) => { const q = rnd(seed); return { t0, x, y, g: gv, parts: Array.from({ length: n }, () => { const a = q() * Math.PI * 2, v = sp * (0.35 + q() * 0.75); return { vx: Math.cos(a) * v, vy: Math.sin(a) * v - sp * 0.25, s: 4 + q() * 10, life: 0.8 + q() * 1.1, c: cols2[Math.floor(q() * cols2.length)] }; }) }; };
+  const C3 = ['#3be47b', '#ff4fb0', '#4f8bff', '#ffcf5a', '#ffffff'];
+  window.BURSTS = [mk(4.95, 540, 720, 300, 1900, C3, 1), mk(9.68, 540, 960, 140, 1300, ['#5fe0bf', '#fff'], 2), mk(25.51, 540, 1160, 120, 1100, ['#5fe0bf', '#ffcf5a'], 3), mk(43.6, 540, 900, 200, 1500, ['#ffcf5a', '#fff'], 4), mk(46.73, 540, 660, 300, 1900, C3, 5), mk(29.36, 540, 820, 140, 1400, ['#5fe0bf', '#fff'], 6), mk(49.25, 540, 360, 120, 1200, ['#3be47b', '#fff'], 7)];
+  // قلوب/أيقونات صغيرة بتمطر بالختام
+  window.RAIN = Array.from({ length: 34 }, (_, i) => { const q = rnd(40 + i); return { x: 80 + q() * 920, v: 380 + q() * 420, s: 26 + q() * 30, d: q() * 2.2, c: C3[i % 5] }; });
+})();
+
+// ── القطعات ──
+function cutIn(el, kind, x) {
+  // x = تقدّم دخول البيت (0..1) خلال أول 0.28 ثانية
+  const e = eo(x);
+  let tr = '', f = '';
+  switch (kind) {
+    case 'whip': tr = `translateX(${((1 - e) * -1100).toFixed(1)}px) skewX(${((1 - e) * 18).toFixed(2)}deg)`; f = x < 1 ? `blur(${((1 - e) * 26).toFixed(1)}px)` : ''; break;
+    case 'zoom': tr = `scale(${(1.6 - 0.6 * e).toFixed(4)})`; f = x < 1 ? `blur(${((1 - e) * 20).toFixed(1)}px)` : ''; break;
+    case 'dive': tr = `scale(${(0.35 + 0.65 * e).toFixed(4)}) rotate(${((1 - e) * -12).toFixed(2)}deg)`; f = x < 1 ? `blur(${((1 - e) * 14).toFixed(1)}px)` : ''; break;
+    case 'punch': tr = `scale(${(1 + 0.12 * (1 - spring(x))).toFixed(4)})`; break;
+    case 'tape': tr = `translateY(${((1 - e) * 1920).toFixed(1)}px) rotate(${((1 - e) * 6).toFixed(2)}deg)`; break;
+    case 'glitch': { const r = rnd(Math.floor(x * 24) + 7); tr = x < 1 ? `translate(${((r() - 0.5) * 80 * (1 - x)).toFixed(1)}px,${((r() - 0.5) * 30 * (1 - x)).toFixed(1)}px)` : ''; f = x < 1 ? `hue-rotate(${(r() * 120 * (1 - x)).toFixed(0)}deg) contrast(${(1 + (1 - x)).toFixed(2)})` : ''; break; }
+    default: tr = '';
+  }
+  el.style.transform = tr || 'none';
+  el.style.filter = f || 'none';
+}
+
+function scene(t) {
+  BEATS.forEach(([id, a, b, , kind], i) => {
+    const el = $('B_' + id);
+    const on = t >= a && t < b + (i === BEATS.length - 1 ? 1 : 0);
+    el.style.display = on ? 'block' : 'none';
+    if (!on) return;
+    cutIn(el, kind, P(t, a, a + 0.28));
+    R[id] && R[id](t, a, b);
+  });
+}
+
+// ── كل بيت ──
+const R = {
+  paper(t) { slam($('p1'), t, 0.05, 0.88, 2.4, -6); },
+  calc(t) {
+    slam($('c1'), t, 1.2, 1.82, 2.2);
+    pop($('c2'), t, 0.9, 1.82, 0, -300);
+    if (t > 1.3) $('c2').style.transform = `rotate(${(8 + Math.sin(t * 60) * 3).toFixed(2)}deg)`;
+    $('lcd').textContent = ['12500', '16250', '9,140', 'ERR'][Math.min(3, Math.floor(P(t, 0.95, 1.8) * 4))];
+  },
+  night(t) { rise($('n1'), t, 1.85, 2.62); slam($('n2'), t, 2.06, 2.62, 1.8); if (t > 2.3) $('n2').style.opacity = Math.floor(t * 8) % 2 ? 1 : 0.6; },
+  win(t) { slam($('w1'), t, 2.62, 3.06, 2.4, -5); pop($('w2'), t, 2.68, 3.06); },
+  lose(t) { slam($('l1'), t, 3.06, 3.73, 2.4, 5); pop($('l2'), t, 3.12, 3.73); if (t > 3.3) $('l1').style.transform = `translateX(${(Math.sin(t * 70) * 10).toFixed(1)}px)`; },
+  enough(t) {
+    const e = $('e1');
+    if (t < 4.4) {
+      const r = rnd(Math.floor(t * 30)); const j = t < 3.95 || r() > 0.7;
+      slam(e, t, 3.73, 4.42, 1.7);
+      e.style.textShadow = j ? `${(-16 * r()).toFixed(1)}px 0 #ff2a6d, ${(16 * r()).toFixed(1)}px 0 #2af0ff` : 'none';
+    } else e.style.opacity = 0;
+    rise($('e2'), t, 4.49, 4.95);
+  },
+  lock1(t) {
+    $('r1').style.opacity = eo(P(t, 4.95, 5.3)).toFixed(3); $('r1').style.transform = `rotate(${((t - 4.95) * 30).toFixed(1)}deg)`;
+    slam($('lg1'), t, 4.95, 1e9, 3, -14); slam($('k1'), t, 5.05, 1e9, 2);
+    ringFx($('g1'), t, 4.95, 10, 1); ringFx($('g2'), t, 5.12, 8, 1);
+  },
+  tap(t) {
+    rise($('t1'), t, 5.87, 7.3);
+    const b = $('t2'); const x = P(t, 5.85, 6.2); const press = t > 6.62 && t < 6.85 ? 1 : 0;
+    b.style.opacity = Math.min(1, x * 3).toFixed(3);
+    b.style.transform = `scale(${(0.6 + 0.4 * back(x) - 0.06 * press).toFixed(3)}) translateY(${press * 14}px)`;
+    b.style.boxShadow = press ? 'inset 0 -4px 0 #07443a,0 10px 30px rgba(0,0,0,.25)' : '';
+    slam($('t3'), t, 6.7, 7.3, 2.4); ringFx($('t4'), t, 6.7, 6, 0.7);
+  },
+  sale(t) {
+    const ph = $('ph1'); const x = eo(P(t, 7.3, 7.8));
+    ph.style.transform = `translateY(${((1 - x) * 900).toFixed(1)}px) rotate(${((1 - x) * 8).toFixed(2)}deg)`;
+    drawRec('ph1', 'sale', P(t, 8.4, 10.3));
+    pop($('pr'), t, 7.35, 8.4, -500, 0);
+    const lz = P(t, 7.6, 8.1); $('lz').style.opacity = lz > 0 && lz < 1 ? 1 : 0; $('lz').style.top = `${lerp(60, 220, Math.sin(lz * Math.PI))}px`;
+    rise($('s1'), t, 7.42, 8.42); rise($('s2'), t, 8.44, 9.6);
+    const s = $('s3'); const sx = P(t, 9.68, 9.98);
+    s.style.opacity = t >= 9.68 ? Math.min(1, sx * 4).toFixed(3) : 0;
+    s.style.transform = `scale(${(2.6 - 1.6 * spring(sx * 1.1)).toFixed(3)}) rotate(-8deg)`;
+  },
+  stock(t) { rise($('k3'), t, 10.6, 12.39); slam($('k4'), t, 11.34, 12.39, 2.2); pop($('k5'), t, 11.45, 12.39); },
+  items(t) {
+    const ph = $('ph2'); const x = eo(P(t, 12.39, 12.9));
+    ph.style.transform = `translateY(${((1 - x) * 900).toFixed(1)}px)`;
+    drawRec('ph2', 'items', P(t, 12.8, 15.6));
+    rise($('i1'), t, 12.39); pop($('i2'), t, 14.29, 1e9, -300, 0); pop($('i3'), t, 15.06, 1e9, 300, 0);
+  },
+  debt(t) { rise($('d1'), t, 16.0, 16.5); slam($('d2'), t, 16.5, 18.12, 2.6, -8); },
+  debts(t) {
+    const ph = $('ph3'); const x = eo(P(t, 18.12, 18.6));
+    ph.style.transform = `translateY(${((1 - x) * 900).toFixed(1)}px)`;
+    drawRec('ph3', 'debts', P(t, 18.5, 20.2));
+    rise($('d3'), t, 19.0);
+  },
+  wa(t) { rise($('a1'), t, 20.3, 21.0); pop($('a2'), t, 20.5, 1e9, 0, -200); pop($('a3'), t, 20.68, 1e9, 0, -200); pop($('a4'), t, 20.86, 1e9, 0, -200); slam($('a5'), t, 21.08, 21.76, 2.2); },
+  day(t) { slam($('y1'), t, 21.87, 22.97, 1.8); if (t > 22.6) $('y1').style.transform = `scale(${(1 + ei(P(t, 22.6, 22.97)) * 3).toFixed(3)})`; },
+  reports(t) {
+    slam($('r0'), t, 22.97, 23.95, 2.4);
+    const ph = $('ph4'); const x = eo(P(t, 23.4, 23.9));
+    ph.style.opacity = x.toFixed(3); ph.style.transform = `translateY(${((1 - x) * 600).toFixed(1)}px) scale(${(0.9 + 0.1 * x).toFixed(3)})`;
+    drawRec('ph4', 'reports', P(t, 23.5, 26.2));
+    pop($('v1c'), t, 24.0, 1e9, 600, 0); pop($('v2c'), t, 24.62, 1e9, -600, 0); pop($('v3c'), t, 25.45, 1e9, 600, 0);
+    $('v1').textContent = fmt(count(t, 24.0, 24.6, 72000)) + ' ل.س';
+    $('v2').textContent = fmt(count(t, 24.66, 25.3, 56779)) + ' ل.س';
+    $('v3').textContent = '+' + fmt(count(t, 25.51, 26.2, 15221)) + ' ل.س';
+  },
+  money(t) {
+    slam($('m1'), t, 26.36, 1e9, 2.4, -30); slam($('m2'), t, 27.03, 1e9, 2.4, 30);
+    ['m1', 'm2'].forEach((id, i) => { const at = i ? 27.03 : 26.36; if (t > at + 0.45) $(id).style.transform = `translateY(${(Math.sin(t * 3 + i * 2) * 14).toFixed(1)}px) rotateY(${(Math.sin(t * 2.4 + i) * 30).toFixed(1)}deg)`; });
+    slam($('m3'), t, 26.36, 27.03, 2); slam($('m4'), t, 27.03, 28.2, 2);
+  },
+  setup(t) { rise($('u1'), t, 28.27, 29.36, 40); if (t > 29.1) $('u1').style.transform = `scale(${(1 + ei(P(t, 29.1, 29.36)) * 5).toFixed(3)})`; },
+  ai(t) {
+    slam($('q1'), t, 29.36, 30.02, 2.6);
+    const ph = $('ph5'); const x = eo(P(t, 29.95, 30.4));
+    ph.style.opacity = x.toFixed(3); ph.style.transform = `translateY(${((1 - x) * 700).toFixed(1)}px)`;
+    const c = ph.querySelector('canvas'); if (!c._ai && AI.complete) { c.getContext('2d').drawImage(AI, 0, 0, 780, 1688); c._ai = 1; }
+    pop($('q2'), t, 30.1, 30.7, 300, 0);
+    rise($('q3'), t, 30.05, 31.38); rise($('q4'), t, 31.4, 33.0);
+  },
+  offline(t) {
+    $('rain').style.transform = `translateY(${(-((t - 33) * 220) % 40).toFixed(1)}px)`;
+    rise($('o1'), t, 33.06, 34.12);
+    const w = $('o2'); const x = eo(P(t, 33.2, 33.6)); w.style.opacity = x.toFixed(3); w.style.transform = `scale(${(0.7 + 0.3 * x).toFixed(3)})`;
+    $('o3').style.strokeDasharray = 125; $('o3').style.strokeDashoffset = (125 * (1 - eo(P(t, 34.14, 34.45)))).toFixed(1);
+    slam($('o4'), t, 34.14, 35.34, 2.2);
+  },
+  secure(t) { slam($('z1'), t, 35.34, 1e9, 2.6, -12); slam($('z2'), t, 35.84, 1e9, 2.4); rise($('z3'), t, 36.18); },
+  devices(t) {
+    rise($('x2'), t, 36.83); const x = eo(P(t, 36.83, 37.4));
+    $('x1').style.transform = `translateX(${((1 - x) * -1100).toFixed(1)}px) perspective(1600px) rotateY(${(-14 * x).toFixed(1)}deg)`;
+    const y = back(P(t, 37.76, 38.25));
+    $('ph6').style.transform = `translateX(${((1 - y) * 900).toFixed(1)}px) rotate(${(4 + (1 - y) * 14).toFixed(2)}deg)`;
+    drawRec('ph6', 'home', P(t, 37.9, 39.0)); rise($('x3'), t, 37.76);
+  },
+  s1(t) { pop($('h1'), t, 39.1); slam($('h2'), t, 39.08, 40.08, 2.2); },
+  s2(t) { pop($('h3'), t, 40.1); slam($('h4'), t, 40.08, 40.65, 2.4); },
+  s3(t) { pop($('h5'), t, 40.67); slam($('h6'), t, 40.65, 41.43, 2.4); },
+  s4(t) { pop($('h7'), t, 41.45); slam($('h8'), t, 41.43, 42.32, 2.4); },
+  wall(t) {
+    TILES.forEach((p, i) => {
+      const el = $('tl' + i); const x = P(t, 42.35 + p.d, 42.85 + p.d);
+      el.style.opacity = Math.min(1, x * 3).toFixed(3);
+      const k = back(x);
+      el.style.transform = `translate(${lerp(465, p.x, k).toFixed(1)}px,${(lerp(825, p.y, k) + Math.sin(t * 2 + i) * 8).toFixed(1)}px) rotate(${(p.r * k + Math.sin(t + i) * 4).toFixed(1)}deg) scale(${(0.3 + 0.7 * Math.min(1, k)).toFixed(3)})`;
+    });
+    $('b1').textContent = '+' + Math.round(count(t, 42.4, 43.6, 25));
+    slam($('b1'), t, 42.4, 44.26, 1.6); slam($('b2'), t, 43.6, 44.26, 2.2);
+  },
+  screens(t) {
+    rise($('f4'), t, 44.26);
+    [['f1', 'items', -24, -280, 44.4], ['f2', 'home', 0, 0, 44.6], ['f3', 'debts', 24, 280, 45.12]].forEach(([id, rec, r, dx, at]) => {
+      const x = back(P(t, at, at + 0.5)); const el = $(id);
+      el.style.opacity = P(t, at, at + 0.12).toFixed(3);
+      el.style.transform = `translate(${(dx * x).toFixed(1)}px,${((1 - x) * 700 + Math.abs(r) * 3).toFixed(1)}px) rotate(${(r * x).toFixed(2)}deg) scale(${(0.72 + 0.08 * x).toFixed(3)})`;
+      el.style.zIndex = id === 'f2' ? 3 : 2;
+      drawRec(id, rec, P(t, at + 0.2, 46.6));
+    });
+  },
+  lock2(t) {
+    $('r2').style.opacity = eo(P(t, 46.73, 47.1)).toFixed(3); $('r2').style.transform = `rotate(${((t - 46.7) * 30).toFixed(1)}deg)`;
+    slam($('lg2'), t, 46.73, 1e9, 3, 14); slam($('k6'), t, 46.83, 1e9, 2);
+    ringFx($('g3'), t, 46.73, 10, 1); ringFx($('g4'), t, 46.9, 8, 1);
+    rise($('k7'), t, 47.49);
+    if (t > 47.5) $('lg2').style.transform = `scale(${(1 + 0.03 * Math.sin((t - 46.7) * 5)).toFixed(4)})`;
+  },
+  offer(t) {
+    const p = $('w0'); const x = P(t, 49.25, 49.65);
+    p.style.opacity = Math.min(1, x * 3).toFixed(3); p.style.transform = `translateX(-50%) scale(${(0.4 + 0.6 * back(x) + 0.025 * Math.sin(t * 6)).toFixed(4)})`;
+    pop($('w9'), t, 50.0); rise($('w8'), t, 50.32);
+    pop($('nm1'), t, 51.1); pop($('nm2'), t, 55.6);
+    ['g0', 'g1n', 'g2n', 'g3n', 'g4n', 'g5n'].forEach((id, i) => {
+      const [a, b] = NUMS[i]; const el = $(id); const on = t >= a - 0.05, act = on && t <= b + 0.1;
+      const k = act ? back(P(t, a - 0.05, a + 0.3)) : 0;
+      el.style.color = act ? '#ffcf5a' : on ? '#fff' : '';
+      el.style.transform = `scale(${(1 + 0.2 * k * (1 - P(t, b, b + 0.2))).toFixed(3)})`;
+    });
+    const e = P(t, 59.6, 60.1); $('endc').style.opacity = e.toFixed(3); $('endc').style.transform = `translateY(${((1 - eo(e)) * 80).toFixed(1)}px)`;
+  },
+};
+const AI = new Image(); AI.src = 'rec/ai.jpg'; imgs.push(AI);
+
+// ── فلاش، ستروب، كاميرا، جزيئات ──
+const fx = $('fx').getContext('2d');
+function effects(t) {
+  // ستروب 6 فريمات (أخضر، وردي، أزرق) على الشعار
+  let st = '';
+  for (const s of STROBES) { const f = Math.floor((t - s) * 30); if (f >= 0 && f < 6) st = ['#3be47b', '#ff4fb0', '#4f8bff'][f % 3]; }
+  $('strobe').style.background = st || 'transparent'; $('strobe').style.opacity = st ? 0.85 : 0; $('strobe').style.mixBlendMode = 'screen';
+  // فلاش أبيض على قطعات الفلاش
+  let fl = 0;
+  for (const [, a, , , k] of BEATS) if (k === 'flash') { const x = P(t, a, a + 0.25); if (x > 0 && x < 1) fl = Math.max(fl, 0.75 * (1 - eo(x))); }
+  $('flash').style.opacity = fl.toFixed(3);
+  // هزة الكاميرا
+  let sx = 0, sy = 0, rz = 0;
+  for (const [ti, amp] of IMPACTS) { const dt = t - ti; if (dt < 0 || dt > 0.55) continue; const e = amp * Math.exp(-dt * 10); sx += Math.sin(dt * 95) * e; sy += Math.cos(dt * 80) * e * 0.8; rz += Math.sin(dt * 60) * e * 0.02; }
+  $('cam').style.transform = `translate(${sx.toFixed(1)}px,${sy.toFixed(1)}px) rotate(${rz.toFixed(3)}deg) scale(${(1 + 0.01 * Math.sin(t * 0.8)).toFixed(4)})`;
+  // جزيئات
+  fx.clearRect(0, 0, 1080, 1920); fx.globalCompositeOperation = 'lighter';
+  for (const b of BURSTS) {
+    const dt = t - b.t0; if (dt < 0 || dt > 2.2) continue;
+    for (const q of b.parts) { if (dt > q.life) continue; const k = dt / q.life; fx.globalAlpha = (1 - k) * (1 - k); fx.fillStyle = q.c; fx.beginPath(); fx.arc(b.x + q.vx * dt * (1 - k * 0.45), b.y + q.vy * dt * (1 - k * 0.45) + 0.5 * b.g * dt * dt, q.s * (1 - k * 0.5), 0, 6.283); fx.fill(); }
+  }
+  fx.globalAlpha = 1; fx.globalCompositeOperation = 'source-over';
+  // مطر أيقونات بالختام
+  if (t > 46.9 && t < 49.3) for (const h of RAIN) { const dt = t - 46.9 - h.d; if (dt < 0) continue; const y = -60 + dt * h.v; if (y > 1980) continue; fx.globalAlpha = 0.9; fx.fillStyle = h.c; fx.beginPath(); fx.arc(h.x + Math.sin(dt * 3) * 30, y, h.s / 2, 0, 6.283); fx.fill(); }
+  fx.globalAlpha = 1;
+  const gr = rnd(Math.floor(t * 30) + 1); $('grain').style.transform = `translate(${Math.floor(gr() * 100)}px,${Math.floor(gr() * 100)}px)`;
+  $('stage').style.opacity = (1 - P(t, 60.4, 61)).toFixed(3);
+}
+
+window.render = function (t) { scene(t); effects(t); };
+// كل كلمة كبيرة لازم توسع جوّا المنطقة الآمنة (عرض 860): منصغّر الخط لحد ما توسع
+function fitWords() {
+  for (const sec of document.querySelectorAll('.beat')) {
+    sec.style.display = 'block';
+    for (const el of sec.querySelectorAll('.hw')) {
+      el.style.opacity = 1; el.style.transform = 'none'; el.style.left = '0'; el.style.right = 'auto'; el.style.width = 'auto'; el.style.display = 'inline-block';
+      let fs = parseFloat(getComputedStyle(el).fontSize);
+      while (el.scrollWidth > 860 && fs > 60) { fs -= 6; el.style.fontSize = fs + 'px'; }
+      el.style.left = ''; el.style.right = ''; el.style.width = ''; el.style.display = ''; el.style.opacity = 0;
+    }
+    sec.style.display = 'none';
+  }
+}
+Promise.all([document.fonts.ready, ...[...document.images, ...imgs].map((im) => (im.complete ? 1 : new Promise((r) => { im.onload = im.onerror = r; })))]).then(() => { fitWords(); window.render(0); window.READY = true; });
+</script>
+</body>
+</html>
