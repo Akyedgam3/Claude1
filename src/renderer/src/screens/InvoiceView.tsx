@@ -1,5 +1,5 @@
 import { amountInWords, findRate, INVOICE_KIND_NAMES, invoicePartyBalance, invoiceProfit, lineAmount, weighingText, type CompanyState, type Invoice } from '../../../core';
-import { dateText, IS_MOBILE, money, plainMoney, qtyText, rateLine, today, useCompany } from '../api';
+import { dateText, IS_MOBILE, money, plainMoney, qtyText, qtyTotalText, rateLine, today, useCompany } from '../api';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { CommercialDoc, type DocModel } from '../components/CommercialDoc';
 import { ThermalReceipt, type ReceiptData } from '../components/ThermalReceipt';
@@ -405,6 +405,7 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
       };
     }),
     totals: [
+      { label: 'مجموع الكمية', value: qtyTotalText(inv.lines.map((l) => ({ qty: l.qty, unit: l.unit ?? (l.itemId ? state.items[l.itemId]?.unit : undefined) }))) },
       { label: 'المجموع', value: m(inv.subtotal) },
       ...(inv.discount > 0 ? [{ label: 'الخصم', value: m(inv.discount) }] : []),
       ...inv.taxLines.map((t) => ({ label: state.taxes[t.taxId]?.name ?? 'ضريبة', value: m(t.amount) })),

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { computeTaxes, PRICE_TIER_NAMES, tierPrice, niceUnitCost, PRICE_SCALE, roundPrice, findRate, itemPlace, listPrices, withPlace, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
-import { convertPrice, fxRates, money, cleanNumber, parseAmount, parseDiscount, parsePrice, rateInverted, toInput, today, uid, useCompany } from '../api';
+import { convertPrice, fxRates, money, cleanNumber, qtyTotalText, parseAmount, parseDiscount, parsePrice, rateInverted, toInput, today, uid, useCompany } from '../api';
 import { askConfirm, CurrencySelect, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
 import { invoiceDrafts } from '../drafts';
 import { ItemForm } from './Items';
@@ -841,6 +841,14 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
 
         <section className="card totals">
           <div className="kv">
+            <span>مجموع الكمية</span>
+            <strong className="qty-total">
+              {qtyTotalText(
+                lines
+                  .filter((l) => l.itemId || l.description.trim())
+                  .map((l) => ({ qty: Number(cleanNumber(l.qty || '0')) || 0, unit: l.unit || (l.itemId ? state.items[l.itemId]?.unit : undefined) })),
+              )}
+            </strong>
             <span>المجموع</span>
             <strong>{money(state, preview.subtotal, currency)}</strong>
             {allowDiscount && (

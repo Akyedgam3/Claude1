@@ -445,6 +445,14 @@ export function qtyText(q: number): string {
   return Number.isInteger(q) ? String(q) : q.toFixed(3).replace(/0+$/, '');
 }
 
+/** مجموع الكمية بالفاتورة: وحدة وحدة إذا الوحدات مختلفة («12 قطعة + 3 كرتونة»). الأسطر بدون كمية ما بتنحسب. */
+export function qtyTotalText(lines: { qty: number; unit?: string }[]): string {
+  const by = new Map<string, number>();
+  for (const l of lines) if (l.qty > 0) by.set(l.unit ?? '', (by.get(l.unit ?? '') ?? 0) + l.qty);
+  if (by.size === 0) return '0';
+  return [...by].map(([u, q]) => `${qtyText(Math.round(q * 1000) / 1000)}${u ? ` ${u}` : ''}`).join(' + ');
+}
+
 /** أسعار كل العملات بعملة الشركة بتاريخ معيّن (العملة اللي ما إلها سعر مسجّل ما بتطلع). */
 export function fxRates(state: CompanyState, date: string): Record<string, number> {
   const out: Record<string, number> = {};
