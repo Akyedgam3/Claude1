@@ -50,6 +50,7 @@ import { Workshop, WorkOrderEditor } from './screens/Workshop';
 import { DeviceLookup, Installments, PcBuild, TradeIn } from './screens/Electronics';
 import { Vehicles } from './screens/Vehicles';
 import { Debts } from './screens/Debts';
+import { Marketers } from './screens/Marketers';
 import { Tour } from './components/Tour';
 import { Vouchers } from './screens/Vouchers';
 import { Welcome } from './screens/Welcome';
@@ -96,6 +97,7 @@ const NAV: (NavItem | string)[] = [
   { key: 'appointments', label: 'المواعيد', icon: 'calendar', feature: 'appointments', perm: 'appointments.manage' },
   { key: 'purchase', label: 'فاتورة شراء', icon: 'purchase', perm: 'purchases.create' },
   { key: 'debts', label: 'الديون', icon: 'debts', perm: 'vouchers.create' },
+  { key: 'marketers', label: 'المسوّقين', icon: 'users', perm: 'reports.financial' },
   { key: 'vouchers', label: 'سندات القبض والدفع', icon: 'wallet', perm: 'vouchers.create' },
   { key: 'invoices', label: 'سجل الفواتير', icon: 'receipt' },
   'المخزون والبطاقات',
@@ -567,6 +569,8 @@ function Screen({ screen }: { screen: { key: string; param?: string } }) {
       return <Parties {...(p ? { focus: p } : {})} />;
     case 'debts':
       return <Debts />;
+    case 'marketers':
+      return <Marketers />;
     case 'partners':
       return <Partners key={p ?? ''} {...(p ? { tab: p } : {})} />;
     case 'vouchers':

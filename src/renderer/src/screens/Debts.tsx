@@ -637,7 +637,7 @@ function DebtForm({ direction: initial, partyId: presetParty, onClose }: { direc
   );
 }
 
-function PayForm({ party, direction, onClose }: { party: Party; direction: 'in' | 'out'; onClose: () => void }) {
+export function PayForm({ party, direction, onClose }: { party: Party; direction: 'in' | 'out'; onClose: () => void }) {
   const { state, call, notify, can } = useCompany();
   const base = state.info!.baseCurrency;
   const bal = partyBalance(state, party.id);
