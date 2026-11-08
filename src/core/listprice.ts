@@ -73,11 +73,17 @@ export function guessColumns(rows: string[][]): ListColumn[] {
   if (name !== undefined) cols[name] = 'name';
   const dec = [...Array(n).keys()].filter((i) => cols[i] === 'skip').map((i) => ({ i, s: score(i, (x) => /^\d+\.\d+$/.test(x)) })).sort((a, b) => b.s - a.s)[0];
   if (dec && dec.s > 0) cols[dec.i] = 'price';
+  // عمود رموز فيها حروف لاتينية وأرقام (ML-001، A12…) = الكود
+  const alnum = [...Array(n).keys()].filter((i) => cols[i] === 'skip' && score(i, (x) => /^[A-Za-z][A-Za-z0-9._\/-]*\d[A-Za-z0-9._\/-]*$/.test(x)) >= rows.length / 2);
+  if (alnum[0] !== undefined) cols[alnum[0]] = 'code';
   const ints = [...Array(n).keys()].filter((i) => cols[i] === 'skip' && score(i, isNum) >= rows.length / 2);
   // الكود قريب من الاسم، والتعبئة بين الكود والسعر؛ رقم التسلسل (1، 2، 3...) منتجاهله
-  const serial = ints.find((i) => rows.every((r, k) => k === 0 || !isNum(r[i] ?? '') || Number(r[i]) - Number(rows[k - 1]![i]) <= 2) && rows.length > 2);
+  const serial = ints.find((i) => rows.every((r, k) => k === 0 || !isNum(r[i] ?? '') || (Number(r[i]) - Number(rows[k - 1]![i]) >= 0 && Number(r[i]) - Number(rows[k - 1]![i]) <= 2)) && rows.length > 2);
   const rest = ints.filter((i) => i !== serial);
-  if (rest.length >= 2) {
+  if (cols.includes('code')) {
+    // في كود: أول عمود أرقام صحيحة هو التعبئة
+    if (rest[0] !== undefined) cols[rest[0]] = 'pack';
+  } else if (rest.length >= 2) {
     const byDist = rest.sort((a, b) => Math.abs(a - (name ?? 0)) - Math.abs(b - (name ?? 0)));
     cols[byDist[0]!] = 'code';
     cols[byDist[1]!] = 'pack';

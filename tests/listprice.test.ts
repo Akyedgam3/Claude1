@@ -25,6 +25,14 @@ describe('list pricing (electrical)', () => {
     ]);
   });
 
+  it('code like ML-001 is the code, and the integer column next to it is the pack (not the code)', () => {
+    const text = 'الرمز\tالاسم\tالتعبئة\tسعر النشرة\nML-001\tلمبة ماكس لايت 5 وات ضوء أبيض\t100\t0.6\nML-002\tلمبة ماكس لايت 5 وات ضوء شمسي\t100\t0.6\nML-009\tلمبة 20 وات ماكس لايت ضوء أبيض\t60\t1.2\nML-016\tلمبة 80 وات ماكس لايت ضوء أبيض\t10\t6';
+    const rows = splitPasted(text);
+    const cols = guessColumns(rows.slice(1));
+    expect(cols).toEqual(['code', 'name', 'pack', 'price']);
+    expect(readListRows(rows, cols)[2]).toEqual({ code: 'ML-009', name: 'لمبة 20 وات ماكس لايت ضوء أبيض', pack: 60, price: 1.2 });
+  });
+
   it('reads rows copied from the PDF text (price first, serial last)', () => {
     const text = ' 0.7       480   2000          مفتاح مفرد 16 امبير                1\n 1.5       400   2010        مفتاح مفرد بضوء 16 امبير             2\n 1.0       480   2001         مفتاح دركسيون 16 امبير              3';
     const rows = splitPasted(text);

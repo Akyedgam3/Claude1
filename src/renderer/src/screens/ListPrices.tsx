@@ -187,7 +187,11 @@ function ImportList({ onClose }: { onClose: () => void }) {
   const guessed = useMemo(() => guessColumns(cells.filter((r) => r.some((c) => /\d/.test(c)))), [cells]);
   const use = cols && cols.length === guessed.length ? cols : guessed;
   const rows = useMemo(() => readListRows(cells, use), [cells, use]);
-  const existing = (code: string, name: string) => Object.values(state.items).find((i) => !i.archived && (i.brand ?? '') === brand.trim() && ((code && (i.code === code || i.code.endsWith(code))) || i.name === name));
+  // المطابقة: الرمز بالظبط، بعدين الاسم بالظبط، وآخر شي آخر الرمز (حتى ما يروح سعر صنف على صنف تاني)
+  const existing = (code: string, name: string) => {
+    const pool = Object.values(state.items).filter((i) => !i.archived && (i.brand ?? '') === brand.trim());
+    return (code ? pool.find((i) => i.code === code) : undefined) ?? pool.find((i) => i.name === name) ?? (code.length >= 3 ? pool.find((i) => i.code.endsWith(code)) : undefined);
+  };
   const fresh = rows.filter((r) => !existing(r.code, r.name)).length;
 
   const run = async () => {
