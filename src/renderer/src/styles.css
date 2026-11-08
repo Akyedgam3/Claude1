@@ -4201,3 +4201,9 @@ button.link { background: none; border: none; color: var(--primary); padding: 4p
 .lan-scan { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; font-size: 15px; }
 .lan-qr { display: flex; align-items: center; gap: 16px; margin: 12px 0; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
 .lan-qr p { margin: 4px 0 0; }
+
+/* تخصيص الشاشة الرئيسية */
+.dash-head { display: flex; justify-content: flex-end; margin: 4px 0 -6px; }
+.dash-pick { list-style: none; padding: 0; margin: 6px 0 14px; display: grid; gap: 6px; }
+.dash-pick li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; border: 1px solid var(--border, #e3e8e6); border-radius: 10px; }
+.dash-move { display: inline-flex; gap: 4px; }

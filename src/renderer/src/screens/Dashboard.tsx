@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import { balancesByCurrency, dailyProfit, partyBalance, expiringBatches, findRate, incomeStatement, installmentState, stockReport } from '../../../core';
 import type { CompanyState } from '../../../core';
 import { addDays, dateText, money, qtyText, today, useCompany } from '../api';
@@ -7,6 +7,8 @@ import { STATUS_NAMES } from './Repairs';
 import { TAILOR_STATUS } from './Tailor';
 import { Icon } from '../components/icons';
 import { DealerBoxCard } from '../components/DealerBox';
+import { Modal } from '../components/ui';
+import { DASH_CARDS, useDashLayout } from './dashboard-layout';
 
 export function Dashboard() {
   const { state, navigate, can, feature, profile, user } = useCompany();
@@ -16,8 +18,9 @@ export function Dashboard() {
 
   const data = useMemo(() => {
     const toBase = (minor: number, cur: string, rate: number) => Math.round(minor * rate * 10 ** (state.currencies[base]!.decimals - state.currencies[cur]!.decimals));
-    const salesOf = (from: string) =>
-      state.invoices.filter((i) => i.kind === 'sale' && !i.voidEntryId && i.date >= from && i.date <= d).reduce((s, i) => s + toBase(i.total, i.currency, i.rate), 0);
+    const sumOf = (kind: string, from: string, to = d) =>
+      state.invoices.filter((i) => i.kind === kind && !i.voidEntryId && i.date >= from && i.date <= to).reduce((s, i) => s + toBase(i.total, i.currency, i.rate), 0);
+    const salesOf = (from: string) => sumOf('sale', from);
     // آخر 7 أيام: مبيعات كل يوم بعملة الشركة
     const week = Array.from({ length: 7 }, (_, i) => addDays(d, i - 6)).map((day) => ({ day, total: 0, count: 0 }));
     const byDay = Object.fromEntries(week.map((w) => [w.day, w]));
@@ -63,7 +66,14 @@ export function Dashboard() {
         .flatMap((a) => Object.entries(balancesByCurrency(state, a.id)).filter(([, v]) => v !== 0)),
       receivables,
       payables,
-      low: stockReport(state).filter((r) => r.low).slice(0, 15),
+      yesterdaySales: sumOf('sale', addDays(d, -1), addDays(d, -1)),
+      monthPurchases: sumOf('purchase', month),
+      monthCount: state.invoices.filter((i) => i.kind === 'sale' && !i.voidEntryId && i.date >= month && i.date <= d).length,
+      customers: Object.values(state.parties).filter((p) => p.kind !== 'supplier').length,
+      ...(() => {
+        const sr = stockReport(state);
+        return { low: sr.filter((r) => r.low).slice(0, 15), lowCount: sr.filter((r) => r.low).length, stockValue: sr.reduce((t, r) => t + r.value, 0) };
+      })(),
       expiring: expiringBatches(state, d, 30).slice(0, 15),
       openRepairs: Object.values(state.repairs).filter((r) => r.status !== 'invoiced' && r.status !== 'cancelled'),
       openOrders: Object.values(state.orders).filter((o) => o.status === 'open'),
@@ -85,6 +95,46 @@ export function Dashboard() {
   }, [state, d, month, base]);
 
   const fin = can('reports.financial');
+  const [layout, setLayout] = useDashLayout(`${state.info?.name ?? ''}:${user.id}`);
+  const [customizing, setCustomizing] = useState(false);
+  const shown = (card: string) => !layout.hidden.includes(card);
+  const weekSales = data.week.reduce((t, w) => t + w.total, 0);
+  // كل مربعات الإحصائيات الممكنة (المستخدم بيختار منها)
+  const STATS: { id: string; label: string; ok: boolean; el: () => ReactNode }[] = [
+    { id: 'todaySales', label: 'مبيعات اليوم', ok: true, el: () => <Stat label="مبيعات اليوم" value={money(state, data.todaySales)} hint={`${data.todayCount} فاتورة`} onClick={() => navigate('reports', 'daily')} /> },
+    { id: 'todayProfit', label: 'ربح اليوم', ok: can('costs.view'), el: () => <Stat label="ربح اليوم" value={money(state, data.todayProfit)} tone={data.todayProfit >= 0 ? 'good' : 'bad'} onClick={() => navigate('reports', 'income')} /> },
+    { id: 'yesterdaySales', label: 'مبيعات مبارح', ok: true, el: () => <Stat label="مبيعات مبارح" value={money(state, data.yesterdaySales)} onClick={() => navigate('reports', 'daily')} /> },
+    { id: 'weekSales', label: 'مبيعات آخر 7 أيام', ok: true, el: () => <Stat label="مبيعات آخر 7 أيام" value={money(state, weekSales)} onClick={() => navigate('reports', 'daily')} /> },
+    { id: 'monthSales', label: 'مبيعات الشهر', ok: true, el: () => <Stat label="مبيعات الشهر" value={money(state, data.monthSales)} hint={`${data.monthCount} فاتورة`} onClick={() => navigate('reports', 'income')} /> },
+    { id: 'monthProfit', label: 'ربح الشهر', ok: can('costs.view'), el: () => <Stat label="ربح الشهر" value={money(state, data.monthProfit)} tone={data.monthProfit >= 0 ? 'good' : 'bad'} hint="المبيعات − التكلفة − المصاريف" onClick={() => navigate('reports', 'income')} /> },
+    { id: 'avgInvoice', label: 'متوسط الفاتورة اليوم', ok: true, el: () => <Stat label="متوسط الفاتورة اليوم" value={money(state, data.todayCount ? Math.round(data.todaySales / data.todayCount) : 0)} onClick={() => navigate('reports', 'daily')} /> },
+    { id: 'monthPurchases', label: 'مشتريات الشهر', ok: true, el: () => <Stat label="مشتريات الشهر" value={money(state, data.monthPurchases)} onClick={() => navigate('invoices')} /> },
+    { id: 'receivables', label: 'ديون لنا على الناس', ok: true, el: () => <Stat label="ديون لنا على الناس" value={money(state, data.receivables)} onClick={() => navigate('debts')} /> },
+    { id: 'payables', label: 'ديون علينا للناس', ok: true, el: () => <Stat label="ديون علينا للناس" value={money(state, data.payables)} onClick={() => navigate('debts')} /> },
+    {
+      id: 'cash', label: 'النقد في الصناديق', ok: true,
+      el: () => (
+        <div className="stat clickable" onClick={() => navigate('reports', 'cash')}>
+          <span>النقد في الصناديق</span>
+          {data.cash.length === 0 ? <strong>0</strong> : data.cash.map(([c, v], i) => <strong key={i}>{money(state, v, c)}</strong>)}
+        </div>
+      ),
+    },
+    {
+      id: 'usd', label: 'سعر الدولار', ok: true,
+      el: () => (
+        <div className="stat clickable" onClick={() => can('rates.manage') && navigate('rates')}>
+          <span>سعر الدولار</span>
+          <strong>{data.usd ? `${data.usd.toLocaleString('en')} ${state.currencies[base]?.symbol}` : 'غير مسجّل'}</strong>
+        </div>
+      ),
+    },
+    { id: 'stockValue', label: 'قيمة البضاعة بالمستودع', ok: can('costs.view') && can('reports.stock'), el: () => <Stat label="قيمة البضاعة بالمستودع" value={money(state, data.stockValue)} hint="بسعر التكلفة" onClick={() => navigate('stock')} /> },
+    { id: 'lowCount', label: `عدد ${profile.itemsLabel} الناقصة`, ok: can('reports.stock'), el: () => <Stat label={`${profile.itemsLabel} ناقصة`} value={String(data.lowCount)} tone={data.lowCount ? 'bad' : undefined} onClick={() => navigate('stock')} /> },
+    { id: 'customers', label: 'عدد الزبائن', ok: true, el: () => <Stat label="عدد الزبائن" value={String(data.customers)} onClick={() => navigate('parties')} /> },
+  ];
+  const avail = STATS.filter((x) => x.ok);
+  const visibleStats = layout.stats.map((id) => avail.find((x) => x.id === id)).filter((x): x is (typeof STATS)[number] => !!x);
 
   return (
     <div className="page">
@@ -267,35 +317,28 @@ export function Dashboard() {
       })()}
 
       {fin && (
-        <div className="stats">
-          <Stat label="مبيعات اليوم" value={money(state, data.todaySales)} hint={`${data.todayCount} فاتورة`} onClick={() => navigate('reports', 'daily')} />
-          {can('costs.view') && <Stat label="ربح اليوم" value={money(state, data.todayProfit)} tone={data.todayProfit >= 0 ? 'good' : 'bad'} onClick={() => navigate('reports', 'income')} />}
-          <Stat label="مبيعات الشهر" value={money(state, data.monthSales)} onClick={() => navigate('reports', 'income')} />
-          {can('costs.view') && <Stat label="ربح الشهر" value={money(state, data.monthProfit)} tone={data.monthProfit >= 0 ? 'good' : 'bad'} hint="المبيعات − التكلفة − المصاريف" onClick={() => navigate('reports', 'income')} />}
-          <Stat label="ديون لنا على الناس" value={money(state, data.receivables)} onClick={() => navigate('debts')} />
-          <Stat label="ديون علينا للناس" value={money(state, data.payables)} onClick={() => navigate('debts')} />
-          <div className="stat clickable" onClick={() => navigate('reports', 'cash')}>
-            <span>النقد في الصناديق</span>
-            {data.cash.length === 0 ? <strong>0</strong> : data.cash.map(([c, v], i) => <strong key={i}>{money(state, v, c)}</strong>)}
+        <>
+          <div className="dash-head">
+            <button className="ghost small" onClick={() => setCustomizing(true)} title="اختار شو بدك تشوف بالشاشة الرئيسية">
+              <Icon name="customize" size={16} /> تخصيص الإحصائيات
+            </button>
           </div>
-          <div className="stat clickable" onClick={() => can('rates.manage') && navigate('rates')}>
-            <span>سعر الدولار</span>
-            <strong>{data.usd ? `${data.usd.toLocaleString('en')} ${state.currencies[base]?.symbol}` : 'غير مسجّل'}</strong>
-          </div>
-        </div>
+          {visibleStats.length > 0 && <div className="stats">{visibleStats.map((x) => <Fragment key={x.id}>{x.el()}</Fragment>)}</div>}
+        </>
       )}
+      {customizing && <CustomizeDash avail={avail} layout={layout} cards={DASH_CARDS} onSave={(l) => setLayout(l)} onReset={() => setLayout(null)} onClose={() => setCustomizing(false)} />}
 
-      {fin && can('costs.view') && <DailyProfitCard />}
+      {fin && can('costs.view') && shown('dailyProfit') && <DailyProfitCard />}
 
       {fin && (
         <div className="two-col">
-          <section className="card clickable" onClick={() => navigate('reports', 'daily')}>
+          {shown('week') && <section className="card clickable" onClick={() => navigate('reports', 'daily')}>
             <h3>
               <Icon name="chart" size={16} /> مبيعات آخر 7 أيام
             </h3>
             <WeekBars state={state} week={data.week} today={d} />
-          </section>
-          <section className="card">
+          </section>}
+          {shown('top') && <section className="card">
             <h3>
               <Icon name="trend" size={16} /> الأكثر مبيعاً هالشهر
             </h3>
@@ -315,8 +358,8 @@ export function Dashboard() {
                 </tbody>
               </table>
             )}
-          </section>
-          {data.dueDebts.length > 0 && (
+          </section>}
+          {shown('dueDebts') && data.dueDebts.length > 0 && (
             <section className="card clickable" onClick={() => navigate('debts')}>
               <h3>
                 <Icon name="bell" size={16} /> ديون حان موعد سدادها ({data.dueDebts.length})
@@ -419,7 +462,7 @@ export function Dashboard() {
             </table>
           </section>
         )}
-        {can('reports.stock') && (
+        {can('reports.stock') && shown('low') && (
           <section className="card">
             <h3>نواقص {profile.itemsLabel} ({data.low.length})</h3>
             {data.low.length === 0 ? (
@@ -441,7 +484,7 @@ export function Dashboard() {
             )}
           </section>
         )}
-        {data.expiring.length > 0 && (
+        {shown('expiring') && data.expiring.length > 0 && (
           <section className="card clickable" onClick={() => navigate('stock', 'expiry')}>
             <h3>تنتهي صلاحيتها خلال 30 يوماً ({data.expiring.length})</h3>
             <table className="table compact">
@@ -471,6 +514,70 @@ export function Dashboard() {
 }
 
 /** أعمدة مبيعات آخر أسبوع (سلسلة وحدة، فما في داعي لمفتاح ألوان). */
+/** نافذة التخصيص: تعليم المربعات وترتيبها، وإخفاء البطاقات. */
+function CustomizeDash({ avail, layout, cards, onSave, onReset, onClose }: { avail: { id: string; label: string }[]; layout: { stats: string[]; hidden: string[] }; cards: { id: string; label: string }[]; onSave: (l: { stats: string[]; hidden: string[] }) => void; onReset: () => void; onClose: () => void }) {
+  const ids = avail.map((a) => a.id);
+  const on = layout.stats.filter((s) => ids.includes(s));
+  const off = avail.filter((a) => !on.includes(a.id));
+  const label = (id: string) => avail.find((a) => a.id === id)?.label ?? id;
+  const set = (stats: string[], hidden = layout.hidden) => onSave({ stats: [...stats, ...layout.stats.filter((s) => !ids.includes(s))], hidden });
+  const move = (i: number, dir: number) => {
+    const n = [...on];
+    const j = i + dir;
+    if (j < 0 || j >= n.length) return;
+    [n[i], n[j]] = [n[j]!, n[i]!];
+    set(n);
+  };
+  return (
+    <Modal title="تخصيص الشاشة الرئيسية" onClose={onClose}>
+      <p className="muted">علّم الإحصائيات اللي بدك تشوفها، ورتّبها بالأسهم. التخصيص إلك إنت بس وعلى هالجهاز.</p>
+      <h4>الظاهرة (بالترتيب)</h4>
+      {on.length === 0 && <p className="muted">ما في ولا مربع ظاهر.</p>}
+      <ul className="dash-pick">
+        {on.map((id, i) => (
+          <li key={id}>
+            <label className="check">
+              <input type="checkbox" checked onChange={() => set(on.filter((x) => x !== id))} /> {label(id)}
+            </label>
+            <span className="dash-move">
+              <button type="button" className="ghost small" disabled={i === 0} onClick={() => move(i, -1)} aria-label="لفوق">▲</button>
+              <button type="button" className="ghost small" disabled={i === on.length - 1} onClick={() => move(i, 1)} aria-label="لتحت">▼</button>
+            </span>
+          </li>
+        ))}
+      </ul>
+      {off.length > 0 && (
+        <>
+          <h4>تقدر تضيف</h4>
+          <ul className="dash-pick">
+            {off.map((a) => (
+              <li key={a.id}>
+                <label className="check">
+                  <input type="checkbox" checked={false} onChange={() => set([...on, a.id])} /> {a.label}
+                </label>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      <h4>البطاقات</h4>
+      <ul className="dash-pick">
+        {cards.map((c) => (
+          <li key={c.id}>
+            <label className="check">
+              <input type="checkbox" checked={!layout.hidden.includes(c.id)} onChange={(e) => set(on, e.target.checked ? layout.hidden.filter((h) => h !== c.id) : [...layout.hidden, c.id])} /> {c.label}
+            </label>
+          </li>
+        ))}
+      </ul>
+      <div className="form-actions">
+        <button type="button" onClick={onReset}>رجّع الافتراضي</button>
+        <button type="button" className="primary" onClick={onClose}>تم</button>
+      </div>
+    </Modal>
+  );
+}
+
 function WeekBars({ state, week, today }: { state: CompanyState; week: { day: string; total: number; count: number }[]; today: string }) {
   const max = Math.max(1, ...week.map((w) => w.total));
   const sum = week.reduce((s, w) => s + w.total, 0);
