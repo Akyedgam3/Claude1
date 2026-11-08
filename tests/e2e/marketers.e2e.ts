@@ -49,6 +49,14 @@ test('المسوّقين: فواتير كل مسوّق وعمولته ودفعه
     await expect(ahmad.locator('tbody')).toContainText('2,000');
     if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT });
 
+    // فاتورة الزبون (العرض والطباعة) ما فيها أي أثر للمسوّق أو العمولة
+    await ahmad.locator('tbody tr').first().click();
+    await expect(page.locator('.page')).toContainText('40,000');
+    for (const hidden of ['أحمد', 'مسوّق', 'عمولة', '2,000']) await expect(page.locator('.page')).not.toContainText(hidden);
+    const doc = page.locator('.commercial-doc, .print-doc, .invoice-doc').first();
+    if (await doc.count()) for (const hidden of ['أحمد', 'عمولة']) await expect(doc).not.toContainText(hidden);
+    await nav(page, 'المسوّقين');
+
     // دفع عمولة أحمد كاملة
     await ahmad.getByRole('button', { name: 'دفع العمولة' }).click();
     const pm = page.locator('.modal');
