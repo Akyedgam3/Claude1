@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { attributesFor, niceUnitCost, buyDiscountOf, generateVariants, itemPlace, itemPlacesText, listPrices, withPlace, type Item, type ItemKind, type ItemUnit, type RecipeLine } from '../../../core';
+import { applyListPricing, attributesFor, niceUnitCost, buyDiscountOf, generateVariants, itemPlace, itemPlacesText, listPrices, withPlace, type Item, type ItemKind, type ItemUnit, type RecipeLine } from '../../../core';
 import { api, major, money, unitMoney, parseAmount, parsePrice, qtyText, toInput, today, uid, useCompany } from '../api';
 import { Barcode, ExportButtons, usePrinter } from '../components/print';
 import { CameraScanButton, ColorPicker, ConfirmButton, CurrencySelect, ItemName, Empty, Field, itemMatches, itemOptions, Modal, PageHeader, Picker, SearchBox, Tabs } from '../components/ui';
@@ -62,6 +62,29 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
         const currency = custom?.code ?? (/^(usd|\$|دولار)/i.test(curText) ? 'USD' : /^(syp|ل\.?س|ليرة)/i.test(curText) ? 'SYP' : base);
         const id = uid();
         if (qty > 0) stock.push({ itemId: id, qty, unitCost: cost });
+        // سعر النشرة (كهربائيات): أسعار البيع والجملة بتنحسب منه بنسب الشركة، والتعبئة بتصير وحدة كرتونة
+        const listText = String(r['سعر النشرة'] ?? '').trim();
+        const pack = Math.round(num(r['التعبئة'] ?? r['العدد بالكرتونة']));
+        const brandName = r['الماركة'] ? String(r['الماركة']).trim() : '';
+        if (listText) {
+          parsed.push(
+            applyListPricing(state.info ?? undefined, {
+              id,
+              code,
+              name,
+              kind: 'stock',
+              unit: String(r['الوحدة'] ?? profile.units[0] ?? 'قطعة'),
+              priceCurrency: currency,
+              price: 0,
+              listPrice: parsePrice(state, listText.replace(/[,،\s]/g, ''), currency),
+              ...(pack > 1 ? { units: [{ name: `كرتونة ${pack}`, factor: pack }] } : {}),
+              ...(r['الباركود'] ? { barcode: String(r['الباركود']) } : {}),
+              ...(r['التصنيف'] ? { category: String(r['التصنيف']) } : {}),
+              ...(brandName ? { brand: brandName } : {}),
+            }),
+          );
+          continue;
+        }
         parsed.push({
           id,
           code,
@@ -81,7 +104,7 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
       }
       if (!parsed.length && !stock.length) {
         if (skippedStock) return notify(`ما انضاف شي: ${skippedStock} مادة إلها رصيد من قبل، فما انضافت كميتها مرة تانية`, 'error');
-        return notify('لا توجد مواد جديدة ولا كميات بالملف (الأعمدة: الاسم، الرمز، الوحدة، سعر المبيع، العملة، الباركود، التصنيف، الكمية، التكلفة)', 'error');
+        return notify('لا توجد مواد جديدة ولا كميات بالملف (الأعمدة: الاسم، الرمز، الوحدة، سعر المبيع أو سعر النشرة، العملة، الباركود، التصنيف، الماركة، التعبئة، الكمية، التكلفة)', 'error');
       }
       if (parsed.length && !(await call<number>('saveItems', parsed))) return;
       if (stock.length && !(await call('postOpeningBalances', { date: today(), stock }))) return;
