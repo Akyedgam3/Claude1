@@ -7,6 +7,8 @@ export interface DashLayout {
   stats: string[];
   /** البطاقات المخفية. */
   hidden: string[];
+  /** الأزرار السريعة الظاهرة بالترتيب (إذا مش محددة: الافتراضية حسب النشاط). */
+  actions?: string[];
 }
 
 export const DEFAULT_STATS = ['todaySales', 'todayProfit', 'monthSales', 'monthProfit', 'receivables', 'payables', 'cash', 'usd'];
@@ -26,7 +28,11 @@ function read(key: string): DashLayout {
   try {
     const raw = JSON.parse(localStorage.getItem(key) ?? 'null') as Partial<DashLayout> | null;
     if (!raw || !Array.isArray(raw.stats)) return defaults();
-    return { stats: raw.stats.filter((s) => typeof s === 'string'), hidden: Array.isArray(raw.hidden) ? raw.hidden.filter((s) => typeof s === 'string') : [] };
+    return {
+      stats: raw.stats.filter((s) => typeof s === 'string'),
+      hidden: Array.isArray(raw.hidden) ? raw.hidden.filter((s) => typeof s === 'string') : [],
+      ...(Array.isArray(raw.actions) ? { actions: raw.actions.filter((s) => typeof s === 'string') } : {}),
+    };
   } catch {
     return defaults();
   }

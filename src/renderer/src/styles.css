@@ -4220,3 +4220,16 @@ button.link { background: none; border: none; color: var(--primary); padding: 4p
 
 /* زر «+ كمية» جنب رصيد المادة */
 .add-qty { margin-inline-start: 6px; padding: 1px 8px !important; font-size: 12px; }
+.activity-hero .dash-customize { margin-inline-start: auto; align-self: center; white-space: nowrap; }
+.dash-more summary { cursor: pointer; font-weight: 700; margin: 8px 0; color: var(--primary, #0f6e5c); }
+.modal .segmented { margin: 8px 0 12px; }
+
+/* الجرد السهل */
+.count-scan { background: var(--primary-soft, rgba(15, 110, 92, 0.07)); border: 1px dashed var(--primary, #0f6e5c); border-radius: 12px; padding: 10px 12px; margin: 8px 0 12px; }
+.count-scan-input { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.count-scan-input .scan-input, .count-scan-input .scan-wrap { flex: 1; min-width: 200px; }
+.count-last { margin-top: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 15px; }
+.count-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin: 6px 0 10px; padding: 8px 12px; border-radius: 10px; background: var(--surface-2, rgba(0, 0, 0, 0.03)); }
+.count-summary button { margin-inline-start: auto; }
+.count-restored { display: flex; align-items: center; gap: 6px; color: var(--primary, #0f6e5c); }
+.count-cell { display: inline-flex; align-items: center; gap: 4px; }

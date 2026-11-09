@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
-import { ADJUSTMENT_NAMES, expiringBatches, itemPlace, withPlace, type Item } from '../../../core';
+import { useEffect, useMemo, useState } from 'react';
+import { ADJUSTMENT_NAMES, expiringBatches, itemPlace, resolveScan, withPlace, type Item } from '../../../core';
 import { dateText, major, money, parseAmount, parsePrice, qtyText, toInput, today, uid, useCompany } from '../api';
 import { ExportButtons, PrintButtons, DocHeader } from '../components/print';
-import { askConfirm, ConfirmButton, CurrencySelect, Empty, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, SearchBox, Tabs } from '../components/ui';
+import { askConfirm, ConfirmButton, CurrencySelect, Empty, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, ScanInput, SearchBox, Tabs } from '../components/ui';
 import { Icon } from '../components/icons';
 import { PlaceInput } from '../components/PlaceInput';
 
@@ -298,9 +298,34 @@ function Count({ initialWarehouse }: { initialWarehouse?: string }) {
   const [date, setDate] = useState(today());
   const [warehouseId, setWarehouseId] = useState(initialWarehouse ?? firstWarehouse(state));
   const [query, setQuery] = useState('');
-  const [counted, setCounted] = useState<Record<string, string>>({});
+  // الجرد بينحفظ تلقائياً (مسودة) على هالجهاز لكل مستودع: بتسكّر وبترجع بتكمّل من وين وقفت
+  const draftKey = (w: string) => `wazn.count.${state.info?.name ?? ''}:${w}`;
+  const loadDraft = (w: string): { counted: Record<string, string>; found: Record<string, string[]> } => {
+    try {
+      const d = JSON.parse(localStorage.getItem(draftKey(w)) ?? 'null') as { counted?: Record<string, string>; found?: Record<string, string[]> } | null;
+      return { counted: d?.counted ?? {}, found: d?.found ?? {} };
+    } catch {
+      return { counted: {}, found: {} };
+    }
+  };
+  const [counted, setCounted] = useState<Record<string, string>>(() => loadDraft(initialWarehouse ?? firstWarehouse(state)).counted);
   // الأجهزة بالأرقام التسلسلية: الأرقام اللي انلقت عالرف لكل مادة
-  const [found, setFound] = useState<Record<string, string[]>>({});
+  const [found, setFound] = useState<Record<string, string[]>>(() => loadDraft(initialWarehouse ?? firstWarehouse(state)).found);
+  const [restored] = useState(() => Object.keys(loadDraft(initialWarehouse ?? firstWarehouse(state)).counted).length);
+  useEffect(() => {
+    try {
+      if (Object.values(counted).some((v) => v.trim())) localStorage.setItem(draftKey(warehouseId), JSON.stringify({ counted, found }));
+      else localStorage.removeItem(draftKey(warehouseId));
+    } catch {
+      /* التخزين مسكّر: الجرد بيضل للجلسة بس */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [counted, found, warehouseId]);
+  const [category, setCategory] = useState('');
+  const [view, setView] = useState<'all' | 'todo' | 'done' | 'diff'>('all');
+  const [perScan, setPerScan] = useState('1');
+  const [last, setLast] = useState<{ id: string; added: number } | null>(null);
+  const categories = useMemo(() => [...new Set(Object.values(state.items).filter((i) => i.kind === 'stock' && !i.archived).map((i) => i.category).filter(Boolean) as string[])].sort(), [state.items]);
   const [serialOf, setSerialOf] = useState<Item | null>(null);
   const [scan, setScan] = useState('');
   const warehouses = Object.values(state.warehouses);
@@ -329,18 +354,63 @@ function Count({ initialWarehouse }: { initialWarehouse?: string }) {
       Object.values(state.items)
         .filter((i) => i.kind === 'stock' && !i.archived && itemMatches(i, query))
         .filter((i) => !many || !onlyHere || (state.stock[i.id]?.qty[warehouseId] ?? 0) !== 0 || !!itemPlace(i, warehouseId) || counted[i.id] !== undefined)
+        .filter((i) => !category || i.category === category)
+        .filter((i) => {
+          const v = (counted[i.id] ?? '').trim();
+          if (view === 'todo') return v === '';
+          if (view === 'done') return v !== '';
+          if (view === 'diff') return v !== '' && Number(v) !== (state.stock[i.id]?.qty[warehouseId] ?? 0);
+          return true;
+        })
         .sort((a, b) => a.code.localeCompare(b.code, 'ar', { numeric: true })),
-    [state.items, state.stock, query, many, onlyHere, warehouseId, counted],
+    [state.items, state.stock, query, many, onlyHere, warehouseId, counted, category, view],
   );
   const pickWarehouse = async (w: string) => {
     if (w === warehouseId) return;
-    if (Object.values(counted).some((v) => v.trim()) && !(await askConfirm('في كميات مكتوبة بهالجرد وما انعتمدت. تتركها وتنتقل لمستودع تاني؟'))) return;
+    // الجرد يخص مستودعاً واحداً؛ جرد هالمستودع بيضل محفوظ كمسودة وبترجعله
+    const d = loadDraft(w);
     setWarehouseId(w);
-    setCounted({}); // الجرد يخص مستودعاً واحداً
-    setFound({});
+    setCounted(d.counted);
+    setFound(d.found);
+    setLast(null);
   };
   const changed = Object.entries(counted).filter(([, v]) => v.trim() !== '');
   const showCost = can('costs.view');
+  const unitCost = (id: string) => {
+    const lvl = state.stock[id];
+    return lvl && lvl.totalQty > 0 ? lvl.value / lvl.totalQty : (lvl?.lastCost ?? 0);
+  };
+  const bookOf = (id: string) => state.stock[id]?.qty[warehouseId] ?? 0;
+  const sum = changed.reduce(
+    (t, [id, v]) => {
+      const d = Number(v) - bookOf(id);
+      if (d < 0) t.short += -d * unitCost(id);
+      if (d > 0) t.over += d * unitCost(id);
+      if (d !== 0) t.diffs++;
+      return t;
+    },
+    { short: 0, over: 0, diffs: 0 },
+  );
+  const totalItems = Object.values(state.items).filter((i) => i.kind === 'stock' && !i.archived && (!category || i.category === category)).length;
+  /** جرد بالمسح: كل مسحة باركود بتزيد الكمية المعدودة (الكرتونة بعدد قطعها، وباركود الميزان بوزنه). */
+  const onScan = (code: string) => {
+    const r = resolveScan(state, code);
+    if (!r) return notify(`الباركود ${code} مش لمادة معروفة`, 'error');
+    if (r.serial || r.item.trackSerial) return scanSerial(r.serial ?? code);
+    if (r.item.kind !== 'stock') return notify(`${r.item.name} مش مادة مخزنية`, 'error');
+    const factor = r.unit ? (r.item.units?.find((u) => u.name === r.unit)?.factor ?? 1) : 1;
+    const per = Number(perScan.replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))) || 1;
+    const add = r.qty ?? per * factor;
+    setCounted((cn) => ({ ...cn, [r.item.id]: String(Math.round((Number(cn[r.item.id] || 0) + add) * 1000) / 1000) }));
+    setLast({ id: r.item.id, added: add });
+  };
+  /** كل المواد المعروضة اللي لسا ما انجردت = متل الدفتري (للي ما بدو يعدّ كل شي). */
+  const matchRest = async () => {
+    const todo = items.filter((i) => !i.trackSerial && (counted[i.id] ?? '').trim() === '');
+    if (!todo.length) return;
+    if (!(await askConfirm(`${todo.length} مادة لسا ما انجردت بالقائمة المعروضة. تعتبرها كلها مطابقة للدفتري (بدون فرق)؟`))) return;
+    setCounted((cn) => ({ ...cn, ...Object.fromEntries(todo.map((i) => [i.id, String(bookOf(i.id))])) }));
+  };
 
   return (
     <section className="card">
@@ -355,8 +425,44 @@ function Count({ initialWarehouse }: { initialWarehouse?: string }) {
       )}
       <p className="muted">
         {many ? <b>عم تجرد: {state.warehouses[warehouseId]?.name}. </b> : null}
-        اكتب الكمية الفعلية الموجودة على الرف فقط للمواد التي جردتها. الفرق يُسجّل تلقائياً بالتكلفة الوسطية في حساب "فروقات الجرد".
+        اكتب الكمية الفعلية الموجودة على الرف فقط للمواد التي جردتها، أو امسح الباركود وكل مسحة بتنعد. الفرق يُسجّل تلقائياً بالتكلفة الوسطية في حساب "فروقات الجرد". الجرد بينحفظ لحالو، فإذا سكّرت بتكمّل بعدين.
       </p>
+      {restored > 0 && changed.length > 0 && (
+        <p className="count-restored no-print">
+          <Icon name="check" size={16} /> رجّعنالك الجرد اللي ما خلّص ({changed.length} مادة).{' '}
+          <button
+            type="button"
+            className="link"
+            onClick={async () => {
+              if (await askConfirm('تمسح كل الكميات المكتوبة وتبدأ الجرد من جديد؟')) {
+                setCounted({});
+                setFound({});
+                setLast(null);
+              }
+            }}
+          >
+            ابدأ من جديد
+          </button>
+        </p>
+      )}
+      <div className="count-scan no-print">
+        <div className="count-scan-input">
+          <b>جرد بالمسح:</b>
+          <ScanInput onScan={onScan} placeholder="امسح باركود المادة… كل مسحة بتنعد" />
+          <label>
+            كل مسحة ={' '}
+            <input className="num-input" value={perScan} onChange={(e) => setPerScan(e.target.value)} inputMode="decimal" style={{ width: 60 }} />
+          </label>
+        </div>
+        {last && state.items[last.id] && (
+          <div className="count-last">
+            <ItemName item={state.items[last.id]!} strong /> <span className="good">+{qtyText(last.added)}</span> · المعدود: <b>{qtyText(Number(counted[last.id] || 0))}</b> {state.items[last.id]!.unit} · الدفتري: {qtyText(bookOf(last.id))}
+            <button type="button" className="ghost small" onClick={() => setCounted((cn) => ({ ...cn, [last.id]: String(Math.max(0, Number(cn[last.id] || 0) - last.added)) }))}>
+              تراجع
+            </button>
+          </div>
+        )}
+      </div>
       <div className="toolbar">
         <Field label="التاريخ">
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
@@ -366,7 +472,23 @@ function Count({ initialWarehouse }: { initialWarehouse?: string }) {
             <input type="checkbox" checked={onlyHere} onChange={(e) => setOnlyHere(e.target.checked)} /> بس مواد هالمستودع
           </label>
         )}
-        <SearchBox value={query} onChange={setQuery} placeholder="ابحث أو امسح الباركود..." />
+        <SearchBox value={query} onChange={setQuery} placeholder="ابحث عن مادة..." />
+        {categories.length > 0 && (
+          <select value={category} onChange={(e) => setCategory(e.target.value)} aria-label="التصنيف">
+            <option value="">كل التصنيفات</option>
+            {categories.map((x) => (
+              <option key={x} value={x}>
+                {x}
+              </option>
+            ))}
+          </select>
+        )}
+        <select value={view} onChange={(e) => setView(e.target.value as typeof view)} aria-label="عرض">
+          <option value="all">كل المواد</option>
+          <option value="todo">لسا ما انجردت</option>
+          <option value="done">انجردت</option>
+          <option value="diff">فيها فرق بس</option>
+        </select>
         {items.some((x) => x.trackSerial) && (
           <input
             className="mono no-print"
@@ -385,6 +507,27 @@ function Count({ initialWarehouse }: { initialWarehouse?: string }) {
         <PrintButtons kind="report" name="ورقة جرد" papers={['a4']} />
       </div>
       {many && onlyHere && !query && items.length === 0 && <p className="muted">ما في مواد إلها رصيد أو مكان بهالمستودع. شيل علامة «بس مواد هالمستودع» لتشوف كل المواد.</p>}
+      <div className="count-summary no-print">
+        <span>
+          انجرد: <b>{changed.length}</b> من {totalItems}
+        </span>
+        <span>
+          فيها فرق: <b className={sum.diffs ? 'bad' : ''}>{sum.diffs}</b>
+        </span>
+        {showCost && (
+          <>
+            <span>
+              نقص: <b className="bad">{money(state, Math.round(sum.short))}</b>
+            </span>
+            <span>
+              زيادة: <b className="good">{money(state, Math.round(sum.over))}</b>
+            </span>
+          </>
+        )}
+        <button type="button" className="ghost small" onClick={() => void matchRest()}>
+          الباقي مطابق
+        </button>
+      </div>
       <div className="print-area">
         <div className="print-only">
           <DocHeader title="ورقة جرد">
@@ -425,7 +568,14 @@ function Count({ initialWarehouse }: { initialWarehouse?: string }) {
                         {found[i.id] ? `${found[i.id]!.length} موجود` : 'جرد بالسيريال'}
                       </button>
                     ) : (
-                      <input className="num-input no-print" value={v} onChange={(e) => setCounted({ ...counted, [i.id]: e.target.value })} inputMode="decimal" />
+                      <span className="count-cell no-print">
+                        <input className="num-input" value={v} onChange={(e) => setCounted({ ...counted, [i.id]: e.target.value })} inputMode="decimal" />
+                        {v.trim() === '' && (
+                          <button type="button" className="ghost small" title="الموجود متل الدفتري" onClick={() => setCounted({ ...counted, [i.id]: String(book) })}>
+                            ✓ مطابق
+                          </button>
+                        )}
+                      </span>
                     )}
                     <span className="print-only">______</span>
                   </td>
@@ -447,6 +597,7 @@ function Count({ initialWarehouse }: { initialWarehouse?: string }) {
               notify('تم تسجيل الجرد');
               setCounted({});
               setFound({});
+              setLast(null);
             }
           }}
         >
