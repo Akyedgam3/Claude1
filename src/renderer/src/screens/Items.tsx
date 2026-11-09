@@ -15,6 +15,7 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
   const [variants, setVariants] = useState(false);
   const [labels, setLabels] = useState<Item[] | null>(null);
   const [placing, setPlacing] = useState(false);
+  const [adding, setAdding] = useState<Item | null>(null);
   const showCost = can('costs.view');
   const canEdit = can('items.manage');
 
@@ -250,7 +251,21 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
                   {feature('partNumbers') && <td>{i.compat}</td>}
                   <td>{i.category}</td>
                   <td>{itemPlacesText(state, i)}</td>
-                  <td className={`num ${low ? 'bad' : ''}`}>{i.kind === 'stock' ? `${qtyText(qty)} ${i.unit}` : '—'}</td>
+                  <td className={`num ${low ? 'bad' : ''}`}>
+                    {i.kind === 'stock' ? `${qtyText(qty)} ${i.unit}` : '—'}
+                    {i.kind === 'stock' && !i.trackSerial && !i.trackExpiry && can('stock.adjust') && (
+                      <button
+                        className="ghost small add-qty"
+                        title="إضافة كمية بدون فاتورة شراء"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setAdding(i);
+                        }}
+                      >
+                        + كمية
+                      </button>
+                    )}
+                  </td>
                   {showCost && <td className="num">{s && qty > 0 ? unitMoney(state, s.value / qty) : '—'}</td>}
                   <td className="num">{money(state, i.price, i.priceCurrency)}</td>
                 </tr>
@@ -262,8 +277,71 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
       {editing && <ItemForm item={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
       {variants && <VariantsForm onClose={() => setVariants(false)} />}
       {labels && <LabelSheet items={labels} onClose={() => setLabels(null)} />}
+      {adding && <QuickAddStock item={adding} onClose={() => setAdding(null)} />}
       {placing && <PlacesBulk items={items.filter((i) => i.kind === 'stock')} onClose={() => setPlacing(false)} />}
     </div>
+  );
+}
+
+/** زيادة رصيد مادة بسرعة من قائمة المواد، بدون فاتورة شراء (قيد «إضافة بضاعة» بالمخزون). */
+function QuickAddStock({ item, onClose }: { item: Item; onClose: () => void }) {
+  const { state, call, notify } = useCompany();
+  const base = state.info!.baseCurrency;
+  const s = state.stock[item.id];
+  const avg = s && s.totalQty > 0 ? Math.round(s.value / s.totalQty) : (s?.lastCost ?? 0);
+  const whs = Object.values(state.warehouses);
+  const [warehouseId, setWarehouseId] = useState(whs[0]?.id ?? 'main');
+  const [qty, setQty] = useState('');
+  const [cost, setCost] = useState(avg ? toInput(state, avg, base) : '');
+  const save = async () => {
+    const q = Number(qty.replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))));
+    if (!(q > 0)) return notify('اكتب الكمية', 'error');
+    const res = await call('adjustStock', {
+      kind: 'opening',
+      date: today(),
+      warehouseId,
+      memo: 'إضافة بضاعة',
+      lines: [{ itemId: item.id, qty: q, unitCost: cost.trim() ? parsePrice(state, cost, base) : avg }],
+    });
+    if (res) {
+      notify(`تمت إضافة ${qtyText(q)} ${item.unit} لـ ${item.name}`);
+      onClose();
+    }
+  };
+  return (
+    <Modal title={`إضافة كمية: ${item.name}`} onClose={onClose} width={420}>
+      <p className="muted">
+        الرصيد الحالي: {qtyText(s?.totalQty ?? 0)} {item.unit}
+      </p>
+      <form
+        className="form-grid"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void save();
+        }}
+      >
+        <Field label={`الكمية المضافة (${item.unit})`}>
+          <input value={qty} onChange={(e) => setQty(e.target.value)} inputMode="decimal" autoFocus />
+        </Field>
+        <Field label={`تكلفة الوحدة (${state.currencies[base]?.symbol ?? base}) — اختياري`}>
+          <input value={cost} onChange={(e) => setCost(e.target.value)} inputMode="decimal" />
+        </Field>
+        {whs.length > 1 && (
+          <Field label="المستودع">
+            <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
+              {whs.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+        <div className="form-actions wide">
+          <button className="primary big">إضافة</button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 

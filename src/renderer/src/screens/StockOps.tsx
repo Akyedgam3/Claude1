@@ -6,13 +6,13 @@ import { askConfirm, ConfirmButton, CurrencySelect, Empty, Field, ItemName, item
 import { Icon } from '../components/icons';
 import { PlaceInput } from '../components/PlaceInput';
 
-type Tab = 'opening' | 'count' | 'damage' | 'transfer' | 'expiry' | 'history';
+type Tab = 'add' | 'opening' | 'count' | 'damage' | 'transfer' | 'expiry' | 'history';
 
 export function StockOps({ tab: initial }: { tab?: string }) {
   const { can, feature, state } = useCompany();
   // «count:<المستودع>» بيفتح جرد مستودع معيّن
   const [first, wh] = (initial ?? '').split(':');
-  const [tab, setTab] = useState<Tab>((first as Tab) || (can('stock.adjust') ? 'count' : 'transfer'));
+  const [tab, setTab] = useState<Tab>((first as Tab) || (can('stock.adjust') ? 'add' : 'transfer'));
   return (
     <div className="page">
       <PageHeader title="الجرد وعمليات المخزون" />
@@ -20,6 +20,7 @@ export function StockOps({ tab: initial }: { tab?: string }) {
         value={tab}
         onChange={setTab}
         tabs={[
+          { key: 'add', label: 'إضافة بضاعة', hidden: !can('stock.adjust') },
           { key: 'count', label: 'الجرد', hidden: !can('stock.adjust') },
           { key: 'damage', label: 'تالف / استهلاك', hidden: !can('stock.adjust') },
           { key: 'transfer', label: 'تحويل بين المستودعات', hidden: !can('stock.transfer') },
@@ -28,6 +29,7 @@ export function StockOps({ tab: initial }: { tab?: string }) {
           { key: 'history', label: 'السجل' },
         ]}
       />
+      {tab === 'add' && <AddStock />}
       {tab === 'opening' && <Opening />}
       {tab === 'count' && <Count key={wh ?? ''} initialWarehouse={wh && state.warehouses[wh] ? wh : undefined} />}
       {tab === 'damage' && <Damage />}
@@ -460,6 +462,61 @@ function Count({ initialWarehouse }: { initialWarehouse?: string }) {
           onClose={() => setSerialOf(null)}
         />
       )}
+    </section>
+  );
+}
+
+/** إضافة بضاعة للمخزون بدون فاتورة شراء (لمحل بيستعمل البرنامج نقطة بيع بس). التكلفة اختيارية: إذا فاضية بتنحسب من آخر تكلفة. */
+function AddStock() {
+  const { state, call, notify } = useCompany();
+  const base = state.info!.baseCurrency;
+  const [date, setDate] = useState(today());
+  const [warehouseId, setWarehouseId] = useState(firstWarehouse(state));
+  const [memo, setMemo] = useState('');
+  const [rows, setRows] = useState<StockRow[]>([]);
+  const valid = rows.filter((r) => Number(r.qty) > 0);
+  return (
+    <section className="card">
+      <p className="muted">زيد كميات المواد عالمخزون بدون فاتورة شراء ولا مورّد. التكلفة اختيارية (منها بينحسب الربح)، وإذا تركتها فاضية بتنحسب من آخر تكلفة للمادة.</p>
+      <div className="form-grid four">
+        <Field label="التاريخ">
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </Field>
+        <WarehouseSelect value={warehouseId} onChange={setWarehouseId} />
+        <Field label="ملاحظة" wide>
+          <input value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="مثلاً: بضاعة جديدة" />
+        </Field>
+      </div>
+      <ItemRows rows={rows} setRows={setRows} withCost withBatch="in" />
+      <div className="form-actions">
+        <button
+          className="primary"
+          disabled={!valid.length}
+          onClick={async () => {
+            const res = await call('adjustStock', {
+              kind: 'opening',
+              date,
+              warehouseId,
+              memo: memo.trim() || 'إضافة بضاعة',
+              lines: valid.map((r) => ({
+                itemId: r.itemId,
+                qty: Number(r.qty),
+                unitCost: r.cost.trim() ? parsePrice(state, r.cost, base) : (state.stock[r.itemId]?.lastCost ?? 0),
+                ...(r.batch ? { batch: r.batch } : {}),
+                ...(r.expiry ? { expiry: r.expiry } : {}),
+                ...(r.serials ? { serials: serialList(r.serials) } : {}),
+              })),
+            });
+            if (res) {
+              notify(`تمت إضافة ${valid.length} مادة للمخزون`);
+              setRows([]);
+              setMemo('');
+            }
+          }}
+        >
+          إضافة للمخزون
+        </button>
+      </div>
     </section>
   );
 }

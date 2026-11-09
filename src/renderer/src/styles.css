@@ -4217,3 +4217,6 @@ button.link { background: none; border: none; color: var(--primary); padding: 4p
 .marketer-nums small { color: var(--muted, #6b7a76); }
 .marketer-nums b { font-size: 1.1em; }
 .marketer-card .button-row { margin-top: 10px; }
+
+/* زر «+ كمية» جنب رصيد المادة */
+.add-qty { margin-inline-start: 6px; padding: 1px 8px !important; font-size: 12px; }
