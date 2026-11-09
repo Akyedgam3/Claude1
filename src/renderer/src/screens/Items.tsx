@@ -17,6 +17,23 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
   const [placing, setPlacing] = useState(false);
   const [adding, setAdding] = useState<Item | null>(null);
   const showCost = can('costs.view');
+  // عمود التكلفة: متوسط التكلفة (اللي بينحسب منه الربح) أو آخر سعر شراء — اختيار عرض بس، محفوظ على هالجهاز
+  const [lastCostView, setLastCostView] = useState(() => {
+    try {
+      return localStorage.getItem('wazn.items.costView') === 'last';
+    } catch {
+      return false;
+    }
+  });
+  const toggleCostView = () => {
+    const next = !lastCostView;
+    setLastCostView(next);
+    try {
+      localStorage.setItem('wazn.items.costView', next ? 'last' : 'avg');
+    } catch {
+      /* ما في تخزين */
+    }
+  };
   const canEdit = can('items.manage');
 
   const categories = useMemo(() => [...new Set([...profile.categories, ...Object.values(state.items).map((i) => i.category).filter(Boolean)])] as string[], [state.items, profile]);
@@ -226,7 +243,13 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
               <th>التصنيف</th>
               <th>المكان</th>
               <th className="num">الرصيد</th>
-              {showCost && <th className="num">التكلفة</th>}
+              {showCost && (
+                <th className="num">
+                  <button type="button" className="link cost-toggle" onClick={toggleCostView} title="اكبس لتبدّل بين متوسط التكلفة وآخر سعر شراء. الربح بينحسب دايماً من المتوسط.">
+                    {lastCostView ? 'آخر سعر شراء' : 'متوسط التكلفة'} ⇄
+                  </button>
+                </th>
+              )}
               <th className="num">سعر المبيع</th>
             </tr>
           </thead>
@@ -266,7 +289,11 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
                       </button>
                     )}
                   </td>
-                  {showCost && <td className="num">{s && qty > 0 ? unitMoney(state, s.value / qty) : '—'}</td>}
+                  {showCost && (
+                    <td className="num" title={s ? `المتوسط: ${qty > 0 ? unitMoney(state, s.value / qty) : '—'} · آخر سعر شراء: ${s.lastCost ? unitMoney(state, s.lastCost) : '—'}` : undefined}>
+                      {lastCostView ? (s?.lastCost ? unitMoney(state, s.lastCost) : '—') : s && qty > 0 ? unitMoney(state, s.value / qty) : '—'}
+                    </td>
+                  )}
                   <td className="num">{money(state, i.price, i.priceCurrency)}</td>
                 </tr>
               );

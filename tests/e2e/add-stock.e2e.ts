@@ -38,8 +38,22 @@ test('إضافة بضاعة بدون فاتورة شراء: من شاشة الم
     await page.getByRole('button', { name: 'إضافة للمخزون' }).click();
     await toast(page, 'تمت إضافة 1 مادة');
 
+    // عمود التكلفة: متوسط أو آخر سعر شراء (زيادة 4 قطع بـ 9000 فوق 20 بـ 5000)
+    await page.getByRole('button', { name: 'إضافة بضاعة' }).click();
+    await pick(page, page.locator('input[placeholder="+ أضف مادة"]'), 'شامبو');
+    const l2 = page.locator('table.lines tbody tr').first();
+    await l2.locator('input.num-input').nth(0).fill('4');
+    await l2.locator('input.num-input').nth(1).fill('9000');
+    await page.getByRole('button', { name: 'إضافة للمخزون' }).click();
+    await toast(page, 'تمت إضافة 1 مادة');
     await nav(page, 'المواد');
-    await expect(page.locator('tbody tr', { hasText: 'شامبو' })).toContainText('20');
+    const sh = page.locator('tbody tr', { hasText: 'شامبو' });
+    await expect(sh).toContainText('24');
+    await expect(sh).toContainText('5,666.67');
+    await page.getByRole('button', { name: /متوسط التكلفة/ }).click();
+    await expect(sh).toContainText('9,000');
+    await page.getByRole('button', { name: /آخر سعر شراء/ }).click();
+    await expect(sh).toContainText('5,666.67');
     if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT });
   } finally {
     await close();
