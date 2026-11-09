@@ -18,6 +18,9 @@ import { flushVfs } from './shims/fs';
 import fs from './shims/fs';
 import { Capacitor } from '@capacitor/core';
 import { native } from './native';
+import { createHash } from './shims/crypto';
+
+const IS_WEB_BUILD = typeof __WAZN_WEB__ !== 'undefined' && __WAZN_WEB__ === true;
 import { DEFAULT_LAN_PORT, LanClient } from '../app/lan-proto';
 import { LanRemote, nativeLanFetch } from './lan-remote';
 
@@ -227,7 +230,8 @@ async function mobileAutoBackup(force = false): Promise<void> {
   try {
     s.backup(path.join(s.dir, 'backups'), 5);
     let where = 'داخل التطبيق';
-    if (cfg.external) {
+    // الويب (آيفون): ما في مجلد ملفات، النسخة لبرّا بتنعمل يدوي من «نسخة احتياطية» (قائمة المشاركة)
+    if (cfg.external && !IS_WEB_BUILD) {
       const prefix = `Wazn-${safeFolderName(s.ledger.state.info?.name ?? s.meta.name)}-`;
       const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
       where = await native.saveToDocuments(`${prefix}${stamp}.wazn`, packCompany(s.dir), 10, prefix);
@@ -686,8 +690,38 @@ async function invoke(channel: string, ...args: unknown[]): Promise<unknown> {
 
 const EVENTS = ['update:progress', 'company:events', 'company:reset', 'company:closed', 'license:changed', 'lan:error', 'display:update', 'cloud:mode', 'cloud:notice'];
 
+/**
+ * بصمة نسخة الويب (آيفون): ما في معرّف جهاز بالمتصفح، فمنولّد معرّف عشوائي مرة وحدة ومنحفظه بمكانين
+ * (localStorage وملفات البرنامج بـ IndexedDB) حتى ما يتغيّر إذا انمسح واحد منهن.
+ */
+async function webMachineId(): Promise<string> {
+  const file = `${USER_DATA}/device-id`;
+  let id = '';
+  try {
+    id = localStorage.getItem('wazn.webDeviceId') ?? '';
+  } catch {
+    /* ما في localStorage */
+  }
+  if (!id && fs.existsSync(file)) id = String(fs.readFileSync(file, 'utf8')).trim();
+  if (!id) id = crypto.randomUUID();
+  try {
+    localStorage.setItem('wazn.webDeviceId', id);
+  } catch {
+    /* بيضل بالملفات */
+  }
+  if (!fs.existsSync(file) || String(fs.readFileSync(file, 'utf8')).trim() !== id) {
+    fs.mkdirSync(USER_DATA, { recursive: true });
+    fs.writeFileSync(file, id);
+    await flushVfs();
+  }
+  // المتصفح ممكن يمسح بيانات المواقع لحالو: منطلب تخزين دائم
+  void navigator.storage?.persist?.().catch(() => undefined);
+  const hex = (createHash('sha256').update(`wazn-web|${id}`).digest('hex') as string).slice(0, 16).toUpperCase();
+  return hex.match(/.{4}/g)!.join('-');
+}
+
 export async function startHost(): Promise<void> {
-  const machineId = await native.machineId();
+  const machineId = IS_WEB_BUILD ? await webMachineId() : await native.machineId();
   const feedUrls = IS_TEST_BUILD ? (localStorage.getItem('wazn.testFeed') ? [localStorage.getItem('wazn.testFeed')!] : []) : LICENSE_FEED_URLS;
   const redeemUrls = IS_TEST_BUILD ? (localStorage.getItem('wazn.testRedeem') ? [localStorage.getItem('wazn.testRedeem')!] : []) : LICENSE_REDEEM_URLS;
   license = new LicenseManager({ dataDir: USER_DATA, publicKey: LICENSE_PUBLIC_KEY, feedUrls, redeemUrls, appVersion: __APP_VERSION__, machineId });

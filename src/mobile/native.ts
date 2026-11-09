@@ -48,6 +48,17 @@ export const native = {
       }
       return name;
     }
+    // آيفون (نسخة الويب): قائمة المشاركة تبع النظام (حفظ بالملفات، واتساب، درايف...)
+    const file = typeof File === 'function' ? new File([bytes as BlobPart], name, { type: mime || 'application/octet-stream' }) : null;
+    if (file && navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: name });
+        return name;
+      } catch (e) {
+        if ((e as Error).name === 'AbortError') return null;
+        /* المشاركة ما زبطت: منكمّل بالتنزيل العادي */
+      }
+    }
     const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: mime }));
     const a = Object.assign(document.createElement('a'), { href: url, download: name });
     document.body.append(a);

@@ -1,0 +1,45 @@
+// نسخة الويب (آيفون) لحالها: تفعيل ببصمة الجهاز، شركة، بيعة، وبعد إعادة التحميل البصمة والبيانات نفسها.
+// التشغيل: MIZAN_TEST_BUILD=1 WAZN_WEB=1 npx vite build -c vite.mobile.config.ts && سيرفر لـ web-dist على 8791
+import { chromium } from '@playwright/test';
+import fs from 'node:fs';
+import { issueLicense } from '../../src/license/license';
+const devKey = fs.readFileSync('dev-keys/license-private.dev.pem', 'utf8');
+const S = process.argv[2] ?? '/tmp';
+const b = await chromium.launch();
+const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+const p = await ctx.newPage();
+const errs: string[] = [];
+p.on('pageerror', (e) => errs.push('pageerror: ' + e.message));
+await p.addInitScript(() => localStorage.setItem('mizan.tour.off', '1'));
+await p.goto('http://127.0.0.1:8791/index.html');
+await p.getByRole('button', { name: 'استعمل وزن على هالجوال' }).click();
+await p.getByText('بصمة الجهاز', { exact: true }).waitFor({ timeout: 20000 });
+const machineId = (await p.locator('.big-code').first().innerText()).replace(/\s/g, '');
+if (!/^[0-9A-F]{4}(-[0-9A-F]{4}){3}$/.test(machineId)) throw new Error('بصمة غلط: ' + machineId);
+await p.locator('textarea').first().fill(issueLicense({ customer: 'آيفون', machineId, plan: 'annual' }, devKey));
+await p.getByRole('button', { name: 'تفعيل', exact: true }).click();
+await p.getByText('شركة جديدة').first().click();
+await p.locator('.activity', { hasText: 'سوبرماركت' }).click();
+await p.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill('محل الآيفون');
+await p.locator('.field', { hasText: 'اسمك' }).locator('input').fill('المالك');
+await p.locator('.field', { hasText: 'كلمة السر (6' }).locator('input').fill('secret123');
+await p.locator('.field', { hasText: 'تأكيد كلمة السر' }).locator('input').fill('secret123');
+await p.locator('.demo-check input').check();
+await p.getByRole('button', { name: 'إنشاء الشركة' }).click();
+await p.getByRole('button', { name: 'حفظته، تابع' }).click();
+await p.locator('.bottom-nav button', { hasText: 'البيع' }).click();
+await p.locator('.pos-item').first().click();
+if (await p.locator('.m-cart-bar').isVisible()) await p.locator('.m-cart-bar').click();
+await p.getByRole('button', { name: 'دفع نقداً' }).click();
+await p.waitForTimeout(1500);
+await p.screenshot({ path: `${S}/web-1-after-sale.png` });
+// إعادة تحميل: نفس البصمة والترخيص، والشركة والفاتورة موجودين
+await p.reload();
+await p.waitForTimeout(3000);
+await p.screenshot({ path: `${S}/web-2-reload.png` });
+const body = await p.locator('body').innerText();
+if (/استعمل وزن على هالجوال|بصمة الجهاز/.test(body)) throw new Error('رجع لشاشة التفعيل بعد إعادة التحميل');
+if (!/محل الآيفون/.test(body)) throw new Error('الشركة مش ظاهرة بعد إعادة التحميل');
+const stored = await p.evaluate(() => localStorage.getItem('wazn.webDeviceId'));
+console.log(JSON.stringify({ machineId, stored: !!stored, errs }));
+await b.close();

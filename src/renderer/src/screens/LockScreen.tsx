@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import logo from '../assets/logo.png';
-import { api, IS_MOBILE, type AppInfo } from '../api';
+import { api, IS_MOBILE, IS_WEB, type AppInfo } from '../api';
 import { ConnectForm } from './Welcome';
 import { CloudConnectForm } from '../cloud/CloudConnect';
 
@@ -88,7 +88,7 @@ export function LockScreen({ info, onChanged, notify }: { info: AppInfo; onChang
       <section className="card lock-card">
         <h3>{IS_MOBILE ? 'متصل بجهاز المحل؟' : 'جهاز فرعي أو متصل عن بعد؟'}</h3>
         <p className="muted">
-          {IS_MOBILE ? 'الجوال المتصل بكمبيوتر المحل (على نفس الواي فاي أو عن بعد)' : 'الأجهزة الإضافية (كاشير تاني على نفس الشبكة، أو كمبيوتر بالبيت عن بعد)'} بتشتغل بترخيص الجهاز الرئيسي بالمحل وما بتحتاج مفتاح خاص.
+          {IS_WEB ? 'الجوال المتصل عن بعد بجهاز المحل' : IS_MOBILE ? 'الجوال المتصل بكمبيوتر المحل (على نفس الواي فاي أو عن بعد)' : 'الأجهزة الإضافية (كاشير تاني على نفس الشبكة، أو كمبيوتر بالبيت عن بعد)'} بتشتغل بترخيص الجهاز الرئيسي بالمحل وما بتحتاج مفتاح خاص.
         </p>
         {connect === 'cloud' ? (
           <CloudConnectForm notify={notify} onConnected={onChanged} />
@@ -96,7 +96,7 @@ export function LockScreen({ info, onChanged, notify }: { info: AppInfo; onChang
           <ConnectForm info={info} notify={notify} onConnected={onChanged} />
         ) : (
           <div className="button-row">
-            <button onClick={() => setConnect('lan')}>على نفس الشبكة (واي فاي)</button>
+            {!IS_WEB && <button onClick={() => setConnect('lan')}>على نفس الشبكة (واي فاي)</button>}
             <button onClick={() => setConnect('cloud')}>اتصال عن بعد</button>
           </div>
         )}

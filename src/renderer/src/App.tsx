@@ -57,6 +57,7 @@ import { Vouchers } from './screens/Vouchers';
 import { Welcome } from './screens/Welcome';
 import { useCloudHost } from './cloud/useCloudHost';
 import { WebConnect } from './cloud/WebConnect';
+import { cloudCodeFromHash } from '../../cloud/code';
 
 
 /** مفاتيح سريعة للشاشات الأكثر استخداماً. */
@@ -88,6 +89,14 @@ export function App() {
     }
   });
   const [toast, setToast] = useState<{ message: string; kind: 'ok' | 'error' } | null>(null);
+  // نسخة الويب (آيفون): «local» = وزن لحالو على هالجهاز (بترخيص)، غير هيك شاشة الاتصال عن بعد أول شي
+  const [webMode, setWebMode] = useState(() => {
+    try {
+      return localStorage.getItem('wazn.web.mode') ?? '';
+    } catch {
+      return '';
+    }
+  });
   const moneyHidden = useSyncExternalStore(moneyMask.subscribe, moneyMask.get);
   useEffect(() => {
     noteIdleDispatcher();
@@ -252,9 +261,18 @@ export function App() {
   if (!info.session) {
     return (
       <>
-        {IS_WEB ? (
+        {IS_WEB && (cloudCodeFromHash(location.hash) || (lic.locked && webMode !== 'local')) ? (
           <WebConnect
             notify={notify}
+            onStandalone={() => {
+              try {
+                localStorage.setItem('wazn.web.mode', 'local');
+              } catch {
+                /* بيضل للجلسة */
+              }
+              if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+              setWebMode('local');
+            }}
             onConnected={async () => {
               await loadInfo();
               setScreen({ key: 'dashboard' });

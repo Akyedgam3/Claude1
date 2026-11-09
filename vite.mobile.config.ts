@@ -39,7 +39,7 @@ function writeWebFiles() {
   const manifest = {
     name: 'وزن',
     short_name: 'وزن',
-    description: 'وزن: الاتصال عن بعد ببيانات المحل',
+    description: 'وزن: محاسبة وإدارة المحل على الآيفون، لحالو أو متصل بجهاز المحل',
     lang: 'ar',
     dir: 'rtl',
     display: 'standalone',

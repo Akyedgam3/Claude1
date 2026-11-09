@@ -2,7 +2,7 @@ import logo from '../assets/logo.png';
 import { CloudConnectForm } from './CloudConnect';
 
 /** نسخة الويب (آيفون): ما فيها بيانات محلية، بس اتصال عن بعد بجهاز المحل. */
-export function WebConnect({ notify, onConnected }: { notify: (m: string, k?: 'ok' | 'error') => void; onConnected: () => Promise<void> }) {
+export function WebConnect({ notify, onConnected, onStandalone }: { notify: (m: string, k?: 'ok' | 'error') => void; onConnected: () => Promise<void>; onStandalone: () => void }) {
   const nav = navigator as Navigator & { standalone?: boolean };
   const installed = nav.standalone === true || matchMedia('(display-mode: standalone)').matches;
   const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -16,6 +16,13 @@ export function WebConnect({ notify, onConnected }: { notify: (m: string, k?: 'o
       <section className="card">
         <h3>اتصال عن بعد</h3>
         <CloudConnectForm notify={notify} onConnected={onConnected} />
+      </section>
+      <section className="card web-standalone">
+        <h3>بدك وزن لحالو على هالجوال؟</h3>
+        <p className="muted">بيانات المحل كلها على الآيفون نفسه (بدون كمبيوتر)، متل تطبيق أندرويد. بيحتاج كود تفعيل من البائع.</p>
+        <button type="button" className="primary" onClick={onStandalone}>
+          استعمل وزن على هالجوال
+        </button>
       </section>
       {!installed && (
         <section className="card web-install">
@@ -35,7 +42,7 @@ export function WebConnect({ notify, onConnected }: { notify: (m: string, k?: 'o
           )}
         </section>
       )}
-      <p className="muted center">هالنسخة للاتصال بمحل مفعّل عنده «الاتصال عن بعد». بتشتغل بترخيص المحل وما بتحتاج مفتاح.</p>
+      <p className="muted center">الاتصال عن بعد بمحل مفعّل عنده «الاتصال عن بعد» بيشتغل بترخيص المحل وما بيحتاج كود.</p>
     </div>
   );
 }
