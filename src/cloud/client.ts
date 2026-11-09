@@ -44,6 +44,9 @@ export class CloudClient {
   private token = '';
   private offEvents: (() => void) | null = null;
   private offMeta: (() => void) | null = null;
+  private probe: ReturnType<typeof setInterval> | null = null;
+  /** كل قديش منفحص إذا رجع الجهاز الرئيسي ونحنا شغّالين على آخر نسخة. */
+  probeMs = 20_000;
   private resyncing: Promise<void> | null = null;
   private closed = false;
   private lastId = '';
@@ -229,8 +232,8 @@ export class CloudClient {
   }
 
   /** فحص سريع إنو الجهاز الرئيسي شغّال ورمز الاتصال صح. */
-  ping(): Promise<{ name: string }> {
-    return this.request<{ name: string }>({ op: 'ping' }, 15_000);
+  ping(timeoutMs = 25_000): Promise<{ name: string }> {
+    return this.request<{ name: string }>({ op: 'ping' }, timeoutMs);
   }
 
   async login(): Promise<{ user: User; companyName: string; state: CompanyState; seq: number }> {
@@ -326,7 +329,35 @@ export class CloudClient {
     };
     this.offMeta = this.t.watchDoc(r, 'meta', 'host', (d) => {
       if (d?.epoch && d.epoch !== this.epoch) resync();
+      else if (this.offline && d?.seen && d.seen > this.syncedAt) resync();
     });
+    // طلب واحد تأخّر (نت ضعيف) بيحوّلنا لوضع «الرئيسي مطفي». الرئيسي ما بيغيّر شي إذا ضل شغّال،
+    // فمنفحص كل شوي: إذا ردّ منرجع متصلين بدل ما نضل عالنسخة المحفوظة لحد ما ينعاد تشغيله.
+    // (بفواصل بتطول لحد 5 دقايق إذا الرئيسي فعلاً مطفي، حتى ما نكتر الطلبات عالسحابة)
+    if (this.probe) clearInterval(this.probe);
+    let wait = this.probeMs;
+    let next = Date.now() + wait;
+    let busy = false;
+    this.probe = setInterval(() => {
+      if (!this.offline) {
+        wait = this.probeMs;
+        next = Date.now() + wait;
+        return;
+      }
+      if (this.closed || this.resyncing || busy || Date.now() < next) return;
+      busy = true;
+      void this.ping()
+        .then(
+          () => resync(),
+          () => {
+            wait = Math.min(wait * 2, 5 * 60_000);
+          },
+        )
+        .finally(() => {
+          busy = false;
+          next = Date.now() + wait;
+        });
+    }, Math.min(this.probeMs, 5_000));
     this.watchEvents(onEvents, resync);
   }
 
@@ -359,6 +390,7 @@ export class CloudClient {
 
   async close(): Promise<void> {
     this.closed = true;
+    if (this.probe) clearInterval(this.probe);
     this.offEvents?.();
     this.offMeta?.();
     if (this.token) await this.request({ op: 'logout', token: this.token }, 5000).catch(() => undefined);

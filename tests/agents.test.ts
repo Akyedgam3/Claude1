@@ -122,8 +122,16 @@ describe('agents', () => {
     const c = r.add({ name: 'زبون', machineId: M1, plan: 'annual', agentId: a.id });
     expect(c.code).toMatch(/^[A-HJ-NP-Z2-9]{4}(-[A-HJ-NP-Z2-9]{4}){3}$/);
     expect(r.redeem(c.code!.replace(/-/g, '').toLowerCase(), ['0000-0000-0000-0000', M1]).key).toBe(c.key);
-    expect(() => r.redeem(c.code!, [M2])).toThrow(/لجهاز تاني/);
+    expect(() => r.redeem(c.code!, [M2])).toThrow(/جهاز تاني/);
     expect(() => r.redeem('ABCD', [M1])).toThrow(/16/);
+    // رخصة «+ جوال»: كود الكمبيوتر نفسه بيفعّل الجوال أول مرة، وبعدها الجوال والكمبيوتر بيرجعولهم مفاتيحهم
+    r.addPackage(a.id, { tier: 'a10m' });
+    const m = r.add({ name: 'محل جوال', machineId: '9A9A-9A9A-9A9A-9A9A', plan: 'annual', agentId: a.id, mobile: true });
+    const ph = r.redeem(m.code!, ['1B1B-1B1B-1B1B-1B1B']);
+    expect(ph.phoneOf).toBe(m.id);
+    expect(r.redeem(m.code!, ['1B1B-1B1B-1B1B-1B1B']).id).toBe(ph.id);
+    expect(r.redeem(ph.code!, ['9A9A-9A9A-9A9A-9A9A']).id).toBe(m.id);
+    expect(() => r.redeem(m.code!, ['2C2C-2C2C-2C2C-2C2C'])).toThrow(/متفعّل من قبل/);
     // كرت «دائم + جوال»: الرصيد بينخصم هلق، وأول جهاز بياخده، والتاني بياخد مفتاح الجوال
     const card = r.createCard({ name: 'محل الكرت', plan: 'lifetime', mobile: true, agentId: a.id });
     expect(agentBalance(r.agent(a.id)).lifetimeMobile.left).toBe(9);

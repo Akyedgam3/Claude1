@@ -86,9 +86,9 @@ export function LockScreen({ info, onChanged, notify }: { info: AppInfo; onChang
         </div>
       </section>
       <section className="card lock-card">
-        <h3>{IS_MOBILE ? 'متصل بمحل عن بعد؟' : 'جهاز فرعي أو متصل عن بعد؟'}</h3>
+        <h3>{IS_MOBILE ? 'متصل بجهاز المحل؟' : 'جهاز فرعي أو متصل عن بعد؟'}</h3>
         <p className="muted">
-          {IS_MOBILE ? 'الجوال المتصل عن بعد' : 'الأجهزة الإضافية (كاشير تاني على نفس الشبكة، أو كمبيوتر بالبيت عن بعد)'} بتشتغل بترخيص الجهاز الرئيسي بالمحل وما بتحتاج مفتاح خاص.
+          {IS_MOBILE ? 'الجوال المتصل بكمبيوتر المحل (على نفس الواي فاي أو عن بعد)' : 'الأجهزة الإضافية (كاشير تاني على نفس الشبكة، أو كمبيوتر بالبيت عن بعد)'} بتشتغل بترخيص الجهاز الرئيسي بالمحل وما بتحتاج مفتاح خاص.
         </p>
         {connect === 'cloud' ? (
           <CloudConnectForm notify={notify} onConnected={onChanged} />
@@ -96,7 +96,7 @@ export function LockScreen({ info, onChanged, notify }: { info: AppInfo; onChang
           <ConnectForm info={info} notify={notify} onConnected={onChanged} />
         ) : (
           <div className="button-row">
-            {!IS_MOBILE && <button onClick={() => setConnect('lan')}>على نفس الشبكة</button>}
+            <button onClick={() => setConnect('lan')}>على نفس الشبكة (واي فاي)</button>
             <button onClick={() => setConnect('cloud')}>اتصال عن بعد</button>
           </div>
         )}

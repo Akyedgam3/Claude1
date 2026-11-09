@@ -264,6 +264,22 @@ describe('cloud host and client', () => {
     expect(resets).toBeGreaterThan(0);
   });
 
+  it('a single slow request does not leave the phone stuck on "main device off" while it is on', async () => {
+    const c = await client();
+    await c.login();
+    c.probeMs = 40;
+    c.listen(() => undefined, () => undefined, () => undefined);
+    // طلب تأخّر (نت بطيء) فصار الجوال يعتبر الرئيسي مطفي، والرئيسي ضل شغّال بنفس الجلسة
+    c.offline = true;
+    const r = await c.call('postInvoice', [sale]);
+    expect(r.value).toMatchObject({ createdBy: 'u2' });
+    expect(c.pending).toHaveLength(1);
+    // الجوال بيرجع متصل لحالو وبتتنفّذ العملية المأجّلة
+    await until(() => !c.offline && c.pending.length === 0);
+    await until(() => Object.keys(store.ledger.state.invoices).length === 1);
+    await c.close();
+  });
+
   it('sends a full backup file to the phone for users allowed to back up', async () => {
     const owner = await client('admin', 'secret123');
     await owner.login();

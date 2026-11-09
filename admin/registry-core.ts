@@ -593,8 +593,27 @@ export class RegistryCore {
     const own = this.data.customers.find((c) => c.code === code);
     if (own) {
       if (own.status === 'revoked') throw new Error('هالترخيص ملغى. تواصل مع البائع.');
-      if (!ids.includes(own.machineId)) throw new Error('هالكود لجهاز تاني. تواصل مع البائع.');
-      return own;
+      if (ids.includes(own.machineId)) return own;
+      // كود الكمبيوتر انكتب عالجوال (أو العكس): إذا الرخصة فيها جوال منرجّع الجهاز الصح
+      const pc = own.phoneOf ? this.data.customers.find((c) => c.id === own.phoneOf) : own;
+      const phone = pc ? this.data.customers.find((c) => c.phoneOf === pc.id && c.status !== 'revoked') : undefined;
+      if (pc && ids.includes(pc.machineId) && pc.status !== 'revoked') return pc;
+      if (phone && ids.includes(phone.machineId)) return phone;
+      // رخصة «+ جوال» لسا ما إلها جوال: نفس الكود بيفعّل الجوال (مرة وحدة)
+      if (pc && pc === own && own.mobile && !phone) {
+        const prev = this.actor;
+        this.actor = 'تفعيل بالكود';
+        try {
+          return this.addPhone(own.id, ids[0]!);
+        } finally {
+          this.actor = prev;
+        }
+      }
+      throw new Error(
+        own.mobile || own.phoneOf
+          ? 'هالكود لجهاز تاني، والجوال التابع لهالرخصة متفعّل من قبل. ابعت بصمة هالجهاز للبائع.'
+          : 'هالكود مسجّل على جهاز تاني (رخصة كمبيوتر بس، بدون جوال). ابعت بصمة هالجهاز للبائع.',
+      );
     }
     const card = this.cards.find((c) => c.code === code);
     if (!card || card.void) throw new Error('الكود غلط أو ملغى. تأكد منه أو تواصل مع البائع.');

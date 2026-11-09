@@ -646,7 +646,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
               const batches = item?.trackExpiry ? Object.values(state.stock[item.id]?.batches ?? {}).filter((b) => b.warehouseId === warehouseId && b.qty > 0) : [];
               return (
                 <tr key={l.key}>
-                  <td>
+                  <td className="line-cell-item">
                     {l.itemId ? (
                       <div className="line-item">
                         <strong>{l.description}</strong>
@@ -757,7 +757,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
                       </>
                     )}
                   </td>
-                  <td>
+                  <td data-label="الوحدة">
                     {item?.units?.length ? (
                       <select value={l.unit} onChange={(e) => setLine(l.key, { unit: e.target.value, price: priceFor(item, e.target.value) })}>
                         <option value="">{item.unit}</option>
@@ -771,7 +771,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
                       <span className="muted">{item?.unit}</span>
                     )}
                   </td>
-                  <td>
+                  <td data-label="الكمية">
                     <div className="qty-cell">
                       <input
                         className="num-input"
@@ -794,16 +794,16 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
                       )}
                     </div>
                   </td>
-                  <td>
+                  <td data-label="السعر">
                     <input className="num-input" value={l.price} onChange={(e) => setLine(l.key, { price: e.target.value, manualPrice: true, src: priceSrc(e.target.value) })} inputMode="decimal" />
                   </td>
                   {allowDiscount && (
-                    <td>
+                    <td data-label="الخصم">
                       <input className="num-input" value={l.discount} onChange={(e) => setLine(l.key, { discount: e.target.value })} placeholder="مبلغ أو %" title="مبلغ (50) أو نسبة (10%)" />
                     </td>
                   )}
-                  <td className="num">{idx >= 0 ? money(state, preview.amounts[idx] ?? 0, currency) : ''}</td>
-                  <td>
+                  <td className="num" data-label="المجموع">{idx >= 0 ? money(state, preview.amounts[idx] ?? 0, currency) : ''}</td>
+                  <td className="line-cell-remove">
                     {(l.itemId || l.description) && (
                       <button className="icon" title="حذف السطر" onClick={() => setLines((ls) => withEmpty(ls.filter((x) => x.key !== l.key)))}>
                         <Icon name="close" size={16} />
