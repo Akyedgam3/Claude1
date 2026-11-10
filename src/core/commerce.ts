@@ -38,6 +38,7 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
     case 'party.saved':
       if (!event.party.name.trim()) fail('الاسم مطلوب');
       if (event.party.marketerRate !== undefined && !(event.party.marketerRate > 0 && event.party.marketerRate <= 100)) fail('نسبة المسوّق بين 0 و100');
+      if (event.party.marketerBasis !== undefined && event.party.marketerBasis !== 'sales' && event.party.marketerBasis !== 'profit') fail('أساس عمولة المسوّق غير معروف');
       if (event.party.priceTier !== undefined && !['retail', 'wholesale', 'bulk', 'agent', 'special'].includes(event.party.priceTier)) fail('نوع الزبون غير معروف');
       return;
     case 'warehouse.saved':

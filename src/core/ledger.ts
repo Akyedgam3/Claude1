@@ -818,7 +818,18 @@ export class Ledger {
   private postCommission(invoice: Invoice): void {
     const m = this.state.parties[invoice.marketerId!];
     if (!m?.marketerRate) return;
-    const amount = Math.round(((invoice.subtotal - invoice.discount) * m.marketerRate) / 100);
+    const profitBased = m.marketerBasis === 'profit';
+    let basis = invoice.subtotal - invoice.discount;
+    if (profitBased) {
+      // العمولة من الربح: سعر البيع ناقص تكلفة البضاعة (بعملة الفاتورة)، وإذا ما في ربح ما في عمولة
+      const posted = this.state.invoices.find((i) => i.id === invoice.id) ?? invoice;
+      const baseCur = this.state.currencies[this.base.code]!;
+      const cur = this.state.currencies[invoice.currency] ?? baseCur;
+      const costBase = posted.lines.reduce((t, l) => t + (l.cost ?? 0), 0);
+      const costInv = invoice.rate ? costBase / (invoice.rate * 10 ** (baseCur.decimals - cur.decimals)) : costBase;
+      basis = Math.round(basis - costInv);
+    }
+    const amount = Math.round((basis * m.marketerRate) / 100);
     if (amount <= 0) return;
     if (!this.state.accounts[COMMISSION_ACCOUNT]) {
       const parent = this.state.accounts['52'] ? '52' : this.state.accounts['5'] ? '5' : null;
@@ -827,7 +838,7 @@ export class Ledger {
     const cur = invoice.currency !== this.base.code ? { currency: invoice.currency, rate: invoice.rate } : {};
     this.postEntry({
       date: invoice.date,
-      memo: `عمولة ${m.name} (${m.marketerRate}%) عن فاتورة مبيع رقم ${invoice.number}${invoice.partyId ? ` — ${this.state.parties[invoice.partyId]?.name ?? ''}` : ''}`,
+      memo: `عمولة ${m.name} (${m.marketerRate}%${profitBased ? ' من الربح' : ''}) عن فاتورة مبيع رقم ${invoice.number}${invoice.partyId ? ` — ${this.state.parties[invoice.partyId]?.name ?? ''}` : ''}`,
       lines: [
         { accountId: COMMISSION_ACCOUNT, debit: amount, ...cur },
         { accountId: SYSTEM_ACCOUNTS.suppliers, credit: amount, partyId: m.id, ...cur },

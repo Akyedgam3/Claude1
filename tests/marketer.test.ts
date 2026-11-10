@@ -34,6 +34,39 @@ describe('marketer commission', () => {
   });
 });
 
+describe('marketer commission on profit', () => {
+  function profitShop() {
+    const l = shop();
+    l.saveParty({ id: 'third', kind: 'supplier', name: 'الشريك', marketerRate: 33.33, marketerBasis: 'profit' });
+    l.saveItem({ id: 'x', code: '1', name: 'بضاعة', kind: 'stock', unit: 'قطعة', price: 1500, priceCurrency: 'USD' });
+    l.postInvoice({ kind: 'purchase', date: '2026-11-01', currency: 'USD', lines: [{ itemId: 'x', qty: 10, price: 1000 }] }); // التكلفة 10.00 بالقطعة
+    return l;
+  }
+
+  it('one third of the profit: sale 15.00 on cost 10.00 per piece x2 gives profit 10.00 and commission 3.33', () => {
+    const l = profitShop();
+    l.postInvoice({ kind: 'sale', date: '2026-11-02', partyId: 'mhmd', currency: 'USD', lines: [{ itemId: 'x', qty: 2, price: 1500 }], paid: 3000, marketerId: 'third' });
+    expect(accountBalance(l.state, COMMISSION_ACCOUNT).balance).toBe(333); // ثلث ربح 10.00
+    expect(-partyBalance(l.state, 'third').base).toBe(333);
+  });
+
+  it('no profit, no commission; voiding the invoice cancels it', () => {
+    const l = profitShop();
+    l.postInvoice({ kind: 'sale', date: '2026-11-02', partyId: 'mhmd', currency: 'USD', lines: [{ itemId: 'x', qty: 1, price: 900 }], paid: 900, marketerId: 'third' });
+    expect(partyBalance(l.state, 'third').base).toBe(0);
+    const inv = l.postInvoice({ kind: 'sale', date: '2026-11-03', partyId: 'mhmd', currency: 'USD', lines: [{ itemId: 'x', qty: 1, price: 1900 }], paid: 1900, marketerId: 'third' });
+    expect(-partyBalance(l.state, 'third').base).toBe(300); // ربح 9.00 × 33.33%
+    l.deleteInvoice(inv.id, '2026-11-04');
+    expect(partyBalance(l.state, 'third').base).toBe(0);
+  });
+
+  it('sales-based marketers are unchanged', () => {
+    const l = profitShop();
+    l.postInvoice({ kind: 'sale', date: '2026-11-02', partyId: 'mhmd', currency: 'USD', lines: [{ itemId: 'x', qty: 2, price: 1500 }], paid: 3000, marketerId: 'ahmad' });
+    expect(-partyBalance(l.state, 'ahmad').base).toBe(450); // 15% من 30.00
+  });
+});
+
 describe('purchase cost breakdown', () => {
   it('factory 6 + shipping 2 + tax 2 + customs 2 = cost 12 per piece', () => {
     const l = shop();

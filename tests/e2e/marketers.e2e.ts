@@ -66,6 +66,16 @@ test('المسوّقين: فواتير كل مسوّق وعمولته ودفعه
     await expect(ahmad.locator('.marketer-nums b.good')).toContainText('0');
     await expect(ahmad.getByRole('button', { name: 'دفع العمولة' })).toHaveCount(0);
     await expect(mohd.getByRole('button', { name: 'دفع العمولة' })).toBeVisible();
+
+    // مسوّق بعمولة «ثلث الربح»
+    await page.getByRole('button', { name: /مسوّق جديد/ }).click();
+    const pf = page.locator('.modal');
+    await pf.locator('.field', { hasText: 'الاسم' }).locator('input').fill('الشريك');
+    await pf.locator('.field', { hasText: 'نسبته' }).locator('input').fill('33.33');
+    await pf.locator('.field', { hasText: 'النسبة من' }).locator('select').selectOption('profit');
+    await pf.getByRole('button', { name: 'حفظ' }).click();
+    await toast(page, 'تمت إضافة الشريك كمسوّق');
+    await expect(page.locator('.marketer-card', { hasText: 'الشريك' })).toContainText('من الربح');
   } finally {
     await close();
   }
