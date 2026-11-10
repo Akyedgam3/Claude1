@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { accountBalance, type Account } from '../../../core';
+import { accountBalance, SYSTEM_ACCOUNTS, type Account } from '../../../core';
 import { IS_MOBILE, money, useCompany } from '../api';
 import { Field, Modal, PageHeader } from '../components/ui';
 
@@ -122,7 +122,7 @@ function AccountForm({ parent, account, onClose }: { parent?: Account; account?:
           <input type="checkbox" checked={f.isGroup} onChange={(e) => setF({ ...f, isGroup: e.target.checked })} />
           حساب تجميعي (له حسابات فرعية)
         </label>
-        {account && (
+        {account && !(Object.values(SYSTEM_ACCOUNTS) as string[]).includes(account.id) && (
           <label className="check">
             <input type="checkbox" checked={f.archived} onChange={(e) => setF({ ...f, archived: e.target.checked })} />
             مؤرشف (إيقاف الاستخدام)

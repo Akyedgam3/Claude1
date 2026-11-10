@@ -67,6 +67,18 @@ describe('marketer commission on profit', () => {
   });
 });
 
+describe('archived system accounts', () => {
+  it('a sale still posts when cost-of-goods-sold was archived by mistake, but a normal archived account stays blocked', () => {
+    const l = shop();
+    l.saveItem({ id: 'x', code: '1', name: 'بضاعة', kind: 'stock', unit: 'قطعة', price: 1500, priceCurrency: 'USD' });
+    l.postInvoice({ kind: 'purchase', date: '2026-11-01', currency: 'USD', lines: [{ itemId: 'x', qty: 10, price: 1000 }] });
+    l.saveAccount({ ...l.state.accounts['5101']!, archived: true });
+    expect(() => l.postInvoice({ kind: 'sale', date: '2026-11-02', currency: 'USD', lines: [{ itemId: 'x', qty: 1, price: 1500 }], paid: 1500 })).not.toThrow();
+    l.saveAccount({ id: '5999', name: 'مصروف قديم', type: 'expense', parentId: null, isGroup: false, currency: null, archived: true });
+    expect(() => l.postEntry({ date: '2026-11-02', memo: 'x', lines: [{ accountId: '5999', debit: 100 }, { accountId: '1101', credit: 100 }] })).toThrow(/مؤرشف/);
+  });
+});
+
 describe('purchase cost breakdown', () => {
   it('factory 6 + shipping 2 + tax 2 + customs 2 = cost 12 per piece', () => {
     const l = shop();

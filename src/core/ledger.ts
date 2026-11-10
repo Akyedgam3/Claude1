@@ -161,7 +161,8 @@ function validateEntry(state: CompanyState, entry: JournalEntry): void {
     const n = i + 1;
     const account = state.accounts[line.accountId] ?? fail(`السطر ${n}: الحساب غير موجود (${line.accountId})`);
     if (account.isGroup) fail(`السطر ${n}: لا يمكن الترحيل على حساب تجميعي (${account.name})`);
-    if (account.archived) fail(`السطر ${n}: الحساب مؤرشف (${account.name})`);
+    // الحسابات الأساسية (تكلفة البضاعة، المبيعات، الصندوق...) البرنامج بيرحّل عليها لحالو: ما بتنمنع حتى لو انأرشفت بالغلط
+    if (account.archived && !(Object.values(SYSTEM_ACCOUNTS) as string[]).includes(account.id)) fail(`السطر ${n}: الحساب مؤرشف (${account.name})`);
     if (!state.currencies[line.currency]) fail(`السطر ${n}: عملة غير معرّفة (${line.currency})`);
     if (account.currency && account.currency !== line.currency) {
       fail(`السطر ${n}: الحساب ${account.name} يقبل عملة ${account.currency} فقط`);
