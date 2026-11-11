@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { partyBalance, type Invoice, type Party } from '../../../core';
+import { invoiceProfit, partyBalance, type Invoice, type Party } from '../../../core';
 import { dateText, money, today, uid, useCompany } from '../api';
 import { Empty, Field, Modal, PageHeader, Stat } from '../components/ui';
 import { Icon } from '../components/icons';
@@ -50,11 +50,12 @@ export function Marketers() {
         const invoices = state.invoices
           .filter((i) => i.marketerId === m.id && i.kind === 'sale' && !i.voidEntryId && i.date >= from && i.date <= to)
           .sort((a, b) => b.date.localeCompare(a.date) || b.number - a.number)
-          .map((i) => ({ inv: i, com: commissionOf(i, m) }));
+          .map((i) => ({ inv: i, com: commissionOf(i, m), profit: invoiceProfit(state, i).profit }));
         const sales = invoices.reduce((t, x) => t + toBase(x.inv.total, x.inv.currency, x.inv.rate), 0);
         const earned = invoices.reduce((t, x) => t + x.com.base, 0);
+        const profit = invoices.reduce((t, x) => t + x.profit, 0);
         const owed = Math.max(0, -partyBalance(state, m.id).base);
-        return { m, invoices, sales, earned, owed };
+        return { m, invoices, sales, earned, owed, profit };
       })
       .sort((a, b) => b.sales - a.sales);
   }, [state, from, to]);
@@ -70,7 +71,7 @@ export function Marketers() {
           </button>
         )}
       </PageHeader>
-      <p className="muted">كل مسوّق إلو نسبة من المبيعات اللي بيجيبها. بفاتورة المبيع اختار «عن طريق مسوّق» (ما بيطلع للزبون)، وعمولته بتنسجّل لحالها مصروف ودين إلو، وبتدفعها من هون.</p>
+      <p className="muted">كل مسوّق إلو نسبة من ربح الفواتير اللي بيجيبها (سعر البيع ناقص تكلفة البضاعة، كل فاتورة لحالها). بفاتورة المبيع اختار «عن طريق مسوّق» (ما بيطلع للزبون)، وعمولته بتنسجّل لحالها مصروف ودين إلو، وبتدفعها من هون.</p>
 
       <div className="segmented">
         {PERIODS.map((p) => (
@@ -90,7 +91,7 @@ export function Marketers() {
             <Stat label="باقي إلهم (كل الفترات)" value={money(state, totals.owed)} tone={totals.owed ? 'bad' : undefined} />
           </div>
           <div className="marketers">
-            {rows.map(({ m, invoices, sales, earned, owed }) => (
+            {rows.map(({ m, invoices, sales, earned, owed, profit }) => (
               <section key={m.id} className="card marketer-card">
                 <div className="marketer-head" onClick={() => setOpen(open === m.id ? null : m.id)}>
                   <div>
@@ -108,6 +109,12 @@ export function Marketers() {
                       <small>مبيعاته</small>
                       <b>{money(state, sales)}</b>
                     </span>
+                    {can('costs.view') && (
+                      <span>
+                        <small>ربح فواتيره</small>
+                        <b>{money(state, profit)}</b>
+                      </span>
+                    )}
                     <span>
                       <small>عمولته</small>
                       <b>{money(state, earned)}</b>
@@ -147,16 +154,18 @@ export function Marketers() {
                           <th>الفاتورة</th>
                           <th>الزبون</th>
                           <th className="num">قيمة الفاتورة</th>
-                          <th className="num">العمولة</th>
+                          {can('costs.view') && <th className="num">ربح الفاتورة</th>}
+                          <th className="num">العمولة ({m.marketerRate}% من الربح)</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {invoices.map(({ inv, com }) => (
+                        {invoices.map(({ inv, com, profit: p }) => (
                           <tr key={inv.id} className="clickable" onClick={() => navigate('invoice', inv.id)}>
                             <td>{dateText(inv.date)}</td>
                             <td className="mono">#{inv.number}</td>
                             <td>{inv.partyId ? state.parties[inv.partyId]?.name : 'زبون نقدي'}</td>
                             <td className="num">{money(state, inv.total, inv.currency)}</td>
+                            {can('costs.view') && <td className={`num ${p < 0 ? 'bad' : ''}`}>{money(state, p)}</td>}
                             <td className="num good">{money(state, com.amount, inv.currency)}</td>
                           </tr>
                         ))}
