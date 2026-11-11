@@ -2,6 +2,8 @@ export * from './money';
 export * from './types';
 export * from './ledger';
 export * from './reports';
+export { fullStatement, type FullStatement, type FullStatementRow, type StatementTarget } from './statement';
+export { itemMovements, itemsSummary, type ItemMove, type ItemSummary } from './item-tracker';
 export * from './tax';
 export * from './chart-templates';
 export * from './commerce';

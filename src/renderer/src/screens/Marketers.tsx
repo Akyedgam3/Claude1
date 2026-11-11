@@ -132,7 +132,7 @@ export function Marketers() {
                       تعديل النسبة
                     </button>
                   )}
-                  <button className="ghost small" onClick={() => navigate('debts')}>
+                  <button className="ghost small" onClick={() => navigate('statement', `party:${m.id}`)}>
                     كشف حسابه
                   </button>
                 </div>

@@ -20,6 +20,8 @@ import { Partners } from './screens/Partners';
 import { InvoiceView } from './screens/InvoiceView';
 import { Invoices } from './screens/Invoices';
 import { Items } from './screens/Items';
+import { ItemWatch } from './screens/ItemWatch';
+import { Statements } from './screens/Statements';
 import { Journal } from './screens/Journal';
 import { LockScreen } from './screens/LockScreen';
 import { Parties } from './screens/Parties';
@@ -511,6 +513,10 @@ function Screen({ screen }: { screen: { key: string; param?: string } }) {
       return <Items key={p ?? ''} {...(p ? { initialQuery: p } : {})} />;
     case 'stock':
       return <StockOps {...(p ? { tab: p } : {})} />;
+    case 'statement':
+      return <Statements key={p ?? ''} {...(p ? { initial: p } : {})} />;
+    case 'itemwatch':
+      return <ItemWatch key={p ?? ''} {...(p ? { initialItem: p } : {})} />;
     case 'production':
       return <Production />;
     case 'formulas':

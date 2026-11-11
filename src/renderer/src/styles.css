@@ -4233,3 +4233,13 @@ button.link { background: none; border: none; color: var(--primary); padding: 4p
 .count-summary button { margin-inline-start: auto; }
 .count-restored { display: flex; align-items: center; gap: 6px; color: var(--primary, #0f6e5c); }
 .count-cell { display: inline-flex; align-items: center; gap: 4px; }
+
+/* مراقبة المواد / كشف الحساب / الصندوق */
+.period-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 6px 0 12px; }
+.period-picker .segmented { margin: 0; }
+.period-dates { display: inline-flex; flex-wrap: wrap; gap: 8px; }
+.period-dates label { display: inline-flex; align-items: center; gap: 6px; }
+.bad-note { background: rgba(220, 53, 69, 0.08); border: 1px solid rgba(220, 53, 69, 0.3); color: var(--bad, #c0392b); padding: 8px 12px; border-radius: 10px; }
+.item-watch td .tag { margin-inline-start: 6px; }
+.statement tr.voided td { color: var(--muted, #8a948f); text-decoration: line-through; }
+.statement-target { margin: 10px 0 4px; }
