@@ -159,6 +159,7 @@ export function Dashboard() {
     { id: 'appointments', label: 'المواعيد', icon: 'calendar', cls: 'primary big accent', ok: feature('appointments') && can('appointments.manage'), go: () => navigate('appointments') },
     { id: 'quote', label: 'عرض سعر', icon: 'file', cls: 'big', ok: can('sales.create'), go: () => navigate('quote') },
     { id: 'purchase', label: 'فاتورة شراء', icon: 'purchase', cls: 'big', ok: can('purchases.create'), go: () => navigate('purchase') },
+    { id: 'cashbox', label: 'الصندوق', icon: 'wallet', cls: 'big', ok: can('reports.financial') || can('vouchers.create'), go: () => navigate('cashbox') },
     { id: 'debts', label: 'الديون', icon: 'debts', cls: 'big', ok: can('vouchers.create'), go: () => navigate('debts') },
     { id: 'vouchers', label: 'سند قبض / دفع', icon: 'wallet', cls: 'big', ok: can('vouchers.create'), go: () => navigate('vouchers') },
     { id: 'addStock', label: 'إضافة بضاعة', icon: 'package', cls: 'big', ok: can('stock.adjust'), go: () => navigate('stock', 'add'), extra: true },

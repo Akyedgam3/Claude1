@@ -4258,3 +4258,17 @@ button.link { background: none; border: none; color: var(--primary); padding: 4p
 .last-price:hover { text-decoration: underline; }
 .last-price.same { color: var(--muted, #8a948f); cursor: default; }
 .repeat-last { display: inline-block; margin-top: 6px; font-size: 13px; }
+
+/* شريط معلومات الفاتورة */
+.invoice-info { margin-bottom: 12px; display: grid; gap: 10px; }
+.invoice-info-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; }
+.invoice-info-row > span { display: grid; gap: 2px; }
+.invoice-info-row small { color: var(--muted, #6b7a76); font-size: 12px; }
+.invoice-info-row b { font-size: 16px; }
+.inv-status { padding: 6px 12px; border-radius: 999px; font-weight: 700; font-size: 14px; display: inline-block !important; }
+.inv-status.paid { background: rgba(22, 163, 74, 0.12); color: #15803d; }
+.inv-status.partial { background: rgba(234, 179, 8, 0.16); color: #a16207; }
+.inv-status.credit { background: rgba(220, 38, 38, 0.1); color: #b91c1c; }
+.inv-status.void { background: rgba(100, 116, 139, 0.15); color: #475569; }
+.inv-meta { margin-inline-start: auto; }
+.inv-nav { margin-inline-start: auto; display: inline-flex; gap: 6px; }

@@ -1,5 +1,5 @@
-import { amountInWords, findRate, INVOICE_KIND_NAMES, invoicePartyBalance, invoiceProfit, lineAmount, weighingText, type CompanyState, type Invoice } from '../../../core';
-import { dateText, IS_MOBILE, money, plainMoney, qtyText, qtyTotalText, rateLine, today, useCompany } from '../api';
+import { amountInWords, partyBalance, partyDebts, findRate, INVOICE_KIND_NAMES, invoicePartyBalance, invoiceProfit, lineAmount, weighingText, type CompanyState, type Invoice } from '../../../core';
+import { api, dateText, IS_MOBILE, money, plainMoney, qtyText, qtyTotalText, rateLine, today, useCompany } from '../api';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { CommercialDoc, type DocModel } from '../components/CommercialDoc';
 import { ThermalReceipt, type ReceiptData } from '../components/ThermalReceipt';
@@ -8,6 +8,7 @@ import { Icon } from '../components/icons';
 import type { Paper } from '../../../core';
 import { ConfirmButton, Empty, PageHeader } from '../components/ui';
 import { canEditInvoice } from './Invoices';
+import { PayForm } from './Debts';
 
 /** عنوان الفاتورة المطبوعة: فاتورة المبيع فيك تغيّر عنوانها أو تشيله من الإعدادات. */
 function docTitle(state: CompanyState, inv: Invoice): string {
@@ -82,10 +83,99 @@ export function InvoiceView({ id }: { id: string }) {
           </div>
         );
       })()}
+      <InvoiceInfoBar inv={inv} />
       <div className="paper-preview">
         <InvoiceDocument inv={inv} />
       </div>
     </div>
+  );
+}
+
+/** الباقي من هالفاتورة هلق (بعد كل الدفعات اللي إجت بعدها، بالأقدم أول) بعملتها. */
+export function invoiceRemaining(state: CompanyState, inv: Invoice): number {
+  if (inv.voidEntryId) return 0;
+  if (!inv.partyId) return Math.max(0, inv.total - inv.paid);
+  const d = partyDebts(state, inv.partyId).find((x) => x.currency === inv.currency);
+  const m = d?.movements.find((x) => x.entryId === inv.entryId);
+  return m ? Math.abs(m.remaining) : 0;
+}
+
+/** شريط فوق الفاتورة: حالتها، المقبوض والباقي هلق، رصيد الزبون، قبض دفعة، واتساب، كشف الحساب، والفاتورة السابقة/التالية. */
+function InvoiceInfoBar({ inv }: { inv: Invoice }) {
+  const { state, navigate, can, notify } = useCompany();
+  const [paying, setPaying] = useState(false);
+  const party = inv.partyId ? state.parties[inv.partyId] : null;
+  const m = (v: number, c = inv.currency) => money(state, v, c);
+  const remaining = invoiceRemaining(state, inv);
+  const paidNow = inv.total - remaining;
+  const status = inv.voidEntryId
+    ? { t: inv.deleted ? 'محذوفة' : 'ملغاة', c: 'void' }
+    : remaining <= 0
+      ? { t: 'مدفوعة بالكامل', c: 'paid' }
+      : paidNow > 0
+        ? { t: 'مدفوع جزء منها', c: 'partial' }
+        : { t: 'آجل (ما انقبض شي)', c: 'credit' };
+  const sameKind = state.invoices.filter((x) => x.kind === inv.kind && !x.deleted).sort((a, b) => a.number - b.number);
+  const idx = sameKind.findIndex((x) => x.id === inv.id);
+  const prev = idx > 0 ? sameKind[idx - 1] : undefined;
+  const next = idx >= 0 && idx < sameKind.length - 1 ? sameKind[idx + 1] : undefined;
+  const bal = party ? Object.entries(partyBalance(state, party.id).byCurrency).filter(([, v]) => v !== 0) : [];
+  const saleSide = inv.kind === 'sale' || inv.kind === 'purchase_return';
+  const user = state.users?.[inv.createdBy]?.displayName;
+  return (
+    <section className="card invoice-info no-print">
+      <div className="invoice-info-row">
+        <span className={`inv-status ${status.c}`}>{status.t}</span>
+        <span>
+          <small>الإجمالي</small>
+          <b>{m(inv.total)}</b>
+        </span>
+        <span>
+          <small>{saleSide ? 'انقبض' : 'اندفع'}</small>
+          <b className="good">{m(paidNow)}</b>
+        </span>
+        <span>
+          <small>الباقي من هالفاتورة</small>
+          <b className={remaining > 0 ? 'bad' : ''}>{m(remaining)}</b>
+        </span>
+        {party && (
+          <span>
+            <small>حساب {party.name} كله</small>
+            <b>{bal.length ? bal.map(([c, v]) => `${v > 0 ? 'عليه' : 'إلو'} ${m(Math.abs(v), c)}`).join(' + ') : 'مصفّى'}</b>
+          </span>
+        )}
+        <span className="muted inv-meta">
+          {dateText(inv.date)}
+          {user ? ` · سجّلها ${user}` : ''}
+        </span>
+      </div>
+      <div className="button-row">
+        {party && remaining > 0 && can('vouchers.create') && (
+          <button className="primary small" onClick={() => setPaying(true)}>
+            {saleSide ? 'قبض دفعة' : 'دفع دفعة'}
+          </button>
+        )}
+        {party?.phone && (
+          <button className="ghost small" onClick={() => void api.whatsapp(party.phone!, invoiceText(state, inv)).catch((e: Error) => notify(e.message, 'error'))}>
+            إرسال واتساب
+          </button>
+        )}
+        {party && (can('reports.financial') || can('vouchers.create')) && (
+          <button className="ghost small" onClick={() => navigate('statement', `party:${party.id}`)}>
+            كشف حسابه
+          </button>
+        )}
+        <span className="inv-nav">
+          <button className="ghost small" disabled={!prev} onClick={() => prev && navigate('invoice', prev.id)} title="الفاتورة السابقة">
+            ‹ السابقة
+          </button>
+          <button className="ghost small" disabled={!next} onClick={() => next && navigate('invoice', next.id)} title="الفاتورة التالية">
+            التالية ›
+          </button>
+        </span>
+      </div>
+      {paying && party && <PayForm party={party} direction={saleSide ? 'in' : 'out'} onClose={() => setPaying(false)} />}
+    </section>
   );
 }
 
@@ -105,7 +195,7 @@ function MobileInvoiceView({ inv }: { inv: Invoice }) {
   const moneyIn = inv.kind === 'sale' || inv.kind === 'purchase_return';
   const m = (v: number) => money(state, v, inv.currency);
   const remaining = inv.total - inv.paid;
-  const status = inv.voidEntryId ? { t: inv.deleted ? 'محذوفة' : 'ملغاة', c: 'void' } : remaining > 0 ? { t: 'آجل', c: 'credit' } : { t: 'مدفوعة', c: 'paid' };
+  const status = inv.voidEntryId ? { t: inv.deleted ? 'محذوفة' : 'ملغاة', c: 'void' } : invoiceRemaining(state, inv) > 0 ? { t: 'آجل', c: 'credit' } : { t: 'مدفوعة', c: 'paid' };
   const name = `${INVOICE_KIND_NAMES[inv.kind]} ${inv.number}`;
   const doPrint = (pdf: boolean) => {
     setPreview(false);
@@ -420,7 +510,8 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
     ],
     ...(print.showAmountInWords !== false ? { words: amountInWords(inv.total, inv.currency, decimals) } : {}),
     ...(inv.notes && !shipment ? { notes: inv.notes } : shipment?.notes ? { notes: shipment.notes } : {}),
-    stamp: inv.voidEntryId ? 'void' : remaining > 0 ? 'credit' : 'paid',
+    // الختم حسب الوضع هلق: إذا انقبض الباقي بعدين بيصير «مدفوعة»
+    stamp: inv.voidEntryId ? 'void' : invoiceRemaining(state, inv) > 0 ? 'credit' : 'paid',
     qrText: [company.name, `${INVOICE_KIND_NAMES[inv.kind]} رقم ${inv.number}`, dateText(inv.date), `الإجمالي: ${m(inv.total)}`, party ? party.name : ''].filter(Boolean).join('\n'),
   };
   // نسخة الطابعة الحرارية: أرقام بدون رمز العملة حتى تساع الأعمدة، وتفاصيل الطلب (طاولة، كابتن...) إذا الفاتورة من مطعم

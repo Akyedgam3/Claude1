@@ -13,6 +13,8 @@ export interface NavItem {
 
 export const NAV: (NavItem | string)[] = [
   { key: 'dashboard', label: 'الرئيسية', icon: 'home' },
+  // الصندوق فوق كل شي حتى يلتقى بسرعة (F10)
+  { key: 'cashbox', label: 'الصندوق', icon: 'wallet', perms: ['reports.financial', 'vouchers.create'] },
   'الأجهزة والإلكترونيات',
   { key: 'devices', label: 'سجل الأجهزة (السيريال)', icon: 'laptop', feature: 'serials' },
   { key: 'installments', label: 'التقسيط', icon: 'calendar', feature: 'installments', perms: ['sales.create', 'vouchers.create'] },
@@ -41,7 +43,6 @@ export const NAV: (NavItem | string)[] = [
   { key: 'appointments', label: 'المواعيد', icon: 'calendar', feature: 'appointments', perm: 'appointments.manage' },
   { key: 'purchase', label: 'فاتورة شراء', icon: 'purchase', perm: 'purchases.create' },
   { key: 'debts', label: 'الديون', icon: 'debts', perm: 'vouchers.create' },
-  { key: 'cashbox', label: 'الصندوق', icon: 'wallet', perms: ['reports.financial', 'vouchers.create'] },
   { key: 'statement', label: 'كشف الحساب', icon: 'file', perms: ['reports.financial', 'vouchers.create'] },
   { key: 'marketers', label: 'المسوّقين', icon: 'users', perm: 'reports.financial' },
   { key: 'vouchers', label: 'سندات القبض والدفع', icon: 'wallet', perm: 'vouchers.create' },

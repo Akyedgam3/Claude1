@@ -64,7 +64,7 @@ import { cloudCodeFromHash } from '../../cloud/code';
 
 
 /** مفاتيح سريعة للشاشات الأكثر استخداماً. */
-const SHORTCUTS: Record<string, string> = { F2: 'sale', F3: 'pos', F4: 'purchase', F6: 'items', F7: 'parties', F8: 'reports', F9: 'debts' };
+const SHORTCUTS: Record<string, string> = { F2: 'sale', F3: 'pos', F4: 'purchase', F6: 'items', F7: 'parties', F8: 'reports', F9: 'debts', F10: 'cashbox' };
 const SHORTCUT_OF = Object.fromEntries(Object.entries(SHORTCUTS).map(([k, v]) => [v, k]));
 
 /** نسخة سطحية جديدة لكل مجموعة حتى تلاحظ React التغيير بعد تطبيق الأحداث. */
