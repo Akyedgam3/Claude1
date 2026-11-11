@@ -95,7 +95,7 @@ export function Marketers() {
                 <div className="marketer-head" onClick={() => setOpen(open === m.id ? null : m.id)}>
                   <div>
                     <h3>
-                      {m.name} <span className="tag">{m.marketerRate}%{m.marketerBasis === 'profit' ? ' من الربح' : ''}</span>
+                      {m.name} <span className="tag">{m.marketerRate}% من الربح</span>
                     </h3>
                     {m.phone && <small className="muted ltr">{m.phone}</small>}
                   </div>
@@ -179,14 +179,13 @@ function MarketerForm({ party, onClose }: { party: Party | null; onClose: () => 
   const [name, setName] = useState(party?.name ?? '');
   const [phone, setPhone] = useState(party?.phone ?? '');
   const [rate, setRate] = useState(party?.marketerRate ? String(party.marketerRate) : '');
-  const [basis, setBasis] = useState<'sales' | 'profit'>(party?.marketerBasis ?? 'sales');
   const save = async () => {
     const r = Number(rate.replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))));
     if (!name.trim()) return notify('اكتب اسم المسوّق', 'error');
     if (!(r > 0 && r <= 100)) return notify('النسبة لازم تكون بين 0 و100', 'error');
     const twin = !party && Object.values(state.parties).find((p) => !p.archived && p.name.trim() === name.trim());
     const base: Party = party ?? (twin || { id: uid(), name: name.trim(), kind: 'supplier' });
-    const next: Party = { ...base, name: name.trim(), marketerRate: r, marketerBasis: basis, ...(phone.trim() ? { phone: phone.trim() } : {}) };
+    const next: Party = { ...base, name: name.trim(), marketerRate: r, ...(phone.trim() ? { phone: phone.trim() } : {}) };
     if (await call('saveParty', next)) {
       notify(party ? 'تم التعديل' : `تمت إضافة ${next.name} كمسوّق (${r}%)`);
       onClose();
@@ -198,20 +197,14 @@ function MarketerForm({ party, onClose }: { party: Party | null; onClose: () => 
         <Field label="الاسم" wide>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="مثلاً: أحمد" autoFocus />
         </Field>
-        <Field label="نسبته %">
-          <input value={rate} onChange={(e) => setRate(e.target.value)} inputMode="decimal" placeholder="مثلاً 5 (أو 33 من الربح)" />
-        </Field>
-        <Field label="النسبة من">
-          <select value={basis} onChange={(e) => setBasis(e.target.value as 'sales' | 'profit')}>
-            <option value="sales">قيمة المبيعات</option>
-            <option value="profit">الربح (سعر البيع ناقص التكلفة)</option>
-          </select>
+        <Field label="نسبته % من ربح الفاتورة">
+          <input value={rate} onChange={(e) => setRate(e.target.value)} inputMode="decimal" placeholder="مثلاً 33.33 (التلت)" />
         </Field>
         <Field label="رقم الهاتف (اختياري)">
           <input dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} />
         </Field>
       </div>
-      <p className="muted">«قيمة المبيعات»: النسبة من قيمة الفاتورة بعد الخصم. «الربح»: من ربح الفاتورة (مثلاً الثلث = 33.33)، وإذا الفاتورة ما فيها ربح ما في عمولة. تغيير النسبة بيمشي على الفواتير الجاية بس.</p>
+      <p className="muted">العمولة نسبة من <b>ربح</b> كل فاتورة (سعر البيع ناقص تكلفة البضاعة)، مش من قيمة الفاتورة. إذا الفاتورة ما فيها ربح ما في عمولة. التلت = 33.33. تغيير النسبة بيمشي على الفواتير الجاية بس.</p>
       <div className="form-actions">
         <button className="primary big" onClick={save}>
           حفظ

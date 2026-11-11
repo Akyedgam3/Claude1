@@ -60,10 +60,10 @@ describe('marketer commission on profit', () => {
     expect(partyBalance(l.state, 'third').base).toBe(0);
   });
 
-  it('sales-based marketers are unchanged', () => {
+  it('every marketer (even old ones without a basis) takes a share of the profit, not of the invoice', () => {
     const l = profitShop();
     l.postInvoice({ kind: 'sale', date: '2026-11-02', partyId: 'mhmd', currency: 'USD', lines: [{ itemId: 'x', qty: 2, price: 1500 }], paid: 3000, marketerId: 'ahmad' });
-    expect(-partyBalance(l.state, 'ahmad').base).toBe(450); // 15% من 30.00
+    expect(-partyBalance(l.state, 'ahmad').base).toBe(150); // 15% من ربح 10.00، مش من 30.00
   });
 });
 

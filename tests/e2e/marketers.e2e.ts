@@ -72,7 +72,6 @@ test('المسوّقين: فواتير كل مسوّق وعمولته ودفعه
     const pf = page.locator('.modal');
     await pf.locator('.field', { hasText: 'الاسم' }).locator('input').fill('الشريك');
     await pf.locator('.field', { hasText: 'نسبته' }).locator('input').fill('33.33');
-    await pf.locator('.field', { hasText: 'النسبة من' }).locator('select').selectOption('profit');
     await pf.getByRole('button', { name: 'حفظ' }).click();
     await toast(page, 'تمت إضافة الشريك كمسوّق');
     await expect(page.locator('.marketer-card', { hasText: 'الشريك' })).toContainText('من الربح');

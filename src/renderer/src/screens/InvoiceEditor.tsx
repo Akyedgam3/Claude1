@@ -577,16 +577,11 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
               <option value="">— لأ —</option>
               {marketers.map((m) => (
                 <option key={m.id} value={m.id}>
-                  {m.name} ({m.marketerRate}%{m.marketerBasis === 'profit' ? ' من الربح' : ''})
+                  {m.name} ({m.marketerRate}% من الربح)
                 </option>
               ))}
             </select>
-            {marketerId && state.parties[marketerId]?.marketerBasis === 'profit' && can('costs.view') && <small className="muted">عمولتو {state.parties[marketerId]!.marketerRate}% من ربح الفاتورة، بتنحسب وبتنسجّل لما تحفظ</small>}
-            {marketerId && state.parties[marketerId]?.marketerRate && state.parties[marketerId]?.marketerBasis !== 'profit' && !preview.error && preview.subtotal > 0 && can('costs.view') && (
-              <small className="muted">
-                عمولتو: {money(state, Math.round(((preview.subtotal - preview.disc) * state.parties[marketerId]!.marketerRate!) / 100), currency)} بتنسجّل مصروف ودين إلو
-              </small>
-            )}
+            {marketerId && state.parties[marketerId]?.marketerRate && can('costs.view') && <small className="muted">عمولتو {state.parties[marketerId]!.marketerRate}% من ربح الفاتورة (البيع ناقص تكلفة البضاعة)، بتنحسب وبتنسجّل لما تحفظ</small>}
           </Field>
         )}
         {feature('salesmen') && isSale && (

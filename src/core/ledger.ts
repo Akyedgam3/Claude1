@@ -819,7 +819,8 @@ export class Ledger {
   private postCommission(invoice: Invoice): void {
     const m = this.state.parties[invoice.marketerId!];
     if (!m?.marketerRate) return;
-    const profitBased = m.marketerBasis === 'profit';
+    // عمولة المسوّق دايماً نسبة من ربح الفاتورة (سعر البيع ناقص تكلفة البضاعة)، مش من قيمتها كلها
+    const profitBased = true;
     let basis = invoice.subtotal - invoice.discount;
     if (profitBased) {
       // العمولة من الربح: سعر البيع ناقص تكلفة البضاعة (بعملة الفاتورة)، وإذا ما في ربح ما في عمولة
@@ -839,7 +840,7 @@ export class Ledger {
     const cur = invoice.currency !== this.base.code ? { currency: invoice.currency, rate: invoice.rate } : {};
     this.postEntry({
       date: invoice.date,
-      memo: `عمولة ${m.name} (${m.marketerRate}%${profitBased ? ' من الربح' : ''}) عن فاتورة مبيع رقم ${invoice.number}${invoice.partyId ? ` — ${this.state.parties[invoice.partyId]?.name ?? ''}` : ''}`,
+      memo: `عمولة ${m.name} (${m.marketerRate}% من الربح) عن فاتورة مبيع رقم ${invoice.number}${invoice.partyId ? ` — ${this.state.parties[invoice.partyId]?.name ?? ''}` : ''}`,
       lines: [
         { accountId: COMMISSION_ACCOUNT, debit: amount, ...cur },
         { accountId: SYSTEM_ACCOUNTS.suppliers, credit: amount, partyId: m.id, ...cur },
