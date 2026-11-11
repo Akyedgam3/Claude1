@@ -1,4 +1,4 @@
-import { accountBalance, cashMovement, employeeBalance, incomeStatement, partyBalance, type CompanyState } from '../../../core';
+import { accountBalance, balanceSheet, cashMovement, employeeBalance, incomeStatement, itemsSummary, partyBalance, type CompanyState } from '../../../core';
 import { Brain, normalizeText, tokens, type Link, type Topic } from './engine';
 import { TOPICS } from './knowledge';
 
@@ -143,6 +143,15 @@ function fromData(question: string, ctx: AskContext, focus?: string): Reply | nu
     return reply(`لقيت ${loose.length} مواد:\n${rows.join('\n')}${loose.length > 6 ? '\n…' : ''}`, [{ label: 'المواد', screen: 'items', param: loose[0]!.name.split(' ')[0] }]);
   }
   const theItem = item ?? loose[0];
+  // ربح مادة: «شقد ربحت من الزيت هالشهر؟»
+  if (theItem && (t.has('ربح') || t.has('خساره')) && can('costs.view')) {
+    const s = itemsSummary(state, { from: p.from, to: p.to }).find((r) => r.item.id === theItem.id);
+    if (!s || !s.soldQty) return reply(`${theItem.name}: ما انباع منها شي ${p.label}.`, [{ label: 'مراقبة المواد', screen: 'itemwatch', param: theItem.id }]);
+    const pct = s.revenue ? Math.round((s.profit / s.revenue) * 1000) / 10 : 0;
+    const lines = [`${theItem.name} ${p.label}:`, `انباع ${s.soldQty.toLocaleString('en')} ${theItem.unit} بـ ${fmt(s.revenue)}`, `${s.profit >= 0 ? 'الربح' : 'الخسارة'}: ${fmt(Math.abs(s.profit))} (${pct}%)`];
+    if (s.noCost) lines.push('⚠ في مبيعات إلها بدون تكلفة، فالربح طالع أكبر من الحقيقي.');
+    return reply(lines.join('\n'), [{ label: 'مراقبة المواد', screen: 'itemwatch', param: theItem.id }]);
+  }
   if (theItem && (asks || t.has('سعر') || t.has('مخزون'))) {
     const item = theItem;
     const lvl = state.stock[item.id];
@@ -153,6 +162,26 @@ function fromData(question: string, ctx: AskContext, focus?: string): Reply | nu
     if (can('costs.view') && lvl?.lastCost) parts.push(`آخر تكلفة: ${fmt(lvl.lastCost)}`);
     if (item.minStock !== undefined && qty <= item.minStock) parts.push('⚠ قربت تخلص، لازم تطلب.');
     return reply(parts.join('\n'), [{ label: 'افتح المادة', screen: 'items', param: item.name }]);
+  }
+
+  // «شو المواد اللي عم اخسر فيها؟» / «شو أكتر مادة بتربح؟»
+  if (t.has('ماده') && (t.has('خساره') || t.has('ربح')) && can('costs.view') && fin) {
+    const all = itemsSummary(state, { from: p.from, to: p.to }).filter((r) => r.soldQty);
+    const losing = t.has('خساره') || /(خسران|عم اخسر|بخسر)/.test(norm);
+    const list = losing ? all.filter((r) => r.profit < 0).sort((a, b) => a.profit - b.profit) : all.sort((a, b) => b.profit - a.profit);
+    if (!list.length) return reply(losing ? `ما في مواد عم تخسر فيها ${p.label} 👍` : `ما انباع شي ${p.label}.`, [{ label: 'مراقبة المواد', screen: 'itemwatch' }]);
+    const rows = list.slice(0, 7).map((r) => `• ${r.item.name}: ${r.profit >= 0 ? 'ربح' : 'خسارة'} ${fmt(Math.abs(r.profit))}`);
+    return reply(`${losing ? 'المواد اللي عم تخسر فيها' : 'أكتر المواد ربحاً'} ${p.label}:\n${rows.join('\n')}`, [{ label: 'مراقبة المواد', screen: 'itemwatch' }]);
+  }
+
+  // «قديش رأس مالي؟»
+  if (/(راس ?مال|راسمال|حقوق الملكيه)/.test(norm) && fin) {
+    const bs = balanceSheet(state);
+    const opening = state.accounts['3104'] ? -accountBalance(state, '3104').balance : 0;
+    const lines = [`رأس مالك هلق (مع الربح): ${fmt(bs.equity)}`];
+    if (opening) lines.push(`لما بلّشت (الأرصدة الافتتاحية): ${fmt(opening)}`, `${bs.equity >= opening ? 'زاد' : 'نقص'}: ${fmt(Math.abs(bs.equity - opening))}`);
+    lines.push('(المصاري + البضاعة بسعر التكلفة + ديونك عالناس − ديونك للموردين)');
+    return reply(lines.join('\n'), [{ label: 'الميزانية', screen: 'reports', param: 'balance' }]);
   }
 
   if (!asks) return null;
@@ -199,7 +228,7 @@ function fromData(question: string, ctx: AskContext, focus?: string): Reply | nu
         .filter(([, v]) => v.closing !== 0)
         .map(([c, v]) => `${r.account.name}: ${fmt(v.closing, c)}`),
     );
-    return reply(rows.join('\n') || 'ما في صناديق', [{ label: 'حركة الصناديق', screen: 'reports', param: 'cash' }]);
+    return reply(rows.join('\n') || 'الصناديق فاضية', [{ label: 'الصندوق', screen: 'cashbox' }]);
   }
 
   if (t.has('دين')) {

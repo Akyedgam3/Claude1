@@ -7,6 +7,27 @@ import { TOPICS } from '../src/renderer/src/assistant/knowledge';
 // أسئلة بصياغات مختلفة (فصحى وشامي وأخطاء) ← الموضوع المتوقع
 const CASES: [string, string][] = [
   ['كيف بعمل فاتورة', 'sale'],
+  // أسئلة زباين حقيقية (1.2.68 – 1.2.72)
+  ['كيف بصفر الصندوق اخر النهار', 'zero-box'],
+  ['بدي سلم الوردية وفضي الدرج', 'zero-box'],
+  ['كيف براقب المادة من اول السنة', 'item-watch'],
+  ['وين بشوف فواتير المادة وربحها', 'item-watch'],
+  ['بدي زيد كمية بدون فاتورة شراء', 'add-stock'],
+  ['وصلتني بضاعة كيف زيد المخزون', 'add-stock'],
+  ['كيف بجرد بالباركود', 'scan-count'],
+  ['بدي خصص الشاشة الرئيسية', 'customize-home'],
+  ['كيف بكرر نفس الفاتورة للزبون', 'repeat-invoice'],
+  ['حطيت سعر الشراء 9 وطلع بالمواد 6.43', 'avg-cost'],
+  ['ليش الربح قد المبيع', 'profit-vs-debt'],
+  ['قديش زاد راس مالي', 'capital'],
+  ['كيف بسجل مصروفي الشخصي اللي بسحبو من الصندوق', 'owner-draw'],
+  ['المسوق بياخد تلت الربح كيف', 'marketer'],
+  ['الفاتورة ما عم تنحفظ الحساب مؤرشف', 'archived-account'],
+  ['جهاز الزبون 32 بت', 'windows-32'],
+  ['كيف بشغل وزن عالايفون', 'iphone'],
+  ['طلعلي تطبيقين عالجوال بعد التحديث', 'new-android-app'],
+  ['بدي النسخة تروح على جوجل درايف', 'gdrive'],
+  ['كيف بطلع كشف حساب للصندوق', 'statement'],
   ['بدي بيع لزبون', 'sale'],
   ['شلون بسجل بيعة', 'sale'],
   ['كيف ادفع فاتورة الكهربا', 'expense'],
@@ -145,7 +166,7 @@ describe('assistant: answers from the company data', () => {
   const ctx = {
     state: l.state,
     can: () => true,
-    screens: new Set(['sale', 'debts', 'parties', 'items', 'reports', 'invoices', 'partners', 'vouchers', 'accounts', 'settings']),
+    screens: new Set(['sale', 'debts', 'parties', 'items', 'reports', 'invoices', 'partners', 'vouchers', 'accounts', 'settings', 'itemwatch', 'cashbox', 'statement', 'marketers']),
     today: '2026-11-05',
     fmt: (v: number) => (v / 100).toFixed(2),
   };
@@ -159,6 +180,15 @@ describe('assistant: answers from the company data', () => {
     expect(m.links.some((x) => x.screen === 'parties')).toBe(true);
     expect(ask('شقد الديون اللي النا', ctx).text).toContain('6.00');
     expect(ask('سامي شقد الو', ctx).text).toContain('سامي');
+  });
+  it('item profit, losing items and capital from the data', () => {
+    const r = ask('شقد ربحت من الرز المصري هالشهر', ctx);
+    expect(r.text).toContain('انباع 2');
+    expect(r.text).toContain('4.00'); // (5.00 − 3.00) × 2
+    expect(r.links[0]).toMatchObject({ screen: 'itemwatch', param: 'rice' });
+    expect(ask('شو المواد اللي عم اخسر فيها هالشهر', ctx).text).toContain('ما في مواد عم تخسر فيها');
+    expect(ask('شو اكتر مادة بتربح هالشهر', ctx).text).toContain('رز مصري');
+    expect(ask('قديش راس مالي', ctx).text).toContain('رأس مالك هلق');
   });
   it('how-to answers carry shortcuts only to screens the user can open', () => {
     const r = ask('كيف بسجل مصروف كهربا؟', ctx);
