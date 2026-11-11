@@ -9,3 +9,4 @@ playwright-report/
 www/
 web-dist/
 dist32/
+.claude/settings.local.json
