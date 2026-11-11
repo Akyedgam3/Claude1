@@ -16,6 +16,8 @@ if ! command -v wine >/dev/null || ! dpkg -s wine32:i386 >/dev/null 2>&1; then
   DEBIAN_FRONTEND=noninteractive apt-get install -y -qq wine64 wine wine32:i386 >/dev/null
 fi
 
+# مفتاح غوغل درايف (مستثنى من git) لازم يكون موجود، وإلا النسخ على درايف ما بيشتغل بالنسخة المنشورة
+[ -s keys/gdrive-client.json ] || { echo "خطأ: keys/gdrive-client.json ناقص (سر Google Drive). اطلبه من صاحب المشروع قبل النشر."; exit 1; }
 rm -rf dist dist32 out
 npm run build >/dev/null
 # نسخة البيع ما لازم يكون فيها مفتاح التطوير أبداً
