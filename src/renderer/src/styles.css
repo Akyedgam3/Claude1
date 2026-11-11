@@ -4243,3 +4243,12 @@ button.link { background: none; border: none; color: var(--primary); padding: 4p
 .item-watch td .tag { margin-inline-start: 6px; }
 .statement tr.voided td { color: var(--muted, #8a948f); text-decoration: line-through; }
 .statement-target { margin: 10px 0 4px; }
+.cash-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin: 8px 0 14px; }
+.cash-card { display: grid; gap: 6px; text-align: start; padding: 12px 14px; border-radius: 14px; border: 2px solid var(--border, #e3e8e6); background: var(--surface, #fff); cursor: pointer; font: inherit; color: inherit; }
+.cash-card.active { border-color: var(--primary, #0f6e5c); box-shadow: 0 6px 18px rgba(15, 110, 92, 0.15); }
+.cash-name { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
+.cash-line { display: grid; gap: 2px; }
+.cash-line b { font-size: 20px; }
+.cash-head { justify-content: space-between; }
+.cash-head h3 { margin: 0; }
+.zero-balance { font-size: 18px; }

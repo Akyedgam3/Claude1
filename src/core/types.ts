@@ -434,6 +434,8 @@ export interface StockAdjustment {
   memo: string;
   entryId?: string;
   createdBy: string;
+  /** وقت التسجيل (من 1.2.72): لترتيب الحركات بنفس اليوم */
+  createdAt?: string;
 }
 
 export interface StockTransfer {
@@ -459,6 +461,7 @@ export interface Production {
   inputs: { itemId: string; qty: number; cost: number; batches?: BatchMove[] }[];
   memo: string;
   createdBy: string;
+  createdAt?: string;
 }
 
 // ───────────── الصيانة: السيارات والأجهزة ─────────────

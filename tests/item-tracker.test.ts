@@ -12,6 +12,16 @@ function shop() {
 }
 
 describe('item tracker', () => {
+  it('same-day moves keep the order they were recorded in (stock added, then sold)', () => {
+    const l = new Ledger(() => {});
+    l.createCompany({ name: 'محل', activity: 'general', baseCurrency: 'USD', fiscalYearStart: '01-01' }, DEFAULT_CURRENCIES, chartFor('general'), defaultTaxes());
+    l.saveItem({ id: 'z', code: '9', name: 'مادة', kind: 'stock', unit: 'قطعة', price: 800, priceCurrency: 'USD' });
+    l.adjustStock({ kind: 'opening', date: '2026-05-05', lines: [{ itemId: 'z', qty: 10, unitCost: 500 }] });
+    l.postInvoice({ kind: 'sale', date: '2026-05-05', currency: 'USD', lines: [{ itemId: 'z', qty: 2, price: 800 }], paid: 1600 });
+    l.adjustStock({ kind: 'opening', date: '2026-05-05', lines: [{ itemId: 'z', qty: 3, unitCost: 0 }] });
+    expect(itemMovements(l.state, 'z').moves.map((m) => m.balance)).toEqual([10, 8, 11]);
+  });
+
   it('lists every movement with a running balance, opening and closing for a period', () => {
     const l = shop();
     l.postInvoice({ kind: 'sale', date: '2026-03-01', partyId: 'c1', currency: 'USD', lines: [{ itemId: 'x', qty: 4, price: 1500 }], paid: 6000 });

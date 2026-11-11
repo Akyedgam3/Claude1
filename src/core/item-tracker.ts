@@ -13,7 +13,8 @@ const DIR: Record<InvoiceKind, 1 | -1> = { sale: -1, sale_return: 1, purchase: 1
 
 export interface ItemMove {
   date: string;
-  /** للترتيب بنفس اليوم */
+  /** للترتيب بنفس اليوم: وقت التسجيل، وبعده ترتيب الإدخال */
+  at: string;
   order: number;
   type: string;
   kind: InvoiceKind | 'adjust' | 'production';
@@ -75,11 +76,14 @@ type Raw = Omit<ItemMove, 'balance'>;
 function collectMoves(state: CompanyState, only?: string): Map<string, Raw[]> {
   const map = new Map<string, Raw[]>();
   let n = 0;
-  const push = (id: string, m: Omit<Raw, 'order'>) => {
+  // وقت تسجيل المستندات اللي ما فيها وقت (القديمة): من قيدها إذا إلها قيد
+  const entryAt = new Map<string, string>();
+  for (const e of state.entries) entryAt.set(e.id, e.createdAt);
+  const push = (id: string, m: Omit<Raw, 'order' | 'at'> & { at?: string }) => {
     if (only && id !== only) return;
     let list = map.get(id);
     if (!list) map.set(id, (list = []));
-    list.push({ ...m, order: n++ });
+    list.push({ ...m, at: m.at ?? '', order: n++ });
   };
   const partyName = (id?: string | null) => (id ? (state.parties[id]?.name ?? '') : '');
   for (const inv of state.invoices) {
@@ -96,6 +100,7 @@ function collectMoves(state: CompanyState, only?: string): Map<string, Raw[]> {
         const cost = (l.cost ?? 0) + (l.components ?? []).reduce((t, c) => t + c.cost, 0);
         push(l.itemId, {
           date: inv.date,
+          at: inv.createdAt,
           type: INVOICE_LABEL[inv.kind],
           kind: inv.kind,
           invoiceId: inv.id,
@@ -111,18 +116,20 @@ function collectMoves(state: CompanyState, only?: string): Map<string, Raw[]> {
       }
       // المادة مكوّن بصنف مركّب (وجبة مثلاً): بتطلع من المخزون بدون مبيع مباشر
       for (const c of l.components ?? []) {
-        push(c.itemId, { date: inv.date, type: `مكوّن بـ ${state.items[l.itemId ?? '']?.name ?? 'صنف'}`, kind: inv.kind, invoiceId: inv.id, ref: `#${inv.number}`, party, qty: dir * c.qty, sold: 0, unitPrice: 0, revenue: 0, cost: -dir * c.cost, profit: 0 });
+        push(c.itemId, { date: inv.date, at: inv.createdAt, type: `مكوّن بـ ${state.items[l.itemId ?? '']?.name ?? 'صنف'}`, kind: inv.kind, invoiceId: inv.id, ref: `#${inv.number}`, party, qty: dir * c.qty, sold: 0, unitPrice: 0, revenue: 0, cost: -dir * c.cost, profit: 0 });
       }
     }
   }
   for (const a of state.adjustments) {
-    for (const l of a.lines) push(l.itemId, { date: a.date, type: ADJUSTMENT_NAMES[a.kind] ?? 'تعديل مخزون', kind: 'adjust', ref: `#${a.number}`, party: a.memo ?? '', qty: l.qty, sold: 0, unitPrice: l.qty ? Math.round(l.cost / l.qty) : 0, revenue: 0, cost: l.cost, profit: 0 });
+    const at = a.createdAt ?? (a.entryId ? entryAt.get(a.entryId) : undefined);
+    for (const l of a.lines) push(l.itemId, { date: a.date, ...(at ? { at } : {}), type: ADJUSTMENT_NAMES[a.kind] ?? 'تعديل مخزون', kind: 'adjust', ref: `#${a.number}`, party: a.memo ?? '', qty: l.qty, sold: 0, unitPrice: l.qty ? Math.round(l.cost / l.qty) : 0, revenue: 0, cost: l.cost, profit: 0 });
   }
   for (const p of state.productions ?? []) {
-    for (const i of p.inputs) push(i.itemId, { date: p.date, type: 'إنتاج (مادة خام)', kind: 'production', ref: `#${p.number}`, party: p.memo ?? '', qty: -i.qty, sold: 0, unitPrice: 0, revenue: 0, cost: -i.cost, profit: 0 });
-    for (const o of p.outputs) push(o.itemId, { date: p.date, type: 'إنتاج', kind: 'production', ref: `#${p.number}`, party: p.memo ?? '', qty: o.qty, sold: 0, unitPrice: o.qty ? Math.round(o.cost / o.qty) : 0, revenue: 0, cost: o.cost, profit: 0 });
+    for (const i of p.inputs) push(i.itemId, { date: p.date, ...(p.createdAt ? { at: p.createdAt } : {}), type: 'إنتاج (مادة خام)', kind: 'production', ref: `#${p.number}`, party: p.memo ?? '', qty: -i.qty, sold: 0, unitPrice: 0, revenue: 0, cost: -i.cost, profit: 0 });
+    for (const o of p.outputs) push(o.itemId, { date: p.date, ...(p.createdAt ? { at: p.createdAt } : {}), type: 'إنتاج', kind: 'production', ref: `#${p.number}`, party: p.memo ?? '', qty: o.qty, sold: 0, unitPrice: o.qty ? Math.round(o.cost / o.qty) : 0, revenue: 0, cost: o.cost, profit: 0 });
   }
-  for (const list of map.values()) list.sort((x, y) => x.date.localeCompare(y.date) || x.order - y.order);
+  // بنفس اليوم: حسب وقت التسجيل إذا معروف للتنين، وإلا الداخل قبل الخارج (حتى ما يطلع الرصيد سالب بالغلط)
+  for (const list of map.values()) list.sort((x, y) => x.date.localeCompare(y.date) || (x.at && y.at ? x.at.localeCompare(y.at) : y.qty - x.qty) || x.order - y.order);
   return map;
 }
 

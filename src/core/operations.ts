@@ -128,6 +128,7 @@ function finishAdjustment(
     memo: text,
     ...(entry ? { entryId: entry.id } : {}),
     createdBy: ctx.actor,
+    createdAt: new Date().toISOString(),
   };
   return { adjustment, ...(entry ? { entry } : {}) };
 }
@@ -284,5 +285,6 @@ export function buildProduction(ctx: OpsContext, d: ProductionDraft): Production
     inputs,
     memo: d.memo?.trim() || `إنتاج رقم ${number}`,
     createdBy: ctx.actor,
+    createdAt: new Date().toISOString(),
   };
 }

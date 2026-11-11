@@ -41,6 +41,7 @@ export const NAV: (NavItem | string)[] = [
   { key: 'appointments', label: 'المواعيد', icon: 'calendar', feature: 'appointments', perm: 'appointments.manage' },
   { key: 'purchase', label: 'فاتورة شراء', icon: 'purchase', perm: 'purchases.create' },
   { key: 'debts', label: 'الديون', icon: 'debts', perm: 'vouchers.create' },
+  { key: 'cashbox', label: 'الصندوق', icon: 'wallet', perms: ['reports.financial', 'vouchers.create'] },
   { key: 'statement', label: 'كشف الحساب', icon: 'file', perms: ['reports.financial', 'vouchers.create'] },
   { key: 'marketers', label: 'المسوّقين', icon: 'users', perm: 'reports.financial' },
   { key: 'vouchers', label: 'سندات القبض والدفع', icon: 'wallet', perm: 'vouchers.create' },

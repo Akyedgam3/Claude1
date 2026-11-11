@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { computeTaxes, PRICE_TIER_NAMES, tierPrice, niceUnitCost, PRICE_SCALE, roundPrice, findRate, itemPlace, listPrices, withPlace, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
+import { isCashBox, computeTaxes, PRICE_TIER_NAMES, tierPrice, niceUnitCost, PRICE_SCALE, roundPrice, findRate, itemPlace, listPrices, withPlace, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
 import { convertPrice, fxRates, money, cleanNumber, qtyTotalText, parseAmount, parseDiscount, parsePrice, rateInverted, toInput, today, uid, useCompany } from '../api';
 import { askConfirm, CurrencySelect, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
 import { invoiceDrafts } from '../drafts';
@@ -52,7 +52,7 @@ const emptyLine = (): LineState => ({ key: uid(), itemId: null, description: '',
 /** الحسابات النقدية (الصناديق والبنك) المناسبة لعملة معيّنة. */
 export function cashAccounts(state: CompanyState, currency?: string) {
   return Object.values(state.accounts).filter(
-    (a) => !a.isGroup && !a.archived && a.type === 'asset' && (/^110[128]/.test(a.id) || a.parentId === '1101') && (!currency || !a.currency || a.currency === currency),
+    (a) => isCashBox(a) && (!currency || !a.currency || a.currency === currency),
   );
 }
 

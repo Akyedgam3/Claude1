@@ -402,8 +402,24 @@ export function receivablesAging(state: CompanyState, today: string): AgingRow[]
 }
 
 /** حركة الصناديق في يوم (أو فترة): الداخل والخارج لكل صندوق بكل عملة. */
+/**
+ * الصناديق والبنوك: الصندوق والبنك وصندوق الدولار، والصناديق الفرعية تحت الصندوق،
+ * وصناديق العملات اللي بيضيفها المستخدم (1109 وطالع تحت الأصول المتداولة).
+ */
+export function isCashBox(a: Account): boolean {
+  if (a.isGroup || a.archived || a.type !== 'asset') return false;
+  if (/^110[128]/.test(a.id) || a.parentId === '1101') return true;
+  return a.parentId === '11' && !!a.currency && /^11\d\d$/.test(a.id) && !['1103', '1104', '1105', '1106'].includes(a.id);
+}
+
+export function cashBoxes(state: CompanyState): Account[] {
+  return Object.values(state.accounts)
+    .filter(isCashBox)
+    .sort((a, b) => a.id.localeCompare(b.id));
+}
+
 export function cashMovement(state: CompanyState, period: Period) {
-  const boxes = Object.values(state.accounts).filter((a) => !a.isGroup && (a.parentId === '11' || a.parentId === '1101') && /^110[128]/.test(a.id));
+  const boxes = cashBoxes(state);
   return boxes.map((a) => {
     const rows: Record<string, { opening: number; inflow: number; outflow: number; closing: number }> = {};
     for (const e of state.entries) {

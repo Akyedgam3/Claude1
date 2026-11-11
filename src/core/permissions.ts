@@ -86,6 +86,7 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
   saveAccount: 'accounts.manage',
   setupDealerBox: 'accounts.manage',
   transferBox: 'vouchers.create',
+  drawFromBox: 'vouchers.create',
   saveTax: 'settings.manage',
   setRate: 'rates.manage',
   saveCurrency: 'rates.manage',

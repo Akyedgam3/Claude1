@@ -562,7 +562,7 @@ export class Ledger {
   }
 
   /** تحويل مصاري بين صندوقين (متل حصة الصيدلية من صندوق المورد للصندوق المشترك). */
-  transferBox(t: { date: string; from: string; to: string; amount: number; memo?: string; sourceId?: string }): JournalEntry {
+  transferBox(t: { date: string; from: string; to: string; amount: number; memo?: string; sourceId?: string; currency?: string }): JournalEntry {
     if (!(t.amount > 0) || !Number.isSafeInteger(t.amount)) fail('المبلغ يجب أن يكون أكبر من صفر');
     if (t.from === t.to) fail('اختار صندوقين مختلفين');
     for (const id of [t.from, t.to]) {
@@ -570,14 +570,39 @@ export class Ledger {
       if (a.isGroup || a.type !== 'asset') fail(`«${a.name}» مش صندوق`);
     }
     const from = this.state.accounts[t.from]!, to = this.state.accounts[t.to]!;
+    // صندوق بعملة (دولار مثلاً): التحويل بعملته، وسعر الصرف المسجّل بتاريخه
+    const currency = t.currency ?? from.currency ?? to.currency ?? this.base.code;
+    for (const a of [from, to]) if (a.currency && a.currency !== currency) fail(`«${a.name}» بيقبل ${this.state.currencies[a.currency]?.nameAr ?? a.currency} بس`);
+    const cur = currency !== this.base.code ? { currency } : {};
     return this.postEntry({
       date: t.date,
       memo: t.memo?.trim() || `تحويل من ${from.name} إلى ${to.name}`,
       lines: [
-        { accountId: t.to, debit: t.amount },
-        { accountId: t.from, credit: t.amount },
+        { accountId: t.to, debit: t.amount, ...cur },
+        { accountId: t.from, credit: t.amount, ...cur },
       ],
       source: { type: 'boxtransfer', id: t.sourceId ?? crypto.randomUUID() },
+      createdBy: this.actor,
+    });
+  }
+
+  /** المالك سحب مصاري من الصندوق لإلو (مسحوبات): بتطلع من الصندوق وبتنحسب على جاري المالك، ومش مصروف. */
+  drawFromBox(d: { date: string; from: string; amount: number; memo?: string; currency?: string }): JournalEntry {
+    if (!(d.amount > 0) || !Number.isSafeInteger(d.amount)) fail('المبلغ يجب أن يكون أكبر من صفر');
+    const box = this.state.accounts[d.from] ?? fail('الصندوق غير موجود');
+    if (box.isGroup || box.type !== 'asset') fail(`«${box.name}» مش صندوق`);
+    const owner = this.state.accounts[SYSTEM_ACCOUNTS.partnersCurrent] ? SYSTEM_ACCOUNTS.partnersCurrent : fail('حساب جاري المالك غير موجود بدليل الحسابات');
+    const currency = d.currency ?? box.currency ?? this.base.code;
+    if (box.currency && box.currency !== currency) fail(`«${box.name}» بيقبل ${box.currency} بس`);
+    const cur = currency !== this.base.code ? { currency } : {};
+    return this.postEntry({
+      date: d.date,
+      memo: d.memo?.trim() || `سحب المالك من ${box.name}`,
+      lines: [
+        { accountId: owner, debit: d.amount, ...cur },
+        { accountId: d.from, credit: d.amount, ...cur },
+      ],
+      source: { type: 'boxtransfer', id: crypto.randomUUID() },
       createdBy: this.actor,
     });
   }
