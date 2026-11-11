@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { invoiceProfit, partyBalance, type Invoice, type Party } from '../../../core';
 import { dateText, money, today, uid, useCompany } from '../api';
-import { Empty, Field, Modal, PageHeader, Stat } from '../components/ui';
+import { askConfirm, Empty, Field, Modal, PageHeader, Stat } from '../components/ui';
 import { Icon } from '../components/icons';
 import { PayForm } from './Debts';
 
@@ -28,7 +28,7 @@ function range(p: Period, d: string): [string, string] {
 
 /** المسوّقين: كل مسوّق، فواتيره اللي جابها، وعمولته (المستحقة والمدفوعة والباقية). العمولة ما بتطلع بالفاتورة للزبون. */
 export function Marketers() {
-  const { state, navigate, can } = useCompany();
+  const { state, navigate, can, call, notify } = useCompany();
   const base = state.info!.baseCurrency;
   const [period, setPeriod] = useState<Period>('month');
   const [open, setOpen] = useState<string | null>(null);
@@ -54,8 +54,10 @@ export function Marketers() {
         const sales = invoices.reduce((t, x) => t + toBase(x.inv.total, x.inv.currency, x.inv.rate), 0);
         const earned = invoices.reduce((t, x) => t + x.com.base, 0);
         const profit = invoices.reduce((t, x) => t + x.profit, 0);
-        const owed = Math.max(0, -partyBalance(state, m.id).base);
-        return { m, invoices, sales, earned, owed, profit };
+        const bal = partyBalance(state, m.id).base;
+        const owed = Math.max(0, -bal);
+        const over = Math.max(0, bal);
+        return { m, invoices, sales, earned, owed, over, profit };
       })
       .sort((a, b) => b.sales - a.sales);
   }, [state, from, to]);
@@ -91,7 +93,7 @@ export function Marketers() {
             <Stat label="باقي إلهم (كل الفترات)" value={money(state, totals.owed)} tone={totals.owed ? 'bad' : undefined} />
           </div>
           <div className="marketers">
-            {rows.map(({ m, invoices, sales, earned, owed, profit }) => (
+            {rows.map(({ m, invoices, sales, earned, owed, over, profit }) => (
               <section key={m.id} className="card marketer-card">
                 <div className="marketer-head" onClick={() => setOpen(open === m.id ? null : m.id)}>
                   <div>
@@ -120,8 +122,8 @@ export function Marketers() {
                       <b>{money(state, earned)}</b>
                     </span>
                     <span>
-                      <small>باقي إلو</small>
-                      <b className={owed ? 'bad' : 'good'}>{money(state, owed)}</b>
+                      <small>{over > 0 ? 'أخد زيادة' : 'باقي إلو'}</small>
+                      <b className={owed || over ? 'bad' : 'good'}>{money(state, over > 0 ? over : owed)}</b>
                     </span>
                   </div>
                 </div>
@@ -137,6 +139,19 @@ export function Marketers() {
                   {can('parties.manage') && (
                     <button className="ghost small" onClick={() => setEdit(m)}>
                       تعديل النسبة
+                    </button>
+                  )}
+                  {can('vouchers.create') && can('costs.view') && invoices.length > 0 && (
+                    <button
+                      className="ghost small"
+                      title="للفواتير القديمة اللي انحسبت عمولتها من قيمة الفاتورة: بتنحسب من جديد من ربح كل فاتورة"
+                      onClick={async () => {
+                        if (!(await askConfirm(`تعيد حساب عمولات ${m.name} من ربح كل فاتورة (${m.marketerRate}%)؟ العمولات القديمة بتتصحّح، والمدفوع إلو بيضل محسوب.`))) return;
+                        const r = (await call('recalcCommissions', m.id, today())) as { changed: number; before: number; after: number } | null;
+                        if (r) notify(r.changed ? `تصحّحت ${r.changed} فاتورة: العمولة كانت ${money(state, r.before)} وصارت ${money(state, r.after)}` : 'العمولات مزبوطة، ما في شي يتصحّح');
+                      }}
+                    >
+                      أعد حساب العمولات من الربح
                     </button>
                   )}
                   <button className="ghost small" onClick={() => navigate('statement', `party:${m.id}`)}>

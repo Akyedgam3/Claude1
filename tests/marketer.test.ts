@@ -67,6 +67,27 @@ describe('marketer commission on profit', () => {
   });
 });
 
+describe('recalculating old commissions', () => {
+  it('a commission recorded on the invoice value is corrected to a share of its profit, keeping what was paid', () => {
+    const l = shop();
+    l.saveParty({ id: 'third', kind: 'supplier', name: 'أبو طه', marketerRate: 33.33 });
+    l.saveItem({ id: 'x', code: '1', name: 'بضاعة', kind: 'stock', unit: 'قطعة', price: 1500, priceCurrency: 'USD' });
+    l.postInvoice({ kind: 'purchase', date: '2026-11-01', currency: 'USD', lines: [{ itemId: 'x', qty: 10, price: 1000 }] });
+    const inv = l.postInvoice({ kind: 'sale', date: '2026-11-02', currency: 'USD', lines: [{ itemId: 'x', qty: 2, price: 1500 }], paid: 3000, marketerId: 'third' });
+    // متل النسخ القديمة: العمولة من قيمة الفاتورة (30.00 × 33.33% = 10.00)
+    const old = l.state.entries.find((e) => e.source?.type === 'commission' && e.source.id === inv.id)!;
+    (l as unknown as { emit: (e: unknown) => void }).emit({ type: 'entry.posted', entry: (l as unknown as { reversal: (e: unknown, d: string) => unknown }).reversal(old, '2026-11-02') });
+    l.postEntry({ date: '2026-11-02', memo: 'عمولة قديمة', lines: [{ accountId: COMMISSION_ACCOUNT, debit: 1000 }, { accountId: '2101', credit: 1000, partyId: 'third' }], source: { type: 'commission', id: inv.id } });
+    expect(-partyBalance(l.state, 'third').base).toBe(1000);
+    l.postVoucher({ kind: 'payment', date: '2026-11-03', amount: 500, partyId: 'third', memo: 'دفعة' });
+    const r = l.recalcCommissions('third', '2026-11-05');
+    expect(r).toEqual({ changed: 1, before: 1000, after: 333 });
+    expect(accountBalance(l.state, COMMISSION_ACCOUNT).balance).toBe(333);
+    expect(partyBalance(l.state, 'third').base).toBe(167); // أخد 5.00 وإلو 3.33: أخد زيادة 1.67
+    expect(l.recalcCommissions('third', '2026-11-05').changed).toBe(0);
+  });
+});
+
 describe('archived system accounts', () => {
   it('a sale still posts when cost-of-goods-sold was archived by mistake, but a normal archived account stays blocked', () => {
     const l = shop();

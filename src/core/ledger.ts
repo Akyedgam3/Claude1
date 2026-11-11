@@ -840,23 +840,49 @@ export class Ledger {
     return invoice;
   }
 
+  /** عمولة المسوّق عن فاتورة = ربحها (سعر البيع ناقص تكلفة البضاعة، بعملة الفاتورة) × نسبته. إذا ما في ربح ما في عمولة. */
+  private commissionAmount(invoice: Invoice, m: Party): number {
+    const posted = this.state.invoices.find((i) => i.id === invoice.id) ?? invoice;
+    const baseCur = this.state.currencies[this.base.code]!;
+    const cur = this.state.currencies[invoice.currency] ?? baseCur;
+    const costBase = posted.lines.reduce((t, l) => t + (l.cost ?? 0) + (l.components ?? []).reduce((x, c) => x + c.cost, 0), 0);
+    const costInv = invoice.rate ? costBase / (invoice.rate * 10 ** (baseCur.decimals - cur.decimals)) : costBase;
+    const profit = Math.round(invoice.subtotal - invoice.discount - costInv);
+    return Math.max(0, Math.round((profit * (m.marketerRate ?? 0)) / 100));
+  }
+
+  /**
+   * إعادة حساب عمولات مسوّق من ربح فواتيره: للفواتير القديمة اللي انحسبت عمولتها من قيمة الفاتورة (قبل 1.2.72)،
+   * أو بعد تغيير النسبة. العمولة القديمة بتنلغى بقيد عكسي وبتنسجّل الجديدة. بيرجّع عدد الفواتير اللي تغيّرت والفرق.
+   */
+  recalcCommissions(marketerId: string, date: string): { changed: number; before: number; after: number } {
+    const m = this.state.parties[marketerId];
+    if (!m?.marketerRate) fail('المسوّق غير موجود أو ما إلو نسبة');
+    let changed = 0;
+    let before = 0;
+    let after = 0;
+    const locked = this.state.info?.lockedUntil;
+    for (const inv of [...this.state.invoices]) {
+      if (inv.marketerId !== marketerId || inv.kind !== 'sale' || inv.voidEntryId) continue;
+      const olds = this.state.entries.filter((e) => e.source?.type === 'commission' && e.source.id === inv.id && !this.state.voided[e.id] && !e.voidOf);
+      const old = olds.reduce((t, e) => t + e.lines.filter((l) => l.partyId === marketerId).reduce((x, l) => x + l.credit - l.debit, 0), 0);
+      const next = this.commissionAmount(inv, m);
+      before += old;
+      after += next;
+      if (old === next) continue;
+      changed++;
+      const when = locked && inv.date <= locked ? date : inv.date;
+      for (const e of olds) this.emit({ type: 'entry.posted', entry: this.reversal(e, when) });
+      this.postCommission(locked && inv.date <= locked ? { ...inv, date } : inv);
+    }
+    return { changed, before, after };
+  }
+
   /** عمولة المسوّق عن فاتورة: مصروف «عمولات المسوّقين» ودين إلو (بيتصفّى بسند دفع). */
   private postCommission(invoice: Invoice): void {
     const m = this.state.parties[invoice.marketerId!];
     if (!m?.marketerRate) return;
-    // عمولة المسوّق دايماً نسبة من ربح الفاتورة (سعر البيع ناقص تكلفة البضاعة)، مش من قيمتها كلها
-    const profitBased = true;
-    let basis = invoice.subtotal - invoice.discount;
-    if (profitBased) {
-      // العمولة من الربح: سعر البيع ناقص تكلفة البضاعة (بعملة الفاتورة)، وإذا ما في ربح ما في عمولة
-      const posted = this.state.invoices.find((i) => i.id === invoice.id) ?? invoice;
-      const baseCur = this.state.currencies[this.base.code]!;
-      const cur = this.state.currencies[invoice.currency] ?? baseCur;
-      const costBase = posted.lines.reduce((t, l) => t + (l.cost ?? 0), 0);
-      const costInv = invoice.rate ? costBase / (invoice.rate * 10 ** (baseCur.decimals - cur.decimals)) : costBase;
-      basis = Math.round(basis - costInv);
-    }
-    const amount = Math.round((basis * m.marketerRate) / 100);
+    const amount = this.commissionAmount(invoice, m);
     if (amount <= 0) return;
     if (!this.state.accounts[COMMISSION_ACCOUNT]) {
       const parent = this.state.accounts['52'] ? '52' : this.state.accounts['5'] ? '5' : null;
