@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { isCashBox, computeTaxes, PRICE_TIER_NAMES, tierPrice, niceUnitCost, PRICE_SCALE, roundPrice, findRate, itemPlace, listPrices, withPlace, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
-import { convertPrice, fxRates, money, cleanNumber, qtyTotalText, parseAmount, parseDiscount, parsePrice, rateInverted, toInput, today, uid, useCompany } from '../api';
+import { convertPrice, dateText, fxRates, money, cleanNumber, qtyTotalText, parseAmount, parseDiscount, parsePrice, rateInverted, toInput, today, uid, useCompany } from '../api';
 import { askConfirm, CurrencySelect, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
 import { invoiceDrafts } from '../drafts';
 import { ItemForm } from './Items';
@@ -307,7 +307,16 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
 
   const chooseItem = (key: string, itemId: string | null, unit = '', qty = '1', price?: string) => {
     const item = itemId ? state.items[itemId] : null;
+    // المادة موجودة بسطر تاني (بدون دفعات وأرقام تسلسلية): منزيد كميتها بدل سطر جديد
+    const same = item && !item.trackSerial && !item.trackExpiry && price === undefined ? lines.find((l) => l.key !== key && l.itemId === itemId && (l.unit || '') === unit && !l.weighing) : undefined;
+    if (same) {
+      setLines((ls) => withEmpty(ls.filter((l) => l.key !== key).map((l) => (l.key === same.key ? { ...l, qty: String(Math.round((Number(l.qty || 0) + Number(qty || 1)) * 1000) / 1000) } : l))));
+      notify(`زادت كمية «${item!.name}» بالسطر الموجود`);
+      focusQty(same.key);
+      return;
+    }
     setLines((ls) => withEmpty(ls.map((l) => (l.key === key ? { ...l, itemId, unit, qty, description: item ? itemTitle(item) : '', price: price ?? (item ? priceFor(item, unit) : l.price), manualPrice: price !== undefined } : l))));
+    if (item) focusQty(key);
   };
 
   const scan = (code: string) => {
@@ -359,6 +368,51 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
   };
 
   const used = useMemo(() => lines.filter((l) => l.itemId || l.description.trim()), [lines]);
+
+  // آخر سعر دفعه هالزبون (أو آخر سعر من هالمورد) لكل مادة، وآخر فاتورة إلو من نفس النوع
+  const partyHistory = useMemo(() => {
+    const last = new Map<string, { price: number; currency: string; date: string; unit: string }>();
+    let lastInv: Invoice | null = null;
+    if (!partyId) return { last, lastInv };
+    for (const inv of state.invoices) {
+      if (inv.partyId !== partyId || inv.kind !== kind || inv.voidEntryId || inv.id === editing?.id) continue;
+      if (!lastInv || inv.date >= lastInv.date) lastInv = inv;
+      for (const l of inv.lines) {
+        if (!l.itemId) continue;
+        const prev = last.get(l.itemId);
+        if (!prev || inv.date >= prev.date) last.set(l.itemId, { price: l.price, currency: inv.currency, date: inv.date, unit: l.unit ?? '' });
+      }
+    }
+    return { last, lastInv };
+  }, [state.invoices, partyId, kind, editing?.id]);
+
+  /** كرّر آخر فاتورة لهالزبون: نفس المواد والكميات، بأسعارها الحالية. */
+  const repeatLast = () => {
+    const inv = partyHistory.lastInv;
+    if (!inv) return;
+    const next: LineState[] = inv.lines
+      .filter((l) => !l.itemId || state.items[l.itemId])
+      .map((l) => {
+        const item = l.itemId ? state.items[l.itemId]! : null;
+        return { ...emptyLine(), itemId: l.itemId, description: item ? itemTitle(item) : l.description, unit: l.unit ?? '', qty: String(l.qty), price: item ? priceFor(item, l.unit ?? '') : toInput(state, l.price, inv.currency) };
+      });
+    setLines(withEmpty(next));
+    notify(`انضافت مواد الفاتورة رقم ${inv.number} (${dateText(inv.date)})، راجع الكميات`);
+  };
+
+  /** بعد اختيار المادة: المؤشر على الكمية؛ Enter بالكمية أو السعر بينقل لسطر المادة الجاية. */
+  const focusQty = (key: string) => setTimeout(() => document.querySelector<HTMLInputElement>(`tr[data-line="${key}"] .qty-cell input`)?.select(), 30);
+  const focusNextItem = () =>
+    setTimeout(() => {
+      const rows = document.querySelectorAll<HTMLElement>('table.lines tbody tr');
+      rows[rows.length - 1]?.querySelector<HTMLInputElement>('.with-button input')?.focus();
+    }, 30);
+  const enterNext = (e: { key: string; ctrlKey: boolean; preventDefault: () => void }) => {
+    if (e.key === 'Enter' && !e.ctrlKey) {
+      e.preventDefault();
+      focusNextItem();
+    }
+  };
 
   // نحفظ الفاتورة المفتوحة مع كل تعديل (لتضل موجودة إذا راح على شاشة تانية)، والفاضية ما منحفظها
   const savedRef = useRef(false);
@@ -548,6 +602,11 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
             )}
           </div>
           {party?.priceTier && party.priceTier !== 'retail' && <small className="tier-chip">أسعار {PRICE_TIER_NAMES[party.priceTier]}</small>}
+          {!editing && partyHistory.lastInv && !used.length && (
+            <button type="button" className="link repeat-last" onClick={repeatLast}>
+              ↻ كرّر آخر فاتورة إلو (رقم {partyHistory.lastInv.number}، {dateText(partyHistory.lastInv.date)})
+            </button>
+          )}
         </Field>
         <Field label="التاريخ">
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
@@ -641,7 +700,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
               const idx = used.indexOf(l);
               const batches = item?.trackExpiry ? Object.values(state.stock[item.id]?.batches ?? {}).filter((b) => b.warehouseId === warehouseId && b.qty > 0) : [];
               return (
-                <tr key={l.key}>
+                <tr key={l.key} data-line={l.key}>
                   <td className="line-cell-item">
                     {l.itemId ? (
                       <div className="line-item">
@@ -782,6 +841,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
                           if (ws?.length) setLine(l.key, { qty: String(Math.round(ws.reduce((a, b) => a + b, 0) * 1000) / 1000), weighing: { weights: ws } });
                         }}
                         inputMode="decimal"
+                        onKeyDown={enterNext}
                       />
                       {feature('poultry') && (l.itemId || l.description) && (
                         <button type="button" className={`icon${l.weighing ? ' on' : ''}`} title={l.weighing ? `${l.weighing.weights.length} وزنات` : 'وزنات قفص قفص'} onClick={() => setWeighLine(l.key)}>
@@ -791,7 +851,20 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
                     </div>
                   </td>
                   <td data-label="السعر">
-                    <input className="num-input" value={l.price} onChange={(e) => setLine(l.key, { price: e.target.value, manualPrice: true, src: priceSrc(e.target.value) })} inputMode="decimal" />
+                    <input className="num-input" value={l.price} onChange={(e) => setLine(l.key, { price: e.target.value, manualPrice: true, src: priceSrc(e.target.value) })} inputMode="decimal" onKeyDown={enterNext} />
+                    {(() => {
+                      const h = l.itemId ? partyHistory.last.get(l.itemId) : undefined;
+                      if (!h || (h.unit || '') !== (l.unit || '')) return null;
+                      const v = h.currency === currency ? h.price : convertPrice(state, h.price, h.currency, currency, ratesFor(currency, rateText));
+                      if (v === null) return null;
+                      const text = toInput(state, v, currency);
+                      if (text === l.price) return <small className="last-price same">نفس آخر سعر ({dateText(h.date)})</small>;
+                      return (
+                        <button type="button" className="last-price" title="اكبس لتحط هالسعر" onClick={() => setLine(l.key, { price: text, manualPrice: true, src: { amount: v, currency } })}>
+                          آخر مرة: {money(state, v, currency)} ({dateText(h.date)})
+                        </button>
+                      );
+                    })()}
                   </td>
                   {allowDiscount && (
                     <td data-label="الخصم">

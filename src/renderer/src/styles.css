@@ -4252,3 +4252,9 @@ button.link { background: none; border: none; color: var(--primary); padding: 4p
 .cash-head { justify-content: space-between; }
 .cash-head h3 { margin: 0; }
 .zero-balance { font-size: 18px; }
+
+/* الفاتورة: آخر سعر للزبون وتكرار آخر فاتورة */
+.last-price { display: block; margin-top: 3px; font-size: 12px; color: var(--primary, #0f6e5c); background: none; border: 0; padding: 0; cursor: pointer; text-align: start; font-family: inherit; }
+.last-price:hover { text-decoration: underline; }
+.last-price.same { color: var(--muted, #8a948f); cursor: default; }
+.repeat-last { display: inline-block; margin-top: 6px; font-size: 13px; }
