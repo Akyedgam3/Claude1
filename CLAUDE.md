@@ -38,6 +38,7 @@
 4. من لوحة الإدارة ← تحديثات البرنامج: رقم النسخة + الرابط + شو الجديد، ثم نشر القائمة ورفع `feed.txt`. البرامج المنصّبة تُظهر شاشة "في نسخة جديدة".
 
 ## ملف التنصيب (NSIS)
+- **نسختين** (من 1.2.71): `Wazn-Setup.exe` (64 بت) و`Wazn-Setup-32bit.exe` (32 بت، `--ia32` بـ `dist32/`)، الاتنين بـ `publish-release.sh` وعلى نفس الـ Release. زر «تحميل» بالموقع بيفتح نافذة اختيار 64/32 (`assets/js/site.js`)، والبرنامج 32 بت بيفتح رابط 32 بت لما يتحدّث (`app:openUpdate` بـ `src/main/index.ts`). Electron 38 بيحتاج ويندوز 10 أو أحدث: ويندوز 7/8 ما بيشتغل عليها أي نسخة.
 - `build/installer.nsh` (UTF-8 مع BOM): شاشة الترحيب، عنوان صفحة التنصيب، شاشة النهاية.
 - `build/license_ar.txt` (UTF-8 مع BOM): اتفاقية الترخيص المختصرة. النص الكامل في الموقع `terms.html`.
 - `build/installerSidebar.bmp` (164×314) و `build/installerHeader.bmp` (150×57)، مصدرها `marketing/video/installer/`.

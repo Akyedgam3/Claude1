@@ -8,3 +8,4 @@ test-results/
 playwright-report/
 www/
 web-dist/
+dist32/

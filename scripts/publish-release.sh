@@ -16,12 +16,16 @@ if ! command -v wine >/dev/null || ! dpkg -s wine32:i386 >/dev/null 2>&1; then
   DEBIAN_FRONTEND=noninteractive apt-get install -y -qq wine64 wine wine32:i386 >/dev/null
 fi
 
-rm -rf dist out
+rm -rf dist dist32 out
 npm run build >/dev/null
 # نسخة البيع ما لازم يكون فيها مفتاح التطوير أبداً
 if grep -q MCowBQYDK2VwAyEAWu46 out/main/index.js; then echo "خطأ: مفتاح التطوير موجود بالنسخة!"; exit 1; fi
 WINEDEBUG=-all CSC_IDENTITY_AUTO_DISCOVERY=false xvfb-run --auto-servernum npx electron-builder --win nsis --x64 --publish never >/dev/null
 ls -la dist/Wazn-Setup.exe
+# نسخة 32 بت للأجهزة القديمة (ويندوز 10 32 بت)، نفس الكود بس Electron ia32
+rm -rf dist32
+WINEDEBUG=-all CSC_IDENTITY_AUTO_DISCOVERY=false xvfb-run --auto-servernum npx electron-builder --win nsis --ia32 --publish never -c.directories.output=dist32 '-c.nsis.artifactName=Wazn-Setup-32bit.${ext}' >/dev/null
+ls -la dist32/Wazn-Setup-32bit.exe
 
 # فرع مؤقت فوق main فيه الملف؛ الـ workflow بالمستودع العام بينشره وبيحذف الفرع
 [ -d "$UPDATES/.git" ] || git clone --depth 1 https://github.com/Akyedgam3/mizan-updates "$UPDATES"
@@ -29,6 +33,7 @@ cd "$UPDATES"
 git fetch -q --depth 1 origin main && git checkout -q -B upload-tmp FETCH_HEAD
 mkdir -p release
 cp "$OLDPWD/dist/Wazn-Setup.exe" release/
+cp "$OLDPWD/dist32/Wazn-Setup-32bit.exe" release/
 # نسخ بالأسماء القديمة: روابط ميزان (1.2.4–1.2.8) ومعيار (1.2.3) بتضل شغالة
 cp "$OLDPWD/dist/Wazn-Setup.exe" release/Mizan-Setup.exe
 # نسخة باسم Miyar-Setup.exe كمان: روابط نسخة 1.2.3 (معيار) بتضل شغالة

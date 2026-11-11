@@ -397,7 +397,9 @@ function registerIpc(): void {
   handle('app:openUpdate', async () => {
     const u = (lastLicense ?? licenseStatus()).update;
     if (!u) throw new Error('لا يوجد تحديث');
-    await shell.openExternal(u.url);
+    // نسخة 32 بت: نفس الرابط بس لملف 32 بت (Wazn-Setup.exe ← Wazn-Setup-32bit.exe)
+    const url = process.arch === 'ia32' ? u.url.replace(/(Wazn|Mizan|Miyar)-Setup\.exe/i, 'Wazn-Setup-32bit.exe') : u.url;
+    await shell.openExternal(url);
     return true;
   }, { allowLocked: true });
 
