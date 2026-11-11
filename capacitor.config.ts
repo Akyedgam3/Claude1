@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 // تطبيق وزن لأندرويد: نفس واجهة الكمبيوتر (www من vite.mobile.config.ts)، والبيانات كلها على الجوال.
 const config: CapacitorConfig = {
-  appId: 'sy.wazn.app',
+  appId: 'com.waznsy.app',
   appName: 'وزن',
   webDir: 'www',
   android: {

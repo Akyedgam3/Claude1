@@ -10,7 +10,7 @@ android {
     namespace = "sy.wazn.app"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "sy.wazn.app"
+        applicationId "com.waznsy.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode appVersionCode
