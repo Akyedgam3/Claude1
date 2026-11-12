@@ -900,7 +900,7 @@ function Expiry() {
 }
 
 type HistLine = { itemId: string; qty: number; cost?: number; serials?: string[] };
-type HistRow = { id: string; kind: 'adjust' | 'transfer' | 'production'; number: number; date: string; type: string; place: string; memo: string; lines: HistLine[]; value: number; by: string; voided?: { date: string; by: string } };
+type HistRow = { id: string; kind: 'adjust' | 'transfer' | 'production'; number: number; date: string; type: string; place: string; memo: string; lines: HistLine[]; value: number; by: string; voided?: { date: string; by: string }; isVoid?: boolean };
 
 function History() {
   const { state, can, call, notify } = useCompany();
@@ -909,7 +909,10 @@ function History() {
   const [open, setOpen] = useState<HistRow | null>(null);
   const wh = (id: string) => state.warehouses[id]?.name ?? '';
   const rows: HistRow[] = [
-    ...state.adjustments.map((a) => ({ id: a.id, kind: 'adjust' as const, number: a.number, date: a.date, type: ADJUSTMENT_NAMES[a.kind], place: wh(a.warehouseId), memo: a.memo, lines: a.lines, value: a.lines.reduce((s, l) => s + l.cost, 0), by: a.createdBy })),
+    ...state.adjustments.map((a) => {
+      const v = state.adjustments.find((x) => x.voidOf === a.id);
+      return { id: a.id, kind: 'adjust' as const, number: a.number, date: a.date, type: a.voidOf ? `إلغاء ${ADJUSTMENT_NAMES[a.kind]}` : ADJUSTMENT_NAMES[a.kind], place: wh(a.warehouseId), memo: a.memo, lines: a.lines, value: a.lines.reduce((s, l) => s + l.cost, 0), by: a.createdBy, ...(v ? { voided: { date: v.date, by: v.createdBy } } : {}), ...(a.voidOf ? { isVoid: true } : {}) };
+    }),
     ...state.transfers.map((t) => ({ id: t.id, kind: 'transfer' as const, number: t.number, date: t.date, type: 'تحويل', place: `${wh(t.from)} ← ${wh(t.to)}`, memo: t.memo, lines: t.lines, value: 0, by: t.createdBy, ...(t.voided ? { voided: t.voided } : {}) })),
     ...state.productions.map((p) => ({ id: p.id, kind: 'production' as const, number: p.number, date: p.date, type: 'إنتاج', place: '', memo: p.memo, lines: p.outputs, value: p.outputs.reduce((s, o) => s + o.cost, 0), by: p.createdBy })),
   ]
@@ -963,6 +966,18 @@ function History() {
         <Modal title={`${open.type} رقم ${open.number}`} onClose={() => setOpen(null)} width={760}>
           <div className="toolbar no-print">
             <PrintButtons kind="report" name={`${open.type} ${open.number}`} papers={['a4', 'a5', '80mm']} />
+            {open.kind === 'adjust' && !open.voided && !open.isVoid && can('stock.adjust') && (
+              <ConfirmButton
+                label="إلغاء العملية (انعملت بالغلط)"
+                confirmLabel="متأكد؟ ألغيها"
+                onConfirm={async () => {
+                  if (await call('voidAdjustment', open.id, today())) {
+                    notify(`انلغت ${open.type} رقم ${open.number}: الكميات رجعت متل قبلها وأثرها عالربح انمحى`);
+                    setOpen(null);
+                  }
+                }}
+              />
+            )}
             {open.kind === 'transfer' && !open.voided && can('stock.transfer') && (
               <ConfirmButton
                 label="إلغاء التحويل (رجّع البضاعة)"
@@ -976,7 +991,15 @@ function History() {
               />
             )}
           </div>
-          {open.voided && (
+          {open.voided && open.kind === 'adjust' && (
+            <div className="banner bad no-print">
+              هالعملية ملغاة بتاريخ {dateText(open.voided.date)}{state.users[open.voided.by] ? ` (${state.users[open.voided.by]!.displayName})` : ''}: الكميات رجعت متل قبلها وما بقى إلها أثر عالربح.
+            </div>
+          )}
+          {open.kind === 'adjust' && !open.voided && !open.isVoid && can('stock.adjust') && (
+            <p className="muted no-print">إذا في جرد بعد هالعملية لنفس المادة (متل تصفيرها قبل الحذف)، ألغِ الجرد اللي بعدها أول.</p>
+          )}
+          {open.voided && open.kind === 'transfer' && (
             <div className="banner bad no-print">
               هالتحويل ملغى بتاريخ {dateText(open.voided.date)}{state.users[open.voided.by] ? ` (${state.users[open.voided.by]!.displayName})` : ''}، والبضاعة رجعت للمستودع الأصلي.
             </div>
