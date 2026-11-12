@@ -254,6 +254,12 @@ export class CompanyStore {
       if (!user.active) throw new Error('هذا المستخدم موقوف');
       const store = new CompanyStore(dir, key, keyring, meta, state, seq, hash, { recoveredTail, viaRecovery: !userId, user });
       store.sinceSnapshot = replayed;
+      try {
+        const d = new Date();
+        store.ledger.fixCommissionsOnce(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+      } catch {
+        // التصحيح مش ضروري لفتح الشركة: بيتجرّب بالمرة الجاية، وفي زر بقسم المسوّقين
+      }
       return store;
     } catch (e) {
       fs.rmSync(path.join(dir, LOCK), { force: true });

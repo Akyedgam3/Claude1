@@ -168,6 +168,8 @@ export interface CompanyInfo {
   autoRates?: boolean;
   lockedUntil?: string; // لا تُقبل أي حركة بتاريخ أقدم أو يساوي هذا التاريخ (فترة مقفلة)
   allowNegativeStock?: boolean;
+  /** عمولات المسوّقين القديمة انصحّحت لتصير من ربح الفاتورة (fixCommissionsOnce) */
+  commissionsFromProfit?: boolean;
   print?: PrintSettings;
   scale?: ScaleSettings;
   customize?: ActivityCustomization;

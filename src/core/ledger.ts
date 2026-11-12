@@ -8,6 +8,7 @@ import { buildSchedule, installmentState } from './electronics';
 import { cashAccountFor, SYSTEM_ACCOUNTS } from './chart-templates';
 import { convertMinor, currencyProblem, type Currency } from './money';
 import { invoiceMoves } from './stock';
+import { invoiceProfit } from './reports';
 import { POULTRY_CUTS } from './poultry';
 import { dealerStock, dealerUnitCost } from './dealers';
 import { HALL_PERIODS, bookingDeposits, bookingToInvoiceLines, bookingTotals } from './halls';
@@ -845,7 +846,8 @@ export class Ledger {
     const posted = this.state.invoices.find((i) => i.id === invoice.id) ?? invoice;
     const baseCur = this.state.currencies[this.base.code]!;
     const cur = this.state.currencies[invoice.currency] ?? baseCur;
-    const costBase = posted.lines.reduce((t, l) => t + (l.cost ?? 0) + (l.components ?? []).reduce((x, c) => x + c.cost, 0), 0);
+    // نفس تكلفة «ربح الفاتورة» اللي بيشوفها المستخدم (تكلفة الوصفة محسوبة بسطرها، ومصاريف الشحنة إذا في)
+    const costBase = invoiceProfit(this.state, posted).cost;
     const costInv = invoice.rate ? costBase / (invoice.rate * 10 ** (baseCur.decimals - cur.decimals)) : costBase;
     const profit = Math.round(invoice.subtotal - invoice.discount - costInv);
     return Math.max(0, Math.round((profit * (m.marketerRate ?? 0)) / 100));
@@ -876,6 +878,22 @@ export class Ledger {
       this.postCommission(locked && inv.date <= locked ? { ...inv, date } : inv);
     }
     return { changed, before, after };
+  }
+
+  /**
+   * تصحيح تلقائي لمرة وحدة (من 1.2.75): كل عمولات المسوّقين المسجّلة بتنحسب من جديد من صافي ربح كل فاتورة،
+   * حتى الفواتير القديمة اللي انحسبت من قيمة الفاتورة. بيتعلّم بالشركة إنه انعمل، فما بيتكرر.
+   */
+  fixCommissionsOnce(date: string): number {
+    if (!this.state.info || this.state.info.commissionsFromProfit) return 0;
+    let changed = 0;
+    for (const m of Object.values(this.state.parties)) {
+      if (!m.marketerRate) continue;
+      if (!this.state.invoices.some((i) => i.marketerId === m.id)) continue;
+      changed += this.recalcCommissions(m.id, date).changed;
+    }
+    this.updateCompany({ commissionsFromProfit: true });
+    return changed;
   }
 
   /** عمولة المسوّق عن فاتورة: مصروف «عمولات المسوّقين» ودين إلو (بيتصفّى بسند دفع). */

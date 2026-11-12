@@ -67,7 +67,7 @@ export function CashBox() {
               </span>
               {curs.map((c) => (
                 <span key={c} className="cash-line">
-                  <b className={(now[c] ?? 0) < 0 ? 'bad' : ''}>{money(state, now[c] ?? 0, c)}</b>
+                  <b>{money(state, now[c] ?? 0, c)}</b>
                   <small className="muted">
                     اليوم: <span className="good">+{money(state, inToday[c] ?? 0, c)}</span> <span className="bad">−{money(state, outToday[c] ?? 0, c)}</span>
                   </small>
@@ -101,7 +101,7 @@ export function CashBox() {
             <Stat label="أول المدة" value={m(st.opening)} />
             <Stat label="الداخل" value={m(st.totalDebit)} tone="good" />
             <Stat label="الخارج" value={m(st.totalCredit)} tone="bad" />
-            <Stat label="آخر المدة" value={m(st.closing)} tone={st.closing < 0 ? 'bad' : undefined} hint={st.closing < 0 ? 'سالب: طالع منه أكتر من اللي فايت، شيك على الحركات' : undefined} />
+            <Stat label="آخر المدة" value={m(st.closing)} />
           </div>
           <div className="toolbar">
             <PrintButtons kind="report" name={`حركة ${box.name}`} papers={['a4', '80mm']} />
@@ -167,7 +167,7 @@ function CashTable({ rows, opening, m }: { rows: ReturnType<typeof fullStatement
             <td>{r.memo}</td>
             <td className="num good">{r.debit ? m(r.debit) : ''}</td>
             <td className="num bad">{r.credit ? m(r.credit) : ''}</td>
-            <td className={`num ${r.running < 0 ? 'bad' : ''}`}>
+            <td className="num">
               <b>{m(r.running)}</b>
             </td>
           </tr>
@@ -204,7 +204,7 @@ function ZeroBox({ box, balances, boxes, onClose }: { box: Account; balances: Re
   return (
     <Modal title={`تصفير ${box.name}`} onClose={onClose} width={480}>
       {!curs.length ? (
-        <p className="muted">الصندوق فاضي أصلاً (أو رصيده سالب)، ما في شي ينصفّر.</p>
+        <p className="muted">ما في شي بالصندوق ينصفّر.</p>
       ) : (
         <div className="form-grid">
           {curs.length > 1 && (

@@ -86,6 +86,25 @@ describe('recalculating old commissions', () => {
     expect(partyBalance(l.state, 'third').base).toBe(167); // أخد 5.00 وإلو 3.33: أخد زيادة 1.67
     expect(l.recalcCommissions('third', '2026-11-05').changed).toBe(0);
   });
+
+  it('old commissions are fixed automatically once, when the company opens after the update', () => {
+    const l = shop();
+    l.saveParty({ id: 'third', kind: 'supplier', name: 'أبو طه', marketerRate: 33.33 });
+    l.saveItem({ id: 'x', code: '1', name: 'بضاعة', kind: 'stock', unit: 'قطعة', price: 1500, priceCurrency: 'USD' });
+    l.postInvoice({ kind: 'purchase', date: '2026-11-01', currency: 'USD', lines: [{ itemId: 'x', qty: 10, price: 1000 }] });
+    for (let i = 0; i < 5; i++) {
+      // ربح كل فاتورة 2.00 (12.00 على تكلفة 10.00)، والعمولة القديمة كانت من القيمة: 4.00
+      const inv = l.postInvoice({ kind: 'sale', date: '2026-11-02', currency: 'USD', lines: [{ itemId: 'x', qty: 1, price: 1200 }], paid: 1200, marketerId: 'third' });
+      const old = l.state.entries.find((e) => e.source?.type === 'commission' && e.source.id === inv.id)!;
+      (l as unknown as { emit: (e: unknown) => void }).emit({ type: 'entry.posted', entry: (l as unknown as { reversal: (e: unknown, d: string) => unknown }).reversal(old, '2026-11-02') });
+      l.postEntry({ date: '2026-11-02', memo: 'عمولة قديمة', lines: [{ accountId: COMMISSION_ACCOUNT, debit: 400 }, { accountId: '2101', credit: 400, partyId: 'third' }], source: { type: 'commission', id: inv.id } });
+    }
+    expect(-partyBalance(l.state, 'third').base).toBe(2000);
+    expect(l.fixCommissionsOnce('2026-11-12')).toBe(5);
+    expect(-partyBalance(l.state, 'third').base).toBe(335); // 5 × 0.67 (تلت 2.00)
+    expect(l.state.info!.commissionsFromProfit).toBe(true);
+    expect(l.fixCommissionsOnce('2026-11-12')).toBe(0);
+  });
 });
 
 describe('archived system accounts', () => {
