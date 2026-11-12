@@ -90,6 +90,12 @@ describe('recalculating old commissions', () => {
     expect(partyBalance(l.state, 'third').base).toBe(0);
     expect(accountBalance(l.state, COMMISSION_ACCOUNT).balance).toBe(500);
     expect(() => l.writeOffMarketerOver('third', '2026-11-06')).toThrow(/ما أخد زيادة/);
+    // تراجع: الزيادة بترجع دين عليه والمصروف بيرجع متل قبل
+    expect(l.undoMarketerWriteOff('third', '2026-11-06')).toBe(1);
+    expect(partyBalance(l.state, 'third').base).toBe(167);
+    expect(accountBalance(l.state, COMMISSION_ACCOUNT).balance).toBe(333);
+    expect(() => l.undoMarketerWriteOff('third', '2026-11-06')).toThrow();
+    l.writeOffMarketerOver('third', '2026-11-06');
     expect(l.recalcCommissions('third', '2026-11-07').changed).toBe(0);
   });
 

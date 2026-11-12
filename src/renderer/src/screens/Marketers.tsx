@@ -166,6 +166,19 @@ export function Marketers() {
                       صفّر الزيادة
                     </button>
                   )}
+                  {can('vouchers.create') &&
+                    state.entries.some((e) => e.source?.type === 'commission' && e.source.id.startsWith('over:') && !e.voidOf && !state.voided[e.id] && e.lines.some((l) => l.partyId === m.id)) && (
+                      <button
+                        className="ghost small"
+                        title="الزيادة بترجع دين عليه وبتنخصم من عمولاته الجاية، وبتنشال من مصاريف العمولات"
+                        onClick={async () => {
+                          if (!(await askConfirm(`ترجّع الزيادة اللي صفّرتها دين على ${m.name}؟ بتنشال من مصاريف العمولات (فالربح بيرجع)، وبتنخصم من عمولاته الجاية.`))) return;
+                          if (await call('undoMarketerWriteOff', m.id, today())) notify(`تم: الزيادة رجعت دين على ${m.name}`);
+                        }}
+                      >
+                        رجّع الزيادة دين عليه
+                      </button>
+                    )}
                   <button className="ghost small" onClick={() => navigate('statement', `party:${m.id}`)}>
                     كشف حسابه
                   </button>

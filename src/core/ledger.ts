@@ -698,7 +698,8 @@ export class Ledger {
   /** لا يُحذف أي قيد؛ الإلغاء يكون بقيد عكسي يحفظ أثر العملية. */
   voidEntry(entryId: string, date: string): JournalEntry {
     const original = this.state.entries.find((e) => e.id === entryId) ?? fail('القيد غير موجود');
-    if (original.source && !['receipt', 'payment', 'manual', 'opening', 'work-adjust', 'debt', 'boxtransfer'].includes(original.source.type)) {
+    const writeOff = original.source?.type === 'commission' && original.source.id.startsWith('over:');
+    if (original.source && !writeOff && !['receipt', 'payment', 'manual', 'opening', 'work-adjust', 'debt', 'boxtransfer'].includes(original.source.type)) {
       fail('هذا القيد تابع لمستند؛ ألغِ المستند نفسه');
     }
     const entry = this.reversal(original, date);
@@ -947,6 +948,14 @@ export class Ledger {
     }
     if (!n) fail('ما أخد زيادة، ما في شي يتصفّر');
     return n;
+  }
+
+  /** تراجع عن «صفّر الزيادة»: الزيادة بترجع دين على المسوّق (بتنخصم من عمولاته الجاية) وبتنشال من المصاريف. */
+  undoMarketerWriteOff(marketerId: string, date: string): number {
+    const list = this.state.entries.filter((e) => e.source?.type === 'commission' && e.source.id.startsWith('over:') && !e.voidOf && !this.state.voided[e.id] && e.lines.some((l) => l.partyId === marketerId));
+    if (!list.length) fail('ما في تصفير زيادة لهالمسوّق');
+    for (const e of list) this.emit({ type: 'entry.posted', entry: this.reversal(e, date) });
+    return list.length;
   }
 
   /** عمولة المسوّق عن فاتورة: مصروف «عمولات المسوّقين» ودين إلو (بيتصفّى بسند دفع). */

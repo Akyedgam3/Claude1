@@ -90,6 +90,7 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
   fillBox: 'vouchers.create',
   recalcCommissions: 'vouchers.create',
   writeOffMarketerOver: 'vouchers.create',
+  undoMarketerWriteOff: 'vouchers.create',
   saveTax: 'settings.manage',
   setRate: 'rates.manage',
   saveCurrency: 'rates.manage',
