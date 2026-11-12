@@ -10,6 +10,7 @@ test('الرقم الضريبي للمحل على الفواتير، والإي�
     await createCompany(page, { name: 'مركز أبو أمير', activity: 'تجارة عامة' });
     await nav(page, 'الإعدادات');
     await page.locator('.field', { hasText: 'الرقم الضريبي' }).locator('input').fill('03310090718');
+    await page.locator('.field', { hasText: 'السجل التجاري' }).locator('input').fill('55667');
     await page.getByRole('button', { name: 'حفظ', exact: true }).click();
     await toast(page, 'تم الحفظ');
     const m = page.locator('.modal');
@@ -46,6 +47,7 @@ test('الرقم الضريبي للمحل على الفواتير، والإي�
     await page.evaluate(() => (document.body.dataset['paper'] = '80mm'));
     const t = page.locator('.thermal-doc');
     await expect(t).toContainText('الرقم الضريبي: 03310090718');
+    await expect(t).toContainText('السجل التجاري: 55667'); // أي رقم انكتب بالإعدادات بينطبع عالإيصال
     const fit = await t.evaluate((doc) => {
       const box = doc.getBoundingClientRect();
       const mm = box.width / (96 / 25.4);

@@ -81,11 +81,11 @@ function CompanyTab() {
         <Field label="العنوان">
           <input value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} />
         </Field>
-        <Field label="الرقم الضريبي">
-          <input value={f.vatNumber} onChange={(e) => setF({ ...f, vatNumber: e.target.value })} dir="ltr" placeholder="بينطبع على الفواتير" />
+        <Field label="الرقم الضريبي (بينطبع عالفواتير والإيصال)">
+          <input value={f.vatNumber} onChange={(e) => setF({ ...f, vatNumber: e.target.value })} dir="ltr" placeholder="اكتبه هون واكبس حفظ" />
         </Field>
-        <Field label="السجل التجاري">
-          <input value={f.taxNumber} onChange={(e) => setF({ ...f, taxNumber: e.target.value })} />
+        <Field label="السجل التجاري (اختياري، بينطبع كمان)">
+          <input value={f.taxNumber} onChange={(e) => setF({ ...f, taxNumber: e.target.value })} dir="ltr" />
         </Field>
         <div className="form-actions wide">
           <button className="primary">حفظ</button>

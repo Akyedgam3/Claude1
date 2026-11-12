@@ -90,14 +90,19 @@ export function ThermalReceipt({ data, preview, always, logo }: { data: ReceiptD
       {on(r.showContact) && (c.address || c.phone) && (
         <div className="t-contact">
           {c.address && <span>{c.address}</span>}
+          {c.address && c.phone && <span> · </span>}
           {c.phone && <span className="ltr">{c.phone}</span>}
         </div>
       )}
-      {c.vatNumber && (
-        <div className="t-contact">
-          <span>
-            الرقم الضريبي: <span className="ltr">{c.vatNumber}</span>
-          </span>
+      {/* الرقم الضريبي والسجل التجاري: كل واحد انكتب بالإعدادات بينطبع بسطر لحالو (حتى لو انكتب الرقم بخانة السجل) */}
+      {c.vatNumber?.trim() && (
+        <div className="t-contact t-legal">
+          الرقم الضريبي: <span className="ltr">{c.vatNumber.trim()}</span>
+        </div>
+      )}
+      {c.taxNumber?.trim() && (
+        <div className="t-contact t-legal">
+          السجل التجاري: <span className="ltr">{c.taxNumber.trim()}</span>
         </div>
       )}
       <div className="t-title">{data.draft ? 'الحساب' : (r.title || data.title)}</div>
