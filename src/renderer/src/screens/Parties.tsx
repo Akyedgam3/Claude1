@@ -336,6 +336,7 @@ export function PartyForm({
     kind: party?.kind ?? defaultKind,
     phone: party?.phone ?? '',
     address: party?.address ?? '',
+    vatNumber: party?.vatNumber ?? '',
     notes: party?.notes ?? '',
     priceTier: party?.priceTier ?? 'retail',
     listDiscount: party?.listDiscount !== undefined ? String(party.listDiscount) : '',
@@ -366,6 +367,7 @@ export function PartyForm({
             ...(feature('listPricing') && f.listDiscount.trim() !== '' && Number.isFinite(Number(f.listDiscount)) ? { listDiscount: Number(f.listDiscount) } : {}),
             ...(f.phone.trim() ? { phone: f.phone.trim() } : {}),
             ...(f.address.trim() ? { address: f.address.trim() } : {}),
+            ...(f.vatNumber.trim() ? { vatNumber: f.vatNumber.trim() } : {}),
             ...(f.notes.trim() ? { notes: f.notes.trim() } : {}),
             ...(Object.keys(measurements).length ? { measurements } : {}),
           };
@@ -395,8 +397,11 @@ export function PartyForm({
         <Field label="الهاتف">
           <input value={f.phone} onChange={set('phone')} dir="ltr" />
         </Field>
-        <Field label="العنوان" wide>
+        <Field label="العنوان">
           <input value={f.address} onChange={set('address')} />
+        </Field>
+        <Field label="الرقم الضريبي (اختياري)">
+          <input value={f.vatNumber} onChange={set('vatNumber')} dir="ltr" />
         </Field>
         {feature('priceTiers') && f.kind !== 'supplier' && (
           <Field label="نوع الزبون (بياخد أسعار نوعه لحالها)" wide>

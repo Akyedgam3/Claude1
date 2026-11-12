@@ -397,7 +397,7 @@ export function QuoteDocument({ quote: q }: { quote: Quote }) {
       { label: 'التاريخ', value: <span className="ltr">{dateText(q.date)}</span> },
       ...(q.validUntil ? [{ label: 'صالح حتى', value: <span className="ltr">{dateText(q.validUntil)}</span> }] : []),
     ],
-    party: { label: 'مقدَّم إلى', name: party?.name ?? q.customerName ?? '—', ...(party?.phone ? { phone: party.phone } : {}), ...(party?.address ? { address: party.address } : {}) },
+    party: { label: 'مقدَّم إلى', name: party?.name ?? q.customerName ?? '—', ...(party?.phone ? { phone: party.phone } : {}), ...(party?.address ? { address: party.address } : {}), ...(party?.vatNumber ? { vatNumber: party.vatNumber } : {}) },
     lines: q.lines.map((l) => {
       const item = l.itemId ? state.items[l.itemId] : null;
       return {

@@ -26,6 +26,8 @@ export interface ReceiptData {
   guests?: number;
   cashier?: string;
   customer?: string;
+  /** الرقم الضريبي للزبون */
+  customerVat?: string;
   lines: ReceiptLine[];
   totals: { label: string; value: string }[];
   grand: { label: string; value: string };
@@ -71,6 +73,7 @@ export function ThermalReceipt({ data, preview, always, logo }: { data: ReceiptD
   if (on(r.showGuests) && data.guests) meta.push(['الضيوف', <span className="ltr">{data.guests}</span>]);
   if (on(r.showCashier) && data.cashier) meta.push(['الكاشير', data.cashier]);
   if (on(r.showCustomer) && data.customer) meta.push(['الزبون', data.customer]);
+  if (on(r.showCustomer) && data.customerVat) meta.push(['رقمه الضريبي', <span className="ltr">{data.customerVat}</span>]);
 
   return (
     <div className={`thermal-doc print-area t-${r.fontSize ?? 'md'} ${r.grid ? 't-grid' : ''} ${always ? 'always' : ''}`}>
@@ -85,6 +88,13 @@ export function ThermalReceipt({ data, preview, always, logo }: { data: ReceiptD
         <div className="t-contact">
           {c.address && <span>{c.address}</span>}
           {c.phone && <span className="ltr">{c.phone}</span>}
+        </div>
+      )}
+      {c.vatNumber && (
+        <div className="t-contact">
+          <span>
+            الرقم الضريبي: <span className="ltr">{c.vatNumber}</span>
+          </span>
         </div>
       )}
       <div className="t-title">{data.draft ? 'الحساب' : (r.title || data.title)}</div>

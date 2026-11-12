@@ -142,6 +142,7 @@ export function DocHeader({ title, children }: { title: string; children?: React
           {p.header && <div>{p.header}</div>}
           {c.address && <div>{c.address}</div>}
           {c.phone && <div className="ltr">{c.phone}</div>}
+          {c.vatNumber && <div>الرقم الضريبي: <span className="ltr">{c.vatNumber}</span></div>}
           {c.taxNumber && <div>رقم السجل: {c.taxNumber}</div>}
         </div>
       </div>

@@ -161,7 +161,10 @@ export interface CompanyInfo {
   activity?: Activity;
   baseCurrency: string;
   fiscalYearStart: string; // MM-DD
+  /** السجل التجاري (قبل 1.2.76 كانت الخانة «الرقم الضريبي / السجل التجاري») */
   taxNumber?: string;
+  /** الرقم الضريبي للمحل: بينطبع على الفواتير */
+  vatNumber?: string;
   address?: string;
   phone?: string;
   /** سعر الصرف التلقائي من وزن (افتراضياً نعم). */
@@ -224,6 +227,8 @@ export interface Party {
   name: string;
   phone?: string;
   address?: string;
+  /** الرقم الضريبي للزبون أو المورد: بينطبع على فاتورته */
+  vatNumber?: string;
   creditLimit?: number; // بأصغر وحدة من العملة الأساسية
   priceTier?: PriceTier;
   /** حسم خاص لهالزبون من سعر النشرة % (كهربائيات). */

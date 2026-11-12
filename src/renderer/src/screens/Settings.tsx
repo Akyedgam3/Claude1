@@ -59,7 +59,7 @@ export function Settings({ tab: initial }: { tab?: string }) {
 function CompanyTab() {
   const { state, call, notify, profile } = useCompany();
   const c = state.info!;
-  const [f, setF] = useState({ name: c.name, phone: c.phone ?? '', address: c.address ?? '', taxNumber: c.taxNumber ?? '' });
+  const [f, setF] = useState({ name: c.name, phone: c.phone ?? '', address: c.address ?? '', taxNumber: c.taxNumber ?? '', vatNumber: c.vatNumber ?? '' });
   return (
     <section className="card">
       <p className="muted">
@@ -81,7 +81,10 @@ function CompanyTab() {
         <Field label="العنوان">
           <input value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} />
         </Field>
-        <Field label="الرقم الضريبي / السجل التجاري">
+        <Field label="الرقم الضريبي">
+          <input value={f.vatNumber} onChange={(e) => setF({ ...f, vatNumber: e.target.value })} dir="ltr" placeholder="بينطبع على الفواتير" />
+        </Field>
+        <Field label="السجل التجاري">
           <input value={f.taxNumber} onChange={(e) => setF({ ...f, taxNumber: e.target.value })} />
         </Field>
         <div className="form-actions wide">

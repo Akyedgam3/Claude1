@@ -23,7 +23,7 @@ export interface DocModel {
   title: string;
   number: number | string;
   meta: { label: string; value: ReactNode }[]; // التاريخ، صالح حتى، المندوب...
-  party?: { label: string; name: string; phone?: string; address?: string };
+  party?: { label: string; name: string; phone?: string; address?: string; vatNumber?: string };
   refs?: ReactNode[]; // سيارة، طلب، طاولة...
   lines: DocLine[];
   totals: { label: string; value: string; muted?: boolean }[];
@@ -107,6 +107,7 @@ export function CommercialDoc({ model, className, preview }: { model: DocModel; 
             <div className="doc-contact">
               {c.address && <span>{c.address}</span>}
               {c.phone && <span className="ltr">{c.phone}</span>}
+              {c.vatNumber && <span>الرقم الضريبي: <span className="ltr">{c.vatNumber}</span></span>}
               {c.taxNumber && <span>السجل: {c.taxNumber}</span>}
             </div>
           </div>
@@ -126,6 +127,7 @@ export function CommercialDoc({ model, className, preview }: { model: DocModel; 
             <strong>{model.party.name}</strong>
             {model.party.phone && <span className="ltr">{model.party.phone}</span>}
             {model.party.address && <span>{model.party.address}</span>}
+            {model.party.vatNumber && <span>الرقم الضريبي: <span className="ltr">{model.party.vatNumber}</span></span>}
           </div>
         )}
         {model.meta.map((m, i) => (
