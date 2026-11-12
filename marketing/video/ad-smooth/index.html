@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+@font-face { font-family: Alexandria; src: url(fonts/alexandria-arabic-wght-normal.woff2); font-weight: 100 900; unicode-range: U+0600-06FF, U+0750-077F, U+FB50-FDFF, U+FE70-FEFF, U+200C-200F; }
+@font-face { font-family: Alexandria; src: url(fonts/alexandria-latin-wght-normal.woff2); font-weight: 100 900; }
+html, body { margin: 0; background: #000; }
+#stage { position: relative; width: 1080px; height: 1920px; overflow: hidden; background: #eef4ef; font-family: Alexandria, sans-serif; }
+#bg, #world, #hud, #wipe, #wipeFg, #grain, #fade { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; }
+#bg { background: linear-gradient(158deg, #fbfdfb 0%, #eef5f0 52%, #e2f0e9 100%); overflow: hidden; }
+.orb { position: absolute; border-radius: 50%; }
+#world { transform-origin: 540px 960px; }
+.w { position: absolute; left: 0; top: 0; transform-origin: 50% 50%; }
+#wipe { background: radial-gradient(120% 90% at 30% 18%, #1fb393 0%, #12806a 42%, #0b5b4b 100%); overflow: hidden; }
+#wipe .glow { position: absolute; border-radius: 50%; }
+#grain { opacity: .055; mix-blend-mode: multiply; pointer-events: none; }
+#fade { background: #f4f8f5; opacity: 0; }
+
+/* نص كبير بالعالم */
+.big { direction: rtl; white-space: nowrap; font-weight: 900; color: #0b2a24; line-height: 1.2; text-align: center; letter-spacing: -0.01em; }
+.big .ln { display: block; }
+.wd { display: inline-block; will-change: transform; }
+.hl { position: relative; padding: 0 .2em; }
+.hl i { position: absolute; left: 0; right: 0; top: .1em; bottom: .04em; border-radius: .26em; background: linear-gradient(135deg, #17a587, #0f7a65); transform-origin: 100% 50%; box-shadow: 0 .12em .3em -.08em rgba(15, 110, 92, .55); }
+.hl b { position: relative; font-weight: inherit; }
+.strike { position: absolute; left: -4%; width: 108%; top: 50%; height: 0; }
+.strike svg { position: absolute; left: 0; top: -40px; width: 100%; height: 80px; overflow: visible; }
+
+/* كابشن ثابت عالشاشة */
+.cap { position: absolute; left: 0; width: 1080px; text-align: center; direction: rtl; font-weight: 800; color: #0b2a24; line-height: 1.25; letter-spacing: -0.01em; }
+.cap .ln { display: block; white-space: nowrap; }
+.cap .sm { font-weight: 700; color: #14957c; margin-bottom: 4px; }
+
+/* الجوال */
+.phone .edge { position: absolute; inset: 0; border-radius: 54px; background: #050807; }
+.phone .body { position: absolute; inset: 0; border-radius: 54px; background: linear-gradient(145deg, #313c38 0%, #0c1210 38%, #161d1a 70%, #2a3430 100%); box-shadow: inset 0 0 0 1.4px rgba(255, 255, 255, .2), 0 70px 120px -34px rgba(6, 50, 40, .5), 0 26px 50px -20px rgba(6, 50, 40, .38); }
+.phone .screen { position: absolute; left: 9px; top: 9px; width: 390px; height: 844px; border-radius: 45px; overflow: hidden; background: #f1f4f2; }
+.phone .screen img.full { position: absolute; left: 0; top: 0; width: 390px; height: 844px; }
+.phone .gloss { position: absolute; inset: 0; background: linear-gradient(112deg, rgba(255, 255, 255, 0) 34%, rgba(255, 255, 255, .2) 48%, rgba(255, 255, 255, 0) 62%); background-size: 320% 100%; }
+.dot { position: absolute; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; background: rgba(8, 50, 40, .3); box-shadow: 0 0 0 3px rgba(255, 255, 255, .96), 0 6px 16px rgba(0, 0, 0, .28); }
+.ring { position: absolute; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; border: 3px solid rgba(23, 165, 135, .95); }
+
+/* قصاصات من الشاشات الحقيقية */
+.crop { overflow: hidden; background: #fff; }
+.crop img { position: absolute; max-width: none; }
+.sh { box-shadow: 0 54px 96px -30px rgba(6, 50, 40, .44), 0 20px 40px -16px rgba(6, 50, 40, .3); }
+.sh2 { box-shadow: 0 30px 60px -22px rgba(6, 50, 40, .4), 0 10px 22px -10px rgba(6, 50, 40, .26); }
+.chip { direction: ltr; font-weight: 800; color: #fff; background: linear-gradient(135deg, #f0524f, #d92d2a); border-radius: 999px; text-align: center; box-shadow: 0 14px 26px -10px rgba(217, 45, 42, .65); }
+.paperwrap { overflow: hidden; }
+.paper { position: absolute; background: linear-gradient(180deg, #ffffff 0%, #fbfaf6 100%); filter: drop-shadow(0 22px 30px rgba(6, 40, 30, .22)); }
+.paper img { position: absolute; }
+.badge { border-radius: 50%; background: linear-gradient(135deg, #f0524f, #d92d2a); color: #fff; font-weight: 900; text-align: center; box-shadow: 0 16px 30px -10px rgba(217, 45, 42, .7); }
+.pulse { border-radius: 50%; border: 5px solid rgba(240, 82, 79, .8); }
+.rowhl { position: absolute; background: rgba(240, 82, 79, .13); border-radius: 10px; }
+.bokeh { border-radius: 50%; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bg"></div>
+  <div id="world"></div>
+  <div id="wipe"></div>
+  <div id="wipeFg"></div>
+  <div id="hud"></div>
+  <canvas id="grain" width="540" height="960" style="width:1080px;height:1920px"></canvas>
+  <div id="fade"></div>
+</div>
+<script src="data.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
