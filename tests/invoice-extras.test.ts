@@ -72,10 +72,10 @@ describe('previous balance on the invoice', () => {
     const l = shop();
     l.postInvoice({ kind: 'sale', date: '2026-03-02', partyId: 'cus', lines: [{ itemId: 'rice', qty: 2, price: 15_000 }], paid: 0 });
     const second = l.postInvoice({ kind: 'sale', date: '2026-03-03', partyId: 'cus', lines: [{ itemId: 'rice', qty: 1, price: 15_000 }], paid: 10_000 });
-    expect(invoicePartyBalance(l.state, second)).toEqual({ previous: 30_000, after: 35_000 });
+    expect(invoicePartyBalance(l.state, second)).toEqual({ previous: 30_000, after: 35_000, extraPaid: 0 });
     // دفعة بعدين ما بتغيّر شي عالفاتورة القديمة
     l.postVoucher({ kind: 'receipt', date: '2026-03-04', partyId: 'cus', amount: 25_000, memo: 'دفعة' });
-    expect(invoicePartyBalance(l.state, second)).toEqual({ previous: 30_000, after: 35_000 });
+    expect(invoicePartyBalance(l.state, second)).toEqual({ previous: 30_000, after: 35_000, extraPaid: 0 });
   });
 });
 
@@ -124,6 +124,7 @@ describe('overpaying an invoice', () => {
     const b = invoicePartyBalance(l.state, inv)!;
     expect(-b.previous).toBe(50_000);
     expect(-b.after).toBe(30_000);
+    expect(b.extraPaid).toBe(20_000); // دفع 30,000 مع فاتورة 10,000: المدفوع اللي بيبين عالفاتورة 30,000
     expect(-partyBalance(l.state, 'sup').base).toBe(30_000);
   });
 });

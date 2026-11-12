@@ -321,7 +321,7 @@ function MobileInvoiceView({ inv }: { inv: Invoice }) {
         </div>
         <div>
           <span>{moneyIn ? 'المقبوض' : 'المدفوع'}</span>
-          <b className="ltr">{m(inv.paid)}</b>
+          <b className="ltr">{m(inv.paid + (invoicePartyBalance(state, inv)?.extraPaid ?? 0))}</b>
         </div>
         {remaining > 0 && (
           <div className="rest">
@@ -503,7 +503,8 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
     grand: { label: 'الإجمالي', value: m(inv.total) },
     after: [
       ...(account?.before ?? []),
-      { label: moneyIn ? 'المقبوض' : 'المدفوع', value: m(inv.paid) },
+      // المدفوع كله مع الفاتورة: إذا دفع أكتر من قيمتها، الزيادة نزلت من حسابه القديم وبتبيّن هون
+      { label: moneyIn ? 'المقبوض' : 'المدفوع', value: m(inv.paid + (invoicePartyBalance(state, inv)?.extraPaid ?? 0)) },
       ...(account ? account.after : remaining > 0 ? [{ label: 'الباقي', value: m(remaining) }] : []),
       ...(inv.currency !== company.baseCurrency ? [{ label: 'سعر الصرف', value: rateLine(state, inv.currency, inv.rate) }] : []),
       ...(showUsd ? [{ label: 'المقابل بالدولار', value: money(state, Math.round(((inv.total * inv.rate) / usdRate) * 10 ** (2 - decimals)), 'USD') }] : []),

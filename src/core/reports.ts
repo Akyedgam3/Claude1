@@ -547,10 +547,11 @@ export function invoiceProfit(state: CompanyState, inv: Invoice): { revenue: num
  * حساب الشخص حول الفاتورة (بعملتها): الرصيد قبلها، وبعدها.
  * موجب = لنا عليه (زبون مديون)، سالب = إله علينا. «قبلها» = كل الحركات اللي انسجّلت قبل قيد الفاتورة.
  */
-export function invoicePartyBalance(state: CompanyState, inv: Invoice): { previous: number; after: number } | null {
+export function invoicePartyBalance(state: CompanyState, inv: Invoice): { previous: number; after: number; extraPaid: number } | null {
   if (!inv.partyId) return null;
   let previous = 0;
   let own = 0;
+  let extraPaid = 0;
   const entries = state.entries;
   for (let i = 0; i < entries.length; i++) {
     const e = entries[i]!;
@@ -562,9 +563,13 @@ export function invoicePartyBalance(state: CompanyState, inv: Invoice): { previo
       for (let j = i + 1; j < Math.min(entries.length, i + 4); j++) {
         const x = entries[j]!;
         if (!x.memo.endsWith(`: ${memo}`) || x.voidOf || state.voided[x.id]) continue;
-        for (const l of x.lines) if (l.partyId === inv.partyId && l.currency === inv.currency) own += l.debit - l.credit;
+        for (const l of x.lines)
+          if (l.partyId === inv.partyId && l.currency === inv.currency) {
+            own += l.debit - l.credit;
+            extraPaid += Math.abs(l.debit - l.credit);
+          }
       }
-      return { previous, after: previous + own };
+      return { previous, after: previous + own, extraPaid };
     }
   }
   return null;
