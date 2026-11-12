@@ -6,7 +6,7 @@
   const world = document.getElementById('world'), hud = document.getElementById('hud'), bg = document.getElementById('bg');
   const wipe = document.getElementById('wipe'), wipeFg = document.getElementById('wipeFg'), fadeEl = document.getElementById('fade');
   const BOX = window.BOX, SZ = window.IMGSZ;
-  window.DURATION = 15.4;
+  window.DURATION = 68.8;
 
   // ───────── أدوات ─────────
   const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
@@ -147,7 +147,7 @@
 
   // ───────── بناء المشاهد ─────────
   const S = {};
-  const X = { wipeR: 0, iconS: 0, paper: 0 }; // حركات مش تابعة للعناصر (للـ motion blur)
+  const X = { wipeR: 0, iconS: 0, paper: 0, wipeR2: 0 }; // حركات مش تابعة للعناصر (للـ motion blur)
   function build() {
     // محطة السؤال (بعيدة عاليمين حتى ما تتداخل مع الباقي)
     const HX = 3000;
@@ -251,8 +251,24 @@
       caption(256, 92, 7.08, 9.38, [{ sm: true, size: 62, w: [['بتبيع؟', 7.1]] }, { w: [['الفاتورة', 7.98], ['بتطلع', 8.54], ['بكبستين', 8.86, { hl: 1 }]] }]),
       caption(300, 100, 9.64, 11.1, [{ w: [['وبتنطبع', 9.66], ['فوراً', 10.46, { hl: 1 }]] }]),
       caption(300, 96, 11.38, 12.64, [{ w: [['المخزون', 11.4], ['بينقص', 11.88], ['لحالو', 12.28, { hl: 1 }]] }]),
-      caption(262, 92, 12.9, 15.5, [{ w: [['وبينبّهك', 12.92, { hl: 1 }]] }, { w: [['قبل', 13.56], ['ما', 13.78], ['تخلص', 13.94], ['المادة', 14.28]] }]),
+      caption(262, 92, 12.9, 14.96, [{ w: [['وبينبّهك', 12.92, { hl: 1 }]] }, { w: [['قبل', 13.56], ['ما', 13.78], ['تخلص', 13.94], ['المادة', 14.28]] }]),
+      caption(256, 92, 15.22, 17.54, [{ sm: true, size: 62, w: [['الديون؟', 15.24]] }, { w: [['كل', 16.08], ['زبون', 16.44], ['حسابه', 16.8], ['قدّامك', 17.2, { hl: 1 }]] }]),
+      caption(300, 96, 17.78, 19.28, [{ w: [['مين', 17.8], ['دفع', 18.02], ['ومين', 18.42], ['لسّا', 18.76, { hl: 1 }]] }]),
+      caption(256, 88, 19.52, 21.96, [{ sm: true, size: 62, w: [['والصندوق؟', 19.54]] }, { w: [['بتعرف', 20.34], ['شو', 20.94], ['فات', 21.12], ['وشو', 21.54], ['طلع', 21.7]] }]),
+      caption(300, 104, 22.2, 23.72, [{ w: [['ليرة', 22.22], ['بليرة', 22.98, { hl: 1 }]] }]),
+      caption(300, 100, 23.96, 25.1, [{ w: [['وآخر', 23.98], ['النهار…', 24.6]] }]),
+      caption(256, 88, 25.34, 27.6, [{ sm: true, size: 66, w: [['كبسة', 25.36], ['وحدة', 25.9]] }, { w: [['بتقلّك', 26.16], ['قدّيش', 26.6], ['ربحت', 26.94, { hl: 1 }], ['اليوم', 27.26]] }]),
+      caption(300, 92, 27.84, 29.1, [{ w: [['وأي', 27.86], ['مادة', 28.22], ['عم', 28.52], ['تربّحك', 28.64, { hl: 1 }]] }]),
+      caption(300, 92, 29.34, 30.8, [{ w: [['وأي', 29.36], ['وحدة', 29.72], ['عم', 30.04], ['تخسّرك', 30.14, { hl: 1 }]] }]),
+      caption(256, 96, 37.3, 39.0, [{ sm: true, size: 66, w: [['مع', 37.32], ['خدمة', 37.6]] }, { w: [['الاتصال', 37.98], ['عن', 38.44], ['بعد', 38.6, { hl: 1 }]] }]),
+      caption(300, 100, 39.24, 40.58, [{ w: [['بتفتح', 39.26], ['جوالك', 39.94]] }]),
+      caption(300, 100, 40.82, 41.86, [{ w: [['وإنت', 40.84], ['بالبيت', 41.26, { hl: 1 }]] }]),
+      caption(256, 88, 42.1, 45.02, [{ w: [['وبتشوف', 42.12], ['مبيعات', 42.66], ['محلّك', 43.16]] }, { w: [['لحظة', 43.66], ['بلحظة', 44.36, { hl: 1 }]] }]),
+      caption(300, 100, 45.26, 46.36, [{ w: [['بتعمل', 45.28], ['فاتورة', 45.7, { hl: 1 }]] }]),
+      caption(300, 100, 46.6, 47.68, [{ w: [['بتراقب', 46.62], ['الصندوق', 47.1, { hl: 1 }]] }]),
+      caption(256, 92, 47.92, 50.5, [{ w: [['وبتتابع', 47.94], ['موظفينك', 48.58]] }, { w: [['من', 49.6], ['أي', 49.88], ['مكان', 50.24, { hl: 1 }]] }]),
     ];
+    build2();
   }
 
   // ───────── الكاميرا ─────────
@@ -261,8 +277,16 @@
     { t0: 6.0, t1: 6.0, to: { x: 0, y: 0 } },
     { t0: 11.1, t1: 12.02, to: { x: -1250, y: 0 }, bump: 190, ty: 7 },
     { t0: 12.6, t1: 13.44, to: { x: -2500, y: 0 }, bump: 190, ty: 7 },
+    { t0: 15.0, t1: 15.84, to: { x: -3750, y: 0 }, bump: 190, ty: 7 },
+    { t0: 19.3, t1: 20.14, to: { x: -5000, y: 0 }, bump: 190, ty: 7 },
+    { t0: 23.74, t1: 24.58, to: { x: -6250, y: 0 }, bump: 190, ty: 7 },
+    { t0: 27.56, t1: 28.38, to: { x: -7500, y: 0 }, bump: 190, ty: 7 },
+    { t0: 30.82, t1: 31.64, to: { x: -8750, y: 0 }, bump: 190, ty: 7 },
+    { t0: 33.5, t1: 34.3, to: { x: -10000, y: 0 }, bump: 190, ty: 7 },
+    { t0: 36.96, t1: 37.8, to: { x: -11250, y: 0 }, bump: 190, ty: 7 },
+    { t0: 50.56, t1: 51.4, to: { x: -12500, y: 0 }, bump: 190, ty: 7 },
   ];
-  const zDrift = track([[0, -1480], [2.48, -1390], [3.3, -1420], [5.3, -1350], [6.0, -1350], [6.01, -1440], [7.4, -1400, eo3], [11.1, -1356], [12.02, -1400], [12.6, -1385], [13.44, -1405], [15.5, -1345]]);
+  const zDrift = track([[0, -1480], [2.48, -1390], [3.3, -1420], [5.3, -1350], [6.0, -1350], [6.01, -1440], [7.4, -1400, eo3], [11.1, -1356], [12.02, -1400], [12.6, -1385], [13.44, -1405], [15.0, -1350]].concat(MOVES.slice(4).flatMap((m, i, a) => [[m.t1, -1405], [a[i + 1] ? a[i + 1].t0 : 70, -1345]])));
   function camera(t) {
     let pos = { x: 3000, y: -1900 }, bump = 0, ty = 0, tx = 0;
     for (const m of MOVES) {
@@ -297,6 +321,7 @@
   }
   const P = (bx, by) => ({ x: S.phone.x + (bx - 195) * S.phone.k, y: S.phone.y + (by - 422) * S.phone.k });
   function sale(t) {
+    if (t > 30) return;
     const ph = S.phone; ph.vis = t > 6.7 && t < 11.3;
     const inn = eo4(seg(t, 6.8, 7.5)), drop = ei3(seg(t, 8.98, 9.62));
     ph.k = 1.72 * lerp(0.84, 1, inn); ph.op = seg(t, 6.82, 7.06); ph.y = 300 + drop * 2100; ph.blur = drop * 8;
@@ -355,12 +380,159 @@
     S.pulses.forEach((pn, i) => { const pt = ((t - ba - i * 0.42) % 1.26 + 1.26) % 1.26, pp = pt / 1.26; pn.vis = t > ba + 0.1 + i * 0.42; pn.x = b.x; pn.y = b.y; pn.k = 1 + eo3(pp) * 1.5; pn.op = (1 - pp) * 0.75; });
   }
   function depth(t) {
+    for (const n of S.props2 || []) { n.x = n.base.x + Math.sin(t * 0.21 + n.ph) * 40; n.y = n.base.y + Math.cos(t * 0.17 + n.ph) * 46; n.op = 0.5; }
     for (const n of S.props) { n.x = n.base.x + Math.sin(t * 0.21 + n.ph) * 40; n.y = n.base.y + Math.cos(t * 0.17 + n.ph) * 46; n.op = n.opBase; }
     for (const n of S.bokeh) { n.x = n.base.x + Math.sin(t * 0.3 + n.ph) * 30; n.y = n.base.y + Math.cos(t * 0.26 + n.ph) * 34; n.op = 0.9; }
   }
 
+
+  // ═════════ الجزء التاني (15.2 → 68.8) ═════════
+  const st = document.createElement('style');
+  st.textContent = `.tagp{direction:rtl;font-weight:800;color:#fff;border-radius:999px;text-align:center;white-space:nowrap}
+  .tagg{background:linear-gradient(135deg,#17a587,#0f7a65);box-shadow:0 14px 26px -10px rgba(15,110,92,.6)}
+  .tagr{background:linear-gradient(135deg,#f0524f,#d92d2a);box-shadow:0 14px 26px -10px rgba(217,45,42,.6)}
+  .ck{direction:rtl;white-space:nowrap;font-weight:800;color:#0b2a24;display:flex;align-items:center;gap:26px;justify-content:center}
+  .ck i{display:inline-block;width:86px;height:86px;border-radius:50%;background:linear-gradient(135deg,#17a587,#0f7a65);position:relative;box-shadow:0 14px 26px -10px rgba(15,110,92,.6)}
+  .ck svg{position:absolute;inset:0}
+  .lay{position:absolute;left:0;top:0;width:1080px;height:1920px}
+  .wt{position:absolute;left:0;width:1080px;text-align:center;direction:rtl;color:#fff;font-weight:900;white-space:nowrap;letter-spacing:-0.01em}
+  .wpill{display:inline-block;background:#fff;color:#0f6e5c;border-radius:999px;padding:.18em .7em;box-shadow:0 24px 44px -16px rgba(0,30,22,.5)}`;
+  document.head.appendChild(st);
+  function hero(name, box, x, y, k, o = {}) { const el = cropEl(name, box, { cls: 'sh', offY: o.offY ?? 66 }); const n = new Node(el, box.w, box.h, { x, y, z: o.z || 0, k, rot: o.rot || 0 }); n.k0 = k; n.y0 = y; n.r0 = o.rot || 0; n.vis = false; return n; }
+  function popIn(n, t, a, o = {}) {
+    n.vis = t > a - 0.05; if (!n.vis) return;
+    const e = spring(t - a, 6.5, 8.5); n.k = n.k0 * lerp(0.84, 1, e); n.op = seg(t, a, a + 0.18); n.y = n.y0 + (1 - eo4(seg(t, a, a + 0.6))) * (o.rise ?? 120);
+    n.ry = (o.ry ?? -6) * (1 - eo3(seg(t, a, a + 0.9))) + Math.sin(t * 0.8 + (o.ph || 0)) * 1.2; n.rx = Math.sin(t * 0.6 + (o.ph || 0)) * 0.8; n.rot = n.r0;
+  }
+  function tag(text, cls, x, y, size = 50) {
+    const el = document.createElement('div'); el.className = 'tagp ' + cls + ' w'; el.textContent = text; el.style.fontSize = size + 'px'; el.style.lineHeight = size * 1.75 + 'px'; el.style.padding = `0 ${size * 0.6}px`;
+    world.appendChild(el); const w = el.offsetWidth + 2, h = el.offsetHeight; el.style.padding = '0';
+    const n = new Node(el, w, h, { x, y, z: -30 }); n.zi = 6; n.vis = false; n.y0 = y; return n;
+  }
+  function tagIn(n, t, a) { n.vis = t > a; if (!n.vis) return; n.k = spring(t - a, 6.5, 11); n.rot = Math.sin((t - a) * 8) * 5 * Math.exp(-(t - a) * 2.4) - 3; n.y = n.y0 + Math.sin(t * 1.1) * 3; }
+  function ringNode(x, y) { const d = document.createElement('div'); d.className = 'pulse'; d.style.borderColor = 'rgba(23,165,135,.85)'; const n = new Node(d, 120, 120, { x, y, z: -32 }); n.vis = false; return n; }
+  function build2() {
+    const B = BOX;
+    // الديون
+    const DX = -3750;
+    S.dStat = hero('debts-tall', B.debts.stat[0], DX, -205, 2.5);
+    S.dRow = [hero('debts-tall', B.debts.row[0], DX + 105, 255, 1.46, { rot: 3 }), hero('debts-tall', B.debts.row[1], DX - 105, 345, 1.46, { rot: -3.5, z: -10 })];
+    S.dTag = [tag('دفع ✓', 'tagg', DX + 270, 20), tag('لسّا', 'tagr', DX - 300, 110)];
+    // الصندوق
+    const CX = -5000;
+    S.cCard = hero('cash-tall', B.cash.card[0], CX, -150, 2.35);
+    S.cIn = hero('cash-tall', B.cash.stat[1], CX + 222, 150, 2.3); S.cOut = hero('cash-tall', B.cash.stat[2], CX - 222, 150, 2.3);
+    S.cRow = [hero('cash-tall', B.cash.row[1], CX + 70, 470, 1.6, { rot: 2 }), hero('cash-tall', B.cash.row[2], CX - 70, 640, 1.6, { rot: -2.5, z: -10 })];
+    // الربح
+    const PX = -6250;
+    S.pNet = hero('home2-tall', B.home2.dpnet[0], PX, -70, 2.6); S.pKv = hero('home2-tall', { ...B.home2.dpkv[0], r: 16 }, PX, 410, 2.3);
+    S.pRing = ringNode(PX, -70);
+    const QX = -7500;
+    S.wRow = hero('watch-tall', B.watch.row[0], QX, -40, 1.78); S.wLose = hero('watch-tall', B.watch.stat[3], QX, 470, 2.6);
+    S.wTag = [tag('عم تربّحك', 'tagg', QX - 180, -265), tag('ولا وحدة ✓', 'tagg', QX - 150, 330)];
+    // بدون إنترنت
+    const OX = -8750;
+    S.o1 = bigText([[['وكل', 31.06], ['هاد…', 31.5]]], 110, { x: OX, y: -330, weight: 800 });
+    S.o2 = bigText([[['بدون', 32.0], ['إنترنت', 32.48, { hl: 1 }]]], 180, { x: OX, y: -100 });
+    const wf = document.createElement('div');
+    wf.innerHTML = `<svg viewBox="0 0 300 300" width="300" height="300" fill="none" stroke="#0b2a24" stroke-width="22" stroke-linecap="round"><path d="M40,120 A150,150 0 0 1 260,120"/><path d="M82,168 A92,92 0 0 1 218,168"/><circle cx="150" cy="222" r="14" fill="#0b2a24" stroke="none"/><path class="sl" d="M52,262 L248,40" stroke="#ef4f4c" stroke-width="24"/></svg>`;
+    S.wifi = new Node(wf, 300, 300, { x: OX, y: 260 }); S.wifi.sl = wf.querySelector('.sl'); S.wifi.len = S.wifi.sl.getTotalLength(); S.wifi.sl.setAttribute('stroke-dasharray', S.wifi.len + ' ' + S.wifi.len);
+    // السؤال
+    const RX0 = -10000;
+    S.q1 = bigText([[['طيب', 33.76], ['وإذا', 34.26], ['إنت', 34.48]]], 120, { x: RX0, y: -250, weight: 800 });
+    S.q2 = bigText([[['مش', 34.68], ['بالمحل؟', 34.82]]], 180, { x: RX0, y: -20 });
+    S.q3 = bigText([[['هون', 35.9], ['الحلو', 36.4, { hl: 1 }]]], 150, { x: RX0, y: 290 });
+    // عن بعد
+    const RX = -11250; S.RX = RX;
+    S.pillA = tag('المحل', 'tagg', RX + 280, 30, 70); S.pillB = tag('البيت', 'tagg', RX - 280, 30, 70);
+    const ln = document.createElement('div'); ln.innerHTML = `<svg viewBox="0 0 420 200" width="420" height="200" fill="none"><path d="M410,150 C 320,10 100,10 10,150" stroke="#14957c" stroke-width="9" stroke-linecap="round" stroke-dasharray="4 22"/></svg>`;
+    S.link = new Node(ln, 420, 200, { x: RX, y: -70 }); S.link.el.style.overflow = 'hidden';
+    const scr = S.tint.parentNode; S.rs = {};
+    for (const n of ['home2', 'pos2', 'cash', 'invoices']) { const im = img(n); im.className = 'full'; im.style.opacity = 0; scr.insertBefore(im, S.tint); S.rs[n] = im; }
+    S.rStat = hero('home2-tall', B.home2.stat[0], RX, 120, 3.3, { z: -40 });
+    S.live = tag('● مباشر', 'tagr', RX - 190, -95, 44);
+    // التنصيب
+    const SX = -12500;
+    S.s1 = bigText([[['والتنصيب', 50.86], ['والشرح؟', 51.72]]], 112, { x: SX, y: -330, weight: 800 });
+    S.s2 = bigText([[['علينا', 52.64, { hl: 1 }]]], 230, { x: SX, y: -90 });
+    S.cks = [['منركّبلك ياه', 53.5], ['منعلّمك عليه', 54.6], ['ومنضل معك', 55.8]].map(([tx, at], i) => {
+      const el = document.createElement('div'); el.className = 'ck w'; el.style.fontSize = '80px';
+      el.innerHTML = `<i><svg viewBox="0 0 86 86"><path d="M25,45 L38,58 L62,31" stroke="#fff" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="60 60" stroke-dashoffset="60"/></svg></i><span>${tx}</span>`;
+      world.appendChild(el); const n = new Node(el, el.offsetWidth + 4, el.offsetHeight + 4, { x: SX, y: 190 + i * 150 }); n.at = at; n.path = el.querySelector('path'); n.y0 = n.y; return n;
+    });
+    // عمق إضافي للمحطات الجديدة
+    const rr = rng(77); const pr = [['home2-tall', B.home2.stat[0]], ['home2-tall', B.home2.stat[1]], ['cash-tall', B.cash.card[0]], ['debts-tall', B.debts.stat[0]], ['watch-tall', B.watch.stat[2]], ['home2-tall', B.home2.dpnet[0]]];
+    S.props2 = [];
+    for (let i = 0; i < 26; i++) { const [nm, b] = pr[i % pr.length]; const el = cropEl(nm, b, { cls: 'sh2', offY: 66 }); const n = new Node(el, b.w, b.h, { x: -3900 - i * 400 + (rr() - 0.5) * 240, y: (i % 2 ? 1 : -1) * (760 + rr() * 320), z: 1500 + rr() * 1100, k: 4.2 + rr() * 1.6, rot: (rr() - 0.5) * 14, dof: true }); n.base = { x: n.x, y: n.y }; n.ph = rr() * 6.28; S.props2.push(n); }
+    // العرض والخاتمة (فوق أخضر)
+    const stage = document.getElementById('stage');
+    S.w2 = document.createElement('div'); S.w2.className = 'lay'; S.w2.style.cssText += ';background:radial-gradient(120% 90% at 30% 18%, #1fb393 0%, #12806a 42%, #0b5b4b 100%);display:none';
+    S.f2 = document.createElement('div'); S.f2.className = 'lay'; S.f2.style.display = 'none';
+    stage.insertBefore(S.w2, hud); stage.insertBefore(S.f2, hud);
+    const wt = (y, size, html, extra = '') => { const d = document.createElement('div'); d.className = 'wt'; d.style.cssText += `;top:${y}px;font-size:${size}px;${extra}`; d.innerHTML = html; S.f2.appendChild(d); return d; };
+    S.of1 = caption(455, 88, 57.18, 61.9, [{ w: [['وهلّق', 57.2], ['في', 57.9], ['عرض', 58.06]] }], { parent: S.f2, color: '#fff', dark: true });
+    S.of2 = wt(610, 130, 'خصم');
+    S.of3 = wt(770, 450, '<span style="direction:ltr;display:inline-block"><span id="pctn">0</span>%</span>', 'line-height:1.1;color:#eafff7;text-shadow:0 40px 70px rgba(0,40,30,.35)');
+    S.pctn = S.of3.querySelector('#pctn');
+    S.of4 = wt(1330, 76, '<span class="wpill">لفترة محدودة</span>', 'font-weight:800');
+    S.eIcon = img('icon'); S.eIcon.style.cssText = 'position:absolute;left:540px;top:640px;width:330px;height:330px;margin:-165px 0 0 -165px;filter:drop-shadow(0 40px 60px rgba(0,40,30,.45))'; S.f2.appendChild(S.eIcon);
+    S.e1 = caption(880, 92, 63.14, 99, [{ w: [['محلّك', 63.16], ['كله', 63.92], ['بجيبتك', 64.22]] }], { parent: S.f2, color: '#fff', dark: true });
+    S.e2 = wt(1075, 84, '<span class="wpill" style="direction:ltr">waznsy.com</span>', 'font-weight:800');
+    S.e3 = wt(1290, 54, 'واتساب', 'font-weight:700;color:#c9f5e8');
+    S.e4 = wt(1370, 66, '<span style="direction:ltr;display:inline-block">0968 037 609 &nbsp;·&nbsp; 0980 072 891</span>', 'font-weight:800');
+  }
+  const fadeUp = (el, t, a, d = 0.5, dy = 60) => { const e = eo4(seg(t, a, a + d)); el.style.opacity = e.toFixed(3); el.style.transform = `translateY(${((1 - e) * dy).toFixed(1)}px) scale(${lerp(0.94, 1, e).toFixed(4)})`; el.style.filter = e < 1 && e > 0 ? `blur(${((1 - e) * 10).toFixed(1)}px)` : 'none'; return e; };
+  function part2(t) {
+    if (t < 14.5) { for (const n of [S.dStat, ...S.dRow, ...S.dTag, S.cCard, S.cIn, S.cOut, ...S.cRow, S.pNet, S.pKv, S.pRing, S.wRow, S.wLose, ...S.wTag, S.o1, S.o2, S.wifi, S.q1, S.q2, S.q3, S.pillA, S.pillB, S.link, S.rStat, S.live, S.s1, S.s2, ...S.cks]) n.vis = false; S.w2.style.display = 'none'; S.f2.style.display = 'none'; X.wipeR2 = 0; return; }
+    // الديون
+    popIn(S.dStat, t, 15.5); popIn(S.dRow[0], t, 16.1, { ry: 6, ph: 1 }); popIn(S.dRow[1], t, 16.5, { ry: -6, ph: 2 });
+    tagIn(S.dTag[0], t, 18.02); tagIn(S.dTag[1], t, 18.76);
+    // الصندوق
+    popIn(S.cCard, t, 19.86); popIn(S.cIn, t, 20.94, { ry: 5, ph: 1 }); popIn(S.cOut, t, 21.56, { ry: -5, ph: 2 }); popIn(S.cRow[0], t, 22.22, { ph: 3 }); popIn(S.cRow[1], t, 22.86, { ph: 4 });
+    // الربح
+    popIn(S.pNet, t, 24.5); S.pNet.k *= 1 + Math.sin(Math.PI * seg(t, 25.38, 25.8)) * 0.06; popIn(S.pKv, t, 26.5, { ph: 2 });
+    const rp = seg(t, 25.36, 26.0); S.pRing.vis = rp > 0 && rp < 1; S.pRing.k = 1 + eo3(rp) * 3.2; S.pRing.op = (1 - rp) * 0.8;
+    popIn(S.wRow, t, 28.22); tagIn(S.wTag[0], t, 28.7); popIn(S.wLose, t, 29.5, { ph: 2 }); tagIn(S.wTag[1], t, 30.2);
+    // بدون إنترنت
+    for (const n of [S.o1, S.o2]) { n.vis = t > 30.5 && t < 36; if (n.vis) animWords(n.spans, t); }
+    S.wifi.vis = t > 31.9 && t < 36; S.wifi.k = spring(t - 31.95, 6.5, 9); S.wifi.sl.setAttribute('stroke-dashoffset', ((1 - eo3(seg(t, 32.45, 32.8))) * S.wifi.len).toFixed(1));
+    // السؤال
+    for (const n of [S.q1, S.q2, S.q3]) { n.vis = t > 33 && t < 39.5; if (n.vis) animWords(n.spans, t); }
+    // عن بعد
+    const RX = S.RX; const po = 1 - smooth(39.0, 39.35, t);
+    S.pillA.vis = t > 37.9 && t < 39.4; S.pillB.vis = t > 38.5 && t < 39.4; S.pillA.k = spring(t - 37.92, 6.5, 10); S.pillB.k = spring(t - 38.56, 6.5, 10); S.pillA.op = po; S.pillB.op = po; S.pillA.rot = 0; S.pillB.rot = 0;
+    S.link.vis = t > 38.0 && t < 39.4; S.link.op = po; S.link.el.style.clipPath = `inset(0 0 0 ${((1 - eo3(seg(t, 38.05, 38.6))) * 100).toFixed(1)}%)`;
+    if (t > 30) {
+      const ph = S.phone; ph.vis = t > 39.1 && t < 51.6; const inn = eo4(seg(t, 39.2, 40.0));
+      ph.x = RX; ph.k = 1.72; ph.op = seg(t, 39.2, 39.4); ph.y = 300 + (1 - inn) * 1500; ph.blur = 0;
+      ph.ry = lerp(12, 0, eo4(seg(t, 39.2, 40.3))) + Math.sin(t * 0.8) * 1.6; ph.rx = Math.sin(t * 0.6) * 0.8;
+      S.edge.style.transform = `translate(${(ph.ry * 0.7).toFixed(2)}px, 2px)`; S.gloss.style.backgroundPosition = `${(50 + ph.ry * 9 + t * 3).toFixed(1)}% 0`;
+      S.tint.style.opacity = 0; S.dot.style.opacity = 0; S.ringT.style.opacity = 0;
+      const order = [['home2', 0], ['pos2', 45.26], ['cash', 46.6], ['invoices', 47.92]];
+      order.forEach(([n, a], i) => { const p = i ? eioS(seg(t, a, a + 0.42)) : 1; S.rs[n].style.opacity = i ? (p > 0 ? 1 : 0) : 1; S.rs[n].style.transform = `translateX(${((p - 1) * 100).toFixed(2)}%)`; });
+    } else for (const n of Object.values(S.rs)) n.style.opacity = 0;
+    // بطاقة «مبيعات اليوم» بتطلع من الجوال
+    const sb = BOX.home2.stat[0]; const from = { x: RX + (sb.x + sb.w / 2 - 195) * 1.72, y: 300 + (sb.y + 66 + sb.h / 2 - 422) * 1.72 };
+    const sp = eioS(seg(t, 42.5, 43.2)), back = eioS(seg(t, 44.8, 45.3)); const q = sp * (1 - back);
+    S.rStat.vis = t > 42.5 && t < 45.3; S.rStat.x = lerp(from.x, RX, q); S.rStat.y = lerp(from.y, 110, q); S.rStat.k = lerp(1.72, 3.3, q); S.rStat.ry = Math.sin(Math.PI * sp) * -8 + Math.sin(t * 0.8) * 1.2; S.rStat.rx = Math.sin(t * 0.6); S.rStat.op = 1;
+    S.live.vis = t > 43.5 && t < 44.8; S.live.k = spring(t - 43.52, 6.5, 11); S.live.op = 0.65 + 0.35 * Math.sin(t * 9); S.live.rot = -3;
+    // التنصيب
+    for (const n of [S.s1, S.s2]) { n.vis = t > 50 && t < 58; if (n.vis) animWords(n.spans, t); }
+    for (const n of S.cks) { n.vis = t > n.at - 0.05 && t < 58; const e = eo4(seg(t, n.at, n.at + 0.5)); n.op = e; n.y = n.y0 + (1 - e) * 60; n.blur = (1 - e) * 8; n.path.setAttribute('stroke-dashoffset', ((1 - eo3(seg(t, n.at + 0.2, n.at + 0.55))) * 60).toFixed(1)); }
+    // العرض + الخاتمة
+    const on = t > 56.9; S.w2.style.display = on ? 'block' : 'none'; S.f2.style.display = on ? 'block' : 'none'; X.wipeR2 = 0; if (!on) return;
+    const R = 1320 * eo3(seg(t, 57.0, 57.56)); X.wipeR2 = R; S.w2.style.clipPath = `circle(${R.toFixed(1)}px at 540px 960px)`;
+    const out = smooth(61.86, 62.2, t), oo = (el) => { el.style.opacity = (parseFloat(el.style.opacity) * (1 - out)).toFixed(3); if (out > 0) el.style.transform += ` translateY(${(-out * 70).toFixed(1)}px)`; };
+    animCaption(S.of1, t);
+    fadeUp(S.of2, t, 58.5); oo(S.of2);
+    const pe = spring(t - 59.2, 5.5, 8.5); S.of3.style.opacity = seg(t, 59.2, 59.36).toFixed(3); S.of3.style.transform = `scale(${lerp(0.6, 1, pe).toFixed(4)})`; S.pctn.textContent = String(Math.round(25 * eo3(seg(t, 59.22, 60.0)))); oo(S.of3);
+    fadeUp(S.of4, t, 60.76); oo(S.of4);
+    const ik = spring(t - 62.2, 6.5, 9.5); S.eIcon.style.opacity = seg(t, 62.2, 62.32).toFixed(3); S.eIcon.style.transform = `scale(${ik.toFixed(4)}) rotate(${(Math.sin(t * 0.9) * 1.5).toFixed(2)}deg)`;
+    animCaption(S.e1, t); fadeUp(S.e2, t, 65.86); fadeUp(S.e3, t, 67.44); fadeUp(S.e4, t, 67.66);
+  }
+
   function state(t) {
-    camera(t); background(t); depth(t); hook(t); logo(t); sale(t); printing(t); stock(t); lowStock(t);
+    camera(t); background(t); depth(t); hook(t); logo(t); sale(t); printing(t); stock(t); lowStock(t); part2(t);
     for (const c of S.caps) animCaption(c, t);
   }
   window.render = (t) => {
@@ -383,7 +555,7 @@
   window.motion = (t, dt) => {
     state(t); const a = snap(); state(t + dt); const b = snap(); let mx = 0;
     for (const [n, p] of a.m) { const q = b.m.get(n); if (!q) continue; const d = Math.max(Math.abs(q[0] - p[0]), Math.abs(q[1] - p[1])) + Math.abs(q[2] - p[2]) * 0.5 + Math.abs(q[3] - p[3]) * p[2] * 0.009; if (d > mx) mx = d; }
-    mx = Math.max(mx, Math.abs(b.x.wipeR - a.x.wipeR) * 0.8, Math.abs(b.x.iconS - a.x.iconS) * 180, Math.abs(b.x.paper - a.x.paper) * 1.8);
+    mx = Math.max(mx, Math.abs(b.x.wipeR - a.x.wipeR) * 0.8, Math.abs(b.x.wipeR2 - a.x.wipeR2) * 0.8, Math.abs(b.x.iconS - a.x.iconS) * 180, Math.abs(b.x.paper - a.x.paper) * 1.8);
     return mx;
   };
 
