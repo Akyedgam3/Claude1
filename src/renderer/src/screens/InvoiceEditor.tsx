@@ -43,6 +43,7 @@ interface DraftData {
   payMode: 'cash' | 'credit' | 'partial';
   cashAccountId: string;
   salesman: string;
+  vatNumber?: string;
   marketerId?: string;
   notes: string;
 }
@@ -171,6 +172,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
   };
   const [cashAccountId, setCashAccountId] = useState(lockedBox ?? editing?.cashAccountId ?? d?.cashAccountId ?? user.cashAccountId ?? '');
   const [salesman, setSalesman] = useState(editing?.salesman ?? d?.salesman ?? '');
+  const [vatNumber, setVatNumber] = useState(editing?.vatNumber ?? d?.vatNumber ?? '');
   const [marketerId, setMarketerId] = useState(editing?.marketerId ?? d?.marketerId ?? '');
   const marketers = useMemo(() => Object.values(state.parties).filter((p) => p.marketerRate && !p.archived), [state.parties]);
   const [notes, setNotes] = useState(editing?.notes ?? d?.notes ?? '');
@@ -280,6 +282,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
   };
   const changeParty = (id: string | null) => {
     setPartyId(id);
+    setVatNumber(id ? (state.parties[id]?.vatNumber ?? '') : '');
     setPaidText(null);
     reprice(id ? (state.parties[id] ?? null) : null, currency, rateText);
   };
@@ -424,9 +427,9 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
   useEffect(() => {
     if (editing || savedRef.current) return;
     if (!used.length && !partyId && !notes.trim()) return invoiceDrafts.remove(company, draftId);
-    const data: DraftData = { partyId, date, currency, rateText, warehouseId, lines, discount, taxIds, paidText, payMode, cashAccountId, salesman, marketerId, notes };
+    const data: DraftData = { partyId, date, currency, rateText, warehouseId, lines, discount, taxIds, paidText, payMode, cashAccountId, salesman, vatNumber, marketerId, notes };
     invoiceDrafts.save(company, { id: draftId, kind, title: (partyId && state.parties[partyId]?.name) || (isSale ? 'زبون نقدي' : 'مورد نقدي'), count: used.length, updated: Date.now(), data });
-  }, [editing, company, draftId, kind, isSale, state.parties, used, partyId, date, currency, rateText, warehouseId, lines, discount, taxIds, paidText, payMode, cashAccountId, salesman, marketerId, notes]);
+  }, [editing, company, draftId, kind, isSale, state.parties, used, partyId, date, currency, rateText, warehouseId, lines, discount, taxIds, paidText, payMode, cashAccountId, salesman, vatNumber, marketerId, notes]);
   const preview = useMemo(() => {
     try {
       const amounts = used.map((l) => {
@@ -508,6 +511,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
         paid: extra > 0 ? preview.total : paid,
         cashAccountId: cashId,
         ...(salesman.trim() ? { salesman: salesman.trim() } : {}),
+        ...(vatNumber.trim() ? { vatNumber: vatNumber.trim() } : {}),
         ...(kind === 'sale' && marketerId && state.parties[marketerId]?.marketerRate ? { marketerId } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
       };
@@ -643,6 +647,9 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
             {marketerId && state.parties[marketerId]?.marketerRate && can('costs.view') && <small className="muted">عمولتو {state.parties[marketerId]!.marketerRate}% من ربح الفاتورة (البيع ناقص تكلفة البضاعة)، بتنحسب وبتنسجّل لما تحفظ</small>}
           </Field>
         )}
+        <Field label={isSale ? 'الرقم الضريبي للزبون' : 'الرقم الضريبي للمورد'}>
+          <input value={vatNumber} onChange={(e) => setVatNumber(e.target.value)} dir="ltr" placeholder="اختياري: بينطبع عالفاتورة" />
+        </Field>
         {feature('salesmen') && isSale && (
           <Field label="المندوب">
             <input value={salesman} onChange={(e) => setSalesman(e.target.value)} list="salesmen" />

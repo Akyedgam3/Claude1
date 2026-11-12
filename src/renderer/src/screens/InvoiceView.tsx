@@ -463,7 +463,7 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
       name: party?.name ?? (saleSide ? 'زبون نقدي' : 'مورد نقدي'),
       ...(party?.phone ? { phone: party.phone } : {}),
       ...(party?.address ? { address: party.address } : {}),
-      ...(party?.vatNumber ? { vatNumber: party.vatNumber } : {}),
+      ...((inv.vatNumber ?? party?.vatNumber) ? { vatNumber: inv.vatNumber ?? party!.vatNumber! } : {}),
     },
     refs,
     lines: inv.lines.map((l) => {
@@ -531,7 +531,7 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
     ...(order?.guests ? { guests: order.guests } : {}),
     ...(state.users[inv.createdBy] ? { cashier: state.users[inv.createdBy]!.displayName } : {}),
     ...(party ? { customer: party.name } : {}),
-    ...(party?.vatNumber ? { customerVat: party.vatNumber } : {}),
+    ...((inv.vatNumber ?? party?.vatNumber) ? { customerVat: inv.vatNumber ?? party!.vatNumber! } : {}),
     lines: inv.lines.map((l, i) => ({ name: l.description, sub: model.lines[i]!.sub!, qty: qtyText(l.qty), price: plain(l.price), total: plain(lineAmount(l)) })),
     totals: model.totals,
     grand: { label: 'الصافي', value: m(inv.total) },

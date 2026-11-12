@@ -783,6 +783,7 @@ export interface InvoiceDraft {
   paid?: number; // الافتراضي: كامل المبلغ للزبون النقدي، وصفر لغيره
   cashAccountId?: string;
   salesman?: string;
+  vatNumber?: string;
   marketerId?: string;
   notes?: string;
   source?: { type: string; id: string };
@@ -1005,6 +1006,7 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft, opts: { n
     paid,
     cashAccountId,
     ...(draft.salesman ? { salesman: draft.salesman } : {}),
+    ...(draft.vatNumber?.trim() ? { vatNumber: draft.vatNumber.trim() } : {}),
     ...(draft.marketerId ? { marketerId: draft.marketerId } : {}),
     ...(draft.notes ? { notes: draft.notes } : {}),
     ...(draft.source ? { source: draft.source } : {}),

@@ -404,6 +404,8 @@ export interface Invoice {
   paid: number; // المدفوع نقداً عند الفاتورة
   cashAccountId: string;
   salesman?: string;
+  /** الرقم الضريبي للزبون/المورد على هالفاتورة (بينكتب بالفاتورة، وبيتعبّى من بطاقته) */
+  vatNumber?: string;
   /** المسوّق اللي جاب الزبون (ما بيطلع بالفاتورة المطبوعة). */
   marketerId?: string;
   notes?: string;

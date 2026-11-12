@@ -41,6 +41,18 @@ test('الرقم الضريبي للمحل وللزبون على الفاتور�
     const doc = page.locator('.invoice-doc');
     await expect(doc).toContainText('الرقم الضريبي: 300123456700003');
     await expect(doc.locator('.doc-card.party')).toContainText('311999888');
+    // زبون نقدي: الرقم الضريبي بينكتب بخانة بالفاتورة نفسها
+    await nav(page, 'فاتورة مبيع');
+    const row2 = page.locator('table.lines tbody tr').first();
+    await pick(page, row2.locator('.with-button input').first(), 'صابون غار');
+    await row2.locator('input.num-input').nth(1).fill('5000');
+    await page.locator('.field', { hasText: 'الرقم الضريبي للزبون' }).locator('input').fill('777000111');
+    await page.getByRole('button', { name: /قبض كامل/ }).click();
+    await page.getByRole('button', { name: /حفظ الفاتورة/ }).click();
+    await toast(page, 'تم حفظ');
+    await nav(page, 'سجل الفواتير');
+    await page.locator('table.table tbody tr').first().click();
+    await expect(page.locator('.invoice-doc .doc-card.party')).toContainText('777000111');
     if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT });
   } finally {
     await close();
