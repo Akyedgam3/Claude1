@@ -1294,6 +1294,41 @@ export class Ledger {
     return adjustment;
   }
 
+  /**
+   * إلغاء عملية جرد أو إضافة كمية أو تالف انعملت بالغلط (متل إضافة بسعر شراء غلط): نفس الكميات والقيمة بالعكس،
+   * وقيدها بينلغى، فالربح والمخزون بيرجعوا متل قبلها. ما بتنلغى إذا البضاعة اللي فاتت فيها انباعت.
+   */
+  voidAdjustment(adjustmentId: string, date: string): StockAdjustment {
+    const a = this.state.adjustments.find((x) => x.id === adjustmentId) ?? fail('العملية غير موجودة');
+    if (a.voidOf) fail('هي عملية إلغاء، ما بتنلغى');
+    if (this.state.adjustments.some((x) => x.voidOf === a.id)) fail('العملية ملغاة مسبقاً');
+    if (a.lines.some((l) => l.serials?.length)) fail('عمليات الأرقام التسلسلية ما بتنلغى؛ اعمل جرد جديد');
+    const need: Record<string, number> = {};
+    for (const l of a.lines) if (l.qty > 0) need[l.itemId] = (need[l.itemId] ?? 0) + l.qty;
+    if (!this.state.info?.allowNegativeStock)
+      for (const [itemId, qty] of Object.entries(need)) {
+        const have = this.state.stock[itemId]?.qty[a.warehouseId] ?? 0;
+        if (qty > have + 1e-9) fail(`ما بتنلغى: «${this.state.items[itemId]?.name}» فات منها ${qty} وهلق موجود ${have} بس (انباع منها). ألغِ الجرد اللي بعدها أو اعمل جرد جديد`);
+      }
+    const orig = a.entryId ? this.state.entries.find((e) => e.id === a.entryId) : undefined;
+    const entry = orig && !this.state.voided[orig.id] ? this.reversal(orig, date) : undefined;
+    const adjustment: StockAdjustment = {
+      id: crypto.randomUUID(),
+      number: (this.state.counters['adjustment'] ?? 0) + 1,
+      kind: a.kind,
+      date,
+      warehouseId: a.warehouseId,
+      lines: a.lines.map((l) => ({ ...l, qty: -l.qty, cost: -l.cost })),
+      memo: `إلغاء ${a.memo}`,
+      ...(entry ? { entryId: entry.id } : {}),
+      createdBy: this.actor,
+      createdAt: new Date().toISOString(),
+      voidOf: a.id,
+    };
+    this.emit({ type: 'stock.adjusted', adjustment, ...(entry ? { entry } : {}) });
+    return adjustment;
+  }
+
   transferStock(d: TransferDraft): StockTransfer {
     const transfer = buildTransfer(this.ops(), d);
     this.emit({ type: 'stock.transferred', transfer });

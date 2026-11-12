@@ -449,6 +449,8 @@ export interface StockAdjustment {
   createdBy: string;
   /** وقت التسجيل (من 1.2.72): لترتيب الحركات بنفس اليوم */
   createdAt?: string;
+  /** هالعملية بتلغي عملية تانية (نفس الكميات والقيمة بالعكس) */
+  voidOf?: string;
 }
 
 export interface StockTransfer {

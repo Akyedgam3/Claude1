@@ -719,6 +719,7 @@ export function applyCommerceEvent(state: CompanyState, event: CompanyEvent): vo
     case 'stock.adjusted':
       state.adjustments.push(event.adjustment);
       if (event.entry) state.entries.push(event.entry);
+      if (event.entry?.voidOf) state.voided[event.entry.voidOf] = event.entry.id;
       bump(state, 'adjustment', event.adjustment.number);
       for (const m of adjustmentMoves(event.adjustment)) applyMove(state, m);
       return;

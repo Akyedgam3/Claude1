@@ -43,3 +43,23 @@ describe('cash boxes', () => {
     expect(() => l.fillBox({ date: '2026-01-07', to: '1101', amount: 0 })).toThrow();
   });
 });
+
+describe('voiding a stock adjustment', () => {
+  it('an addition with a wrong cost, zeroed by a count: voiding both wipes the loss', () => {
+    const l = new Ledger(() => {});
+    l.createCompany({ name: 'محل', activity: 'general', baseCurrency: 'SYP', fiscalYearStart: '01-01' }, DEFAULT_CURRENCIES, chartFor('general'), defaultTaxes());
+    l.saveItem({ id: 'x', code: '1', name: 'مادة', kind: 'stock', unit: 'قطعة', price: 100, priceCurrency: 'SYP' });
+    const add = l.adjustStock({ kind: 'opening', date: '2026-11-01', lines: [{ itemId: 'x', qty: 17, unitCost: 1000 }] });
+    const count = l.countStock({ date: '2026-11-02', lines: [{ itemId: 'x', counted: 0 }] });
+    const diff = () => l.state.entries.flatMap((e) => e.lines).filter((x) => x.accountId === '5402').reduce((t, x) => t + x.debit - x.credit, 0);
+    expect(diff()).toBe(17000);
+    expect(() => l.voidAdjustment(add.id, '2026-11-03')).toThrow(/انباع منها|موجود/);
+    l.voidAdjustment(count.id, '2026-11-03');
+    expect(l.state.stock['x']!.totalQty).toBe(17);
+    l.voidAdjustment(add.id, '2026-11-03');
+    expect(diff()).toBe(0);
+    expect(l.state.stock['x']!.totalQty).toBe(0);
+    expect(l.state.stock['x']!.value).toBe(0);
+    expect(() => l.voidAdjustment(add.id, '2026-11-03')).toThrow(/ملغاة/);
+  });
+});

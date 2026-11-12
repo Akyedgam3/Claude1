@@ -122,6 +122,7 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
   },
   adjustStock: 'stock.adjust',
   countStock: 'stock.adjust',
+  voidAdjustment: 'stock.adjust',
   transferStock: 'stock.transfer',
   voidTransfer: 'stock.transfer',
   postProduction: 'production.manage',
