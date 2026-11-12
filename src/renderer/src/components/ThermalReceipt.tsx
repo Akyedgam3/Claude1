@@ -76,7 +76,10 @@ export function ThermalReceipt({ data, preview, always, logo }: { data: ReceiptD
   if (on(r.showCustomer) && data.customerVat) meta.push(['رقمه الضريبي', <span className="ltr">{data.customerVat}</span>]);
 
   return (
-    <div className={`thermal-doc print-area t-${r.fontSize ?? 'md'} ${r.grid ? 't-grid' : ''} ${always ? 'always' : ''}`}>
+    <div
+      className={`thermal-doc print-area t-${r.fontSize ?? 'md'} ${r.grid ? 't-grid' : ''} ${always ? 'always' : ''}`}
+      style={{ ['--t-w80' as string]: `${r.width80 ?? 70}mm`, ['--t-w58' as string]: `${r.width58 ?? 48}mm` }}
+    >
       {img && logoMode !== 'none' && (
         <div className={`t-logo ${logoMode}`}>
           <img src={img} alt="" />
@@ -109,6 +112,12 @@ export function ThermalReceipt({ data, preview, always, logo }: { data: ReceiptD
         </div>
       )}
       <table className="t-lines">
+        <colgroup>
+          <col />
+          <col style={{ width: showPrice ? '14%' : '16%' }} />
+          {showPrice && <col style={{ width: '21%' }} />}
+          <col style={{ width: showPrice ? '26%' : '32%' }} />
+        </colgroup>
         <thead>
           <tr>
             <th className="t-n">الصنف</th>

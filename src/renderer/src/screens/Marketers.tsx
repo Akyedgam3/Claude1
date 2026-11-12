@@ -154,6 +154,18 @@ export function Marketers() {
                       أعد حساب العمولات من الربح
                     </button>
                   )}
+                  {can('vouchers.create') && over > 0 && (
+                    <button
+                      className="ghost small"
+                      title="إذا ما رح تسترجع الزيادة منه: بتنحسب عمولة إضافية وبيرجع حسابه صفر"
+                      onClick={async () => {
+                        if (!(await askConfirm(`${m.name} أخد ${money(state, over)} زيادة عن عمولته. بدك تصفّرها؟ بتنحسب مصروف عمولة إضافية وبيرجع حسابه صفر. (إذا بدك تخصمها من عمولاته الجاية لا تصفّرها)`))) return;
+                        if (await call('writeOffMarketerOver', m.id, today())) notify(`تم: حساب ${m.name} رجع صفر`);
+                      }}
+                    >
+                      صفّر الزيادة
+                    </button>
+                  )}
                   <button className="ghost small" onClick={() => navigate('statement', `party:${m.id}`)}>
                     كشف حسابه
                   </button>

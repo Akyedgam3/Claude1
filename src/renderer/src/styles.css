@@ -3290,6 +3290,7 @@ tr.strike td {
   color: #000;
   font-family: Cairo, sans-serif;
   font-size: 12px;
+  font-weight: 600; /* الطابعات الحرارية بتطبع الخط الرفيع باهت */
   line-height: 1.45;
   padding: 2mm 1mm;
 }
@@ -3305,16 +3306,16 @@ tr.strike td {
 .thermal-doc .t-title { text-align: center; font-weight: 700; font-size: 1.1em; margin: 4px 0; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 2px 0; }
 .thermal-doc .t-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; margin: 4px 0 6px; }
 .thermal-doc .t-meta div { display: flex; justify-content: space-between; gap: 6px; }
-.thermal-doc .t-meta span { color: #000; opacity: 0.8; }
-.thermal-doc .t-lines { width: 100%; border-collapse: collapse; table-layout: auto; }
-.thermal-doc .t-lines th { font-weight: 700; border-bottom: 1px solid #000; padding: 2px; text-align: center; font-size: 0.92em; }
+.thermal-doc .t-meta span { color: #000; }
+.thermal-doc .t-lines { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.thermal-doc .t-lines th { font-weight: 700; border-bottom: 1px solid #000; padding: 2px 1px; text-align: center; font-size: 0.88em; white-space: nowrap; }
 .thermal-doc .t-lines td { padding: 3px 2px; text-align: center; vertical-align: top; }
-.thermal-doc .t-lines .t-n { text-align: right; width: 46%; }
-.thermal-doc .t-lines .num { white-space: nowrap; direction: ltr; }
-.thermal-doc .t-sub { font-size: 0.85em; opacity: 0.85; }
+.thermal-doc .t-lines .t-n { text-align: right; overflow-wrap: anywhere; }
+.thermal-doc .t-lines .num { white-space: nowrap; direction: ltr; padding-left: 1px; padding-right: 1px; letter-spacing: -0.2px; }
+.thermal-doc .t-sub { font-size: 0.85em; }
 .thermal-doc.t-grid .t-lines th,
 .thermal-doc.t-grid .t-lines td { border: 1px solid #000; }
-.thermal-doc:not(.t-grid) .t-lines tbody tr + tr td { border-top: 1px dotted #999; }
+.thermal-doc:not(.t-grid) .t-lines tbody tr + tr td { border-top: 1px dotted #000; }
 .thermal-doc .t-totals { margin-top: 6px; border-top: 1px solid #000; padding-top: 3px; }
 .thermal-doc .t-totals div { display: flex; justify-content: space-between; }
 .thermal-doc .t-totals .t-grand { font-size: 1.25em; font-weight: 700; border-top: 1px dashed #000; border-bottom: 1px dashed #000; margin: 3px 0; padding: 2px 0; }
@@ -3339,10 +3340,12 @@ tr.strike td {
 @media print {
   body[data-paper='80mm'] .thermal-doc,
   body[data-paper='58mm'] .thermal-doc,
-  .thermal-doc.always { display: block !important; position: absolute; inset: 0 0 auto 0; }
+  .thermal-doc.always { display: block !important; position: absolute; inset: 0 0 auto 0; margin: 0 auto; box-sizing: border-box; }
+  /* عرض الطباعة الفعلي (أغلب طابعات 80mm بتطبع 72mm بس): الإيصال بالنص وما بينقص شي من الطرف */
+  body[data-paper='80mm'] .thermal-doc { width: var(--t-w80, 70mm); }
+  body[data-paper='58mm'] .thermal-doc { width: var(--t-w58, 48mm); }
   body[data-paper='80mm'] .invoice-doc.has-thermal,
   body[data-paper='58mm'] .invoice-doc.has-thermal { display: none !important; }
-  body[data-paper='58mm'] .thermal-doc .t-lines .t-n { width: 40%; }
   body[data-paper='58mm'] .thermal-doc .t-meta { grid-template-columns: 1fr; }
 }
 

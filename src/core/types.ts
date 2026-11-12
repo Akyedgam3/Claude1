@@ -139,6 +139,10 @@ export interface ReceiptSettings {
   showPrice?: boolean; // عمود سعر الوحدة
   grid?: boolean; // جدول بخطوط متل الإيصالات الكلاسيكية
   fontSize?: 'sm' | 'md' | 'lg';
+  /** عرض الطباعة الفعلي بالمليمتر لورق 80mm (أغلب الطابعات بتطبع 72mm بس، والزيادة بتنقص من الطرف) */
+  width80?: number;
+  /** نفسه لورق 58mm */
+  width58?: number;
   contactLabel?: string; // «للتوصيات والاستفسار»
   contactPhone?: string;
   thanks?: string; // «نشكر لكم زيارتكم»

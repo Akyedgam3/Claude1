@@ -397,11 +397,8 @@ export function PartyForm({
         <Field label="الهاتف">
           <input value={f.phone} onChange={set('phone')} dir="ltr" />
         </Field>
-        <Field label="العنوان">
+        <Field label="العنوان" wide>
           <input value={f.address} onChange={set('address')} />
-        </Field>
-        <Field label="الرقم الضريبي (اختياري)">
-          <input value={f.vatNumber} onChange={set('vatNumber')} dir="ltr" />
         </Field>
         {feature('priceTiers') && f.kind !== 'supplier' && (
           <Field label="نوع الزبون (بياخد أسعار نوعه لحالها)" wide>

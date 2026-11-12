@@ -8,8 +8,8 @@ export type DocKind = 'invoice' | 'receipt' | 'kitchen' | 'label' | 'report';
 const PAGE_CSS: Record<Paper, string> = {
   a4: '@page { size: A4; margin: 12mm; }',
   a5: '@page { size: A5; margin: 8mm; }',
-  '80mm': '@page { size: 80mm auto; margin: 3mm; }',
-  '58mm': '@page { size: 58mm auto; margin: 2mm; }',
+  '80mm': '@page { size: 80mm auto; margin: 2mm 0; }',
+  '58mm': '@page { size: 58mm auto; margin: 2mm 0; }',
 };
 
 export const PAPER_NAMES: Record<Paper, string> = { a4: 'A4', a5: 'A5', '80mm': 'حراري 80mm', '58mm': 'حراري 58mm' };

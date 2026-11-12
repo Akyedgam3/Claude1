@@ -917,6 +917,38 @@ export class Ledger {
     return changed;
   }
 
+  /**
+   * «صفّر الزيادة»: المسوّق أخد أكتر من عمولته (مثلاً انعطى حسب الحساب القديم من قيمة الفاتورة).
+   * بدل ما تضل دين عليه، بتنسجّل مصروف عمولة إضافية فبيرجع حسابه صفر. كل عملة لحالها.
+   */
+  writeOffMarketerOver(marketerId: string, date: string): number {
+    const m = this.state.parties[marketerId];
+    if (!m?.marketerRate) fail('المسوّق غير موجود أو ما إلو نسبة');
+    const by: Record<string, number> = {};
+    for (const e of this.state.entries) for (const l of e.lines) if (l.partyId === marketerId) by[l.currency] = (by[l.currency] ?? 0) + l.debit - l.credit;
+    let n = 0;
+    for (const [currency, over] of Object.entries(by)) {
+      if (over <= 0) continue;
+      if (!this.state.accounts[COMMISSION_ACCOUNT]) {
+        const parent = this.state.accounts['52'] ? '52' : this.state.accounts['5'] ? '5' : null;
+        this.saveAccount({ id: COMMISSION_ACCOUNT, name: 'عمولات المسوّقين', type: 'expense', parentId: parent, isGroup: false, currency: null });
+      }
+      const cur = currency !== this.base.code ? { currency } : {};
+      this.postEntry({
+        date,
+        memo: `تصفير الزيادة اللي أخدها ${m.name} (انحسبت عمولة إضافية)`,
+        lines: [
+          { accountId: COMMISSION_ACCOUNT, debit: over, ...cur },
+          { accountId: SYSTEM_ACCOUNTS.suppliers, credit: over, partyId: m.id, ...cur },
+        ],
+        source: { type: 'commission', id: `over:${crypto.randomUUID()}` },
+      });
+      n++;
+    }
+    if (!n) fail('ما أخد زيادة، ما في شي يتصفّر');
+    return n;
+  }
+
   /** عمولة المسوّق عن فاتورة: مصروف «عمولات المسوّقين» ودين إلو (بيتصفّى بسند دفع). */
   private postCommission(invoice: Invoice): void {
     const m = this.state.parties[invoice.marketerId!];

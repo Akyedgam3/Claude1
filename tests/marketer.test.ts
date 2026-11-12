@@ -85,6 +85,12 @@ describe('recalculating old commissions', () => {
     expect(accountBalance(l.state, COMMISSION_ACCOUNT).balance).toBe(333);
     expect(partyBalance(l.state, 'third').base).toBe(167); // أخد 5.00 وإلو 3.33: أخد زيادة 1.67
     expect(l.recalcCommissions('third', '2026-11-05').changed).toBe(0);
+    // «صفّر الزيادة»: الـ1.67 بتنحسب عمولة إضافية وبيرجع حسابه صفر
+    expect(l.writeOffMarketerOver('third', '2026-11-06')).toBe(1);
+    expect(partyBalance(l.state, 'third').base).toBe(0);
+    expect(accountBalance(l.state, COMMISSION_ACCOUNT).balance).toBe(500);
+    expect(() => l.writeOffMarketerOver('third', '2026-11-06')).toThrow(/ما أخد زيادة/);
+    expect(l.recalcCommissions('third', '2026-11-07').changed).toBe(0);
   });
 
   it('old commissions are fixed automatically once, when the company opens after the update', () => {

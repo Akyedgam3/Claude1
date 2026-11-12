@@ -296,6 +296,15 @@ function ReceiptTab() {
               <option value="lg">كبير</option>
             </select>
           </Field>
+          <Field label="عرض الطباعة (إذا الأرقام عم تنقص من الطرف صغّره)">
+            <select value={r.width80 ?? 70} onChange={(e) => setR({ ...r, width80: Number(e.target.value) })}>
+              <option value={76}>ورق 80: 76mm (عريض)</option>
+              <option value={72}>ورق 80: 72mm</option>
+              <option value={70}>ورق 80: 70mm (افتراضي)</option>
+              <option value={66}>ورق 80: 66mm</option>
+              <option value={62}>ورق 80: 62mm (طابعة ضيقة)</option>
+            </select>
+          </Field>
           <Field label="عنوان الإيصال">
             <input value={r.title ?? ''} onChange={(e) => setR({ ...r, title: e.target.value })} placeholder="فاتورة مبيع" />
           </Field>

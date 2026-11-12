@@ -1,59 +1,65 @@
 import { expect, test } from '@playwright/test';
 import { activate, createCompany, launch, nav, pick, toast } from './helpers';
 
-// الرقم الضريبي للمحل (من الإعدادات) وللزبون (من بطاقته): بينطبعوا على الفاتورة
-test('الرقم الضريبي للمحل وللزبون على الفاتورة', async () => {
+// الرقم الضريبي تبع المحل (من الإعدادات): ثابت على فاتورة المبيع والشراء، وعلى الإيصال الحراري.
+// والإيصال الحراري 80mm ما بينقص منه شي من الطرف حتى مع أسعار بالآلاف.
+test('الرقم الضريبي للمحل على الفواتير، والإيصال الحراري كامل', async () => {
   const { page, close } = await launch();
   try {
     await activate(page);
-    await createCompany(page, { name: 'محل الضريبة', activity: 'تجارة عامة' });
+    await createCompany(page, { name: 'مركز أبو أمير', activity: 'تجارة عامة' });
     await nav(page, 'الإعدادات');
-    await page.locator('.field', { hasText: 'الرقم الضريبي' }).locator('input').fill('300123456700003');
+    await page.locator('.field', { hasText: 'الرقم الضريبي' }).locator('input').fill('03310090718');
     await page.getByRole('button', { name: 'حفظ', exact: true }).click();
     await toast(page, 'تم الحفظ');
     const m = page.locator('.modal');
-    await nav(page, 'العملاء والموردون');
-    await page.getByRole('button', { name: 'إضافة', exact: true }).click();
-    await m.locator('.field', { hasText: 'الاسم' }).first().locator('input').fill('شركة النور');
-    await m.locator('.field', { hasText: 'الرقم الضريبي' }).locator('input').fill('311999888');
-    await m.getByRole('button', { name: 'حفظ' }).click();
-    await toast(page, 'تم الحفظ');
     await nav(page, 'المواد');
-    await page.locator('.page-header button.primary').first().click();
-    await m.locator('.field', { hasText: 'الاسم' }).first().locator('input').fill('صابون غار');
-    await m.getByRole('button', { name: 'حفظ', exact: true }).click();
-    await expect(m).toHaveCount(0);
-    await page.locator('tbody tr', { hasText: 'صابون غار' }).getByRole('button', { name: '+ كمية' }).click();
-    await m.locator('.field', { hasText: 'الكمية المضافة' }).locator('input').fill('10');
-    await m.locator('.field', { hasText: 'تكلفة' }).locator('input').fill('3000');
-    await m.getByRole('button', { name: 'إضافة' }).click();
-    await toast(page, 'تمت إضافة');
+    const items = ['بسكوت 1000 ق12', 'طحينة 400غ هشام', 'شاي 25 ظرف هشام', 'كابتشينو'];
+    for (const n of items) {
+      await page.locator('.page-header button.primary').first().click();
+      await m.locator('.field', { hasText: 'الاسم' }).first().locator('input').fill(n);
+      await m.getByRole('button', { name: 'حفظ', exact: true }).click();
+      await expect(m).toHaveCount(0);
+      await page.locator('tbody tr', { hasText: n }).getByRole('button', { name: '+ كمية' }).click();
+      await m.locator('.field', { hasText: 'الكمية المضافة' }).locator('input').fill('100');
+      await m.locator('.field', { hasText: 'تكلفة' }).locator('input').fill('300');
+      await m.getByRole('button', { name: 'إضافة' }).click();
+      await toast(page, 'تمت إضافة');
+    }
+    // فاتورة المبيع: الرقم الضريبي ثابت بخانة للعرض بس
     await nav(page, 'فاتورة مبيع');
-    await pick(page, page.locator('.field', { hasText: 'العميل' }).locator('input').first(), 'شركة النور');
-    const row = page.locator('table.lines tbody tr').first();
-    await pick(page, row.locator('.with-button input').first(), 'صابون غار');
-    await row.locator('input.num-input').nth(1).fill('5000');
-    await page.getByRole('button', { name: 'دون قبض' }).click().catch(() => {});
-    await page.getByRole('button', { name: /حفظ الفاتورة/ }).click();
-    await toast(page, 'تم حفظ');
-    await nav(page, 'سجل الفواتير');
-    await page.locator('table.table tbody tr').first().click();
-    const doc = page.locator('.invoice-doc');
-    await expect(doc).toContainText('الرقم الضريبي: 300123456700003');
-    await expect(doc.locator('.doc-card.party')).toContainText('311999888');
-    // زبون نقدي: الرقم الضريبي بينكتب بخانة بالفاتورة نفسها
-    await nav(page, 'فاتورة مبيع');
-    const row2 = page.locator('table.lines tbody tr').first();
-    await pick(page, row2.locator('.with-button input').first(), 'صابون غار');
-    await row2.locator('input.num-input').nth(1).fill('5000');
-    await page.locator('.field', { hasText: 'الرقم الضريبي للزبون' }).locator('input').fill('777000111');
+    await expect(page.locator('.field', { hasText: 'الرقم الضريبي' }).locator('input')).toHaveValue('03310090718');
+    const rows = page.locator('table.lines tbody tr');
+    for (const [i, [n, q, p]] of ([[items[0], '16', '600'], [items[1], '13', '1277'], [items[2], '15', '108'], [items[3], '1', '500']] as const).entries()) {
+      await pick(page, rows.nth(i).locator('.with-button input').first(), n!);
+      await rows.nth(i).locator('.qty-cell input').fill(q);
+      await rows.nth(i).locator('input.num-input').nth(1).fill(p);
+    }
     await page.getByRole('button', { name: /قبض كامل/ }).click();
     await page.getByRole('button', { name: /حفظ الفاتورة/ }).click();
     await toast(page, 'تم حفظ');
     await nav(page, 'سجل الفواتير');
     await page.locator('table.table tbody tr').first().click();
-    await expect(page.locator('.invoice-doc .doc-card.party')).toContainText('777000111');
-    if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT });
+    await expect(page.locator('.invoice-doc')).toContainText('الرقم الضريبي: 03310090718');
+    // الإيصال الحراري كأنه عم ينطبع على 80mm
+    await page.emulateMedia({ media: 'print' });
+    await page.evaluate(() => (document.body.dataset['paper'] = '80mm'));
+    const t = page.locator('.thermal-doc');
+    await expect(t).toContainText('الرقم الضريبي: 03310090718');
+    const fit = await t.evaluate((doc) => {
+      const box = doc.getBoundingClientRect();
+      const mm = box.width / (96 / 25.4);
+      const cut = [...doc.querySelectorAll('td, th, .t-totals strong')].filter((el) => el.scrollWidth > (el as HTMLElement).clientWidth + 1 || el.getBoundingClientRect().left < box.left - 0.5);
+      return { mm, cut: cut.map((c) => c.textContent) };
+    });
+    expect(fit.mm).toBeLessThanOrEqual(72.5);
+    expect(fit.cut).toEqual([]);
+    if (process.env.SHOT) await t.screenshot({ path: process.env.SHOT });
+    await page.emulateMedia({ media: 'screen' });
+    await page.evaluate(() => delete document.body.dataset['paper']);
+    // فاتورة الشراء كمان عليها رقم المحل
+    await nav(page, 'فاتورة شراء');
+    await expect(page.locator('.field', { hasText: 'الرقم الضريبي' }).locator('input')).toHaveValue('03310090718');
   } finally {
     await close();
   }

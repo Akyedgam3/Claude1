@@ -282,7 +282,6 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
   };
   const changeParty = (id: string | null) => {
     setPartyId(id);
-    setVatNumber(id ? (state.parties[id]?.vatNumber ?? '') : '');
     setPaidText(null);
     reprice(id ? (state.parties[id] ?? null) : null, currency, rateText);
   };
@@ -511,7 +510,6 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
         paid: extra > 0 ? preview.total : paid,
         cashAccountId: cashId,
         ...(salesman.trim() ? { salesman: salesman.trim() } : {}),
-        ...(vatNumber.trim() ? { vatNumber: vatNumber.trim() } : {}),
         ...(kind === 'sale' && marketerId && state.parties[marketerId]?.marketerRate ? { marketerId } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
       };
@@ -647,9 +645,11 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
             {marketerId && state.parties[marketerId]?.marketerRate && can('costs.view') && <small className="muted">عمولتو {state.parties[marketerId]!.marketerRate}% من ربح الفاتورة (البيع ناقص تكلفة البضاعة)، بتنحسب وبتنسجّل لما تحفظ</small>}
           </Field>
         )}
-        <Field label={isSale ? 'الرقم الضريبي للزبون' : 'الرقم الضريبي للمورد'}>
-          <input value={vatNumber} onChange={(e) => setVatNumber(e.target.value)} dir="ltr" placeholder="اختياري: بينطبع عالفاتورة" />
-        </Field>
+        {state.info?.vatNumber && (
+          <Field label="الرقم الضريبي (للمحل، ثابت)">
+            <input value={state.info.vatNumber} readOnly dir="ltr" title="بينطبع عكل الفواتير. بيتغيّر من الإعدادات ← الشركة" />
+          </Field>
+        )}
         {feature('salesmen') && isSale && (
           <Field label="المندوب">
             <input value={salesman} onChange={(e) => setSalesman(e.target.value)} list="salesmen" />
