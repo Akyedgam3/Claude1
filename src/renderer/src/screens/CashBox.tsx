@@ -18,6 +18,9 @@ function boxBalances(state: ReturnType<typeof useCompany>['state'], id: string, 
   return out;
 }
 
+/** الصندوق ما بيبيّن بالسالب: إذا طلع منه أكتر من اللي فات بيكتب «ما في نقد». */
+const NO_CASH = 'ما في نقد بالصندوق';
+
 export function CashBox() {
   const { state, can } = useCompany();
   const boxes = useMemo(() => cashBoxes(state).filter((a) => !a.hidden || can('accounts.manage')), [state.accounts]);
@@ -25,6 +28,7 @@ export function CashBox() {
   const [period, setPeriod] = usePeriod('today');
   const [currency, setCurrency] = useState<string | undefined>(undefined);
   const [zeroing, setZeroing] = useState(false);
+  const [filling, setFilling] = useState(false);
   const d = today();
   // ملخص كل الصناديق: الرصيد الآن والداخل والخارج اليوم، لكل عملة
   const summary = useMemo(
@@ -51,6 +55,8 @@ export function CashBox() {
   const st = useMemo(() => (box ? fullStatement(state, { kind: 'account', id: box.id }, p, { ...((currency ?? box.currency) ? { currency: currency ?? box.currency! } : {}), hideVoided: true }) : null), [state, box?.id, p.from, p.to, currency]);
   const cur = st?.currency ?? box?.currency ?? state.info!.baseCurrency;
   const m = (v: number) => money(state, v, cur);
+  const mc = (v: number) => (v < 0 ? NO_CASH : m(v));
+  const negatives = box ? Object.entries(boxBalances(state, box.id)).filter(([, v]) => v < 0) : [];
 
   if (!boxes.length) return <div className="page"><PageHeader title="الصندوق" /><Empty>ما في صناديق.</Empty></div>;
 
@@ -67,7 +73,7 @@ export function CashBox() {
               </span>
               {curs.map((c) => (
                 <span key={c} className="cash-line">
-                  <b>{money(state, now[c] ?? 0, c)}</b>
+                  <b className={(now[c] ?? 0) < 0 ? 'muted' : ''}>{(now[c] ?? 0) < 0 ? `${NO_CASH}${curs.length > 1 ? ` (${state.currencies[c]?.symbol ?? c})` : ''}` : money(state, now[c] ?? 0, c)}</b>
                   <small className="muted">
                     اليوم: <span className="good">+{money(state, inToday[c] ?? 0, c)}</span> <span className="bad">−{money(state, outToday[c] ?? 0, c)}</span>
                   </small>
@@ -81,6 +87,11 @@ export function CashBox() {
         <>
           <div className="toolbar cash-head">
             <h3>{box.name}</h3>
+            {can('vouchers.create') && negatives.length > 0 && (
+              <button onClick={() => setFilling(true)}>
+                <Icon name="wallet" size={16} /> تصفير السالب
+              </button>
+            )}
             {can('vouchers.create') && (
               <button className="primary" onClick={() => setZeroing(true)}>
                 <Icon name="transfer" size={16} /> تصفير الصندوق / تحويل
@@ -98,10 +109,10 @@ export function CashBox() {
             </div>
           )}
           <div className="stats">
-            <Stat label="أول المدة" value={m(st.opening)} />
+            <Stat label="أول المدة" value={mc(st.opening)} />
             <Stat label="الداخل" value={m(st.totalDebit)} tone="good" />
             <Stat label="الخارج" value={m(st.totalCredit)} tone="bad" />
-            <Stat label="آخر المدة" value={m(st.closing)} />
+            <Stat label="آخر المدة" value={mc(st.closing)} />
           </div>
           <div className="toolbar">
             <PrintButtons kind="report" name={`حركة ${box.name}`} papers={['a4', '80mm']} />
@@ -131,9 +142,10 @@ export function CashBox() {
             {!st.rows.length ? (
               <Empty>ما في حركات بهالفترة.</Empty>
             ) : (
-              <CashTable rows={st.rows} opening={st.opening} m={m} />
+              <CashTable rows={st.rows} opening={st.opening} m={m} mc={mc} />
             )}
           </div>
+          {filling && <FillBox box={box} negatives={negatives} onClose={() => setFilling(false)} />}
           {zeroing && <ZeroBox box={box} balances={boxBalances(state, box.id)} boxes={boxes} onClose={() => setZeroing(false)} />}
         </>
       )}
@@ -141,7 +153,7 @@ export function CashBox() {
   );
 }
 
-function CashTable({ rows, opening, m }: { rows: ReturnType<typeof fullStatement>['rows']; opening: number; m: (v: number) => string }) {
+function CashTable({ rows, opening, m, mc }: { rows: ReturnType<typeof fullStatement>['rows']; opening: number; m: (v: number) => string; mc: (v: number) => string }) {
   const { navigate } = useCompany();
   return (
     <table className="table compact statement">
@@ -158,7 +170,7 @@ function CashTable({ rows, opening, m }: { rows: ReturnType<typeof fullStatement
       <tbody>
         <tr className="group-row">
           <td colSpan={5}>أول المدة</td>
-          <td className="num">{m(opening)}</td>
+          <td className="num">{mc(opening)}</td>
         </tr>
         {rows.map((r) => (
           <tr key={r.entryId} className={r.invoiceId ? 'clickable' : ''} onClick={() => r.invoiceId && navigate('invoice', r.invoiceId)}>
@@ -168,7 +180,7 @@ function CashTable({ rows, opening, m }: { rows: ReturnType<typeof fullStatement
             <td className="num good">{r.debit ? m(r.debit) : ''}</td>
             <td className="num bad">{r.credit ? m(r.credit) : ''}</td>
             <td className="num">
-              <b>{m(r.running)}</b>
+              {r.running < 0 ? <span className="muted">ما في نقد</span> : <b>{m(r.running)}</b>}
             </td>
           </tr>
         ))}
@@ -250,6 +262,49 @@ function ZeroBox({ box, balances, boxes, onClose }: { box: Account; balances: Re
           </div>
         </div>
       )}
+    </Modal>
+  );
+}
+
+/** تصفير السالب: إذا طلع من الصندوق أكتر من اللي فات عليه (مصاري ما انسجّلت)، المالك بيحط الفرق فبيرجع الصندوق صفر. */
+function FillBox({ box, negatives, onClose }: { box: Account; negatives: [string, number][]; onClose: () => void }) {
+  const { state, call, notify } = useCompany();
+  const [currency, setCurrency] = useState(negatives[0]![0]);
+  const amount = -(negatives.find(([c]) => c === currency)?.[1] ?? 0);
+  const [date, setDate] = useState(today());
+  const save = async () => {
+    if (!(amount > 0)) return onClose();
+    if (await call('fillBox', { date, to: box.id, amount, currency, memo: `تصفير السالب بـ${box.name}` })) {
+      notify(`تم: ${box.name} رجع صفر`);
+      onClose();
+    }
+  };
+  return (
+    <Modal title={`تصفير السالب — ${box.name}`} onClose={onClose} width={460}>
+      <div className="form-grid">
+        {negatives.length > 1 && (
+          <Field label="العملة" wide>
+            <select value={currency} onChange={(e) => setCurrency(e.target.value)}>
+              {negatives.map(([c]) => (
+                <option key={c} value={c}>
+                  {state.currencies[c]?.nameAr ?? c}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+        <p className="wide">
+          طلع من الصندوق أكتر من اللي فات عليه بـ <b>{money(state, amount, currency)}</b> (غالباً مصاري فاتت وما انسجّلت). التصفير بيسجّلها إنه المالك حطها بالصندوق، فبيرجع الصندوق <b>صفر</b>.
+        </p>
+        <Field label="التاريخ">
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </Field>
+        <div className="form-actions wide">
+          <button className="primary big" onClick={() => void save()}>
+            صفّر
+          </button>
+        </div>
+      </div>
     </Modal>
   );
 }

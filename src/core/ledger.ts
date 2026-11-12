@@ -608,6 +608,27 @@ export class Ledger {
     });
   }
 
+  /** تصفير السالب: المالك بيحط مصاري بالصندوق (عكس السحب)، فالرصيد بيرجع صفر أو أكتر. */
+  fillBox(d: { date: string; to: string; amount: number; memo?: string; currency?: string }): JournalEntry {
+    if (!(d.amount > 0) || !Number.isSafeInteger(d.amount)) fail('المبلغ يجب أن يكون أكبر من صفر');
+    const box = this.state.accounts[d.to] ?? fail('الصندوق غير موجود');
+    if (box.isGroup || box.type !== 'asset') fail(`«${box.name}» مش صندوق`);
+    const owner = this.state.accounts[SYSTEM_ACCOUNTS.partnersCurrent] ? SYSTEM_ACCOUNTS.partnersCurrent : fail('حساب جاري المالك غير موجود بدليل الحسابات');
+    const currency = d.currency ?? box.currency ?? this.base.code;
+    if (box.currency && box.currency !== currency) fail(`«${box.name}» بيقبل ${box.currency} بس`);
+    const cur = currency !== this.base.code ? { currency } : {};
+    return this.postEntry({
+      date: d.date,
+      memo: d.memo?.trim() || `المالك حط مصاري بـ${box.name}`,
+      lines: [
+        { accountId: d.to, debit: d.amount, ...cur },
+        { accountId: owner, credit: d.amount, ...cur },
+      ],
+      source: { type: 'boxtransfer', id: crypto.randomUUID() },
+      createdBy: this.actor,
+    });
+  }
+
   saveTax(tax: Tax): void {
     this.emit({ type: 'tax.saved', tax });
   }

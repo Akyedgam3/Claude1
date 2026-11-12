@@ -118,7 +118,7 @@ export function Dashboard() {
       el: () => (
         <div className="stat clickable" onClick={() => navigate('reports', 'cash')}>
           <span>النقد في الصناديق</span>
-          {data.cash.length === 0 ? <strong>0</strong> : data.cash.map(([c, v], i) => <strong key={i}>{money(state, v, c)}</strong>)}
+          {data.cash.length === 0 ? <strong>0</strong> : data.cash.map(([c, v], i) => <strong key={i}>{v < 0 ? `ما في نقد (${state.currencies[c]?.symbol ?? c})` : money(state, v, c)}</strong>)}
         </div>
       ),
     },

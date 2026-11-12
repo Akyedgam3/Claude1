@@ -32,4 +32,14 @@ describe('cash boxes', () => {
     expect(usd('3102')).toBe(2000);
     expect(() => l.transferBox({ date: '2026-01-06', from: '1108', to: '1101', amount: 1, currency: 'SYP' })).toThrow(/بيقبل/);
   });
+
+  it('zeroing a negative box: the owner puts the difference in, back to zero', () => {
+    const l = shop();
+    l.drawFromBox({ date: '2026-01-06', from: '1101', amount: 70000 });
+    const bal = () => l.state.entries.flatMap((e) => e.lines).filter((x) => x.accountId === '1101').reduce((t, x) => t + x.debit - x.credit, 0);
+    expect(bal()).toBe(-70000);
+    l.fillBox({ date: '2026-01-07', to: '1101', amount: 70000 });
+    expect(bal()).toBe(0);
+    expect(() => l.fillBox({ date: '2026-01-07', to: '1101', amount: 0 })).toThrow();
+  });
 });
