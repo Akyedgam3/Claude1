@@ -12,7 +12,7 @@ const PUB = createPublicKey(PEM).export({ type: 'spki', format: 'pem' }).toStrin
 const fails: string[] = [];
 const check = (ok: unknown, what: string) => { if (!ok) fails.push(what); console.log(ok ? '✓' : '✗', what); };
 
-const b = await chromium.launch();
+const b = await chromium.launch(process.env['PW_EXE'] ? { executablePath: process.env['PW_EXE'] } : {});
 const ctx = await b.newContext({ viewport: { width: 400, height: 860 } });
 const p = await ctx.newPage();
 p.on('dialog', (d) => d.accept(d.type() === 'prompt' ? (d.message().includes('بصمة') ? '9999-8888-7777-6666' : d.defaultValue()) : undefined));

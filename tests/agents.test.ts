@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { agentBalance, normalizeShortCode, Registry } from '../admin/registry';
+import { agentBalance, agentCloud, normalizeShortCode, Registry } from '../admin/registry';
 import { compareVersions, parseFeed, parseLicense, updateFor } from '../src/license/license';
 import { LicenseManager } from '../src/license/manager';
 
@@ -18,6 +18,47 @@ beforeEach(() => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mizan-agents-'));
 });
 afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+describe('premium agent (flex + remote)', () => {
+  it('flex codes activate monthly, annual or lifetime; remote activations come with the plan and the owner can add any number', () => {
+    const r = new Registry(path.join(dir, 'registry.json'), PRIV);
+    const a = r.addAgent({ name: 'وكيل مميز' });
+    r.addPackage(a.id, { tier: 'p25' });
+    expect(agentBalance(r.agent(a.id)).flex).toMatchObject({ total: 25, left: 25 });
+    expect(agentCloud(r.agent(a.id))).toMatchObject({ total: 25, left: 25 });
+    const m = r.add({ name: 'شهري', machineId: M1, plan: 'monthly', agentId: a.id });
+    expect(m.plan).toBe('monthly');
+    const y = r.add({ name: 'سنوي', machineId: M2, plan: 'annual', agentId: a.id });
+    expect(y.plan).toBe('annual');
+    const card = r.createCard({ plan: 'lifetime', agentId: a.id });
+    expect(card.plan).toBe('lifetime');
+    r.extend(m.id, 'monthly');
+    expect(agentBalance(r.agent(a.id)).flex).toMatchObject({ used: 4, left: 21 });
+    // الاتصال عن بعد من رصيد الوكيل
+    r.agentSetCloud(a.id, m.id, true);
+    r.agentSetCloud(a.id, m.id, true); // مفتوح أصلاً: ما بينخصم مرة تانية
+    expect(r.find(m.id).cloud).toBe(true);
+    expect(agentCloud(r.agent(a.id)).left).toBe(24);
+    r.addCloud(a.id, 10, 'هدية');
+    expect(agentCloud(r.agent(a.id)).left).toBe(34);
+    expect(() => r.addCloud(a.id, -100)).toThrow();
+    r.addCloud(a.id, -34);
+    expect(() => r.agentSetCloud(a.id, y.id, true)).toThrow(/خلص/);
+    // وكيل عادي ما بيقدر يفعّل شهري
+    const b = r.addAgent({ name: 'وكيل عادي', packages: 1 });
+    expect(() => r.add({ name: 'x', machineId: '9999-8888-7777-6666', plan: 'monthly', agentId: b.id })).toThrow(/المرن/);
+    expect(() => r.agentSetCloud(b.id, m.id, true)).toThrow(/زباينك/);
+  });
+  it('annual uses its own balance first, and falls back to flex when it runs out (or when the agent picks flex)', () => {
+    const r = new Registry(path.join(dir, 'registry.json'), PRIV);
+    const a = r.addAgent({ name: 'وكيل', packages: 1 });
+    r.addPackage(a.id, { tier: 'p25' });
+    r.add({ name: 'أ', machineId: M1, plan: 'annual', agentId: a.id });
+    expect(agentBalance(r.agent(a.id))).toMatchObject({ annual: { used: 1 }, flex: { used: 0 } });
+    r.add({ name: 'ب', machineId: M2, plan: 'annual', agentId: a.id, flex: true });
+    expect(agentBalance(r.agent(a.id))).toMatchObject({ annual: { used: 1 }, flex: { used: 1 } });
+  });
+});
 
 describe('agents', () => {
   it('an annual customer can switch to lifetime from the lifetime balance', () => {

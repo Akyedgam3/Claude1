@@ -28,9 +28,11 @@ const copy = (t, m = 'تم النسخ') => navigator.clipboard?.writeText(t).the
 const fmtDate = (d) => (d ? String(d).slice(0, 10) : 'دائم');
 const fmtTime = (d) => String(d ?? '').slice(0, 16).replace('T', ' ');
 const money = (n, cur = 'USD') => (cur === 'SYP' ? Number(n).toLocaleString('en-US') + ' ل.س' : '$' + Number(n).toFixed(2));
-const kindName = (k) => (k === 'lifetime' ? 'دائم' : 'سنوي');
-const BUCKETS = [['annual', 'سنوي'], ['lifetime', 'دائم'], ['annualMobile', 'سنوي + جوال'], ['lifetimeMobile', 'دائم + جوال']];
-const tierLabel = (t) => `${t.name} ${kindName(t.kind)}${t.mobile ? ' + جوال' : ''} — ${t.count} رخصة (${money(t.price, 'SYP')})`;
+const kindName = (k) => (k === 'lifetime' ? 'دائم' : k === 'flex' ? 'مرن (شهري/سنوي/دائم)' : 'سنوي');
+const BUCKETS = [['flex', 'مرن (شهري/سنوي/دائم)'], ['annual', 'سنوي'], ['lifetime', 'دائم'], ['annualMobile', 'سنوي + جوال'], ['lifetimeMobile', 'دائم + جوال']];
+/** الرصيد ← نوع الرخص ببيانات الطلب */
+const bkKind = (b) => ({ kind: b === 'flex' ? 'flex' : b.startsWith('lifetime') ? 'lifetime' : 'annual', mobile: b.endsWith('Mobile') });
+const tierLabel = (t) => `${t.name} ${t.kind === 'flex' ? '' : kindName(t.kind)}${t.mobile ? ' + جوال' : ''} — ${t.count} رخصة${t.kind === 'flex' ? ' مرنة' : ''}${t.cloud ? ` + ${t.cloud} عن بعد` : ''} (${money(t.price, 'SYP')})`;
 const daysLeft = (c) => (c.expiresAt ? Math.ceil((new Date(c.expiresAt) - Date.now()) / 86400000) : null);
 const statusTag = (c) => `<span class="tag ${esc(c.status)}">${esc({ active: 'فعّال', suspended: 'موقوف', revoked: 'ملغى' }[c.status] ?? c.status)}</span>`;
 const waLink = (phone, text) => {
@@ -352,11 +354,12 @@ function agentCard(a) {
   const b = a.balance;
   const n = S.customers.filter((c) => c.agentId === a.id && !c.phoneOf).length;
   return `<div class="item"><div class="top"><div><b class="name">${esc(a.name)}</b> ${a.active ? '' : '<span class="tag off">موقوف</span>'}<div class="muted">${esc(a.city)} ${a.phone ? '· <span class="mono">' + esc(a.phone) + '</span>' : ''} · دخول: <span class="mono">${esc(a.username ?? 'ما في')}</span> · زباين: ${n}</div></div></div>
-    <div class="bal ${b.left <= 0 ? 'zero' : ''}">${BUCKETS.filter(([k]) => b[k].total).map(([k, nm]) => `<div><span class="muted">${nm}</span><b>${b[k].left} <small class="muted">/ ${b[k].total}</small></b></div>`).join('') || '<div><span class="muted">الرصيد</span><b>0</b></div>'}</div>
+    <div class="bal ${b.left <= 0 ? 'zero' : ''}">${BUCKETS.filter(([k]) => b[k].total).map(([k, nm]) => `<div><span class="muted">${nm}</span><b>${b[k].left} <small class="muted">/ ${b[k].total}</small></b></div>`).join('') || '<div><span class="muted">الرصيد</span><b>0</b></div>'}${a.cloudBalance?.total ? `<div><span class="muted">عن بعد</span><b>${a.cloudBalance.left} <small class="muted">/ ${a.cloudBalance.total}</small></b></div>` : ''}</div>
     <div class="row">
       <select id="tier-${a.id}" style="flex:1;min-width:200px">${S.tiers.map((t) => `<option value="${t.id}">${esc(tierLabel(t))}</option>`).join('')}</select>
       <button class="primary small" data-act="pkg" data-id="${a.id}">+ إضافة الخطة</button>
       <button class="small" data-act="custom" data-id="${a.id}">باقة مخصصة</button>
+      <button class="small" data-act="cloud" data-id="${a.id}">± تفعيلات عن بعد</button>
       ${b.left > 0 ? `<button class="small danger" data-act="deduct" data-id="${a.id}">− إنقاص رصيد</button>` : ''}
       ${a.username ? `<button class="small" data-act="reset" data-id="${a.id}">كلمة سر جديدة</button>` : `<button class="small" data-act="login" data-id="${a.id}">إنشاء حساب دخول</button>`}
       <button class="small" data-act="edit" data-id="${a.id}">تعديل</button>
@@ -385,7 +388,7 @@ async function agentAction(act, id) {
     $('#f', m).onsubmit = async (e) => {
       e.preventDefault();
       const f = Object.fromEntries(new FormData(e.target));
-      const r = await run(() => api(`/api/agents/${id}/package`, { count: f.count, price: f.price, note: f.note, kind: f.b.startsWith('lifetime') ? 'lifetime' : 'annual', mobile: f.b.endsWith('Mobile') }), 'انضافت الباقة');
+      const r = await run(() => api(`/api/agents/${id}/package`, { count: f.count, price: f.price, note: f.note, ...bkKind(f.b) }), 'انضافت الباقة');
       if (r) m.close();
     };
   } else if (act === 'deduct') {
@@ -400,9 +403,19 @@ async function agentAction(act, id) {
     $('#f', m).onsubmit = async (e) => {
       e.preventDefault();
       const f = Object.fromEntries(new FormData(e.target));
-      const r = await run(() => api(`/api/agents/${id}/deduct`, { count: f.count, refund: f.refund, note: f.note, kind: f.b.startsWith('lifetime') ? 'lifetime' : 'annual', mobile: f.b.endsWith('Mobile') }), 'انخصم من الرصيد');
+      const r = await run(() => api(`/api/agents/${id}/deduct`, { count: f.count, refund: f.refund, note: f.note, ...bkKind(f.b) }), 'انخصم من الرصيد');
       if (r) m.close();
     };
+  } else if (act === 'cloud') {
+    const cb = a.cloudBalance ?? { total: 0, used: 0, left: 0 };
+    const m = modal(`<h2>تفعيلات «الاتصال عن بعد» لـ ${esc(a.name)}</h2><p class="muted">الوكيل بيفتح الخدمة لأي زبون من زباينه، وكل زبون بينخصم تفعيل. عنده هلق <b>${cb.left}</b> (استعمل ${cb.used} من ${cb.total}).</p><form class="list" id="f">
+      <label>العدد (موجب = إضافة، سالب = إنقاص)<input name="count" type="number" value="10" required /></label>
+      <div class="row"><button type="button" class="small" data-n="5">5</button><button type="button" class="small" data-n="10">10</button><button type="button" class="small" data-n="25">25</button><button type="button" class="small" data-n="50">50</button></div>
+      <label>ملاحظة<input name="note" placeholder="مثلاً: هدية، أو مدفوع" /></label>
+      <div class="row"><button class="primary">حفظ</button><button type="button" id="x">إلغاء</button></div></form>`);
+    m.querySelectorAll('[data-n]').forEach((bt) => (bt.onclick = () => ($('[name=count]', m).value = bt.dataset.n)));
+    $('#x', m).onclick = m.close;
+    $('#f', m).onsubmit = async (e) => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); const r = await run(() => api(`/api/agents/${id}/cloud`, { count: Number(f.count), note: f.note }), 'تم'); if (r) m.close(); };
   } else if (act === 'reset') {
     if (!confirm(`كلمة سر جديدة لـ ${a.name}؟ القديمة بتبطل فوراً.`)) return;
     const r = await run(() => api(`/api/agents/${id}/reset`, {}));
@@ -436,7 +449,8 @@ function customerRow(c, owner) {
         <button class="small" data-c="cloud" data-id="${c.id}">${c.cloud ? 'إيقاف عن بعد' : 'تفعيل عن بعد'}</button>
         <button class="small" data-c="edit" data-id="${c.id}">تعديل</button>
         ${c.status !== 'revoked' ? `<button class="small danger" data-c="revoke" data-id="${c.id}">إلغاء</button>` : ''}`
-      : c.trial ? '<span class="muted">لما يشتري: فعّله عادي بنفس البصمة</span>' : !c.phoneOf && c.plan !== 'lifetime' ? `<button class="small" data-c="renew" data-id="${c.id}">تجديد سنة</button> <button class="small" data-c="lifetime" data-id="${c.id}">تحويل لدائم</button>` : ''}
+      : c.trial ? '<span class="muted">لما يشتري: فعّله عادي بنفس البصمة</span>' : `${!c.phoneOf && c.plan !== 'lifetime' ? `<button class="small" data-c="renew" data-id="${c.id}">تجديد سنة</button> ${S.balance?.flex?.left > 0 ? `<button class="small" data-c="renewm" data-id="${c.id}">تجديد شهر</button> ` : ''}<button class="small" data-c="lifetime" data-id="${c.id}">تحويل لدائم</button>` : ''}
+        ${!c.phoneOf && (c.cloud || S.cloud?.left > 0) ? `<button class="small" data-c="acloud" data-id="${c.id}">${c.cloud ? 'إيقاف عن بعد' : 'تفعيل عن بعد'}</button>` : ''}`}
     </div></div>`;
 }
 function filterCustomers(list) {
@@ -517,6 +531,13 @@ async function customerAction(act, id, owner) {
     if (!confirm(`تجديد ${c.name} سنة؟ بتنخصم رخصة من رصيدك.`)) return;
     const r = await run(() => api(`/api/agent/customers/${id}/renew`, {}), 'تم التجديد');
     if (r) showKey(r, '<p class="muted">إذا البرنامج عند الزبون متصل بالنت ما بيحتاج المفتاح الجديد، بيتجدد لحالو.</p>');
+  } else if (act === 'renewm') {
+    if (!confirm(`تجديد ${c.name} شهر؟ بتنخصم رخصة من رصيدك المرن.`)) return;
+    const r = await run(() => api(`/api/agent/customers/${id}/renew`, { plan: 'monthly' }), 'تم التجديد');
+    if (r) showKey(r, '<p class="muted">إذا البرنامج عند الزبون متصل بالنت ما بيحتاج المفتاح الجديد، بيتجدد لحالو.</p>');
+  } else if (act === 'acloud') {
+    if (!c.cloud && !confirm(`تفتح «الاتصال عن بعد» لـ ${c.name}؟ بينخصم تفعيل من رصيدك (باقي ${S.cloud.left}).`)) return;
+    await run(() => api(`/api/agent/customers/${id}/cloud`, { on: !c.cloud }), c.cloud ? 'انطفى الاتصال عن بعد' : 'انفتح الاتصال عن بعد، وبيوصل للزبون خلال دقايق');
   } else if (act === 'lifetime') {
     if (!confirm(`تحويل ${c.name} لاشتراك دائم؟ بتنخصم رخصة من رصيدك الدائم${c.mobile ? ' مع الجوال' : ''}.`)) return;
     await run(() => api(`/api/agent/customers/${id}/lifetime`, {}), 'صار اشتراكه دائم');
@@ -628,7 +649,8 @@ function renderAgent(m) {
   const mine = S.customers;
   const soon = mine.filter((c) => { const d = daysLeft(c); return !c.phoneOf && d !== null && d <= 30; });
   m.innerHTML = `${S.canSign ? '' : '<div class="banner bad">اللوحة لسا عم تتجهّز. جرّب بعد شوي.</div>'}
-    <div class="card"><h2>رصيدي</h2><div class="bal">${BUCKETS.map(([k, n]) => `<div class="${b[k].left <= 0 ? 'zero' : ''}"><span class="muted">${n}</span><b>${b[k].left} <small class="muted">/ ${b[k].total}</small></b></div>`).join('')}</div>
+    <div class="card"><h2>رصيدي</h2><div class="bal">${BUCKETS.filter(([k]) => k !== 'flex' || b.flex.total).map(([k, n]) => `<div class="${b[k].left <= 0 ? 'zero' : ''}"><span class="muted">${n}</span><b>${b[k].left} <small class="muted">/ ${b[k].total}</small></b></div>`).join('')}${S.cloud?.total ? `<div class="${S.cloud.left <= 0 ? 'zero' : ''}"><span class="muted">تفعيلات عن بعد</span><b>${S.cloud.left} <small class="muted">/ ${S.cloud.total}</small></b></div>` : ''}</div>
+      ${b.flex.total ? '<p class="muted">الرصيد المرن: كل رخصة منه بتفعّلها شهري أو سنوي أو دائم، متل ما بدك.</p>' : ''}${S.cloud?.total ? '<p class="muted">تفعيلات عن بعد: من «زبايني» اكبس «تفعيل عن بعد» عند الزبون، وبتنخصم وحدة.</p>' : ''}
       <p class="muted">لزيادة رصيدك تواصل مع وزن. سقف سعر البيع للزبون: 60$ للسنوي و120$ للدائم.</p></div>
     <div class="card"><h2>تفعيل زبون جديد</h2>
       <form id="ac" class="grid">
@@ -636,6 +658,7 @@ function renderAgent(m) {
         <label>موبايل الزبون<input name="phone" dir="ltr" placeholder="+963..." /></label>
         <label>بصمة الجهاز (من شاشة التفعيل بوزن)<input name="machineId" required class="mono" placeholder="XXXX-XXXX-XXXX-XXXX" /></label>
         <label>نوع الرخصة<select name="bucket" id="bk">${BUCKETS.map(([k, n]) => `<option value="${k}" ${b[k].left > 0 ? '' : 'disabled'} ${k === first ? 'selected' : ''}>${n} (باقي ${b[k].left})</option>`).join('')}</select></label>
+        <label class="flexp ${first === 'flex' ? '' : 'hidden'}">المدة (من المرن)<select name="fplan"><option value="annual">سنوي</option><option value="monthly">شهري</option><option value="lifetime">دائم</option></select></label>
         <label id="phl">بصمة الجوال (اختياري هلق)<input name="phoneMachineId" class="mono" placeholder="XXXX-XXXX-XXXX-XXXX" /></label>
         <button class="primary" ${first && S.canSign ? '' : 'disabled'}>تفعيل وإطلاع المفتاح</button>
       </form>${first ? '' : '<p class="muted" style="color:var(--bad)">رصيدك خلص. تواصل مع وزن لتضيف باقة.</p>'}</div>
@@ -643,21 +666,25 @@ function renderAgent(m) {
       <form id="ak" class="grid">
         <label>اسم الزبون (اختياري)<input name="name" /></label>
         <label>موبايل الزبون<input name="phone" dir="ltr" placeholder="+963..." /></label>
-        <label>نوع الرخصة<select name="bucket">${BUCKETS.map(([k, n]) => `<option value="${k}" ${b[k].left > 0 ? '' : 'disabled'} ${k === first ? 'selected' : ''}>${n} (باقي ${b[k].left})</option>`).join('')}</select></label>
+        <label>نوع الرخصة<select name="bucket" id="bk2">${BUCKETS.map(([k, n]) => `<option value="${k}" ${b[k].left > 0 ? '' : 'disabled'} ${k === first ? 'selected' : ''}>${n} (باقي ${b[k].left})</option>`).join('')}</select></label>
+        <label class="flexp ${first === 'flex' ? '' : 'hidden'}">المدة (من المرن)<select name="fplan"><option value="annual">سنوي</option><option value="monthly">شهري</option><option value="lifetime">دائم</option></select></label>
         <button class="primary" ${first ? '' : 'disabled'}>إنشاء الكود</button>
       </form>
       <details style="margin-top:10px"><summary class="muted">أكوادي (${S.cards.length})</summary><div class="list" style="margin-top:8px">${cardsList(S.cards, '/api/agent/cards/:id/void')}</div></details></div>
     ${S.canSign ? trialCard() : ''}
     ${soon.length ? `<div class="card"><h2>بينتهوا قريباً (${soon.length})</h2><div class="list">${soon.map((c) => customerRow(c, false)).join('')}</div></div>` : ''}
     <div class="card"><h2>زبايني (${mine.filter((c) => !c.phoneOf).length})</h2><input id="cq" placeholder="بحث..." value="${esc(q)}" style="margin-bottom:10px" /><div class="list" id="cl">${filterCustomers(mine).slice().reverse().map((c) => customerRow(c, false)).join('') || '<p class="muted">لسا ما فعّلت زباين</p>'}</div></div>`;
-  const syncPhone = () => $('#phl').classList.toggle('hidden', !$('#bk').value.endsWith('Mobile'));
+  const syncPhone = () => { $('#phl').classList.toggle('hidden', !$('#bk').value.endsWith('Mobile')); $('#ac .flexp').classList.toggle('hidden', $('#bk').value !== 'flex'); $('#ak .flexp').classList.toggle('hidden', $('#bk2').value !== 'flex'); };
   $('#bk').onchange = syncPhone;
+  $('#bk2').onchange = syncPhone;
   syncPhone();
+  /** خطة الطلب من الرصيد المختار (المرن بياخد المدة اللي اختارها الوكيل) */
+  const planOf = (f) => (f.bucket === 'flex' ? { plan: f.fplan, mobile: false, flex: true } : { plan: f.bucket.startsWith('lifetime') ? 'lifetime' : 'annual', mobile: f.bucket.endsWith('Mobile') });
   $('#cq').oninput = (e) => { q = e.target.value; $('#cl').innerHTML = filterCustomers(mine).slice().reverse().map((c) => customerRow(c, false)).join(''); bindCustomers(m, false); };
   $('#ac').onsubmit = async (e) => {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(e.target));
-    const body = { name: f.name, phone: f.phone, machineId: f.machineId, plan: f.bucket.startsWith('lifetime') ? 'lifetime' : 'annual', mobile: f.bucket.endsWith('Mobile'), phoneMachineId: f.bucket.endsWith('Mobile') ? f.phoneMachineId : '' };
+    const body = { name: f.name, phone: f.phone, machineId: f.machineId, ...planOf(f), phoneMachineId: f.bucket.endsWith('Mobile') ? f.phoneMachineId : '' };
     const r = await run(() => api('/api/agent/customers', body), 'تم التفعيل');
     if (r) showKey(r.customer, r.phone ? `<p style="margin-top:12px"><b>وكود الجوال:</b></p><div class="code">${esc(r.phone.code)}</div><button class="small" id="cp2" style="margin-top:6px">نسخ كود الجوال</button>` : '');
     const b2 = $('#cp2'); if (b2 && r?.phone) b2.onclick = () => copy(r.phone.code, 'نسخت كود الجوال');
@@ -665,7 +692,7 @@ function renderAgent(m) {
   $('#ak').onsubmit = async (e) => {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(e.target));
-    const k = await run(() => api('/api/agent/cards', { name: f.name, phone: f.phone, plan: f.bucket.startsWith('lifetime') ? 'lifetime' : 'annual', mobile: f.bucket.endsWith('Mobile') }));
+    const k = await run(() => api('/api/agent/cards', { name: f.name, phone: f.phone, ...planOf(f) }));
     if (k) showCard(k);
   };
   bindCards(m, '/api/agent/cards/:id/void');

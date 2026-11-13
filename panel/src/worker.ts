@@ -4,7 +4,7 @@
 // كل تغيير بيأثر على قائمة الحالة بينشر feed.txt لحالو على GitHub (mizan-updates) بعد ثواني.
 // البيانات كلها بـ Durable Object واحد (بيتنفذ طلب ورا طلب، فما في تضارب برصيد الوكيل).
 import { DurableObject } from 'cloudflare:workers';
-import { agentBalance, AGENT_DEFAULT_DEVICES, AGENT_TIERS, RegistryCore, type Agent, type AgentKind, type Customer, type RegistryFile } from '../../admin/registry-core';
+import { agentBalance, agentCloud, AGENT_DEFAULT_DEVICES, AGENT_TIERS, RegistryCore, type Agent, type AgentKind, type Customer, type RegistryFile } from '../../admin/registry-core';
 import { PLANS, publicKeyFromPrivate, type FeedStatus, type Plan } from '../../src/license/format';
 import UI from './ui.html';
 import APP_JS from './app.js.txt';
@@ -583,11 +583,12 @@ export class RegistryDO extends DurableObject<Env> {
         return c;
       };
       if (path === '/api/agent/state' && req.method === 'GET') {
-        return json({ agent: { name: agent.name, city: agent.city ?? '', phone: agent.phone ?? '' }, balance: agentBalance(agent), customers: mine(), cards: reg.cards.filter((c) => c.agentId === agent.id), tiers: AGENT_TIERS, devices: AGENT_DEFAULT_DEVICES, canSign });
+        return json({ agent: { name: agent.name, city: agent.city ?? '', phone: agent.phone ?? '' }, balance: agentBalance(agent), cloud: agentCloud(agent), customers: mine(), cards: reg.cards.filter((c) => c.agentId === agent.id), tiers: AGENT_TIERS, devices: AGENT_DEFAULT_DEVICES, canSign });
       }
+      // شهري (من الرصيد المرن) أو سنوي أو دائم؛ flex = الوكيل اختار يصرف من المرن
+      const agentPlan = (): Plan => (str('plan') === 'lifetime' ? 'lifetime' : str('plan') === 'monthly' ? 'monthly' : 'annual');
       if (path === '/api/agent/cards' && req.method === 'POST') {
-        const plan: Plan = str('plan') === 'lifetime' ? 'lifetime' : 'annual';
-        return json(reg.createCard({ name: str('name'), phone: str('phone'), plan, mobile: body['mobile'] === true, agentId: agent.id }));
+        return json(reg.createCard({ name: str('name'), phone: str('phone'), plan: agentPlan(), mobile: body['mobile'] === true, agentId: agent.id, flex: body['flex'] === true }));
       }
       const mv = /^\/api\/agent\/cards\/([^/]+)\/void$/.exec(path);
       if (mv && req.method === 'POST') {
@@ -603,19 +604,25 @@ export class RegistryDO extends DurableObject<Env> {
       }
       if (path === '/api/agent/customers' && req.method === 'POST') {
         needKey();
-        const plan: Plan = str('plan') === 'lifetime' ? 'lifetime' : 'annual';
+        const plan = agentPlan();
         const mobile = body['mobile'] === true;
-        const c = reg.add({ name: str('name'), machineId: str('machineId'), plan, agentId: agent.id, mobile, ...(str('phone') ? { phone: str('phone') } : {}), ...(str('notes') ? { notes: str('notes') } : {}) });
+        const c = reg.add({ name: str('name'), machineId: str('machineId'), plan, agentId: agent.id, mobile, flex: body['flex'] === true, ...(str('phone') ? { phone: str('phone') } : {}), ...(str('notes') ? { notes: str('notes') } : {}) });
         let phone: Customer | null = null;
         if (mobile && str('phoneMachineId')) phone = reg.addPhone(c.id, str('phoneMachineId'));
         this.schedulePublish();
         return json({ customer: c, phone });
       }
-      const m = /^\/api\/agent\/customers\/([^/]+)\/(renew|lifetime|phone)$/.exec(path);
+      const m = /^\/api\/agent\/customers\/([^/]+)\/(renew|lifetime|phone|cloud)$/.exec(path);
       if (m && req.method === 'POST') {
-        needKey();
         const c = own(m[1]!);
-        const out = m[2] === 'renew' ? reg.extend(c.id, 'annual') : m[2] === 'lifetime' ? reg.extend(c.id, 'lifetime') : reg.addPhone(c.id, str('machineId'));
+        if (m[2] === 'cloud') {
+          const out = reg.agentSetCloud(agent.id, c.id, body['on'] === true);
+          this.schedulePublish();
+          return json(out);
+        }
+        needKey();
+        const flex = body['flex'] === true;
+        const out = m[2] === 'renew' ? reg.extend(c.id, str('plan') === 'monthly' ? 'monthly' : 'annual', { flex }) : m[2] === 'lifetime' ? reg.extend(c.id, 'lifetime', { flex }) : reg.addPhone(c.id, str('machineId'));
         this.schedulePublish();
         return json(out);
       }
@@ -629,7 +636,7 @@ export class RegistryDO extends DurableObject<Env> {
       const users = agentUsers();
       return json({
         customers: reg.customers,
-        agents: reg.agents.map((a) => ({ ...a, balance: agentBalance(a), username: users[a.id] ?? null })),
+        agents: reg.agents.map((a) => ({ ...a, balance: agentBalance(a), cloudBalance: agentCloud(a), username: users[a.id] ?? null })),
         update: reg.appUpdate ?? null,
         rates: reg.rates ?? null,
         cards: reg.cards,
@@ -749,7 +756,7 @@ export class RegistryDO extends DurableObject<Env> {
       if (str('tier')) reg.addPackage(a.id, { tier: str('tier') });
       return json({ agent: a, username, password });
     }
-    const ma = /^\/api\/agents\/([^/]+)\/(package|deduct|update|reset|login)$/.exec(path);
+    const ma = /^\/api\/agents\/([^/]+)\/(package|deduct|update|reset|login|cloud)$/.exec(path);
     if (ma && req.method === 'POST') {
       const [, id, action] = ma;
       const a = reg.agent(id!);
@@ -765,10 +772,11 @@ export class RegistryDO extends DurableObject<Env> {
           }),
         );
       }
+      if (action === 'cloud') return json(reg.addCloud(a.id, num('count') ?? 0, str('note') || undefined));
       if (action === 'deduct') {
         return json(
           reg.deductPackage(a.id, {
-            kind: str('kind') === 'lifetime' ? 'lifetime' : 'annual',
+            kind: str('kind') === 'lifetime' ? 'lifetime' : str('kind') === 'flex' ? 'flex' : 'annual',
             ...(body['mobile'] === true ? { mobile: true } : {}),
             count: num('count') ?? 0,
             ...(num('refund') !== undefined ? { refund: num('refund')! } : {}),
