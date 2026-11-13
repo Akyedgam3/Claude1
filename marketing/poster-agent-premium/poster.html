@@ -1,0 +1,79 @@
+<!doctype html>
+<html dir="rtl">
+<head>
+<meta charset="utf-8">
+<style>
+@font-face { font-family: Alexandria; src: url(alexandria-arabic-wght-normal.woff2); font-weight: 100 900; unicode-range: U+0600-06FF, U+0750-077F, U+FB50-FDFF, U+FE70-FEFF, U+200C-200F; }
+@font-face { font-family: Alexandria; src: url(alexandria-latin-wght-normal.woff2); font-weight: 100 900; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1080px; height: 1350px; overflow: hidden; }
+body { font-family: Alexandria, sans-serif; color: #0b2a24; background: linear-gradient(158deg, #fbfdfb 0%, #eef5f0 52%, #e2f0e9 100%); position: relative; overflow: hidden; }
+.orb { position: absolute; border-radius: 50%; }
+.o1 { width: 1100px; height: 1100px; right: -380px; top: -420px; background: radial-gradient(closest-side, rgba(95,224,191,.55), rgba(255,255,255,0)); }
+.o2 { width: 900px; height: 900px; left: -380px; top: 420px; background: radial-gradient(closest-side, rgba(255,216,134,.45), rgba(255,255,255,0)); }
+.o3 { width: 1000px; height: 1000px; right: -300px; bottom: -520px; background: radial-gradient(closest-side, rgba(20,149,124,.22), rgba(255,255,255,0)); }
+.wrap { position: relative; padding: 64px 70px 0; height: 100%; }
+.top { display: flex; align-items: center; justify-content: space-between; }
+.brand { display: flex; align-items: center; gap: 18px; }
+.brand img { width: 86px; height: 86px; border-radius: 22px; box-shadow: 0 18px 36px -14px rgba(6,60,48,.45); }
+.brand b { font-size: 46px; font-weight: 900; }
+.brand small { display: block; font-size: 22px; font-weight: 600; color: #14957c; margin-top: 2px; }
+.ribbon { font-size: 26px; font-weight: 800; color: #fff; background: linear-gradient(135deg, #f0524f, #d92d2a); padding: 12px 28px; border-radius: 999px; box-shadow: 0 16px 30px -12px rgba(217,45,42,.6); }
+.kicker { margin-top: 52px; font-size: 34px; font-weight: 700; color: #14957c; }
+h1 { font-size: 96px; font-weight: 900; line-height: 1.2; white-space: nowrap; letter-spacing: -0.015em; margin-top: 6px; }
+h1 .hl { position: relative; display: inline-block; padding: 0 .16em; color: #fff; }
+h1 .hl::before { content: ''; position: absolute; inset: .1em 0 .06em; border-radius: .22em; background: linear-gradient(135deg, #17a587, #0f7a65); box-shadow: 0 .12em .3em -.08em rgba(15,110,92,.55); z-index: -1; }
+.lead { margin-top: 18px; font-size: 31px; font-weight: 500; color: #3b5c54; line-height: 1.55; max-width: 900px; }
+.cards { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; margin-top: 40px; }
+.card { background: #fff; border-radius: 34px; padding: 34px 34px 30px; box-shadow: 0 40px 80px -36px rgba(6,50,40,.42), 0 14px 30px -18px rgba(6,50,40,.25); position: relative; overflow: hidden; }
+.card .num { font-size: 120px; font-weight: 900; line-height: 1; color: #0f7a65; direction: ltr; text-align: right; }
+.card h3 { font-size: 38px; font-weight: 800; margin-top: 10px; }
+.card p { font-size: 25px; font-weight: 500; color: #4f6d66; margin-top: 10px; line-height: 1.5; }
+.chips { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+.chip { font-size: 23px; font-weight: 700; color: #0f6e5c; background: #e3f5ef; border-radius: 999px; padding: 6px 18px; }
+.card .ico { position: absolute; left: 26px; top: 26px; width: 78px; height: 78px; border-radius: 22px; background: #e3f5ef; display: grid; place-items: center; }
+.price { margin-top: 34px; display: flex; align-items: center; justify-content: space-between; background: linear-gradient(135deg, #16a283 0%, #0f6e5c 70%, #0b5b4b 100%); border-radius: 38px; padding: 34px 44px; color: #fff; box-shadow: 0 46px 90px -40px rgba(6,60,48,.75); }
+.price .lbl { font-size: 30px; font-weight: 700; color: #c9f5e8; }
+.price .usd { font-size: 104px; font-weight: 900; line-height: 1; direction: ltr; letter-spacing: -0.02em; margin-top: 4px; }
+.price .usd small { font-size: 54px; vertical-align: top; margin-right: 6px; }
+.price .syp { text-align: left; }
+.price .syp b { display: block; font-size: 50px; font-weight: 900; direction: ltr; }
+.price .syp span { font-size: 26px; font-weight: 600; color: #c9f5e8; }
+.foot { margin-top: 30px; display: flex; justify-content: space-between; align-items: center; font-size: 26px; font-weight: 700; color: #33554d; }
+.foot .site { direction: ltr; font-weight: 800; color: #0f6e5c; font-size: 30px; }
+.foot .wa b { direction: ltr; unicode-bidi: isolate; display: inline-block; font-weight: 800; color: #0b2a24; }
+</style>
+</head>
+<body>
+<div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div>
+<div class="wrap">
+  <div class="top">
+    <div class="brand"><img src="icon.png" alt=""><div><b>وزن</b><small>برنامج المحاسبة وإدارة المحلات</small></div></div>
+    <div class="ribbon">عرض الوكلاء</div>
+  </div>
+  <div class="kicker">صير وكيل وزن بمدينتك</div>
+  <h1>باقة <span class="hl">الوكيل المميز</span></h1>
+  <p class="lead">كل شي بتحتاجه لتبلّش تبيع وتفعّل زباينك من لوحتك الخاصة، وبتربح من كل رخصة.</p>
+  <div class="cards">
+    <div class="card">
+      <div class="ico"><svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#0f7a65" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg></div>
+      <div class="num">25</div>
+      <h3>كود ترخيص</h3>
+      <p>كل كود بتفعّله بالمدة اللي بدك ياها:</p>
+      <div class="chips"><span class="chip">شهري</span><span class="chip">سنوي</span><span class="chip">دائم</span></div>
+    </div>
+    <div class="card">
+      <div class="ico"><svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#0f7a65" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/><path d="M2 9a14 14 0 0 1 4-3"/><path d="M22 9a14 14 0 0 0-4-3"/></svg></div>
+      <div class="num">25</div>
+      <h3>تفعيل عن بعد</h3>
+      <p>زبونك بيتابع محلّه من جواله وهو بالبيت، وإنت بتفتحله الخدمة بكبسة.</p>
+    </div>
+  </div>
+  <div class="price">
+    <div><div class="lbl">سعر الباقة كاملة</div><div class="usd"><small>$</small>249.99</div></div>
+    <div class="syp"><span>أو بالليرة الجديدة</span><b>36,500 ل.س</b></div>
+  </div>
+  <div class="foot"><span class="wa">واتساب: <b>0968 037 609</b> · <b>0980 072 891</b></span><span class="site">waznsy.com</span></div>
+</div>
+</body>
+</html>
