@@ -1,4 +1,4 @@
-import { amountInWords, partyBalance, partyDebts, findRate, INVOICE_KIND_NAMES, invoicePartyBalance, invoiceProfit, lineAmount, weighingText, type CompanyState, type Invoice } from '../../../core';
+import { amountInWords, attributesText, partyBalance, partyDebts, findRate, INVOICE_KIND_NAMES, invoicePartyBalance, invoiceProfit, lineAmount, weighingText, type CompanyState, type Invoice } from '../../../core';
 import { api, dateText, IS_MOBILE, money, plainMoney, qtyText, qtyTotalText, rateLine, today, useCompany } from '../api';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { CommercialDoc, type DocModel } from '../components/CommercialDoc';
@@ -284,6 +284,7 @@ function MobileInvoiceView({ inv }: { inv: Invoice }) {
                   <span className="ltr">{qtyText(l.qty)}</span> {l.unit ?? item?.unit ?? ''} × <span className="ltr">{m(l.price)}</span>
                   {l.discount > 0 && <> · خصم <span className="ltr">{m(l.discount)}</span></>}
                 </small>
+                {l.attributes && <small>{attributesText(l.attributes)}</small>}
                 {l.costParts && (
                   <small className="cost-line">
                     معمل {plainMoney(state, l.costParts.factory, inv.currency)} + شحن {plainMoney(state, l.costParts.shipping, inv.currency)} + ضريبة {plainMoney(state, l.costParts.tax, inv.currency)} + جمارك{' '}
@@ -474,6 +475,7 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
       if (l.serials?.length) sub.push(<span className="mono">{l.serials.join(' · ')}</span>);
       if (item?.warrantyMonths && inv.kind === 'sale') sub.push(`كفالة ${item.warrantyMonths} شهراً`);
       if (l.weighing) sub.push(weighingText(l.weighing, l.unit ?? item?.unit ?? 'كغ'));
+      if (l.attributes && !company.print?.hideAttributes) sub.push(attributesText(l.attributes));
       if (l.note) sub.push(l.note);
       if (l.costParts) {
         const cp = l.costParts;

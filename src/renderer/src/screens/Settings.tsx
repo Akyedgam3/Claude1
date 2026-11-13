@@ -421,6 +421,10 @@ function PrintTab() {
               رمز QR بالفاتورة
             </label>
             <label className="check">
+              <input type="checkbox" checked={!p.hideAttributes} onChange={(e) => setP({ ...p, hideAttributes: !e.target.checked })} />
+              خيارات الصنف (اللون، الحجم، الوزن…) تحت اسمه
+            </label>
+            <label className="check">
               <input type="checkbox" checked={p.showStamp !== false} onChange={(e) => setP({ ...p, showStamp: e.target.checked })} />
               ختم (مدفوعة / آجل / ملغاة)
             </label>

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { applyListPricing, attributesFor, niceUnitCost, buyDiscountOf, generateVariants, itemPlace, itemPlacesText, listPrices, withPlace, type Item, type ItemKind, type ItemUnit, type RecipeLine } from '../../../core';
+import { applyListPricing, attributesFor, ATTRIBUTE_SUGGESTIONS, niceUnitCost, buyDiscountOf, generateVariants, itemPlace, itemPlacesText, listPrices, withPlace, type Item, type ItemKind, type ItemUnit, type RecipeLine } from '../../../core';
 import { api, major, money, unitMoney, parseAmount, parsePrice, qtyText, toInput, today, uid, useCompany } from '../api';
 import { Barcode, ExportButtons, usePrinter } from '../components/print';
 import { CameraScanButton, ColorPicker, ConfirmButton, CurrencySelect, ItemName, Empty, Field, itemMatches, itemOptions, Modal, PageHeader, Picker, SearchBox, Tabs } from '../components/ui';
@@ -551,7 +551,20 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
             ))}
             {attributeNames.map((a) => (
               <Field key={a} label={a} wide={a === 'اللون'}>
-                {a === 'اللون' ? <ColorPicker value={attrs[a] ?? ''} onChange={(v) => setAttrs({ ...attrs, [a]: v })} /> : <input value={attrs[a] ?? ''} onChange={(e) => setAttrs({ ...attrs, [a]: e.target.value })} />}
+                {a === 'اللون' ? (
+                  <ColorPicker value={attrs[a] ?? ''} onChange={(v) => setAttrs({ ...attrs, [a]: v })} />
+                ) : ATTRIBUTE_SUGGESTIONS[a] ? (
+                  <>
+                    <input value={attrs[a] ?? ''} onChange={(e) => setAttrs({ ...attrs, [a]: e.target.value })} list={`item-attr-${a}`} placeholder={ATTRIBUTE_SUGGESTIONS[a]!.slice(0, 3).join('، ') + '…'} />
+                    <datalist id={`item-attr-${a}`}>
+                      {ATTRIBUTE_SUGGESTIONS[a]!.map((v) => (
+                        <option key={v} value={v} />
+                      ))}
+                    </datalist>
+                  </>
+                ) : (
+                  <input value={attrs[a] ?? ''} onChange={(e) => setAttrs({ ...attrs, [a]: e.target.value })} />
+                )}
               </Field>
             ))}
             <Field label="حقل إضافي خاص بهذه المادة">

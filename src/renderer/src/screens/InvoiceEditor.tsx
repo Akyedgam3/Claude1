@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { isCashBox, computeTaxes, PRICE_TIER_NAMES, tierPrice, niceUnitCost, PRICE_SCALE, roundPrice, findRate, itemPlace, listPrices, withPlace, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
+import { attributesFor, ATTRIBUTE_SUGGESTIONS, isCashBox, computeTaxes, PRICE_TIER_NAMES, tierPrice, niceUnitCost, PRICE_SCALE, roundPrice, findRate, itemPlace, listPrices, withPlace, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
 import { convertPrice, dateText, fxRates, money, cleanNumber, qtyTotalText, parseAmount, parseDiscount, parsePrice, rateInverted, toInput, today, uid, useCompany } from '../api';
 import { askConfirm, CurrencySelect, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
 import { invoiceDrafts } from '../drafts';
@@ -23,6 +23,7 @@ interface LineState {
   manualPrice?: boolean; // كتب المستخدم السعر بيده (لا نعيد تسعيره)
   src?: { amount: number; currency: string }; // السعر اليدوي بالعملة اللي انكتب فيها، لنحوّله إذا تغيّرت عملة الفاتورة أو سعر الصرف
   note?: string; // ملاحظة السطر (بتنحفظ متل ما هي عند تعديل فاتورة)
+  attrs?: Record<string, string>; // خيارات الصنف بهالسطر (اللون، الوزن، الحجم...)
   weighing?: Weighing; // وزنات قفص قفص (الكمية = الصافي)
   sell?: string; // فاتورة الشراء (صيدلية مع موردين): سعر الصيدلية الجديد
   dealer?: string; // وسعر المورّد الجديد
@@ -101,7 +102,7 @@ export function itemPrice(state: CompanyState, item: Item, opts: { party?: Party
 
 export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { kind: string; editId?: string; draftId?: string }) {
   const kind = kindProp as InvoiceKind;
-  const { state, call, notify, navigate, feature, can, user } = useCompany();
+  const { state, call, notify, navigate, feature, can, user, profile } = useCompany();
   // صندوق المستخدم: لغير المالك ثابت (السيرفر كمان بيفرضه)
   const lockedBox = user.role !== 'owner' && user.cashAccountId && state.accounts[user.cashAccountId] ? user.cashAccountId : null;
   const base = state.info!.baseCurrency;
@@ -137,6 +138,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
             manualPrice: true,
             src: { amount: l.price, currency: editing.currency },
             ...(l.note ? { note: l.note } : {}),
+            ...(l.attributes ? { attrs: { ...l.attributes } } : {}),
             ...(l.weighing ? { weighing: l.weighing } : {}),
             ...(l.costParts ? { parts: { factory: editInput(l.costParts.factory), shipping: editInput(l.costParts.shipping), tax: editInput(l.costParts.tax), customs: editInput(l.costParts.customs) } } : {}),
           })),
@@ -317,7 +319,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
       focusQty(same.key);
       return;
     }
-    setLines((ls) => withEmpty(ls.map((l) => (l.key === key ? { ...l, itemId, unit, qty, description: item ? itemTitle(item) : '', price: price ?? (item ? priceFor(item, unit) : l.price), manualPrice: price !== undefined } : l))));
+    setLines((ls) => withEmpty(ls.map((l) => { if (l.key !== key) return l; const { attrs: _old, ...rest } = l; void _old; return { ...rest, itemId, unit, qty, description: item ? itemTitle(item) : '', price: price ?? (item ? priceFor(item, unit) : l.price), manualPrice: price !== undefined, ...(item?.attributes ? { attrs: { ...item.attributes } } : {}) }; })));
     if (item) focusQty(key);
   };
 
@@ -500,6 +502,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
           ...(l.expiry ? { expiry: l.expiry } : {}),
           ...(l.serials.trim() ? { serials: l.serials.split(/[\s,،]+/).map((s) => s.trim()).filter(Boolean) } : {}),
           ...(l.note ? { note: l.note } : {}),
+          ...(l.attrs ? { attributes: l.attrs } : {}),
           ...(l.weighing ? { weighing: l.weighing } : {}),
           ...(kind === 'purchase' && breakdown && l.parts && Object.values(l.parts).some((v) => v.trim())
             ? { costParts: { factory: parsePrice(state, l.parts.factory || '0', currency), shipping: parsePrice(state, l.parts.shipping || '0', currency), tax: parsePrice(state, l.parts.tax || '0', currency), customs: parsePrice(state, l.parts.customs || '0', currency) } }
@@ -758,6 +761,33 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
                             })()}
                           </span>
                         )}
+                        {item && (() => {
+                          // خيارات الصنف (اللون، الوزن، الحجم...): من بطاقته، وبتتغيّر لهالبيعة بس، وبتنطبع بالفاتورة
+                          const names = [...new Set([...attributesFor(profile, item.category), ...Object.keys(l.attrs ?? {})])];
+                          if (!names.length) return null;
+                          return (
+                            <span className="line-attrs">
+                              {Object.entries(ATTRIBUTE_SUGGESTIONS).map(([a, vals]) => (
+                                <datalist key={a} id={`attr-sug-${a}-${l.key}`}>
+                                  {vals.map((v) => (
+                                    <option key={v} value={v} />
+                                  ))}
+                                </datalist>
+                              ))}
+                              {names.map((a) => (
+                                <label key={a}>
+                                  {a}
+                                  <input
+                                    value={l.attrs?.[a] ?? ''}
+                                    list={ATTRIBUTE_SUGGESTIONS[a] ? `attr-sug-${a}-${l.key}` : undefined}
+                                    placeholder="—"
+                                    onChange={(e) => setLine(l.key, { attrs: { ...(l.attrs ?? {}), [a]: e.target.value } })}
+                                  />
+                                </label>
+                              ))}
+                            </span>
+                          );
+                        })()}
                         {setPrices && dealersMode && (
                           <span className="sell-prices">
                             <label>

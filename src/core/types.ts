@@ -93,6 +93,8 @@ export type Paper = 'a4' | 'a5' | '80mm' | '58mm';
 
 export interface PrintSettings {
   logo?: string; // data URL (صغير)
+  /** ما تطبع خيارات الصنف (اللون، الحجم، الوزن...) تحت اسمه بالفاتورة */
+  hideAttributes?: boolean;
   header?: string; // سطر إضافي تحت اسم الشركة
   footer?: string; // نص أسفل الفاتورة
   showUsdEquivalent?: boolean; // إظهار المقابل بالدولار
@@ -359,6 +361,8 @@ export interface InvoiceLine {
   serials?: string[];
   components?: ComponentMove[]; // للأصناف المركّبة
   note?: string;
+  /** خيارات الصنف بهالسطر (اللون، الوزن، الحجم...): بتنطبع تحت اسمه بالفاتورة. */
+  attributes?: Record<string, string>;
   /** وزنات على دفعات (قفص قفص): الكمية = مجموع الوزنات − وزن الفارغ. */
   weighing?: Weighing;
   /** تفصيل تكلفة القطعة بفاتورة الشراء (المعمل + الشحن + الضريبة + الجمارك = السعر). */

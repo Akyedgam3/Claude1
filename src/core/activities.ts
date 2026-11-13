@@ -53,6 +53,16 @@ export interface ActivityProfile {
   quickNotes?: string[];
 }
 
+/** خيارات الأصناف الغذائية: بتتعبّى ببطاقة الصنف، وبتتغيّر بالفاتورة، وبتنطبع تحت اسمه. */
+export const FOOD_ATTRIBUTES = ['الماركة', 'الحجم', 'الوزن', 'اللون', 'النكهة'];
+/** قيم جاهزة للاختيار السريع (والمستخدم بيكتب غيرها إذا بدو). */
+export const ATTRIBUTE_SUGGESTIONS: Record<string, string[]> = {
+  الحجم: ['صغير', 'وسط', 'كبير', 'عائلي', 'جامبو'],
+  الوزن: ['100 غ', '250 غ', '500 غ', '1 كغ', '2 كغ', '5 كغ', '10 كغ'],
+  النكهة: ['سادة', 'فانيلا', 'شوكولا', 'فريز', 'ليمون', 'حار'],
+  المقاس: ['S', 'M', 'L', 'XL', 'XXL'],
+};
+
 export const ACTIVITIES: Record<Activity, ActivityProfile> = {
   general: {
     id: 'general',
@@ -91,6 +101,7 @@ export const ACTIVITIES: Record<Activity, ActivityProfile> = {
     itemsLabel: 'الأصناف',
     units: ['قطعة', 'كيلو', 'علبة', 'كرتونة', 'ربطة', 'لتر'],
     categories: ['مواد غذائية', 'ألبان وأجبان', 'منظفات', 'مشروبات', 'معلبات', 'خضار وفواكه', 'سكاكر'],
+    attributes: FOOD_ATTRIBUTES,
     accountNames: { '4101': 'مبيعات المواد الغذائية' },
   },
   pharmacy: {
@@ -145,7 +156,7 @@ export const ACTIVITIES: Record<Activity, ActivityProfile> = {
     itemsLabel: 'الأصناف',
     units: ['كيلو', 'كيس', 'شوال', 'كرتونة', 'تنكة', 'قطعة', 'علبة', 'ربطة'],
     categories: ['حبوب وبقوليات', 'سكر وطحين', 'زيوت وسمون', 'شاي وقهوة', 'معلبات', 'معكرونة وشعيرية', 'بهارات', 'منظفات'],
-    attributes: ['المنشأ', 'الماركة'],
+    attributes: [...FOOD_ATTRIBUTES, 'المنشأ'],
     accountNames: { '1104': 'مخزون المواد الغذائية', '4101': 'مبيعات المواد الغذائية' },
   },
   woodmill: {
@@ -294,6 +305,7 @@ export const ACTIVITIES: Record<Activity, ActivityProfile> = {
     features: ['scale', 'pos', 'units'],
     itemLabel: 'صنف',
     itemsLabel: 'الأصناف',
+    attributes: FOOD_ATTRIBUTES,
     units: ['كيلو', 'غرام', 'قطعة', 'ربطة', 'صندوق'],
     categories: ['لحم غنم', 'لحم عجل', 'دجاج', 'خضار', 'فواكه'],
     accountNames: {},
@@ -307,6 +319,7 @@ export const ACTIVITIES: Record<Activity, ActivityProfile> = {
     features: ['production', 'recipes', 'scale', 'pos', 'batches', 'units'],
     itemLabel: 'صنف',
     itemsLabel: 'المنتجات والمواد الأولية',
+    attributes: FOOD_ATTRIBUTES,
     units: ['كيلو', 'قطعة', 'ربطة', 'صينية', 'علبة'],
     categories: ['خبز', 'معجنات', 'حلويات عربية', 'كاتو', 'مواد أولية'],
     accountNames: { '1104': 'مخزون المواد الأولية والمنتجات' },
@@ -320,6 +333,7 @@ export const ACTIVITIES: Record<Activity, ActivityProfile> = {
     features: ['pos', 'scale', 'units', 'recipes', 'production', 'batches'],
     itemLabel: 'صنف',
     itemsLabel: 'الأصناف والمواد الأولية',
+    attributes: FOOD_ATTRIBUTES,
     units: ['كيلو', 'قطعة', 'علبة', 'صينية', 'كاسة', 'كونو', 'بولة'],
     categories: ['حلويات عربية', 'حلويات غربية', 'كاتو وتورتات', 'بوظة', 'شوكولا وسكاكر', 'مشروبات', 'مواد أولية'],
     quickNotes: ['فانيلا', 'شوكولا', 'فريز', 'فستق حلبي', 'مانجا', 'ليمون', 'قشطة', 'كراميل', 'زيادة فستق', 'بدون مكسرات', 'علبة هدية'],

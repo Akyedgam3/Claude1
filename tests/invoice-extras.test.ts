@@ -128,3 +128,17 @@ describe('overpaying an invoice', () => {
     expect(-partyBalance(l.state, 'sup').base).toBe(30_000);
   });
 });
+
+describe('item options on invoice lines (colour, size, weight)', () => {
+  it('a line takes the item card options unless the sale sets its own, and empty values are dropped', async () => {
+    const { DEFAULT_CURRENCIES, Ledger, chartFor, defaultTaxes, attributesText } = await import('../src/core');
+    const l = new Ledger(() => {});
+    l.createCompany({ name: 'سوبرماركت', activity: 'supermarket', baseCurrency: 'SYP', fiscalYearStart: '01-01' }, DEFAULT_CURRENCIES, chartFor('supermarket'), defaultTaxes());
+    l.saveItem({ id: 'j', code: 'J', name: 'عصير', kind: 'service', unit: 'قطعة', price: 1000, priceCurrency: 'SYP', attributes: { الحجم: 'وسط', النكهة: 'فريز' } });
+    const a = l.postInvoice({ kind: 'sale', date: '2026-11-13', currency: 'SYP', lines: [{ itemId: 'j', qty: 1, price: 1000 }], paid: 1000 });
+    expect(a.lines[0]!.attributes).toEqual({ الحجم: 'وسط', النكهة: 'فريز' });
+    const b = l.postInvoice({ kind: 'sale', date: '2026-11-13', currency: 'SYP', lines: [{ itemId: 'j', qty: 2, price: 1500, attributes: { الحجم: 'كبير', النكهة: '', اللون: ' أحمر ' } }], paid: 3000 });
+    expect(b.lines[0]!.attributes).toEqual({ الحجم: 'كبير', اللون: 'أحمر' });
+    expect(attributesText(b.lines[0]!.attributes)).toBe('الحجم: كبير · اللون: أحمر');
+  });
+});

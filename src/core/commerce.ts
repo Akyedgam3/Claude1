@@ -756,6 +756,22 @@ export function applyCommerceEvent(state: CompanyState, event: CompanyEvent): vo
 
 // ───────────── بناء الفاتورة وقيدها ─────────────
 
+/** خيارات السطر: بس القيم المعبّاية، وكل وحدة قصيرة (حتى ما تطوّل الفاتورة). */
+export function cleanAttributes(a: Record<string, string> | undefined): Record<string, string> | undefined {
+  if (!a) return undefined;
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(a)) {
+    const key = String(k).trim().slice(0, 40), val = String(v ?? '').trim().slice(0, 80);
+    if (key && val) out[key] = val;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/** نص الخيارات بسطر وحدة: «اللون: أحمر · الحجم: وسط». */
+export function attributesText(a: Record<string, string> | undefined): string {
+  return a ? Object.entries(a).map(([k, v]) => `${k}: ${v}`).join(' · ') : '';
+}
+
 export interface InvoiceLineDraft {
   itemId?: string | null;
   description?: string;
@@ -767,6 +783,8 @@ export interface InvoiceLineDraft {
   expiry?: string;
   serials?: string[];
   note?: string;
+  /** خيارات الصنف (اللون، الوزن، الحجم...). إذا ما انبعتت منتاخد خيارات بطاقة الصنف نفسه. */
+  attributes?: Record<string, string>;
   weighing?: Weighing;
   costParts?: CostParts;
 }
@@ -865,6 +883,10 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft, opts: { n
       price: d.price,
       discount,
       ...(d.note ? { note: d.note } : {}),
+      ...(() => {
+        const a = cleanAttributes(d.attributes ?? item?.attributes);
+        return a ? { attributes: a } : {};
+      })(),
       ...(weighing ? { weighing } : {}),
       ...(d.costParts && (draft.kind === 'purchase') ? { costParts: cleanCostParts(d.costParts, n) } : {}),
     };
