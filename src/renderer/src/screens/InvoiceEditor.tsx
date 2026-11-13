@@ -650,6 +650,11 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
             <input value={state.info.vatNumber} readOnly dir="ltr" title="بينطبع عكل الفواتير. بيتغيّر من الإعدادات ← الشركة" />
           </Field>
         )}
+        {state.info?.taxNumber && (
+          <Field label="السجل التجاري (للمحل، ثابت)">
+            <input value={state.info.taxNumber} readOnly dir="ltr" title="بينطبع عكل الفواتير. بيتغيّر من الإعدادات ← الشركة" />
+          </Field>
+        )}
         {feature('salesmen') && isSale && (
           <Field label="المندوب">
             <input value={salesman} onChange={(e) => setSalesman(e.target.value)} list="salesmen" />

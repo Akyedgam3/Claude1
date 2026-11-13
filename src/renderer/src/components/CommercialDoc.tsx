@@ -108,7 +108,7 @@ export function CommercialDoc({ model, className, preview }: { model: DocModel; 
               {c.address && <span>{c.address}</span>}
               {c.phone && <span className="ltr">{c.phone}</span>}
               {c.vatNumber && <span>الرقم الضريبي: <span className="ltr">{c.vatNumber}</span></span>}
-              {c.taxNumber && <span>السجل: {c.taxNumber}</span>}
+              {c.taxNumber && <span>السجل التجاري: <span className="ltr">{c.taxNumber}</span></span>}
             </div>
           </div>
         </div>

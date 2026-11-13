@@ -42,6 +42,7 @@ test('الرقم الضريبي للمحل على الفواتير، والإي�
     await nav(page, 'سجل الفواتير');
     await page.locator('table.table tbody tr').first().click();
     await expect(page.locator('.invoice-doc')).toContainText('الرقم الضريبي: 03310090718');
+    await expect(page.locator('.invoice-doc')).toContainText('السجل التجاري: 55667');
     // الإيصال الحراري كأنه عم ينطبع على 80mm
     await page.emulateMedia({ media: 'print' });
     await page.evaluate(() => (document.body.dataset['paper'] = '80mm'));
