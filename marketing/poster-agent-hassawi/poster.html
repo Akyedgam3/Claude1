@@ -1,0 +1,69 @@
+<!doctype html>
+<html dir="rtl">
+<head>
+<meta charset="utf-8">
+<!-- بوستر الوكيل الرسمي بريف حلب الشمالي (الحساوي). الصورة: node shot.mjs poster.html out.png 2 -->
+<style>
+@font-face { font-family: Alexandria; src: url(alexandria-arabic-wght-normal.woff2); font-weight: 100 900; unicode-range: U+0600-06FF, U+0750-077F, U+FB50-FDFF, U+FE70-FEFF, U+200C-200F; }
+@font-face { font-family: Alexandria; src: url(alexandria-latin-wght-normal.woff2); font-weight: 100 900; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1080px; height: 1350px; overflow: hidden; }
+body { font-family: Alexandria, sans-serif; color: #0b2a24; background: linear-gradient(158deg, #fbfdfb 0%, #eef5f0 52%, #e2f0e9 100%); position: relative; }
+.orb { position: absolute; border-radius: 50%; }
+.o1 { width: 1100px; height: 1100px; right: -380px; top: -420px; background: radial-gradient(closest-side, rgba(95,224,191,.55), rgba(255,255,255,0)); }
+.o2 { width: 900px; height: 900px; left: -380px; top: 380px; background: radial-gradient(closest-side, rgba(255,216,134,.45), rgba(255,255,255,0)); }
+.o3 { width: 1000px; height: 1000px; right: -300px; bottom: -520px; background: radial-gradient(closest-side, rgba(20,149,124,.22), rgba(255,255,255,0)); }
+.wrap { position: relative; padding: 64px 70px 0; height: 100%; }
+.top { display: flex; align-items: center; justify-content: space-between; }
+.brand { display: flex; align-items: center; gap: 18px; }
+.brand img { width: 86px; height: 86px; border-radius: 22px; box-shadow: 0 18px 36px -14px rgba(6,60,48,.45); }
+.brand b { font-size: 46px; font-weight: 900; }
+.brand small { display: block; font-size: 22px; font-weight: 600; color: #14957c; margin-top: 2px; }
+.ribbon { display: flex; align-items: center; gap: 10px; font-size: 26px; font-weight: 800; color: #fff; background: linear-gradient(135deg, #e7b75a, #c48a22); padding: 12px 26px 12px 30px; border-radius: 999px; box-shadow: 0 16px 30px -12px rgba(196,138,34,.6); }
+.kicker { margin-top: 72px; display: inline-flex; align-items: center; gap: 12px; font-size: 34px; font-weight: 700; color: #14957c; }
+h1 { font-size: 104px; font-weight: 900; line-height: 1.15; letter-spacing: -0.015em; margin-top: 10px; }
+h1 .hl { position: relative; display: inline-block; padding: 0 .16em; color: #fff; }
+h1 .hl::before { content: ''; position: absolute; inset: .14em 0 -.1em; border-radius: .22em; background: linear-gradient(135deg, #17a587, #0f7a65); box-shadow: 0 .12em .3em -.08em rgba(15,110,92,.55); z-index: -1; }
+.region { margin-top: 24px; display: inline-flex; align-items: center; gap: 14px; font-size: 44px; font-weight: 800; color: #0b2a24; background: #fff; border-radius: 999px; padding: 12px 34px 12px 28px; box-shadow: 0 24px 50px -28px rgba(6,50,40,.5); }
+.region svg { flex: none; }
+.lead { margin-top: 36px; font-size: 31px; font-weight: 500; color: #3b5c54; line-height: 1.55; max-width: 920px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 40px; }
+.it { display: flex; align-items: center; gap: 16px; background: #fff; border-radius: 26px; padding: 26px 26px; box-shadow: 0 30px 60px -36px rgba(6,50,40,.42), 0 10px 22px -16px rgba(6,50,40,.22); font-size: 29px; font-weight: 700; }
+.it .ic { flex: none; width: 62px; height: 62px; border-radius: 18px; background: #e3f5ef; display: grid; place-items: center; }
+.call { margin-top: 44px; display: flex; align-items: center; justify-content: space-between; gap: 24px; background: linear-gradient(135deg, #16a283 0%, #0f6e5c 70%, #0b5b4b 100%); border-radius: 38px; padding: 30px 40px; color: #fff; box-shadow: 0 46px 90px -40px rgba(6,60,48,.75); }
+.call .lbl { font-size: 29px; font-weight: 700; color: #c9f5e8; }
+.call .name { font-size: 64px; font-weight: 900; line-height: 1.15; margin-top: 2px; }
+.call .num { text-align: left; }
+.call .num span { display: flex; align-items: center; justify-content: flex-end; gap: 10px; font-size: 26px; font-weight: 700; color: #c9f5e8; }
+.call .num b { display: block; font-size: 60px; font-weight: 900; direction: ltr; letter-spacing: .01em; margin-top: 4px; white-space: nowrap; }
+.foot { margin-top: 28px; display: flex; justify-content: space-between; align-items: center; font-size: 26px; font-weight: 700; color: #33554d; }
+.foot .site { direction: ltr; font-weight: 800; color: #0f6e5c; font-size: 30px; }
+</style>
+</head>
+<body>
+<div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div>
+<div class="wrap">
+  <div class="top">
+    <div class="brand"><img src="icon.png" alt=""><div><b>وزن</b><small>برنامج المحاسبة وإدارة المحلات</small></div></div>
+    <div class="ribbon"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>وكيل معتمد</div>
+  </div>
+  <div class="kicker">صار عنا وكيل قريب منك</div>
+  <h1>وكيلنا <span class="hl">الرسمي</span></h1>
+  <div class="region"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0f7a65" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.99-5.54 10.19-7.4 11.8a1 1 0 0 1-1.2 0C9.54 20.19 4 14.99 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>بريف حلب الشمالي</div>
+  <p class="lead">بيجيك لمحلّك: بينصّب وبيفعّل وبيعلّمك، وبيضل معك بالدعم.</p>
+  <div class="grid">
+    <div class="it"><div class="ic"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#0f7a65" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v13"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg></div>تنصيب وتفعيل بالمحل</div>
+    <div class="it"><div class="ic"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#0f7a65" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div>شرح وتدريب</div>
+    <div class="it"><div class="ic"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#0f7a65" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"/><path d="M8.5 16.43a5 5 0 0 1 7 0"/><path d="M2 8.82a15 15 0 0 1 4.17-2.65"/><path d="M10.66 5c4.01-.36 8.14.9 11.34 3.76"/><path d="M16.85 11.25a10 10 0 0 1 2.22 1.68"/><path d="M5 13a10 10 0 0 1 5.24-2.76"/><path d="m2 2 20 20"/></svg></div>بيشتغل بدون إنترنت</div>
+    <div class="it"><div class="ic"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#0f7a65" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2.5"/><path d="M11 18h2"/></svg></div>كمبيوتر وجوال</div>
+    <div class="it"><div class="ic"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#0f7a65" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 7h8"/><path d="M8 11h8"/><path d="M8 15h5"/></svg></div>فواتير ونقطة بيع</div>
+    <div class="it"><div class="ic"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#0f7a65" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg></div>مخزون وديون وأرباح</div>
+  </div>
+  <div class="call">
+    <div><div class="lbl">تواصل مع الوكيل</div><div class="name">الحساوي</div></div>
+    <div class="num"><span><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#c9f5e8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>واتساب واتصال</span><b>0992 945 419</b></div>
+  </div>
+  <div class="foot"><span>وزن… حساباتك صارت بوزنها</span><span class="site">waznsy.com</span></div>
+</div>
+</body>
+</html>
