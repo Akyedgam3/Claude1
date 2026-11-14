@@ -18,7 +18,8 @@
 - `Akyedgam3/Claude1` (خاص): كود البرنامج. فرع التطوير: `claude/syria-accounting-system-pj25xg`. لا تفتح PR إلا إذا طُلب.
 - `Akyedgam3/mizan-updates` (عام): الموقع الرسمي + `feed.txt` + ملفات التنصيب (Releases).
   - الموقع: https://waznsy.com (الدومين من هوستنجر، والقديم https://akyedgam3.github.io/mizan-updates/ بيحوّل عليه). إيميل التواصل بالموقع: info@waznsy.com
-  - التحميل: https://github.com/Akyedgam3/mizan-updates/releases/latest/download/Wazn-Setup.exe
+  - التحميل (من 14/11/2026): https://waznsy.com/dl/Wazn-Setup.exe و`Wazn-Setup-32bit.exe` و`Wazn.apk` — بسوريا روابط GitHub Releases بدها VPN، فـ `pages.yml` بينسخ ملفات آخر Release لـ `/dl` بكل نشر، و`release.yml` بيشغّله بعد كل Release. كل أزرار الموقع عليها. **كل Release لازم يكون فيه `Wazn.apk`** (إذا ما في نسخة جوال جديدة انسخ APK النسخة اللي قبل) وإلا رابط الجوال بيخرب. (`dl/` بمستودع الكود = Worker احتياطي على Cloudflare ما انتشر لأن رمز Cloudflare بهالبيئة بلا صلاحية Workers.)
+  - الرابط القديم بيضل شغّال: https://github.com/Akyedgam3/mizan-updates/releases/latest/download/Wazn-Setup.exe
   - صفحات الموقع تُعدَّل في `tools/pages/` ثم `python3 tools/build_site.py`.
   - التقييمات (`reviews.html` وقسم بالرئيسية): تسجيل دخول بغوغل عبر Firebase. الإعدادات بـ `assets/js/firebase-config.js` (عامة مش سرية)، والحماية بـ `firestore.rules` اللي بتنلصق بـ Firebase Console. الفيديوهات انشالت من الموقع بانتظار فيديوهات جديدة.
 
