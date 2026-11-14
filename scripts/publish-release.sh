@@ -36,6 +36,8 @@ git fetch -q --depth 1 origin main && git checkout -q -B upload-tmp FETCH_HEAD
 mkdir -p release
 cp "$OLDPWD/dist/Wazn-Setup.exe" release/
 cp "$OLDPWD/dist32/Wazn-Setup-32bit.exe" release/
+# تطبيق أندرويد موقّع لنفس النسخة (اختياري): WAZN_APK=/path/Wazn.apk — كل Release لازم يكون فيه Wazn.apk وإلا رابط الجوال بيخرب
+[ -n "${WAZN_APK:-}" ] && cp "$WAZN_APK" release/Wazn.apk
 # نسخ بالأسماء القديمة: روابط ميزان (1.2.4–1.2.8) ومعيار (1.2.3) بتضل شغالة
 cp "$OLDPWD/dist/Wazn-Setup.exe" release/Mizan-Setup.exe
 # نسخة باسم Miyar-Setup.exe كمان: روابط نسخة 1.2.3 (معيار) بتضل شغالة
