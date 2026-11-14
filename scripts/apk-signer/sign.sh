@@ -5,7 +5,11 @@ set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 root="$(cd "$here/../.." && pwd)"
 props="$root/keys/wazn-android.properties"
-[ -f "$root/keys/wazn-android.jks" ] || { echo "ما في مفتاح توقيع: keys/wazn-android.jks"; exit 1; }
+if [ ! -f "$root/keys/wazn-android.jks" ]; then
+  # بعد إعادة الحاوية: المفتاح بيرجع من النسخة المشفّرة بالمستودع بكلمة الاسترجاع (عند صاحب المشروع)
+  if [ -f "$root/android/signing/wazn-android.enc" ] && [ -n "${WAZN_KEY_PHRASE:-}" ]; then "$here/restore-key.sh"
+  else echo "ما في مفتاح توقيع: keys/wazn-android.jks. رجّعه بـ: WAZN_KEY_PHRASE='...' scripts/apk-signer/restore-key.sh (اطلب كلمة الاسترجاع من صاحب المشروع، ولا تولّد مفتاح جديد)"; exit 1; fi
+fi
 jar="$here/.cache/apksig-2.3.0.jar"
 if [ ! -f "$jar" ]; then
   mkdir -p "$here/.cache"
