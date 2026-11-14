@@ -1,0 +1,7 @@
+# روابط تحميل مباشرة بدون GitHub (بسوريا روابط GitHub Releases بدها VPN).
+# النشر: cd dl && CLOUDFLARE_API_TOKEN=x npx wrangler deploy  ← https://wazn-dl.wazn.workers.dev
+name = "wazn-dl"
+main = "src/worker.ts"
+compatibility_date = "2026-09-01"
+account_id = "997682f19c93551a24bdcff945e8d121"
+workers_dev = true
