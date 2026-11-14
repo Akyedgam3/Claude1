@@ -3901,6 +3901,9 @@ button.danger-soft {
 
 /* ── الفروج: الوزنات قفص قفص ── */
 .qty-cell { display: flex; align-items: center; gap: 4px; }
+/* الكمية ما بتنضغط لما يعرض عمود السعر («آخر مرة…») على الشاشات الصغيرة، وزر الميزان بعرضه */
+.qty-cell .num-input { flex: 1 1 auto; min-width: 84px; }
+.qty-cell > .icon { flex: none; }
 .qty-cell .icon.on { color: var(--primary); background: var(--primary-soft); }
 .weigh-list { display: flex; flex-wrap: wrap; gap: 6px; min-height: 34px; align-items: center; }
 .weigh-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px 4px 10px; border-radius: 999px; background: var(--primary-soft); border: 1px solid var(--border); font-variant-numeric: tabular-nums; font-weight: 600; }
@@ -4262,6 +4265,10 @@ button.link { background: none; border: none; color: var(--primary); padding: 4p
 /* الفاتورة: آخر سعر للزبون وتكرار آخر فاتورة */
 .last-price { display: block; margin-top: 3px; font-size: 12px; color: var(--primary, #0f6e5c); background: none; border: 0; padding: 0; cursor: pointer; text-align: start; font-family: inherit; }
 .last-price:hover { text-decoration: underline; }
+/* «آخر مرة…» بينطوي تحت خانة السعر بدل ما يعرّض العمود ويضغط الكمية والخصم */
+table.lines .last-price { max-width: 130px; white-space: normal; }
+table.lines td[data-label="الخصم"] .num-input { min-width: 70px; }
+table.lines td[data-label="السعر"] .num-input { min-width: 96px; }
 .last-price.same { color: var(--muted, #8a948f); cursor: default; }
 .repeat-last { display: inline-block; margin-top: 6px; font-size: 13px; }
 
