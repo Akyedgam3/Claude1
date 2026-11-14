@@ -96,13 +96,17 @@ export interface PoultryDay {
 /** ملخص يوم موزع الفروج: كم كيلو اشترينا وبعنا، الربح، ربح الكيلو، والباقي. المبالغ بالعملة الأساسية.
  * itemIds: بس هالمواد (بدونه كل المواد). show: مواد بتطلع بالجدول حتى لو ما إلها حركة.
  * الكيلوات وربح الكيلو من المواد اللي وحدتها كيلو (والقطعيات)، والمبيعات والربح والدين من كل المواد. */
+const OTHER = '__other';
 export function poultryDay(state: CompanyState, date: string, itemIds?: string[], show?: string[]): PoultryDay {
   const only = itemIds ? new Set(itemIds) : undefined;
   const rows = new Map<string, PoultryDay['items'][number]>();
   const row = (id: string) => {
     let r = rows.get(id);
     const it = state.items[id];
-    if (!r) rows.set(id, (r = { itemId: id, name: it?.name ?? id, unit: it?.unit ?? '', weight: !it || id.startsWith('pl-') || isWeightUnit(it.unit), boughtKg: 0, soldKg: 0, revenue: 0, profit: 0, stock: state.stock[id]?.totalQty ?? 0 }));
+    if (!r) {
+      const other = id === OTHER;
+      rows.set(id, (r = { itemId: id, name: other ? 'خدمات وأخرى' : (it?.name ?? id), unit: other ? '' : (it?.unit ?? ''), weight: !other && (!it || id.startsWith('pl-') || isWeightUnit(it.unit)), boughtKg: 0, soldKg: 0, revenue: 0, profit: 0, stock: other ? 0 : (state.stock[id]?.totalQty ?? 0) }));
+    }
     return r;
   };
   const bought = { kg: 0, cost: 0, birds: 0, dead: 0, invoices: 0 };
@@ -118,12 +122,13 @@ export function poultryDay(state: CompanyState, date: string, itemIds?: string[]
     const sub = inv.subtotal || 1;
     let any = false;
     for (const l of inv.lines) {
-      if (!l.itemId || (only && !only.has(l.itemId))) continue;
+      // سطور بدون مادة (أجور نقل، خدمة) بتدخل بالمبيعات تحت «خدمات وأخرى» حتى يطابق الملخص الفواتير والتقارير
+      if (only && (!l.itemId || !only.has(l.itemId))) continue;
       any = true;
       const kg = roundQty(l.qty * (l.factor ?? 1)) * sign;
       const gross = Math.round(l.qty * l.price) - l.discount;
       const amount = Math.round((gross - (inv.discount * gross) / sub) * inv.rate) * sign;
-      const r = row(l.itemId);
+      const r = row(l.itemId ?? OTHER);
       if (isSale) {
         const cost = (l.cost ?? 0) * sign;
         r.soldKg += kg;

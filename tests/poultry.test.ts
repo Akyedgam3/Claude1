@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_CURRENCIES, Ledger, birdAverage, chartFor, defaultTaxes, lastPriceBoard, parseWeights, partyBalance, poultryDay, priceBoardText, trialBalance, weighingText } from '../src/core';
+import { DEFAULT_CURRENCIES, Ledger, birdAverage, chartFor, defaultTaxes, invoiceProfit, lastPriceBoard, parseWeights, partyBalance, poultryDay, priceBoardText, trialBalance, weighingText } from '../src/core';
 
 function distributor() {
   const l = new Ledger(() => {});
@@ -80,6 +80,25 @@ describe('poultry distribution', () => {
     expect(d.avgSell).toBe(Math.round((120.5 * 25_000 + 10 * 30_000) / 130.5));
     // أصناف التسعيرة بتطلع حتى بدون حركة
     expect(d.items.some((r) => r.itemId === 'pl-whole')).toBe(true);
+  });
+
+  it('day summary sales always equal the invoices (returns, discounts, service lines, demo data)', () => {
+    const l = new Ledger(() => {});
+    l.createCompany({ name: 'موزع', activity: 'poultry', baseCurrency: 'SYP', fiscalYearStart: '01-01' }, DEFAULT_CURRENCIES, chartFor('poultry'), defaultTaxes());
+    l.loadDemoData();
+    l.saveParty({ id: 'shop2', kind: 'customer', name: 'محل' });
+    const day = l.state.invoices.find((i) => i.kind === 'sale')!.date;
+    const sold = l.state.invoices.find((i) => i.kind === 'sale' && i.lines[0]?.itemId)!.lines[0]!.itemId!;
+    // سطر خدمة بدون مادة، وخصم على الفاتورة، ومرتجع
+    l.postInvoice({ kind: 'sale', date: day, partyId: 'shop2', discount: 1_000, lines: [{ itemId: sold, qty: 2, price: 30_000 }, { description: 'أجور نقل', qty: 1, price: 5_000 }] });
+    l.postInvoice({ kind: 'sale_return', date: day, partyId: 'shop2', lines: [{ itemId: sold, qty: 1, price: 30_000 }] });
+    for (const date of [...new Set(l.state.invoices.map((i) => i.date))]) {
+      const d = poultryDay(l.state, date);
+      const live = l.state.invoices.filter((i) => i.date === date && !i.voidEntryId && !i.deleted);
+      const sum = (kind: string) => live.filter((i) => i.kind === kind).reduce((s, i) => s + invoiceProfit(l.state, i).revenue, 0);
+      expect(Math.abs(d.sold.revenue - (sum('sale') - sum('sale_return'))), date).toBeLessThanOrEqual(live.length);
+      expect(d.items.reduce((s, r) => s + r.revenue, 0)).toBe(d.sold.revenue);
+    }
   });
 
   it('demo data loads and balances', () => {
