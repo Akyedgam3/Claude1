@@ -46,14 +46,18 @@ test('الفاتورة: كرّر آخر فاتورة، آخر سعر للزبو�
     const first = page.locator('table.lines tbody tr').first();
     await expect(first).toContainText('صابون');
     await expect(first.locator('.qty-cell input')).toHaveValue('2');
-    // آخر سعر لهالزبون: 1200 بكبسة
-    await first.locator('.last-price').click();
-    await expect(first.locator('input.num-input').nth(1)).toHaveValue(/^1,?200/);
     // نفس المادة بسطر جديد: بتزيد الكمية بدل سطر تاني
     await pick(page, lineItem(1), 'صابون');
     await toast(page, 'زادت كمية');
     await expect(first.locator('.qty-cell input')).toHaveValue('3');
     await expect(page.locator('table.lines tbody tr', { hasText: 'صابون' })).toHaveCount(1);
+    // آخر سعر لهالزبون: 1200 بكبسة
+    await first.locator('.last-price').click();
+    await expect(first.locator('input.num-input').nth(1)).toHaveValue(/^1,?200/);
+    // بعد ما تغيّر السعر: نفس المادة بتنضاف بسطر تاني (بسعرها العادي) بدل ما تنجمع
+    await pick(page, lineItem(1), 'صابون');
+    await expect(page.locator('table.lines tbody tr', { hasText: 'صابون' })).toHaveCount(2);
+    await expect(first.locator('.qty-cell input')).toHaveValue('3');
     if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT });
   } finally {
     await close();

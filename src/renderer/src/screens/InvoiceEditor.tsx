@@ -311,8 +311,12 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
 
   const chooseItem = (key: string, itemId: string | null, unit = '', qty = '1', price?: string) => {
     const item = itemId ? state.items[itemId] : null;
-    // المادة موجودة بسطر تاني (بدون دفعات وأرقام تسلسلية): منزيد كميتها بدل سطر جديد
-    const same = item && !item.trackSerial && !item.trackExpiry && price === undefined ? lines.find((l) => l.key !== key && l.itemId === itemId && (l.unit || '') === unit && !l.weighing) : undefined;
+    // المادة موجودة بسطر تاني (بدون دفعات وأرقام تسلسلية): منزيد كميتها بدل سطر جديد.
+    // إلا إذا السطر التاني سعره متغيّر بالإيد (نفس المادة بسعر تاني = سطر جديد)، وبالدواجن كل وزنة سطر لحالها.
+    const same =
+      item && !item.trackSerial && !item.trackExpiry && price === undefined && !feature('poultry')
+        ? lines.find((l) => l.key !== key && l.itemId === itemId && (l.unit || '') === unit && !l.weighing && !l.manualPrice)
+        : undefined;
     if (same) {
       setLines((ls) => withEmpty(ls.filter((l) => l.key !== key).map((l) => (l.key === same.key ? { ...l, qty: String(Math.round((Number(l.qty || 0) + Number(qty || 1)) * 1000) / 1000) } : l))));
       notify(`زادت كمية «${item!.name}» بالسطر الموجود`);
@@ -360,7 +364,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
         if (same) return [...filled.map((l) => (l === same ? { ...l, qty: String(Number(l.qty || 0) + 1), serials: `${l.serials} ${r.serial}`.trim() } : l)), emptyLine()];
         return [...filled, { ...emptyLine(), itemId: r.item.id, description: itemTitle(r.item), unit, qty: '1', price: sold?.price ?? priceFor(r.item, unit), ...(sold ? { manualPrice: true, src: sold.src } : {}), serials: r.serial }, emptyLine()];
       }
-      const same = !r.qty && ls.find((l) => l.itemId === r.item.id && l.unit === unit && !r.item.trackSerial);
+      const same = !r.qty && !feature('poultry') && ls.find((l) => l.itemId === r.item.id && l.unit === unit && !r.item.trackSerial && !l.manualPrice && !l.weighing);
       if (same) return ls.map((l) => (l === same ? { ...l, qty: String(Number(l.qty || 0) + 1) } : l));
       const filled = ls.filter((l) => l.itemId || l.description);
       return [
