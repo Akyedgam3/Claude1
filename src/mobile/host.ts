@@ -49,7 +49,7 @@ type Listener = (payload: unknown) => void;
 const listeners = new Map<string, Set<Listener>>();
 /** صفحة التحميل بالموقع (زر للجوال وزر للكمبيوتر)، ورابط تطبيق أندرويد الثابت. */
 const UPDATE_PAGE = 'https://waznsy.com/get.html';
-const APK_URL = 'https://github.com/Akyedgam3/mizan-updates/releases/latest/download/Wazn.apk';
+const APK_URL = 'https://waznsy.com/dl/Wazn.apk';
 const send = (channel: string, payload?: unknown) => listeners.get(channel)?.forEach((fn) => fn(payload));
 
 let store: CompanyStore | null = null;
