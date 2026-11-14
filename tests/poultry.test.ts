@@ -59,6 +59,29 @@ describe('poultry distribution', () => {
     expect(d.items.find((r) => r.itemId === 'pl-whole')!.stock).toBe(110);
   });
 
+  it('day summary counts the items the user made too (not only the ready cuts), weight units only in kilos', () => {
+    const l = distributor();
+    l.addPoultryCuts();
+    // مادة عملها الزبون لحالو (مش من أصناف التسعيرة) وحدتها كيلو، ومادة بالكرتونة
+    l.saveItem({ id: 'live', code: 'L1', name: 'فروج حي', kind: 'stock', unit: 'كيلو', price: 25_000, priceCurrency: 'SYP' });
+    l.saveItem({ id: 'eggs', code: 'E1', name: 'بيض', kind: 'stock', unit: 'كرتونة', price: 50_000, priceCurrency: 'SYP' });
+    l.postInvoice({ kind: 'purchase', date: '2026-10-28', partyId: 'farm', lines: [{ itemId: 'live', qty: 300, price: 20_000 }, { itemId: 'eggs', qty: 10, price: 40_000 }, { itemId: 'pl-wings', qty: 20, price: 22_000 }] });
+    l.postInvoice({ kind: 'sale', date: '2026-10-28', partyId: 'shop', lines: [{ itemId: 'live', qty: 120.5, price: 25_000 }, { itemId: 'eggs', qty: 4, price: 50_000 }, { itemId: 'pl-wings', qty: 10, price: 30_000 }] });
+    const board = Object.keys(l.state.items).filter((id) => id.startsWith('pl-'));
+    const d = poultryDay(l.state, '2026-10-28', undefined, board);
+    expect(d.bought.kg).toBe(320);
+    expect(d.sold.kg).toBe(130.5);
+    const revenue = 120.5 * 25_000 + 4 * 50_000 + 10 * 30_000;
+    expect(d.sold.revenue).toBe(revenue);
+    // الدين من نفس المواد اللي بالمبيعات
+    expect(d.sold.credit).toBe(revenue);
+    expect(d.items.find((r) => r.itemId === 'eggs')).toMatchObject({ weight: false, unit: 'كرتونة', soldKg: 4 });
+    expect(d.items.find((r) => r.itemId === 'live')).toMatchObject({ weight: true, soldKg: 120.5, boughtKg: 300 });
+    expect(d.avgSell).toBe(Math.round((120.5 * 25_000 + 10 * 30_000) / 130.5));
+    // أصناف التسعيرة بتطلع حتى بدون حركة
+    expect(d.items.some((r) => r.itemId === 'pl-whole')).toBe(true);
+  });
+
   it('demo data loads and balances', () => {
     const l = new Ledger(() => {});
     l.createCompany({ name: 'موزع', activity: 'poultry', baseCurrency: 'SYP', fiscalYearStart: '01-01' }, DEFAULT_CURRENCIES, chartFor('poultry'), defaultTaxes());

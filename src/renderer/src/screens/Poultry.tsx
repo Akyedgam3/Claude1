@@ -356,8 +356,11 @@ function DayTab() {
   const { state, navigate, can } = useCompany();
   const [date, setDate] = useState(today());
   const items = useMemo(() => boardItems(state.items), [state.items]);
-  const d = useMemo(() => poultryDay(state, date, items.map((i) => i.id)), [state, date, items]);
-  const rows = d.items.filter((r) => r.boughtKg || r.soldKg || r.stock);
+  // كل المواد اللي انباعت أو انشرت بهاليوم (مش بس أصناف التسعيرة)، وأصناف التسعيرة بتطلع دايماً
+  const d = useMemo(() => poultryDay(state, date, undefined, items.map((i) => i.id)), [state, date, items]);
+  const rows = d.items.filter((r) => r.boughtKg || r.soldKg || r.stock || r.revenue);
+  // المواد بغير وحدة الكيلو (قطعة، كرتونة…) بتطلع بوحدتها
+  const qtyOf = (r: (typeof rows)[number], q: number) => (r.weight ? kg(q) : `${qtyText(Math.round(q * 1000) / 1000)} ${r.unit}`);
   return (
     <>
       <div className="toolbar">
@@ -403,11 +406,11 @@ function DayTab() {
             {rows.map((r) => (
               <tr key={r.itemId}>
                 <td>{r.name}</td>
-                <td className="num">{r.boughtKg ? kg(r.boughtKg) : '—'}</td>
-                <td className="num">{r.soldKg ? kg(r.soldKg) : '—'}</td>
+                <td className="num">{r.boughtKg ? qtyOf(r, r.boughtKg) : '—'}</td>
+                <td className="num">{r.soldKg ? qtyOf(r, r.soldKg) : '—'}</td>
                 <td className="num">{r.revenue ? money(state, r.revenue) : '—'}</td>
                 <td className={`num ${r.profit < 0 ? 'bad' : ''}`}>{r.revenue ? money(state, r.profit) : '—'}</td>
-                <td className={`num ${r.stock < 0 ? 'bad' : ''}`}>{kg(r.stock)}</td>
+                <td className={`num ${r.stock < 0 ? 'bad' : ''}`}>{qtyOf(r, r.stock)}</td>
               </tr>
             ))}
           </tbody>

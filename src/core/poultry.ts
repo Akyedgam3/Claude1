@@ -79,28 +79,36 @@ export function weighingText(w: Weighing, unit = 'كغ'): string {
 
 const isLive = (inv: Invoice) => !inv.voidEntryId && !inv.deleted;
 
+/** وحدة وزن (الكيلو) — المواد بغير وحدة (قطعة، كرتونة) بتنحسب بالمبيعات بس مش بالكيلوات. */
+export const isWeightUnit = (unit?: string) => /^(كغ|كغم|كلغ|كيلو|كيلوغرام|كيلو غرام|kg|kgs?)$/i.test((unit ?? '').trim());
+
 export interface PoultryDay {
   date: string;
   bought: { kg: number; cost: number; birds: number; dead: number; invoices: number };
   sold: { kg: number; revenue: number; cost: number; profit: number; invoices: number; credit: number };
   /** حسب الصنف: المشترى والمباع بالكيلو والإيراد والربح، والباقي بالمخزون. */
-  items: { itemId: string; name: string; boughtKg: number; soldKg: number; revenue: number; profit: number; stock: number }[];
+  items: { itemId: string; name: string; unit: string; weight: boolean; boughtKg: number; soldKg: number; revenue: number; profit: number; stock: number }[];
   avgBuy: number; // وسطي سعر كيلو الشراء (بالعملة الأساسية)
   avgSell: number;
   profitPerKg: number;
 }
 
-/** ملخص يوم موزع الفروج: كم كيلو اشترينا وبعنا، الربح، ربح الكيلو، والباقي. المبالغ بالعملة الأساسية. */
-export function poultryDay(state: CompanyState, date: string, itemIds?: string[]): PoultryDay {
+/** ملخص يوم موزع الفروج: كم كيلو اشترينا وبعنا، الربح، ربح الكيلو، والباقي. المبالغ بالعملة الأساسية.
+ * itemIds: بس هالمواد (بدونه كل المواد). show: مواد بتطلع بالجدول حتى لو ما إلها حركة.
+ * الكيلوات وربح الكيلو من المواد اللي وحدتها كيلو (والقطعيات)، والمبيعات والربح والدين من كل المواد. */
+export function poultryDay(state: CompanyState, date: string, itemIds?: string[], show?: string[]): PoultryDay {
   const only = itemIds ? new Set(itemIds) : undefined;
   const rows = new Map<string, PoultryDay['items'][number]>();
   const row = (id: string) => {
     let r = rows.get(id);
-    if (!r) rows.set(id, (r = { itemId: id, name: state.items[id]?.name ?? id, boughtKg: 0, soldKg: 0, revenue: 0, profit: 0, stock: state.stock[id]?.totalQty ?? 0 }));
+    const it = state.items[id];
+    if (!r) rows.set(id, (r = { itemId: id, name: it?.name ?? id, unit: it?.unit ?? '', weight: !it || id.startsWith('pl-') || isWeightUnit(it.unit), boughtKg: 0, soldKg: 0, revenue: 0, profit: 0, stock: state.stock[id]?.totalQty ?? 0 }));
     return r;
   };
   const bought = { kg: 0, cost: 0, birds: 0, dead: 0, invoices: 0 };
   const sold = { kg: 0, revenue: 0, cost: 0, profit: 0, invoices: 0, credit: 0 };
+  // لربح الكيلو: مبالغ مواد الوزن بس
+  const w = { buy: 0, sell: 0, profit: 0 };
   for (const inv of state.invoices) {
     if (inv.date !== date || !isLive(inv)) continue;
     const sign = inv.kind === 'sale' || inv.kind === 'purchase' ? 1 : inv.kind === 'sale_return' || inv.kind === 'purchase_return' ? -1 : 0;
@@ -121,13 +129,20 @@ export function poultryDay(state: CompanyState, date: string, itemIds?: string[]
         r.soldKg += kg;
         r.revenue += amount;
         r.profit += amount - cost;
-        sold.kg += kg;
         sold.revenue += amount;
         sold.cost += cost;
+        if (r.weight) {
+          sold.kg += kg;
+          w.sell += amount;
+          w.profit += amount - cost;
+        }
       } else {
         r.boughtKg += kg;
-        bought.kg += kg;
         bought.cost += amount;
+        if (r.weight) {
+          bought.kg += kg;
+          w.buy += amount;
+        }
         bought.birds += (l.weighing?.count ?? 0) * sign;
         bought.dead += (l.weighing?.dead ?? 0) * sign;
       }
@@ -141,16 +156,16 @@ export function poultryDay(state: CompanyState, date: string, itemIds?: string[]
   sold.profit = sold.revenue - sold.cost;
   bought.kg = roundQty(bought.kg);
   sold.kg = roundQty(sold.kg);
-  for (const id of itemIds ?? []) row(id);
+  for (const id of show ?? itemIds ?? []) if (!only || only.has(id)) row(id);
   const per = (amount: number, kg: number) => (kg > 0 ? Math.round(amount / kg) : 0);
   return {
     date,
     bought,
     sold,
     items: [...rows.values()].map((r) => ({ ...r, boughtKg: roundQty(r.boughtKg), soldKg: roundQty(r.soldKg) })),
-    avgBuy: per(bought.cost, bought.kg),
-    avgSell: per(sold.revenue, sold.kg),
-    profitPerKg: per(sold.profit, sold.kg),
+    avgBuy: per(w.buy, bought.kg),
+    avgSell: per(w.sell, sold.kg),
+    profitPerKg: per(w.profit, sold.kg),
   };
 }
 
