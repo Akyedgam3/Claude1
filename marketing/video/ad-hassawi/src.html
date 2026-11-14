@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<title>وزن — إعلان الوكيل بريف حلب الشمالي</title>
+<style>
+@font-face { font-family: Cairo; font-weight: 400; src: url(fonts/cairo-arabic-400-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 700; src: url(fonts/cairo-arabic-700-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 900; src: url(fonts/cairo-arabic-900-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 400; src: url(fonts/cairo-latin-400-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F; }
+@font-face { font-family: Cairo; font-weight: 700; src: url(fonts/cairo-latin-700-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F; }
+@font-face { font-family: Cairo; font-weight: 900; src: url(fonts/cairo-latin-900-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F; }
+:root { --g: #0f6e5c; --g2: #14957c; --mint: #5fe0bf; --gold: #e7b75a; --gold2: #ffe29a; --ink: #0d2a24; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; }
+body { font-family: Cairo, sans-serif; color: #fff; }
+.ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+.ic svg { width: 100%; height: 100%; display: block; }
+i.ic { display: block; }
+#stage { position: absolute; inset: 0; overflow: hidden; background: radial-gradient(ellipse 120% 80% at 50% 40%, #0d3a31 0%, #06221c 50%, #020c0a 100%); }
+.blob { position: absolute; border-radius: 50%; filter: blur(110px); }
+#b1 { width: 900px; height: 900px; background: #0f6e5c; opacity: 0.55; }
+#b2 { width: 700px; height: 700px; background: #7a5a16; opacity: 0.3; }
+#dots { position: absolute; inset: 0; background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1.5px, transparent 1.6px); background-size: 36px 36px; mask-image: radial-gradient(ellipse at 50% 45%, #000 0%, transparent 75%); }
+#vig { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 50%, transparent 58%, rgba(0, 0, 0, 0.6) 100%); pointer-events: none; z-index: 40; }
+#fade { position: absolute; inset: 0; background: #000; opacity: 0; z-index: 50; }
+.sc { position: absolute; inset: 0; opacity: 0; display: none; }
+.big { position: absolute; left: 0; right: 0; text-align: center; font-weight: 900; line-height: 1.1; text-shadow: 0 14px 50px rgba(0, 0, 0, 0.5); }
+.big em { font-style: normal; color: var(--mint); text-shadow: 0 0 60px rgba(95, 224, 191, 0.55); }
+.big .gold { color: var(--gold); text-shadow: 0 0 60px rgba(231, 183, 90, 0.55); }
+.sub { position: absolute; left: 80px; right: 80px; text-align: center; font: 700 52px/1.5 Cairo; color: rgba(255, 255, 255, 0.85); }
+
+/* الهوية فوق */
+#brand { position: absolute; top: 90px; left: 0; right: 0; display: flex; justify-content: center; align-items: center; gap: 18px; z-index: 30; }
+#brand img { width: 84px; height: 84px; border-radius: 22px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); }
+#brand b { font: 900 54px Cairo; }
+
+/* 0: محتار */
+.q { position: absolute; font: 900 160px Cairo; color: var(--mint); opacity: 0; }
+
+/* 1: بعاد */
+#map { position: absolute; left: 90px; right: 90px; top: 760px; height: 420px; }
+.pin { position: absolute; top: 60px; width: 230px; text-align: center; font: 900 46px Cairo; }
+.pin .ic { width: 150px; height: 150px; margin: 0 auto 14px; padding: 34px; border-radius: 50%; background: rgba(95, 224, 191, 0.12); border: 3px solid rgba(95, 224, 191, 0.55); color: var(--mint); }
+.pin.you .ic { background: rgba(231, 183, 90, 0.14); border-color: rgba(231, 183, 90, 0.6); color: var(--gold); }
+#pinW { right: 0; } #pinY { left: 0; }
+#road { position: absolute; top: 135px; left: 240px; right: 240px; height: 6px; background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.55) 0 18px, transparent 18px 34px); transform-origin: right center; }
+#km { position: absolute; top: 160px; left: 0; right: 0; text-align: center; font: 700 40px Cairo; color: rgba(255, 255, 255, 0.7); }
+.bub { position: absolute; padding: 22px 34px; border-radius: 34px; font: 700 46px Cairo; opacity: 0; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35); }
+#bub1 { right: 110px; top: 1300px; background: #1f6b57; border-top-right-radius: 8px; }
+#bub2 { left: 110px; top: 1450px; background: #22302d; border-top-left-radius: 8px; }
+
+/* 2: شوف بعينك — جهاز فيه البرنامج */
+#dev { position: absolute; left: 140px; right: 140px; top: 720px; height: 560px; border-radius: 30px; background: #0b100f; padding: 16px; box-shadow: 0 0 0 3px #26312e, 0 40px 120px rgba(0, 0, 0, 0.6), 0 0 120px rgba(95, 224, 191, 0.2); }
+#dev .scr { width: 100%; height: 100%; border-radius: 16px; overflow: hidden; background: #f3f6f5; position: relative; color: var(--ink); }
+#dev .side { position: absolute; right: 0; top: 0; bottom: 0; width: 150px; background: #103a32; padding-top: 22px; }
+#dev .side i { display: block; height: 16px; margin: 22px 22px; border-radius: 8px; background: rgba(255, 255, 255, 0.18); }
+#dev .side i.on { background: var(--mint); }
+#dev .main { position: absolute; left: 22px; right: 172px; top: 22px; }
+#dev h5 { font: 900 32px Cairo; color: var(--g); margin-bottom: 12px; }
+.kp { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.kp div { background: #fff; border-radius: 16px; padding: 14px 18px; box-shadow: 0 6px 14px rgba(0, 0, 0, 0.06); }
+.kp span { display: block; font: 700 20px Cairo; color: #6b7c77; }
+.kp b { font: 900 34px Cairo; }
+.bars { display: flex; align-items: flex-end; gap: 12px; height: 150px; margin-top: 16px; padding: 14px 18px; background: #fff; border-radius: 16px; }
+.bars i { flex: 1; border-radius: 8px 8px 0 0; background: linear-gradient(180deg, var(--g2), var(--g)); }
+#eye { position: absolute; left: 50%; top: 1340px; width: 150px; height: 150px; margin-left: -75px; padding: 32px; border-radius: 50%; background: rgba(95, 224, 191, 0.14); border: 3px solid rgba(95, 224, 191, 0.6); color: var(--mint); }
+
+/* 3: المنطقة */
+#region { position: absolute; left: 90px; right: 90px; top: 820px; padding: 34px 40px; border-radius: 999px; background: #fff; color: var(--ink); display: flex; align-items: center; justify-content: center; gap: 22px; font: 900 76px Cairo; box-shadow: 0 40px 100px rgba(0, 0, 0, 0.5); }
+#region .ic { width: 90px; height: 90px; color: var(--g2); }
+#ring1, #ring2 { position: absolute; left: 50%; top: 880px; width: 300px; height: 300px; margin-left: -150px; border-radius: 50%; border: 4px solid var(--mint); opacity: 0; }
+
+/* 4: الوكيل */
+#agent { position: absolute; left: 90px; right: 90px; top: 640px; padding: 60px 50px 56px; border-radius: 56px; text-align: center; background: linear-gradient(150deg, #16a283 0%, #0f6e5c 65%, #0b5b4b 100%); box-shadow: 0 50px 120px rgba(0, 0, 0, 0.55), 0 0 140px rgba(95, 224, 191, 0.25); }
+#badge { display: inline-flex; align-items: center; gap: 14px; padding: 12px 34px 12px 26px; border-radius: 999px; background: linear-gradient(135deg, #e7b75a, #c48a22); font: 900 44px Cairo; color: #fff; box-shadow: 0 16px 40px rgba(196, 138, 34, 0.5); }
+#badge .ic { width: 50px; height: 50px; }
+#agName { font: 900 190px/1.25 Cairo; margin-top: 14px; }
+#agSub { font: 700 50px Cairo; color: #c9f5e8; }
+
+/* 5: قائمة */
+.chk { position: absolute; left: 90px; right: 90px; display: flex; align-items: center; gap: 30px; padding: 34px 40px; border-radius: 40px; background: rgba(255, 255, 255, 0.08); border: 2px solid rgba(255, 255, 255, 0.16); font: 900 50px/1.3 Cairo; opacity: 0; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3); }
+.chk .ic { flex: none; width: 96px; height: 96px; padding: 20px; border-radius: 50%; background: var(--g2); color: #fff; }
+
+/* 6: بدون إنترنت */
+.plat { position: absolute; top: 980px; width: 300px; text-align: center; font: 900 50px Cairo; opacity: 0; }
+.plat .ic { width: 200px; height: 200px; margin: 0 auto 22px; padding: 46px; border-radius: 60px; background: rgba(95, 224, 191, 0.12); border: 3px solid rgba(95, 224, 191, 0.5); color: var(--mint); }
+
+/* 7: الميزات */
+.feat { position: absolute; left: 140px; right: 140px; top: 820px; padding: 50px; border-radius: 56px; background: #fff; color: var(--ink); text-align: center; opacity: 0; box-shadow: 0 40px 120px rgba(0, 0, 0, 0.55); }
+.feat .ic { width: 150px; height: 150px; margin: 0 auto 18px; padding: 34px; border-radius: 44px; background: #e3f5ef; color: var(--g2); }
+.feat b { font: 900 104px/1.2 Cairo; }
+
+/* 8: الدعم */
+#head { position: absolute; left: 50%; top: 700px; width: 260px; height: 260px; margin-left: -130px; padding: 60px; border-radius: 50%; background: rgba(231, 183, 90, 0.15); border: 4px solid rgba(231, 183, 90, 0.7); color: var(--gold); }
+
+/* 9-10: تواصل */
+#cta { position: absolute; left: 70px; right: 70px; top: 560px; padding: 56px 40px; border-radius: 60px; text-align: center; background: linear-gradient(150deg, #16a283 0%, #0f6e5c 65%, #0b5b4b 100%); box-shadow: 0 50px 120px rgba(0, 0, 0, 0.55), 0 0 140px rgba(95, 224, 191, 0.3); }
+#cta .lbl { font: 700 50px Cairo; color: #c9f5e8; }
+#cta .nm { font: 900 140px/1.3 Cairo; }
+#cta .how { display: inline-flex; align-items: center; gap: 16px; margin-top: 6px; font: 700 46px Cairo; color: #c9f5e8; }
+#cta .how .ic { width: 52px; height: 52px; color: #25d366; }
+#num { position: absolute; left: 70px; right: 70px; top: 1180px; padding: 30px 0; border-radius: 44px; background: #fff; color: var(--ink); text-align: center; direction: ltr; font: 900 118px Cairo; letter-spacing: 2px; box-shadow: 0 40px 100px rgba(0, 0, 0, 0.5); }
+#num span { opacity: 0.2; }
+#supp { position: absolute; left: 0; right: 0; top: 1440px; text-align: center; font: 700 42px Cairo; color: rgba(255, 255, 255, 0.75); }
+#supp b { direction: ltr; unicode-bidi: isolate; display: inline-block; color: #fff; }
+
+/* الترجمة */
+#cap { position: absolute; left: 70px; right: 70px; top: 1580px; z-index: 30; text-align: center; }
+#cap div { display: inline-block; padding: 18px 34px; border-radius: 30px; background: rgba(0, 0, 0, 0.45); font: 700 44px/1.5 Cairo; }
+#cap span { opacity: 0.35; }
+/* 11: النهاية */
+#endLogo { position: absolute; left: 50%; top: 640px; width: 260px; height: 260px; margin-left: -130px; border-radius: 70px; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5), 0 0 160px rgba(95, 224, 191, 0.45); }
+#endT { position: absolute; left: 0; right: 0; top: 960px; text-align: center; font: 900 96px/1.3 Cairo; }
+#endT em { font-style: normal; background: linear-gradient(180deg, var(--gold2), var(--gold)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+#endUrl { position: absolute; left: 0; right: 0; top: 1220px; text-align: center; font: 700 52px Cairo; color: var(--mint); direction: ltr; }
+#endAg { position: absolute; left: 0; right: 0; top: 1360px; text-align: center; font: 700 44px Cairo; color: rgba(255, 255, 255, 0.8); }
+#endAg b { direction: ltr; unicode-bidi: isolate; display: inline-block; color: #fff; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="blob" id="b1"></div><div class="blob" id="b2"></div><div id="dots"></div>
+  <div id="brand"><img src="logo.png" alt="" /><b>وزن</b></div>
+
+  <div class="sc" id="s0">
+    <i class="q" id="q1" style="right:140px;top:560px">؟</i><i class="q" id="q2" style="left:150px;top:620px">؟</i><i class="q" id="q3" style="left:470px;top:1340px">؟</i>
+    <div class="big" id="t0" style="top:780px;font-size:230px">محتار<span class="gold">؟</span></div>
+    <div class="sub" id="t0b" style="top:1110px;font-size:62px">ببرنامج المحاسبة</div>
+  </div>
+
+  <div class="sc" id="s1">
+    <div class="big" id="t1" style="top:430px;font-size:120px">بعاد <em>عنك</em>؟</div>
+    <div id="map">
+      <div class="pin" id="pinW"><i class="ic">{{icon:store}}</i>وزن</div>
+      <div id="road"></div>
+      <div class="pin you" id="pinY"><i class="ic">{{icon:users}}</i>إنت</div>
+    </div>
+    <div class="bub" id="bub1">بدي حدا يحكيني…</div>
+    <div class="bub" id="bub2">وجهاً لوجه</div>
+  </div>
+
+  <div class="sc" id="s2">
+    <div class="big" id="t2" style="top:380px;font-size:110px">شوفه <em>بعينك</em></div>
+    <div class="sub" id="t2b" style="top:560px">قبل ما تشتري</div>
+    <div id="dev"><div class="scr">
+      <div class="side"><i class="on"></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="main">
+        <h5>الرئيسية · ماركت النور</h5>
+        <div class="kp"><div><span>مبيعات اليوم</span><b class="ltr">168,884</b></div><div><span>ربح اليوم</span><b class="ltr" style="color:#128a5c">27,920</b></div></div>
+        <div class="bars"><i style="height:40%"></i><i style="height:62%"></i><i style="height:48%"></i><i style="height:80%"></i><i style="height:66%"></i><i style="height:92%"></i><i style="height:74%"></i></div>
+      </div>
+    </div></div>
+    <i class="ic" id="eye">{{icon:sparkles}}</i>
+  </div>
+
+  <div class="sc" id="s3">
+    <div class="big" id="t3" style="top:420px;font-size:96px">إذا كنت</div>
+    <i id="ring1"></i><i id="ring2"></i>
+    <div id="region"><i class="ic">{{icon:map-pin}}</i>ريف حلب الشمالي</div>
+    <div class="big" id="t3b" style="top:1160px;font-size:84px">صار عنا <em>وكيل رسمي</em></div>
+    <div class="sub" id="t3c" style="top:1300px;font-size:60px">قريب منك</div>
+  </div>
+
+  <div class="sc" id="s4">
+    <div id="agent">
+      <div id="badge"><i class="ic">{{icon:shield-check}}</i>وكيل معتمد</div>
+      <div id="agName">الحساوي</div>
+      <div id="agSub">وكيل وزن الرسمي</div>
+    </div>
+  </div>
+
+  <div class="sc" id="s5">
+    <div class="big" id="t5" style="top:380px;font-size:90px">عند <em>الحساوي</em></div>
+    <div class="chk" id="c1" style="top:650px"><i class="ic">{{icon:check}}</i>بيفرجيك البرنامج على الطبيعة</div>
+    <div class="chk" id="c2" style="top:900px"><i class="ic">{{icon:check}}</i>بيجاوبك عن كل سؤال</div>
+    <div class="chk" id="c3" style="top:1150px"><i class="ic">{{icon:check}}</i>رخصتك من عنده مباشرة</div>
+  </div>
+
+  <div class="sc" id="s6">
+    <div class="big" id="t6" style="top:520px;font-size:120px">بدون <em>إنترنت</em></div>
+    <div class="plat" id="p1" style="right:120px"><i class="ic">{{icon:wifi-off}}</i>أوفلاين</div>
+    <div class="plat" id="p2" style="right:390px"><i class="ic">{{icon:monitor}}</i>كمبيوتر</div>
+    <div class="plat" id="p3" style="right:660px"><i class="ic">{{icon:smartphone}}</i>جوال</div>
+  </div>
+
+  <div class="sc" id="s7">
+    <div class="feat" id="f1"><i class="ic">{{icon:receipt}}</i><b>فواتير</b></div>
+    <div class="feat" id="f2"><i class="ic">{{icon:scan-barcode}}</i><b>نقطة بيع</b></div>
+    <div class="feat" id="f3"><i class="ic">{{icon:layers}}</i><b>مخزون</b></div>
+    <div class="feat" id="f4"><i class="ic">{{icon:hand-coins}}</i><b>ديون</b></div>
+    <div class="feat" id="f5"><i class="ic">{{icon:trending-up}}</i><b>أرباحك كل يوم</b></div>
+  </div>
+
+  <div class="sc" id="s8">
+    <i class="ic" id="head">{{icon:message-circle}}</i>
+    <div class="big" id="t8" style="top:1040px;font-size:104px">الدعم الفني <span class="gold">علينا</span></div>
+    <div class="big" id="t8b" style="top:1220px;font-size:88px">نحنا <em>معك</em></div>
+  </div>
+
+  <div class="sc" id="s9">
+    <div id="cta"><div class="lbl">تواصل مع وكيلنا</div><div class="nm">الحساوي</div><div class="how"><i class="ic">{{icon:message-circle}}</i>واتساب أو اتصال</div></div>
+    <div id="num"><span>0992</span> <span>945</span> <span>419</span></div>
+    <div id="supp">الدعم الفني من وزن: <b>0968 037 609</b></div>
+  </div>
+
+  <div class="sc" id="s11">
+    <img id="endLogo" src="logo.png" alt="" />
+    <div id="endT">وزن…<br />حساباتك صارت <em>بوزنها</em></div>
+    <div id="endUrl">waznsy.com</div>
+    <div id="endAg">وكيلنا بريف حلب الشمالي: الحساوي <b>0992 945 419</b></div>
+  </div>
+
+  <div id="cap"><div id="capT"></div></div>
+  <div id="vig"></div>
+  <div id="fade"></div>
+</div>
+
+<script>
+const A = __ALIGN__;
+const $ = (s) => document.querySelector(s);
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const ease = (x) => { x = clamp(x); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+const out = (x) => 1 - Math.pow(1 - clamp(x), 3);
+const back = (x) => { x = clamp(x); const c = 1.7; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+const win = (t, a, b, fi = 0.3, fo = 0.3) => Math.min(clamp((t - a) / fi), clamp((b - t) / fo));
+function W(i, k) {
+  const s = A[i];
+  if (k === undefined) return s.start;
+  if (typeof k === 'number') return s.start + k * (s.end - s.start);
+  const idx = s.text.indexOf(k);
+  if (idx < 0) { console.log('MISSING WORD', i, k); return s.start; }
+  return s.start + (idx / s.text.length) * (s.end - s.start) - 0.12;
+}
+const E = (i) => A[i].end;
+window.DURATION = E(11) + 1.6;
+
+// المشاهد: [المشهد، البداية، النهاية]
+const SC = [
+  ['s0', 0, W(1) - 0.05],
+  ['s1', W(1) - 0.15, W(2) - 0.05],
+  ['s2', W(2) - 0.15, W(3) - 0.1],
+  ['s3', W(3) - 0.2, W(4) - 0.05],
+  ['s4', W(4) - 0.15, W(5) - 0.05],
+  ['s5', W(5) - 0.15, W(6) - 0.1],
+  ['s6', W(6) - 0.2, W(7) - 0.05],
+  ['s7', W(7) - 0.15, W(8) - 0.1],
+  ['s8', W(8) - 0.2, W(9) - 0.1],
+  ['s9', W(9) - 0.2, W(11) - 0.1],
+  ['s11', W(11) - 0.2, window.DURATION + 1],
+];
+const FEAT = [['f1', W(7, 'فواتير')], ['f2', W(7, 'ونقطة')], ['f3', W(7, 'ومخزون')], ['f4', W(7, 'وديون')], ['f5', W(7, 'وأرباحك')]];
+window.EVENTS = {
+  click: [],
+  whoosh: SC.slice(1).map((s) => s[1]),
+  swish: FEAT.map((f) => f[1]),
+  pop: [W(5, 'بيفرجيك'), W(5, 'وبيجاوبك'), W(5, 'وبتاخد'), W(6, 'إنترنت'), W(6, 'عالكمبيوتر'), W(6, 'وعالجوال'), W(10, 0), W(10, 0.38), W(10, 0.72)],
+  chime: [W(4), W(11)],
+  beep: [],
+  sections: [0, W(3) - 0.2, W(6) - 0.2, W(9) - 0.2],
+  duration: window.DURATION,
+};
+
+const show = (id, t, a, b, f = 0.35) => { const e = $(id); const v = win(t, a, b, f, f); e.style.opacity = v; return v; };
+const rise = (id, t, at, d = 0.5, dy = 60) => { const e = $(id); const p = out((t - at) / d); e.style.opacity = clamp((t - at) / (d * 0.6)); e.style.transform = `translateY(${(1 - p) * dy}px)`; return p; };
+const popIn = (id, t, at, d = 0.55) => { const e = $(id); const p = back((t - at) / d); e.style.opacity = clamp((t - at) / 0.2); e.style.transform = `scale(${0.5 + 0.5 * p})`; return p; };
+
+window.render = function (t) {
+  $('#b1').style.transform = `translate(${-200 + Math.sin(t * 0.3) * 160}px, ${300 + Math.cos(t * 0.23) * 200}px)`;
+  $('#b2').style.transform = `translate(${500 + Math.cos(t * 0.2) * 200}px, ${1100 + Math.sin(t * 0.27) * 180}px)`;
+  $('#brand').style.opacity = 1 - clamp((t - (W(11) - 0.3)) / 0.4);
+  for (const [id, a, b] of SC) {
+    const e = $('#' + id); const v = win(t, a, b, 0.3, 0.3);
+    e.style.display = v > 0 ? 'block' : 'none'; e.style.opacity = v;
+    if (v > 0) e.style.transform = `scale(${1 + (1 - clamp((t - a) / 0.5)) * 0.06 - clamp((t - (b - 0.3)) / 0.3) * 0.04})`;
+  }
+  // 0 محتار
+  popIn('#t0', t, 0.05, 0.6); rise('#t0b', t, 0.55);
+  ['#q1', '#q2', '#q3'].forEach((q, k) => { const p = clamp((t - 0.2 - k * 0.25) / 0.5); const e = $(q); e.style.opacity = p * 0.8; e.style.transform = `translateY(${Math.sin(t * 3 + k) * 18}px) rotate(${(k - 1) * 14 + Math.sin(t * 2 + k) * 8}deg) scale(${0.6 + 0.4 * out(p)})`; });
+  // 1 بعاد
+  rise('#t1', t, W(1, 'بس'), 0.5); popIn('#pinW', t, W(1, 'وزن') ); popIn('#pinY', t, W(1, 'عنك') - 0.1);
+  $('#road').style.transform = `scaleX(${ease((t - W(1, 'بعاد')) / 0.6)})`;
+  { const e = $('#bub1'), p = back((t - W(1, 'وبدك')) / 0.45); e.style.opacity = clamp((t - W(1, 'وبدك')) / 0.2); e.style.transform = `scale(${0.6 + 0.4 * p})`; }
+  { const e = $('#bub2'), p = back((t - W(1, 'وجهاً')) / 0.45); e.style.opacity = clamp((t - W(1, 'وجهاً')) / 0.2); e.style.transform = `scale(${0.6 + 0.4 * p})`; }
+  // 2 شوفه بعينك
+  rise('#t2', t, W(2), 0.45); rise('#t2b', t, W(2, 'قبل'), 0.45, 30);
+  { const p = out((t - W(2)) / 0.7); const e = $('#dev'); e.style.opacity = p; e.style.transform = `translateY(${(1 - p) * 160}px) rotateX(${(1 - p) * 18}deg)`; }
+  popIn('#eye', t, W(2, 'بعينك'));
+  // 3 المنطقة
+  rise('#t3', t, W(3), 0.4); popIn('#region', t, W(3, 'بريف') , 0.6);
+  ['#ring1', '#ring2'].forEach((r, k) => { const p = clamp((t - W(3, 'بريف') - 0.2 - k * 0.5) / 1.4); const e = $(r); e.style.opacity = p > 0 && p < 1 ? (1 - p) * 0.8 : 0; e.style.transform = `scale(${1 + p * 3})`; });
+  rise('#t3b', t, W(3, 'صار'), 0.5); rise('#t3c', t, W(3, 'قريب'), 0.4, 30);
+  // 4 الوكيل
+  { const p = back((t - W(4)) / 0.7); const e = $('#agent'); e.style.opacity = clamp((t - W(4)) / 0.25); e.style.transform = `scale(${0.7 + 0.3 * p}) rotate(${(1 - clamp((t - W(4)) / 0.6)) * -4}deg)`; }
+  popIn('#badge', t, W(4, 'وكيل'), 0.5); rise('#agSub', t, W(4, 'وكيل'), 0.4, 20);
+  // 5 القائمة
+  rise('#t5', t, W(5) - 0.1, 0.4);
+  [['#c1', 'بيفرجيك'], ['#c2', 'وبيجاوبك'], ['#c3', 'وبتاخد']].forEach(([id, w]) => { const at = W(5, w); const e = $(id); const p = back((t - at) / 0.5); e.style.opacity = clamp((t - at) / 0.2); e.style.transform = `translateX(${(1 - p) * 120}px)`; e.style.borderColor = t > at && t < at + 1 ? 'rgba(95,224,191,.8)' : ''; });
+  // 6 بدون إنترنت
+  rise('#t6', t, W(6), 0.45);
+  [['#p1', 'إنترنت'], ['#p2', 'عالكمبيوتر'], ['#p3', 'وعالجوال']].forEach(([id, w]) => popIn(id, t, W(6, w)));
+  // 7 الميزات: وحدة ورا التانية
+  FEAT.forEach(([id, at], k) => { const end = k + 1 < FEAT.length ? FEAT[k + 1][1] : W(8) - 0.1; const e = $('#' + id); const v = win(t, at - 0.05, end + 0.05, 0.15, 0.15); e.style.opacity = v; const p = back((t - at) / 0.4); e.style.transform = `scale(${0.75 + 0.25 * p}) rotate(${(k % 2 ? 1 : -1) * (1 - clamp((t - at) / 0.35)) * 6}deg)`; });
+  // 8 الدعم
+  popIn('#head', t, W(8), 0.6); rise('#t8', t, W(8) + 0.1, 0.45); rise('#t8b', t, W(8, 'نحنا'), 0.4);
+  // 9-10 تواصل والرقم
+  { const p = back((t - W(9)) / 0.6); const e = $('#cta'); e.style.opacity = clamp((t - W(9)) / 0.25); e.style.transform = `scale(${0.75 + 0.25 * p})`; }
+  rise('#num', t, W(9, 'واتساب'), 0.5, 80); rise('#supp', t, W(10, 0.7), 0.5, 30);
+  [...$('#num').children].forEach((g, k) => { const at = W(10, [0, 0.38, 0.72][k]); g.style.opacity = 0.2 + 0.8 * clamp((t - at) / 0.3); g.style.color = t > at && t < at + 0.8 ? '#0f8a6f' : ''; });
+  // 11 النهاية
+  popIn('#endLogo', t, W(11) - 0.1, 0.7); rise('#endT', t, W(11, 'حساباتك'), 0.5); rise('#endUrl', t, E(11) - 0.6, 0.4, 20); rise('#endAg', t, E(11) - 0.3, 0.4, 20);
+  // الترجمة: الجملة الحالية، والكلمات بتنضوي مع الصوت
+  let si = -1; A.forEach((x, i) => { if (x.start - 0.25 <= t) si = i; });
+  const cap = $('#cap');
+  const last = si === A.length - 1;
+  const cv = si < 0 || last ? 0 : Math.min(clamp((t - (A[si].start - 0.25)) / 0.2), clamp((A[si].end + 0.35 - t) / 0.2));
+  cap.style.opacity = cv;
+  if (si >= 0 && cap.dataset.i !== String(si)) {
+    cap.dataset.i = String(si);
+    let pos = 0; const txt = A[si].text;
+    $('#capT').innerHTML = txt.split(' ').map((w) => { const at = A[si].start + (pos / txt.length) * (A[si].end - A[si].start) - 0.08; pos += w.length + 1; return `<span data-at="${at}">${w} </span>`; }).join('');
+  }
+  for (const sp of document.querySelectorAll('#capT span')) { const at = Number(sp.dataset.at); sp.style.opacity = 0.35 + 0.65 * clamp((t - at) / 0.15); sp.style.color = t > at && t < at + 0.45 ? '#ffe29a' : ''; }
+  $('#fade').style.opacity = clamp((t - (window.DURATION - 0.9)) / 0.85);
+};
+(async () => {
+  await document.fonts.ready;
+  await Promise.all([...document.images].map((i) => i.decode().catch(() => undefined)));
+  window.render(0);
+  window.READY = true;
+})();
+</script>
+</body>
+</html>
