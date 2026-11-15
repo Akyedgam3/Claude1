@@ -839,9 +839,11 @@ export function lineAmount(l: Pick<InvoiceLine, 'qty' | 'price' | 'discount'>): 
   return Math.round(l.qty * l.price) - l.discount;
 }
 
-export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft, opts: { number?: number; replaces?: string } = {}): { invoice: Invoice; entry: JournalEntry } {
+export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft, opts: { number?: number; replaces?: string; reprice?: boolean } = {}): { invoice: Invoice; entry: JournalEntry } {
   const { state, baseCode } = ctx;
   const kind = draft.kind;
+  // تعديل سعر شراء بدون تحريك البضاعة: الفرق على المنباع بيتحسب لحالو (repriceInvoice)، فما منعيد تغطية الرصيد السالب
+  const repricing = !!opts.reprice;
   checkDate(state, draft.date);
   const isSaleSide = kind === 'sale' || kind === 'sale_return';
   const currency = draft.currency ?? baseCode;
@@ -937,7 +939,7 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft, opts: { n
       } else if (kind === 'purchase') {
         // تكلفة الشراء = حصة السطر من صافي الفاتورة شامل الخصم والضرائب
         const cost = toBase(shares[i]!);
-        Object.assign(l, { cost }, planner.in(item.id, warehouseId, baseQty, cost, opts));
+        Object.assign(l, { cost }, planner.in(item.id, warehouseId, baseQty, cost, { ...opts, fillShortage: !repricing }));
       } else {
         // مرتجع الشراء يخرج من المخزون بمتوسط التكلفة؛ فرق سعر الإرجاع يذهب لحساب الفروقات
         const out = planner.out(item.id, warehouseId, baseQty, opts);
@@ -995,6 +997,15 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft, opts: { n
     push({ accountId: SYSTEM_ACCOUNTS.inventory, ...(out ? cr(cost) : dr(cost)), ...base });
   } else {
     push({ accountId: SYSTEM_ACCOUNTS.inventory, ...against(cost), ...base });
+    // شراء مادة انباعت قبل بالسالب: تكلفة اللي انباع بتنتقل من المخزون لتكلفة البضاعة المباعة
+    const shortfall = lines.reduce((s, l) => s + (l.shortfall ?? 0), 0);
+    if (shortfall > 0) {
+      push({ accountId: SYSTEM_ACCOUNTS.cogs, debit: shortfall, ...base });
+      push({ accountId: SYSTEM_ACCOUNTS.inventory, credit: shortfall, ...base });
+    } else if (shortfall < 0) {
+      push({ accountId: SYSTEM_ACCOUNTS.inventory, debit: -shortfall, ...base });
+      push({ accountId: SYSTEM_ACCOUNTS.cogs, credit: -shortfall, ...base });
+    }
     // ربح (موجب) أو خسارة (سالب) فرق سعر مرتجع الشراء عن التكلفة
     if (returnVariance > 0) push({ accountId: SYSTEM_ACCOUNTS.countDifferences, credit: returnVariance, ...base });
     if (returnVariance < 0) push({ accountId: SYSTEM_ACCOUNTS.countDifferences, debit: -returnVariance, ...base });

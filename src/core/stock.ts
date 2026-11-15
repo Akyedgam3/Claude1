@@ -11,6 +11,7 @@ export interface StockMove {
   batches?: BatchMove[]; // كميات موجبة؛ الاتجاه من إشارة qty
   serials?: string[];
   lastCost?: boolean; // تحديث آخر تكلفة (عند الشراء)
+  costValue?: number; // قيمة الشراء نفسها لآخر تكلفة (إذا القيمة غيرها لأنها غطّت رصيد سالب)
 }
 
 function fail(message: string): never {
@@ -32,7 +33,7 @@ export function applyMove(state: CompanyState, m: StockMove): void {
   lvl.qty[m.warehouseId] = roundQty((lvl.qty[m.warehouseId] ?? 0) + m.qty);
   lvl.totalQty = roundQty(lvl.totalQty + m.qty);
   lvl.value += m.value;
-  if (m.lastCost && m.qty > 0) lvl.lastCost = roundPrice(m.value / m.qty); // بيحفظ أجزاء السنت (قطع رخيصة)
+  if (m.lastCost && m.qty > 0) lvl.lastCost = roundPrice((m.costValue ?? m.value) / m.qty); // بيحفظ أجزاء السنت (قطع رخيصة)
   const sign = m.qty >= 0 ? 1 : -1;
   for (const b of m.batches ?? []) {
     const batches = (lvl.batches ??= {});
@@ -101,7 +102,8 @@ export function invoiceMoves(state: CompanyState, inv: Invoice): StockMove[] {
         itemId: line.itemId,
         warehouseId: inv.warehouseId,
         qty: dir * roundQty(line.qty * (line.factor ?? 1)),
-        value: dir * (line.cost ?? 0),
+        value: dir * ((line.cost ?? 0) - (line.shortfall ?? 0)),
+        ...(line.shortfall ? { costValue: dir * (line.cost ?? 0) } : {}),
         ...(line.batches ? { batches: line.batches } : {}),
         ...(line.serials ? { serials: line.serials } : {}),
         ...(inv.kind === 'purchase' ? { lastCost: true } : {}),
@@ -119,7 +121,8 @@ export function adjustmentMoves(a: StockAdjustment): StockMove[] {
     itemId: l.itemId,
     warehouseId: a.warehouseId,
     qty: l.qty,
-    value: l.cost,
+    value: l.cost - (l.shortfall ?? 0),
+    ...(l.shortfall ? { costValue: l.cost } : {}),
     ...(l.batch ? { batches: [{ batch: l.batch, qty: Math.abs(l.qty), ...(l.expiry ? { expiry: l.expiry } : {}) }] } : {}),
     ...(l.serials ? { serials: l.serials } : {}),
     ...(a.kind === 'opening' ? { lastCost: true } : {}),
@@ -260,10 +263,18 @@ export class StockPlanner {
     warehouseId: string,
     qty: number,
     cost: number,
-    opts: { batch?: string; expiry?: string; serials?: string[] } = {},
-  ): { batches?: BatchMove[]; serials?: string[] } {
+    opts: { batch?: string; expiry?: string; serials?: string[]; fillShortage?: boolean } = {},
+  ): { batches?: BatchMove[]; serials?: string[]; shortfall?: number } {
     const item = this.item(itemId);
     const w = this.get(itemId);
+    // الرصيد بالسالب (انباع قبل ما ينشرى بتكلفة صفر أو قديمة): القطع الجديدة بتغطي الناقص أول،
+    // فالقيمة بتصير «الكمية الجديدة × تكلفة الشراء»، والفرق (تكلفة اللي انباع قبل) بيروح على تكلفة البضاعة المباعة.
+    let shortfall = 0;
+    if (opts.fillShortage && w.totalQty < 0 && qty > 0) {
+      const after = roundQty(w.totalQty + qty);
+      const fair = Math.round((after * cost) / qty);
+      shortfall = w.value + cost - fair;
+    }
     let batches: BatchMove[] | undefined;
     if (item.trackExpiry) {
       const batch = opts.batch?.trim() ?? '';
@@ -286,9 +297,9 @@ export class StockPlanner {
     }
     w.qty[warehouseId] = roundQty((w.qty[warehouseId] ?? 0) + qty);
     w.totalQty = roundQty(w.totalQty + qty);
-    w.value += cost;
+    w.value += cost - shortfall;
     if (qty > 0) w.lastCost = Math.round(cost / qty);
-    return { ...(batches ? { batches } : {}), ...(serials ? { serials } : {}) };
+    return { ...(batches ? { batches } : {}), ...(serials ? { serials } : {}), ...(shortfall ? { shortfall } : {}) };
   }
 
   /** نقل بين مستودعين (بدون تغيير القيمة). */

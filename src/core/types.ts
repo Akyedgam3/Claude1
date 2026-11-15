@@ -357,6 +357,8 @@ export interface InvoiceLine {
   price: number; // سعر الوحدة المختارة بأصغر وحدة من عملة الفاتورة
   discount: number; // خصم السطر بأصغر وحدة
   cost?: number; // تكلفة السطر بالعملة الأساسية (تُحسب عند الترحيل)
+  /** شراء مادة رصيدها بالسالب (انباعت قبل ما تنشرى): فرق تكلفة القطع اللي انباعت قبل، بيروح على تكلفة البضاعة المباعة. */
+  shortfall?: number;
   batches?: BatchMove[];
   serials?: string[];
   components?: ComponentMove[]; // للأصناف المركّبة
@@ -436,6 +438,7 @@ export interface AdjustmentLine {
   itemId: string;
   qty: number; // فرق الكمية بالوحدة الأساسية (موجب = زيادة)
   cost: number; // فرق القيمة بالعملة الأساسية (بنفس الإشارة)
+  shortfall?: number; // إدخال على رصيد سالب: فرق تكلفة اللي انباع قبل (على تكلفة البضاعة المباعة)
   batch?: string;
   expiry?: string;
   serials?: string[];

@@ -34,12 +34,18 @@ function nextNumber(state: CompanyState, key: string): number {
 }
 
 /** قيد يثبت فرق قيمة المخزون مقابل الحساب المناسب. */
-function stockEntry(ctx: OpsContext, kind: AdjustmentKind, date: string, value: number, memo: string, id: string): JournalEntry | undefined {
-  if (value === 0) return undefined;
+function stockEntry(ctx: OpsContext, kind: AdjustmentKind, date: string, value: number, memo: string, id: string, shortfall = 0): JournalEntry | undefined {
+  if (value === 0 && shortfall === 0) return undefined;
   const base = { currency: ctx.baseCode, rate: 1 };
-  const inv: LineDraft = { accountId: SYSTEM_ACCOUNTS.inventory, ...(value > 0 ? { debit: value } : { credit: -value }), ...base };
-  const counter: LineDraft = { accountId: COUNTER_ACCOUNT[kind], ...(value > 0 ? { credit: value } : { debit: -value }), ...base };
-  return ctx.buildEntry({ date, memo, lines: [inv, counter], source: { type: 'adjustment', id }, createdBy: ctx.actor });
+  const lines: LineDraft[] = [];
+  if (value !== 0) {
+    lines.push({ accountId: SYSTEM_ACCOUNTS.inventory, ...(value > 0 ? { debit: value } : { credit: -value }), ...base });
+    lines.push({ accountId: COUNTER_ACCOUNT[kind], ...(value > 0 ? { credit: value } : { debit: -value }), ...base });
+  }
+  // إدخال على رصيد سالب: تكلفة اللي انباع قبل بتنتقل من المخزون لتكلفة البضاعة المباعة
+  if (shortfall > 0) lines.push({ accountId: SYSTEM_ACCOUNTS.cogs, debit: shortfall, ...base }, { accountId: SYSTEM_ACCOUNTS.inventory, credit: shortfall, ...base });
+  if (shortfall < 0) lines.push({ accountId: SYSTEM_ACCOUNTS.inventory, debit: -shortfall, ...base }, { accountId: SYSTEM_ACCOUNTS.cogs, credit: -shortfall, ...base });
+  return ctx.buildEntry({ date, memo, lines, source: { type: 'adjustment', id }, createdBy: ctx.actor });
 }
 
 export interface AdjustDraft {
@@ -70,6 +76,7 @@ export function buildAdjustment(ctx: OpsContext, d: AdjustDraft): { adjustment: 
         ...(l.batch ? { batch: l.batch } : {}),
         ...(l.expiry ? { expiry: l.expiry } : {}),
         ...(l.serials ? { serials: l.serials } : {}),
+        fillShortage: true,
       });
       return { itemId: item.id, qty, cost, ...res };
     }
@@ -84,6 +91,7 @@ interface RawLine {
   itemId: string;
   qty: number;
   cost: number;
+  shortfall?: number;
   batches?: BatchMove[];
   serials?: string[];
 }
@@ -92,11 +100,13 @@ interface RawLine {
 function expand(lines: RawLine[]): AdjustmentLine[] {
   return lines.flatMap((l) => {
     const base = { itemId: l.itemId, ...(l.serials ? { serials: l.serials } : {}) };
-    if (!l.batches?.length) return [{ ...base, qty: l.qty, cost: l.cost }];
+    const sf = l.shortfall ? { shortfall: l.shortfall } : {};
+    if (!l.batches?.length) return [{ ...base, qty: l.qty, cost: l.cost, ...sf }];
     const sign = l.qty < 0 ? -1 : 1;
     const costs = allocate(Math.abs(l.cost), l.batches.map((b) => b.qty));
     return l.batches.map((b, i) => ({
       ...base,
+      ...(i === 0 ? sf : {}),
       qty: sign * b.qty,
       cost: sign * costs[i]!,
       batch: b.batch,
@@ -117,7 +127,8 @@ function finishAdjustment(
   const number = nextNumber(ctx.state, 'adjustment');
   const text = memo?.trim() || `${ADJUSTMENT_NAMES[kind]} رقم ${number}`;
   const value = lines.reduce((s, l) => s + l.cost, 0);
-  const entry = stockEntry(ctx, kind, date, value, text, id);
+  const shortfall = lines.reduce((s, l) => s + (l.shortfall ?? 0), 0);
+  const entry = stockEntry(ctx, kind, date, value, text, id, shortfall);
   const adjustment: StockAdjustment = {
     id,
     number,

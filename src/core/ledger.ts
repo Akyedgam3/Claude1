@@ -1061,7 +1061,7 @@ export class Ledger {
     const { invoice, entry } = buildInvoice(
       { state: clone, baseCode: this.base.code, resolveRate: (c, dt) => this.rateFor(c, dt), buildEntry: (e) => this.buildEntry(e), partyBalance: (id) => this.partyBaseBalance(id) },
       { ...d, createdBy: d.createdBy ?? this.actor },
-      { number: old.number, replaces: old.id },
+      { number: old.number, replaces: old.id, reprice: true },
     );
     const voidEntry = this.reversal(this.state.entries.find((e) => e.id === old.entryId)!, old.date);
     const costs = new Map<string, { old: number; next: number; qty: number }>();

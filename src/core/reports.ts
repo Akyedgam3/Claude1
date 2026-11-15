@@ -600,6 +600,8 @@ export function partyDebts(state: CompanyState, partyId: string): PartyDebts[] {
   const byCur = new Map<string, DebtItem[]>();
   const sorted = [...state.entries].sort((a, b) => a.date.localeCompare(b.date) || a.number - b.number);
   for (const e of sorted) {
+    // قيد ملغى وقيد إلغائه بيلغوا بعض: ما منحسب الإلغاء «دفعة» بتسدّ فواتير تانية (تعديل فاتورة كان يطلّع فواتير قديمة مدفوعة)
+    if (e.voidOf || state.voided[e.id]) continue;
     const sums = new Map<string, number>();
     for (const l of e.lines) if (l.partyId === partyId) sums.set(l.currency, (sums.get(l.currency) ?? 0) + l.debit - l.credit);
     for (const [cur, amount] of sums) {
