@@ -104,7 +104,7 @@ export function Dashboard() {
   // كل مربعات الإحصائيات الممكنة (المستخدم بيختار منها)
   const STATS: { id: string; label: string; ok: boolean; el: () => ReactNode }[] = [
     { id: 'todaySales', label: 'مبيعات اليوم', ok: true, el: () => <Stat label="مبيعات اليوم" value={money(state, data.todaySales)} hint={`${data.todayCount} فاتورة`} onClick={() => navigate('reports', 'daily')} /> },
-    { id: 'todayProfit', label: 'ربح اليوم', ok: can('costs.view'), el: () => <Stat label="ربح اليوم" value={money(state, data.todayProfit)} tone={data.todayProfit >= 0 ? 'good' : 'bad'} onClick={() => navigate('reports', 'income')} /> },
+    { id: 'todayProfit', label: 'ربح اليوم', ok: can('costs.view'), el: () => <Stat label="صافي ربح اليوم" value={money(state, data.todayProfit)} hint="كل الفواتير، بعد المصاريف والتالف" tone={data.todayProfit >= 0 ? 'good' : 'bad'} onClick={() => navigate('reports', 'income')} /> },
     { id: 'yesterdaySales', label: 'مبيعات مبارح', ok: true, el: () => <Stat label="مبيعات مبارح" value={money(state, data.yesterdaySales)} onClick={() => navigate('reports', 'daily')} /> },
     { id: 'weekSales', label: 'مبيعات آخر 7 أيام', ok: true, el: () => <Stat label="مبيعات آخر 7 أيام" value={money(state, weekSales)} onClick={() => navigate('reports', 'daily')} /> },
     { id: 'monthSales', label: 'مبيعات الشهر', ok: true, el: () => <Stat label="مبيعات الشهر" value={money(state, data.monthSales)} hint={`${data.monthCount} فاتورة`} onClick={() => navigate('reports', 'income')} /> },
@@ -119,6 +119,7 @@ export function Dashboard() {
         <div className="stat clickable" onClick={() => navigate('reports', 'cash')}>
           <span>النقد في الصناديق</span>
           {data.cash.length === 0 ? <strong>0</strong> : data.cash.map(([c, v], i) => <strong key={i}>{v < 0 ? `ما في نقد (${state.currencies[c]?.symbol ?? c})` : money(state, v, c)}</strong>)}
+          <small className="muted">كل الموجود هلق، مش بس اليوم</small>
         </div>
       ),
     },

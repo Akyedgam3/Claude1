@@ -79,7 +79,7 @@ export function InvoiceView({ id }: { id: string }) {
           <div className={`profit-box no-print ${p.profit < 0 ? 'loss' : ''}`} style={{ maxWidth: 420 }}>
             <span>{p.profit < 0 ? 'خسارة هالفاتورة' : 'ربح هالفاتورة'}</span>
             <strong>{money(state, Math.abs(p.profit))}</strong>
-            {p.revenue > 0 && <small>{Math.round((p.profit / p.revenue) * 100)}% · المبيع بدون الضريبة {money(state, p.revenue)} · التكلفة {money(state, p.cost)}</small>}
+            {p.revenue > 0 && <small>{Math.round((p.profit / p.revenue) * 100)}% · المبيع بدون الضريبة {money(state, p.revenue)} · التكلفة {money(state, p.cost)} · قبل المصاريف</small>}
           </div>
         );
       })()}
@@ -557,6 +557,9 @@ export function partyAccountRows(state: CompanyState, inv: Invoice): { before: {
   if (state.info!.print?.showPreviousBalance === false || inv.voidEntryId) return null;
   const bal = invoicePartyBalance(state, inv);
   if (!bal || bal.previous === 0) return null;
+  // كسور صغيرة (أقل من 5 سنت) من تقريب دفعة قبل: ما منطبعها «حساب سابق» حتى ما تحيّر الزبون
+  const dec = state.currencies[inv.currency]?.decimals ?? 0;
+  if (dec >= 2 && Math.abs(bal.previous) < 5 * 10 ** (dec - 2)) return null;
   const m = (v: number) => money(state, v, inv.currency);
   const sale = inv.kind === 'sale' || inv.kind === 'sale_return';
   const s = sale ? 1 : -1; // موجب = بالاتجاه الطبيعي: الزبون مديون إلنا، أو نحنا مديونين للمورد
