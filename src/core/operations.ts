@@ -22,7 +22,7 @@ export const ADJUSTMENT_NAMES: Record<AdjustmentKind, string> = {
   consumption: 'استهلاك داخلي',
 };
 
-const COUNTER_ACCOUNT: Record<AdjustmentKind, string> = {
+export const COUNTER_ACCOUNT: Record<AdjustmentKind, string> = {
   opening: SYSTEM_ACCOUNTS.openingBalances,
   count: SYSTEM_ACCOUNTS.countDifferences,
   damage: SYSTEM_ACCOUNTS.damaged,

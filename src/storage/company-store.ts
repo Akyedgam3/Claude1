@@ -200,6 +200,12 @@ export class CompanyStore {
     this.heartbeat.unref?.();
     this.ledger = new Ledger((event) => this.append(event), state);
     this.ledger.actor = opts.user.id;
+    // تصحيح التكاليف التلقائي: إذا في فواتير قديمة تكلفتها غلط (بيع بالسالب...) بتتصحّح هون بأول فتحة. ما بيوقّف الفتح أبداً.
+    try {
+      this.ledger.recalculateCosts();
+    } catch (e) {
+      console.warn('recalculateCosts', e);
+    }
   }
 
   /** إنشاء شركة جديدة مشفّرة. يعيد رمز الاسترداد الذي يجب أن يحفظه المالك. */

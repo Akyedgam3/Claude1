@@ -47,6 +47,7 @@
 ## البنية والأوامر
 - `npm test` (vitest)، `npm run typecheck`، `npm run build`، `npm run test:e2e` (بعد `MIZAN_TEST_BUILD=1 npm run build`، وعلى لينكس عبر `xvfb-run`).
 - الدفتر مبني على الأحداث (event-sourced): `src/core/ledger.ts` و `commerce.ts`؛ المبالغ أعداد صحيحة بأصغر وحدة.
+- **تصحيح التكاليف التلقائي** (من 1.2.82، `src/core/recost.ts`): كل ما تنفتح الشركة (`CompanyStore`) `ledger.recalculateCosts()` بيعيد حساب تكلفة المبيعات والتالف من أول حركة (وسطي مرجّح، والبيع بالسالب بياخد تكلفة أول بضاعة بتدخل بعده)، وأي فرق بيتصحّح بحدث `costs.corrected` (تكلفة السطر + قيد `recost` بتاريخ المستند + قيمة المخزون). المستندات بفترة مقفلة ما بتتغيّر، وإلغاء مستند بيلغي قيود تصحيحه. الشراء بيغطّي الرصيد السالب (`shortfall` على السطر). الاختبارات: `tests/recost.test.ts` و`tests/profit-consistency.test.ts` (ربح الفواتير = الربح اليومي = قائمة الدخل). `partyDebts` (الباقي من كل فاتورة) بيتجاهل القيد الملغى وقيد إلغائه.
 - العمليات من الواجهة: `window.mizan.invoke('company:call', method, args)`، والصلاحيات في `src/core/permissions.ts` و `src/app/executor.ts`.
 - Prettier غير مطبّق على كامل المستودع — لا تشغّله على ملفات كاملة.
 

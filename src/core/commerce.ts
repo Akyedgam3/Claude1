@@ -552,6 +552,15 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       if (t.from === t.to) fail('اختر مستودعين مختلفين');
       return;
     }
+    case 'costs.corrected':
+      for (const f of event.lines) {
+        if (!Number.isSafeInteger(f.cost) || f.cost < 0) fail('تكلفة غير صالحة');
+        const doc = f.doc === 'invoice' ? state.invoices.find((i) => i.id === f.id) : state.adjustments.find((a) => a.id === f.id);
+        if (!doc || !doc.lines[f.line]) fail('سطر غير موجود');
+        if (doc.date <= (state.info?.lockedUntil ?? '')) fail('الفترة مقفلة');
+      }
+      for (const s of event.stock) if (!state.items[s.itemId] || !Number.isSafeInteger(s.value)) fail('تعديل تكلفة غير صالح');
+      return;
     case 'invoice.repriced': {
       const old = state.invoices.find((i) => i.id === event.invoiceId) ?? fail('الفاتورة غير موجودة');
       if (old.voidEntryId) fail('الفاتورة ملغاة');
@@ -723,6 +732,32 @@ export function applyCommerceEvent(state: CompanyState, event: CompanyEvent): vo
       bump(state, 'adjustment', event.adjustment.number);
       for (const m of adjustmentMoves(event.adjustment)) applyMove(state, m);
       return;
+    case 'costs.corrected': {
+      for (const f of event.lines) {
+        if (f.doc === 'invoice') {
+          const inv = state.invoices.find((i) => i.id === f.id);
+          const l = inv?.lines[f.line];
+          if (!l) continue;
+          if (f.clearShortfall) {
+            delete l.shortfall;
+            continue;
+          }
+          if (f.component !== undefined && l.components?.[f.component]) {
+            l.components[f.component]!.cost = f.cost;
+            l.cost = l.components.reduce((s, c) => s + c.cost, 0);
+          } else l.cost = f.cost;
+        } else {
+          const a = state.adjustments.find((x) => x.id === f.id);
+          const l = a?.lines[f.line];
+          if (!l) continue;
+          if (f.clearShortfall) delete l.shortfall;
+          else l.cost = -f.cost;
+        }
+      }
+      for (const e of event.entries) state.entries.push(e);
+      for (const s of event.stock) applyMove(state, { itemId: s.itemId, warehouseId: s.warehouseId, qty: 0, value: s.value });
+      return;
+    }
     case 'invoice.repriced': {
       // البضاعة ما بتتحرك: بس القيود، والفاتورة الجديدة، وفرق التكلفة على قيمة المخزون
       const old = state.invoices.find((i) => i.id === event.invoiceId)!;

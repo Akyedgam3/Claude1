@@ -8,6 +8,7 @@ import { buildSchedule, installmentState } from './electronics';
 import { cashAccountFor, SYSTEM_ACCOUNTS } from './chart-templates';
 import { convertMinor, currencyProblem, type Currency } from './money';
 import { invoiceMoves } from './stock';
+import { costPlan } from './recost';
 import { invoiceProfit } from './reports';
 import { POULTRY_CUTS } from './poultry';
 import { dealerStock, dealerUnitCost } from './dealers';
@@ -278,6 +279,10 @@ export function validateEvent(state: CompanyState, event: CompanyEvent): void {
     case 'stock.adjusted':
       validateCommerceEvent(state, event);
       if (event.entry) validateEntry(state, event.entry);
+      return;
+    case 'costs.corrected':
+      validateCommerceEvent(state, event);
+      for (const e of event.entries) validateEntry(state, e);
       return;
     default:
       return validateCommerceEvent(state, event);
@@ -1103,6 +1108,7 @@ export class Ledger {
     const invoice = this.state.invoices.find((i) => i.id === invoiceId) ?? fail('الفاتورة غير موجودة');
     const original = this.state.entries.find((e) => e.id === invoice.entryId)!;
     this.emit({ type: 'invoice.voided', invoiceId, entry: this.reversal(original, date), ...(opts.deleted ? { deleted: true } : {}) });
+    this.voidCostFixes(invoiceId, date);
     // عمولة المسوّق عن هالفاتورة بتنلغى معها
     for (const c of this.state.entries.filter((e) => e.source?.type === 'commission' && e.source.id === invoiceId && !this.state.voided[e.id] && !e.voidOf))
       this.emit({ type: 'entry.posted', entry: this.reversal(c, date) });
@@ -1327,7 +1333,7 @@ export class Ledger {
       kind: a.kind,
       date,
       warehouseId: a.warehouseId,
-      lines: a.lines.map((l) => ({ ...l, qty: -l.qty, cost: -l.cost })),
+      lines: a.lines.map((l) => ({ ...l, qty: -l.qty, cost: -l.cost, ...(l.shortfall ? { shortfall: -l.shortfall } : {}) })),
       memo: `إلغاء ${a.memo}`,
       ...(entry ? { entryId: entry.id } : {}),
       createdBy: this.actor,
@@ -1335,7 +1341,37 @@ export class Ledger {
       voidOf: a.id,
     };
     this.emit({ type: 'stock.adjusted', adjustment, ...(entry ? { entry } : {}) });
+    this.voidCostFixes(a.id, date);
     return adjustment;
+  }
+
+  /** قيود «تصحيح التكلفة» لمستند انلغى بتنلغى معه. */
+  private voidCostFixes(docId: string, date: string): void {
+    for (const e of this.state.entries.filter((x) => x.source?.type === 'recost' && x.source.id === docId && !this.state.voided[x.id] && !x.voidOf))
+      this.emit({ type: 'entry.posted', entry: this.reversal(e, date) });
+  }
+
+  /**
+   * تصحيح التكاليف التلقائي (recost.ts): بيعيد حساب تكلفة المبيعات والتالف من أول حركة،
+   * وبيصحّح أي فرق بقيد بتاريخ المستند. بيرجّع عدد المستندات اللي اتصحّحت (صفر إذا كل شي مزبوط).
+   */
+  recalculateCosts(): number {
+    const plan = costPlan(this.state);
+    if (!plan.lines.length && !plan.docs.length) return 0;
+    const entries = plan.docs.map((d, k) => ({
+      ...this.buildEntry({
+        date: d.date,
+        memo: d.memo,
+        lines: [
+          { accountId: d.account, ...(d.diff > 0 ? { debit: d.diff } : { credit: -d.diff }) },
+          { accountId: SYSTEM_ACCOUNTS.inventory, ...(d.diff > 0 ? { credit: d.diff } : { debit: -d.diff }) },
+        ],
+        source: { type: 'recost', id: d.id },
+      }),
+      number: this.state.entries.length + 1 + k,
+    }));
+    this.emit({ type: 'costs.corrected', lines: plan.lines, entries, stock: plan.stock });
+    return new Set(plan.docs.map((d) => d.id)).size;
   }
 
   transferStock(d: TransferDraft): StockTransfer {
