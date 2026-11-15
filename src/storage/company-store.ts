@@ -154,7 +154,7 @@ export interface CreateOptions {
   accounts?: Account[];
   taxes?: Tax[];
   warehouses?: Warehouse[];
-  owner: { username: string; displayName: string; password: string };
+  owner: { username: string; displayName: string; password: string; id?: string };
 }
 
 export class CompanyStore {
@@ -216,7 +216,7 @@ export class CompanyStore {
     acquireLock(dir);
     const key = randomKey();
     const recoveryCode = newRecoveryCode();
-    const owner: User = { id: crypto.randomUUID(), username: o.owner.username.trim(), displayName: o.owner.displayName.trim(), role: 'owner', active: true };
+    const owner: User = { id: o.owner.id ?? crypto.randomUUID(), username: o.owner.username.trim(), displayName: o.owner.displayName.trim(), role: 'owner', active: true };
     const keyring: Keyring = {
       version: 1,
       users: [{ userId: owner.id, username: owner.username, ...wrapKey(key, o.owner.password) }],

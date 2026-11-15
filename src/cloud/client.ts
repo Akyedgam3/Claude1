@@ -134,6 +134,27 @@ export class CloudClient {
     if (!expectedVerifier || (await this.verifier()) !== expectedVerifier) {
       throw new Error('الجهاز الرئيسي مطفي حالياً. لتشتغل وهو مطفي لازم تكون داخل بهالحساب من هالجوال مرة وحدة على الأقل وهو شغّال، وكلمة السر نفسها.');
     }
+    await this.loadLatest();
+    const name = this.creds.username.trim().toLowerCase();
+    const user = Object.values(this.state!.users).find((u) => u.username.toLowerCase() === name && u.active);
+    if (!user) throw new Error('هذا المستخدم موقوف');
+    this.user = user;
+    this.companyName = this.state!.info?.name ?? '';
+    this.offline = true;
+    this.pending = [...pending];
+    return { user, companyName: this.companyName, state: this.state!, seq: this.seq };
+  }
+
+  /**
+   * آخر نسخة كاملة من بيانات المحل بالسحابة مع العمليات اللي بعدها، بدون الجهاز الرئيسي.
+   * للاسترجاع لما يضيع الجهاز الرئيسي: رمز الاتصال لحالو بيفتحها (هو مفتاح التشفير).
+   */
+  async latestState(): Promise<CompanyState> {
+    await this.loadLatest();
+    return this.state!;
+  }
+
+  private async loadLatest(): Promise<void> {
     const r = this.room.room;
     const meta = await this.t.get(r, 'meta', 'latest');
     if (!meta?.ct) throw new Error(OFFLINE);
@@ -161,14 +182,6 @@ export class CloudClient {
       this.seq = fresh[fresh.length - 1]!.seq;
       this.syncedAt = Math.max(this.syncedAt, d.at ?? 0);
     }
-    const name = this.creds.username.trim().toLowerCase();
-    const user = Object.values(this.state.users).find((u) => u.username.toLowerCase() === name && u.active);
-    if (!user) throw new Error('هذا المستخدم موقوف');
-    this.user = user;
-    this.companyName = this.state.info?.name ?? '';
-    this.offline = true;
-    this.pending = [...pending];
-    return { user, companyName: this.companyName, state: this.state, seq: this.seq };
   }
 
   /**

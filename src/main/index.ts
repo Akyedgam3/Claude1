@@ -682,6 +682,21 @@ function registerIpc(): void {
     return true;
   }, { allowLocked: true });
 
+  /** ضاع الجهاز الرئيسي: آخر نسخة من بيانات المحل بالسحابة ← ملف نسخة احتياطية (.wazn) بكلمة سر جديدة للمالك. */
+  handle('cloud:recover', async (o: { code?: string; saved?: boolean; username: string; password: string }) => {
+    const s = readSettings();
+    const code = normalizeCloudCode(String((o.saved ? s.lastCloud?.code : o.code) ?? ''));
+    if (!code) throw new Error('رمز الاتصال غير صحيح');
+    const [{ CloudClient }, { FirestoreTransport }, { cloudRoom }, { recoverFromCloud }] = await Promise.all([import('../cloud/client'), import('../cloud/firestore'), import('../cloud/code'), import('../app/cloud-recover')]);
+    const client = new CloudClient(new FirestoreTransport(), await cloudRoom(code), { username: o.username, password: '', deviceId: s.deviceId, deviceName: os.hostname() });
+    const { name, bytes } = await recoverFromCloud(client, { username: String(o.username ?? ''), password: String(o.password ?? ''), tmpDir: path.join(app.getPath('temp'), `wazn-recover-${Date.now()}`) });
+    const stamp = new Date().toISOString().slice(0, 10);
+    const res = await afterDialog(dialog.showSaveDialog(win!, { title: 'حفظ بيانات المحل المسترجعة', defaultPath: path.join(app.getPath('documents'), `Wazn-${safeFolderName(name)}-مسترجعة-${stamp}.wazn`), filters: [{ name: 'نسخة وزن', extensions: ['wazn'] }] }));
+    if (res.canceled || !res.filePath) return null;
+    fs.writeFileSync(res.filePath, bytes);
+    return res.filePath;
+  }, { allowLocked: true });
+
   handle('cloud:connect', async (o: { code?: string; username?: string; password: string; saved?: boolean }) => {
     const s = readSettings();
     if (o.saved && !s.lastCloud) throw new Error('ما في اتصال محفوظ، دخّل الرمز مرة وحدة');

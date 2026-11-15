@@ -1139,6 +1139,8 @@ export interface CompanyState {
 // كل تغيير على بيانات الشركة يُسجَّل كحدث في سجل لا يُعدَّل (append-only).
 export type CompanyEvent =
   | { type: 'company.created'; info: CompanyInfo; currencies: Currency[] }
+  /** استرجاع بيانات محل كاملة (من آخر نسخة بالسحابة لما يضيع الجهاز الرئيسي): بيحل محل الحالة كلها. بس بشركة جديدة فاضية. */
+  | { type: 'company.imported'; state: CompanyState }
   | { type: 'company.updated'; info: Partial<CompanyInfo> }
   | { type: 'currency.saved'; currency: Currency }
   | { type: 'account.saved'; account: Account }

@@ -156,6 +156,8 @@ export const api = {
   cloudHostQueued: (username: string, password: string, method: string, args: unknown[]) => inv<{ value: unknown; seq: number }>('cloud:hostQueued', username, password, method, args),
   /** الاتصال بجهاز رئيسي عن بعد (saved = آخر اتصال محفوظ، بيكفي كلمة السر). */
   cloudConnect: (o: { code?: string; username?: string; password: string; saved?: boolean }) => inv<SessionInfo>('cloud:connect', o),
+  /** ضاع الجهاز الرئيسي: آخر نسخة من السحابة ← ملف .wazn بكلمة سر جديدة للمالك. بيرجّع مكان الملف (أو null). */
+  cloudRecover: (o: { code?: string; saved?: boolean; username: string; password: string }) => inv<string | null>('cloud:recover', o),
   cloudLast: () => inv<{ code: string; username: string; name?: string } | null>('cloud:last'),
   cloudForget: () => inv<boolean>('cloud:forget'),
   printers: () => inv<{ name: string; label: string }[]>('print:printers'),

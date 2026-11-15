@@ -12,6 +12,9 @@ export function CloudConnectForm({ notify, onConnected }: { notify: (m: string, 
   const [last, setLast] = useState<{ code: string; username: string; name?: string } | null>(null);
   const [full, setFull] = useState(!!fromLink);
   const [busy, setBusy] = useState(false);
+  // الجهاز الرئيسي مطفي وما في نسخة محفوظة لهالحساب هون: منعرض استرجاع البيانات بملف
+  const [lost, setLost] = useState(false);
+  const [rec, setRec] = useState({ username: '', password: '', confirm: '' });
   useEffect(() => {
     void api
       .cloudLast()
@@ -37,6 +40,10 @@ export function CloudConnectForm({ notify, onConnected }: { notify: (m: string, 
       await api.cloudConnect(quick ? { saved: true, password: f.password } : f);
       await onConnected();
     } catch (err) {
+      if (/مطفي/.test((err as Error).message) && !IS_WEB) {
+        setLost(true);
+        setRec((r) => ({ ...r, username: r.username || (quick ? last!.username : f.username) }));
+      }
       notify((err as Error).message, 'error');
     } finally {
       setBusy(false);
@@ -86,6 +93,43 @@ export function CloudConnectForm({ notify, onConnected }: { notify: (m: string, 
       <Field label="كلمة السر" wide={quick}>
         <input type="password" value={f.password} onChange={set('password')} autoComplete="current-password" autoFocus={quick} />
       </Field>
+      {lost && (
+        <div className="wide card cloud-recover">
+          <b>الجهاز الرئيسي ضاع أو انحذف منه التطبيق؟</b>
+          <p className="muted">
+            فيك ترجّع بيانات المحل من آخر نسخة محفوظة بالاتصال عن بعد، بملف نسخة احتياطية (.wazn). بعدين بتفتحه على الجهاز الجديد المرخّص: فتح شركة ← استعادة نسخة احتياطية. بتدخل باسم صاحب المحل وبكلمة السر الجديدة اللي بتكتبها هون.
+          </p>
+          <Field label="اسم الدخول تبع صاحب المحل">
+            <input dir="ltr" value={rec.username} onChange={(e) => setRec({ ...rec, username: e.target.value })} />
+          </Field>
+          <Field label="كلمة سر جديدة (6 أحرف أو أكتر)">
+            <input type="password" value={rec.password} onChange={(e) => setRec({ ...rec, password: e.target.value })} />
+          </Field>
+          <Field label="تأكيد كلمة السر">
+            <input type="password" value={rec.confirm} onChange={(e) => setRec({ ...rec, confirm: e.target.value })} />
+          </Field>
+          <button
+            type="button"
+            className="primary"
+            disabled={busy}
+            onClick={async () => {
+              if (rec.password.length < 6) return notify('كلمة السر لازم تكون 6 أحرف على الأقل', 'error');
+              if (rec.password !== rec.confirm) return notify('كلمتين السر مش متطابقين', 'error');
+              setBusy(true);
+              try {
+                const where = await api.cloudRecover({ ...(quick ? { saved: true } : { code: f.code }), username: rec.username, password: rec.password });
+                if (where) notify(`انحفظت بيانات المحل: ${where}. افتحها على الجهاز الجديد من «استعادة نسخة احتياطية».`);
+              } catch (e) {
+                notify((e as Error).message, 'error');
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            {busy ? 'عم يسترجع...' : 'استرجع بيانات المحل بملف'}
+          </button>
+        </div>
+      )}
       <div className="form-actions wide">
         {full && last && (
           <button type="button" className="ghost" onClick={() => setFull(false)}>

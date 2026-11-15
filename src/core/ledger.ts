@@ -280,6 +280,10 @@ export function validateEvent(state: CompanyState, event: CompanyEvent): void {
       validateCommerceEvent(state, event);
       if (event.entry) validateEntry(state, event.entry);
       return;
+    case 'company.imported':
+      if (state.entries.length || state.invoices.length) fail('الاسترجاع بس بشركة جديدة فاضية');
+      if (!event.state?.info || !event.state.users) fail('بيانات الشركة ناقصة');
+      return;
     case 'costs.corrected':
       validateCommerceEvent(state, event);
       for (const e of event.entries) validateEntry(state, e);
@@ -339,6 +343,12 @@ export function applyEvent(state: CompanyState, event: CompanyEvent): CompanySta
       state.info = { ...event.info };
       for (const c of event.currencies) state.currencies[c.code] = { ...c };
       break;
+    case 'company.imported': {
+      const next = { ...emptyState(), ...structuredClone(event.state) };
+      for (const k of Object.keys(state)) delete (state as unknown as Record<string, unknown>)[k];
+      Object.assign(state, next);
+      break;
+    }
     case 'company.updated':
       state.info = { ...state.info!, ...event.info };
       break;
@@ -1343,6 +1353,11 @@ export class Ledger {
     this.emit({ type: 'stock.adjusted', adjustment, ...(entry ? { entry } : {}) });
     this.voidCostFixes(a.id, date);
     return adjustment;
+  }
+
+  /** استرجاع بيانات محل كاملة بشركة جديدة فاضية (آخر نسخة من الاتصال عن بعد). */
+  importCompany(state: CompanyState): void {
+    this.emit({ type: 'company.imported', state });
   }
 
   /** قيود «تصحيح التكلفة» لمستند انلغى بتنلغى معه. */

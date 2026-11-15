@@ -599,6 +599,18 @@ function registerHandlers(): void {
     writeSettings(s);
     return true;
   }, { allowLocked: true });
+  /** ضاع الجهاز الرئيسي: آخر نسخة من بيانات المحل بالسحابة ← ملف نسخة احتياطية (.wazn) بكلمة سر جديدة للمالك. */
+  handle('cloud:recover', async (o: { code?: string; saved?: boolean; username: string; password: string }) => {
+    const last = readSettings().lastCloud;
+    const code = normalizeCloudCode(String((o?.saved ? last?.code : o?.code) ?? ''));
+    if (!code) throw new Error('رمز الاتصال غير صحيح');
+    const [{ CloudClient }, { FirestoreTransport }, { cloudRoom }, { recoverFromCloud }] = await Promise.all([import('../cloud/client'), import('../cloud/firestore'), import('../cloud/code'), import('../app/cloud-recover')]);
+    const client = new CloudClient(new FirestoreTransport(), await cloudRoom(code), { username: String(o.username ?? ''), password: '', deviceId: readSettings().deviceId, deviceName: 'جوال' });
+    const { name, bytes } = await recoverFromCloud(client, { username: String(o.username ?? ''), password: String(o.password ?? ''), tmpDir: `${ROOT}/tmp/recover-${Date.now()}` });
+    const stamp = new Date().toISOString().slice(0, 10);
+    return native.shareFile(`Wazn-${safeFolderName(name)}-مسترجعة-${stamp}.wazn`, bytes, 'application/octet-stream');
+  });
+
   handle('cloud:connect', async (o: { code?: string; username?: string; password: string; saved?: boolean }) => {
     // saved = آخر اتصال محفوظ: بيكفي كلمة السر
     const last = readSettings().lastCloud;

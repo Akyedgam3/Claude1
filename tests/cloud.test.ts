@@ -201,6 +201,37 @@ describe('cloud host and client', () => {
     expect(await t.get(room.room, 'res', 'x')).toBeNull();
   });
 
+  it('main device lost: the latest copy in the cloud becomes a backup file that opens with a new password', async () => {
+    execute(store, store.user, 'postInvoice', [sale]);
+    execute(store, store.user, 'postInvoice', [sale]);
+    await wait(30);
+    await host.flush();
+    host.stop(); // راح الجهاز الرئيسي (انحذف التطبيق)
+    const { recoverFromCloud } = await import('../src/app/cloud-recover');
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wazn-recover-'));
+    // حساب موظف ما بيكفي، ولازم كلمة سر جديدة
+    await expect(recoverFromCloud(await client('kasher', 'x', 'pc'), { username: 'kasher', password: 'newpass1', tmpDir: tmp })).rejects.toThrow(/المالك/);
+    const { name, bytes } = await recoverFromCloud(await client('admin', '', 'pc'), { username: 'ADMIN', password: 'newpass1', tmpDir: tmp });
+    expect(name).toBe('محل السحابة');
+    // الملف بينفتح متل أي نسخة احتياطية، بكلمة السر الجديدة، وفيه كل الشغل
+    const files = unpackBackup(bytes);
+    const restored = fs.mkdtempSync(path.join(os.tmpdir(), 'wazn-restored-'));
+    for (const [f, b] of Object.entries(files)) fs.writeFileSync(path.join(restored, f), b);
+    const s2 = CompanyStore.open(restored, { username: 'admin', password: 'newpass1' });
+    try {
+      expect(s2.ledger.state.invoices.filter((i) => i.kind === 'sale')).toHaveLength(2);
+      expect(s2.ledger.state.stock['i']!.totalQty).toBe(8);
+      expect(s2.user.role).toBe('owner');
+      expect(Object.values(s2.ledger.state.users).map((u) => u.username).sort()).toEqual(['admin', 'kasher']);
+      execute(s2, s2.user, 'postInvoice', [sale]);
+      expect(s2.ledger.state.invoices).toHaveLength(3);
+    } finally {
+      s2.close();
+      fs.rmSync(restored, { recursive: true, force: true });
+    }
+    expect(() => CompanyStore.open(restored, { username: 'admin', password: 'secret123' })).toThrow();
+  });
+
   it('keeps working on the phone while the main device is off and syncs when it is back', async () => {
     // أول دخول والجهاز شغّال: منحفظ بصمة كلمة السر عالجوال
     const c1 = await client();
