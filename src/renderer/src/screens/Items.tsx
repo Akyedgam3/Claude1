@@ -521,7 +521,13 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
               </datalist>
             </Field>
             <Field label="الماركة / المنشأ">
-              <input value={f.brand} onChange={set('brand')} />
+              <input value={f.brand} onChange={set('brand')} list="brands" />
+              {/* الماركات اللي انكتبت قبل بتطلع اقتراحات (سامسونغ، شاومي…) */}
+              <datalist id="brands">
+                {[...new Set(Object.values(state.items).map((i) => i.brand ?? ''))].filter(Boolean).map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
             </Field>
             {feature('partNumbers') && (
               <>
