@@ -921,7 +921,31 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
                       <input className="num-input" value={l.discount} onChange={(e) => setLine(l.key, { discount: e.target.value })} placeholder="مبلغ أو %" title="مبلغ (50) أو نسبة (10%)" />
                     </td>
                   )}
-                  <td className="num" data-label="المجموع">{idx >= 0 ? money(state, preview.amounts[idx] ?? 0, currency) : ''}</td>
+                  <td className="num" data-label="المجموع">
+                    {idx >= 0 && l.itemId && !lockPrice ? (
+                      <LineTotal
+                        shown={money(state, preview.amounts[idx] ?? 0, currency)}
+                        initial={toInput(state, preview.amounts[idx] ?? 0, currency)}
+                        onSet={(text) => {
+                          // اكتب المجموع اللي بدك ياه للسطر، والبرنامج بيحسب سعر الوحدة
+                          let total = 0;
+                          try {
+                            total = parseAmount(state, text, currency);
+                          } catch {
+                            return notify('اكتب رقم صحيح', 'error');
+                          }
+                          const q = Number(String(l.qty).replace(',', '.'));
+                          if (!(q > 0) || total < 0) return notify('اكتب الكمية أولاً', 'error');
+                          const price = toInput(state, Math.round((total / q) * 1e6) / 1e6, currency);
+                          setLine(l.key, { price, discount: '', manualPrice: true, src: priceSrc(price) });
+                        }}
+                      />
+                    ) : idx >= 0 ? (
+                      money(state, preview.amounts[idx] ?? 0, currency)
+                    ) : (
+                      ''
+                    )}
+                  </td>
                   <td className="line-cell-remove">
                     {(l.itemId || l.description) && (
                       <button className="icon" title="حذف السطر" onClick={() => setLines((ls) => withEmpty(ls.filter((x) => x.key !== l.key)))}>
@@ -1139,6 +1163,39 @@ function SerialHit({ serial, q }: { serial: string; q: string }) {
 }
 
 /** زر «ينخصم من الصندوق أو لا»: كامل / بالدين / جزء. */
+/** مجموع السطر: بتكبس عليه وبتكتب المجموع اللي بدك ياه (السعر بيتحسب لحاله). */
+function LineTotal({ shown, initial, onSet }: { shown: string; initial: string; onSet: (text: string) => void }) {
+  const [text, setText] = useState<string | null>(null);
+  if (text === null)
+    return (
+      <button type="button" className="line-total-btn" title="اكبس لتكتب المجموع اللي بدك ياه" onClick={() => setText(initial)}>
+        {shown}
+      </button>
+    );
+  const done = () => {
+    if (text !== initial) onSet(text);
+    setText(null);
+  };
+  return (
+    <input
+      className="num-input"
+      autoFocus
+      inputMode="decimal"
+      value={text}
+      onFocus={(e) => e.target.select()}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={done}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          done();
+        }
+        if (e.key === 'Escape') setText(null);
+      }}
+    />
+  );
+}
+
 function PaySwitch({ kind, mode, onChange, cashOnly }: { kind: InvoiceKind; mode: 'cash' | 'credit' | 'partial'; onChange: (m: 'cash' | 'credit' | 'partial') => void; cashOnly?: boolean }) {
   const inflow = kind === 'sale' || kind === 'purchase_return';
   const labels = inflow

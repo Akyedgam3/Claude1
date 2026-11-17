@@ -159,3 +159,51 @@ test('A4 invoice that spills a little onto page 2 is shrunk to one page; long on
     await close();
   }
 });
+
+test('free price: POS line price / total and invoice line total, not bound to the item price', async () => {
+  const { page, close } = await launch();
+  try {
+    await activate(page);
+    await createCompany(page, { name: 'محل السعر الحر', activity: 'سوبرماركت' });
+    const call = (method: string, ...args: unknown[]) => page.evaluate(([mm, a]) => (window as any).mizan.invoke('company:call', mm, a), [method, args] as const);
+    await call('saveItem', { id: 'r', code: 'R', name: 'رز', kind: 'service', unit: 'كيس', price: 100000, priceCurrency: 'SYP' });
+    const syp = async () => (await page.evaluate(() => (window as any).mizan.invoke('company:state'))).state;
+
+    // نقطة البيع: 3 أكياس، المجموع كله 250
+    await nav(page, 'نقطة البيع');
+    const item = page.locator('.pos-item', { hasText: 'رز' });
+    for (let i = 0; i < 3; i++) await item.click();
+    await page.locator('.price-edit-btn').first().click();
+    await page.locator('.price-box select').selectOption('total');
+    await page.locator('.price-box input').fill('250');
+    await page.locator('.price-box').getByRole('button', { name: 'تم' }).click();
+    await expect(page.locator('.price-edit-btn.on')).toHaveCount(1);
+    // كيس زيادة بسعر المادة بينزل بسطر لحاله
+    await item.click();
+    await expect(page.locator('.cart-line')).toHaveCount(2);
+    await page.getByRole('button', { name: 'دفع نقداً' }).click();
+    await toast(page, 'تم البيع');
+    let st = await syp();
+    const scale = 10 ** st.currencies['SYP'].decimals;
+    expect(st.invoices.at(-1).total / scale).toBe(1250); // 250 للتلاتة + 1000 للرابع
+
+    // الفاتورة: كبسة على المجموع وكتابة المجموع اللي بدك ياه
+    await nav(page, 'فاتورة مبيع');
+    const row = page.locator('table.lines tbody tr').first();
+    await row.locator('.with-button input').first().click();
+    await row.locator('.with-button input').first().fill('رز');
+    await page.locator('.picker-list li').first().waitFor();
+    await row.locator('.with-button input').first().press('Enter');
+    await row.locator('.qty-cell input').first().fill('4');
+    await row.locator('.line-total-btn').click();
+    await row.locator('td[data-label="المجموع"] input').fill('300');
+    await row.locator('td[data-label="المجموع"] input').press('Enter');
+    await expect(row.locator('td[data-label="السعر"] input')).toHaveValue('75');
+    await page.getByRole('button', { name: /حفظ الفاتورة/ }).click();
+    await toast(page, 'تم حفظ');
+    st = await syp();
+    expect(st.invoices.at(-1).total / scale).toBe(300);
+  } finally {
+    await close();
+  }
+});

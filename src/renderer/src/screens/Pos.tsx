@@ -18,6 +18,8 @@ interface CartLine {
   price: number; // بعملة الفاتورة
   serials: string[];
   note?: string;
+  /** سعر كتبه البائع بإيده (مش سعر المادة): ما بيندمج مع سطر تاني وما بيتغيّر لحاله */
+  custom?: boolean;
 }
 
 /** فاتورة معلّقة: زبون عم ينقّي، فبنخدم غيره وبنرجعله. */
@@ -54,6 +56,7 @@ export function Pos() {
   const [busy, setBusy] = useState(false);
   const [noteFor, setNoteFor] = useState<string | null>(null);
   const [amountFor, setAmountFor] = useState<string | null>(null);
+  const [priceFor, setPriceFor] = useState<string | null>(null);
   const party = partyId ? state.parties[partyId] : null;
   // عملة البيع: الكاشير بيختار ليرة أو دولار لكل فاتورة، والأسعار بتتحوّل بسعر الصرف
   const [cur, setCur] = useState(base);
@@ -150,7 +153,7 @@ export function Pos() {
         if (empty) return c.map((l) => (l === empty ? { ...l, serials: [...l.serials, opts.serial!] } : l));
         return [...c, { key: uid(), itemId: item.id, unit, qty: 1, price, serials: [opts.serial] }];
       }
-      const same = !opts.qty && !item.trackSerial && c.find((l) => l.itemId === item.id && l.unit === unit && !l.note);
+      const same = !opts.qty && !item.trackSerial && c.find((l) => l.itemId === item.id && l.unit === unit && !l.note && !l.custom);
       if (same) return c.map((l) => (l === same ? { ...l, qty: l.qty + 1 } : l));
       return [...c, { key: uid(), itemId: item.id, unit, qty: opts.qty ?? 1, price, serials: [] }];
     });
@@ -398,7 +401,15 @@ export function Pos() {
                   <div>
                     <ItemName item={item} strong />
                     <small>
-                      {money(state, l.price, cur)} / {l.unit || item.unit}
+                      {can('price.edit') ? (
+                        <button className={`price-edit-btn ${l.custom ? 'on' : ''}`} title="غيّر السعر لهالزبون" onClick={() => setPriceFor(priceFor === l.key ? null : l.key)}>
+                          {money(state, l.price, cur)} / {l.unit || item.unit} ✎
+                        </button>
+                      ) : (
+                        <>
+                          {money(state, l.price, cur)} / {l.unit || item.unit}
+                        </>
+                      )}
                       <button className={`note-btn ${noteFor === l.key || l.note ? 'on' : ''}`} onClick={() => setNoteFor(noteFor === l.key ? null : l.key)} title={quickNotes.length ? 'طعمة / ملاحظة' : 'ملاحظة'}>
                         <Icon name="file" size={12} />
                         {quickNotes.length ? <span>طعمة</span> : null}
@@ -430,6 +441,33 @@ export function Pos() {
                       بالمبلغ
                     </button>
                   </div>
+                )}
+                {priceFor === l.key && (
+                  <PriceBox
+                    price={l.price}
+                    qty={l.qty}
+                    format={(v) => toInput(state, v, cur)}
+                    onPick={(text, mode) => {
+                      let v = 0;
+                      try {
+                        v = parseAmount(state, text, cur);
+                      } catch {
+                        v = -1;
+                      }
+                      if (!(v >= 0)) return notify('اكتب رقم صحيح', 'error');
+                      const price = mode === 'total' && l.qty > 0 ? Math.round((v / l.qty) * 1e6) / 1e6 : v; // المجموع بيضل متل ما انكتب بالضبط
+                      const original = priceOf(item, l.unit);
+                      setLine(l.key, { price, custom: price !== original });
+                      setPriceFor(null);
+                      refocus();
+                    }}
+                    onReset={() => {
+                      const original = priceOf(item, l.unit);
+                      if (original !== null) setLine(l.key, { price: original, custom: false });
+                      setPriceFor(null);
+                      refocus();
+                    }}
+                  />
                 )}
                 {weighed && amountFor === l.key && (
                   <AmountToQty
@@ -558,6 +596,34 @@ export function Pos() {
 }
 
 /** "عطيني بـ 500": بيحوّل المبلغ لوزن حسب سعر الكيلو. */
+/** سعر حر للسطر: سعر القطعة أو المجموع كله (والبرنامج بيحسب سعر القطعة). */
+function PriceBox({ price, qty, format, onPick, onReset }: { price: number; qty: number; format: (v: number) => string; onPick: (text: string, mode: 'unit' | 'total') => void; onReset: () => void }) {
+  const [mode, setMode] = useState<'unit' | 'total'>('unit');
+  const [text, setText] = useState(format(price));
+  return (
+    <div className="amount-box price-box">
+      <select
+        value={mode}
+        onChange={(e) => {
+          const m = e.target.value as 'unit' | 'total';
+          setMode(m);
+          setText(format(m === 'total' ? Math.round(price * qty) : price));
+        }}
+      >
+        <option value="unit">سعر القطعة</option>
+        <option value="total">المجموع كله</option>
+      </select>
+      <input autoFocus inputMode="decimal" value={text} onFocus={(e) => e.target.select()} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && onPick(text, mode)} />
+      <button className="primary" onClick={() => onPick(text, mode)}>
+        تم
+      </button>
+      <button className="ghost" onClick={onReset}>
+        سعر المادة
+      </button>
+    </div>
+  );
+}
+
 function AmountToQty({ onPick }: { onPick: (amount: string) => void }) {
   const [text, setText] = useState('');
   return (
