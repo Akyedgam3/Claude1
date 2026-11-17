@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { attributesFor, ATTRIBUTE_SUGGESTIONS, isCashBox, computeTaxes, PRICE_TIER_NAMES, tierPrice, niceUnitCost, PRICE_SCALE, roundPrice, findRate, itemPlace, listPrices, withPlace, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
-import { convertPrice, dateText, fxRates, money, cleanNumber, qtyTotalText, parseAmount, parseDiscount, parsePrice, rateInverted, toInput, today, uid, useCompany } from '../api';
+import { convertPrice, dateText, fxRates, money, cleanNumber, qtyTotalText, qtyText, parseAmount, parseDiscount, parsePrice, rateInverted, toInput, today, uid, useCompany } from '../api';
 import { askConfirm, CurrencySelect, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
 import { invoiceDrafts } from '../drafts';
 import { ItemForm } from './Items';
@@ -27,7 +27,7 @@ interface LineState {
   weighing?: Weighing; // وزنات قفص قفص (الكمية = الصافي)
   sell?: string; // فاتورة الشراء (صيدلية مع موردين): سعر الصيدلية الجديد
   dealer?: string; // وسعر المورّد الجديد
-  parts?: { factory: string; shipping: string; tax: string; customs: string }; // تفصيل تكلفة القطعة بفاتورة الشراء
+  parts?: { factory: string; shipping: string; tax: string; customs: string; other?: string }; // تفصيل تكلفة القطعة بفاتورة الشراء
 }
 
 /** حالة الفاتورة المفتوحة اللي بتنحفظ لما المستخدم يروح على شاشة تانية. */
@@ -143,7 +143,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
             ...(l.note ? { note: l.note } : {}),
             ...(l.attributes ? { attrs: { ...l.attributes } } : {}),
             ...(l.weighing ? { weighing: l.weighing } : {}),
-            ...(l.costParts ? { parts: { factory: editInput(l.costParts.factory), shipping: editInput(l.costParts.shipping), tax: editInput(l.costParts.tax), customs: editInput(l.costParts.customs) } } : {}),
+            ...(l.costParts ? { parts: { factory: editInput(l.costParts.factory), shipping: editInput(l.costParts.shipping), tax: editInput(l.costParts.tax), customs: editInput(l.costParts.customs), other: l.costParts.other ? editInput(l.costParts.other) : '' } } : {}),
           })),
           emptyLine(),
         ]
@@ -197,19 +197,37 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
   };
   const dealersMode = feature('dealers');
   const setPrices = kind === 'purchase' && can('items.manage') && (dealersMode || breakdown);
-  /** سعر القطعة = مجموع الأجزاء الأربعة. */
-  const setPart = (key: string, part: 'factory' | 'shipping' | 'tax' | 'customs', value: string) =>
+  /** سعر القطعة (الكلفة الكاملة) = مجموع الأجزاء. */
+  const PARTS = ['factory', 'shipping', 'tax', 'customs', 'other'] as const;
+  const partVal = (v: string | undefined) => (v?.trim() ? parsePrice(state, v, currency) : 0);
+  const setPart = (key: string, part: (typeof PARTS)[number], value: string) =>
     setLines((ls) =>
       ls.map((x) => {
         if (x.key !== key) return x;
-        const parts = { factory: '', shipping: '', tax: '', customs: '', ...x.parts, [part]: value };
+        const parts = { factory: '', shipping: '', tax: '', customs: '', other: '', ...x.parts, [part]: value };
         let sum = 0;
         try {
-          sum = (['factory', 'shipping', 'tax', 'customs'] as const).reduce((s, k) => s + (parts[k].trim() ? parsePrice(state, parts[k], currency) : 0), 0);
+          sum = PARTS.reduce((s, k) => s + partVal(parts[k]), 0);
         } catch {
           return { ...x, parts };
         }
         return { ...x, parts, price: sum ? toInput(state, Math.round(sum * 1e6) / 1e6, currency) : '', manualPrice: true };
+      }),
+    );
+  /** كتب الكلفة الكاملة للقطعة مباشرة: السعر بيصيرها، وسعر المعمل = الكاملة − (الشحن والضريبة والجمارك والمصاريف). */
+  const setFullCost = (key: string, value: string) =>
+    setLines((ls) =>
+      ls.map((x) => {
+        if (x.key !== key) return x;
+        const parts = { factory: '', shipping: '', tax: '', customs: '', other: '', ...x.parts };
+        try {
+          const full = partVal(value);
+          const extras = PARTS.filter((k) => k !== 'factory').reduce((s, k) => s + partVal(parts[k]), 0);
+          if (value.trim() && full >= extras) parts.factory = toInput(state, Math.round((full - extras) * 1e6) / 1e6, currency);
+        } catch {
+          // الرقم لسا عم ينكتب
+        }
+        return { ...x, parts, price: value, manualPrice: true, src: priceSrc(value) };
       }),
     );
   const margins = state.info?.pricing ?? {};
@@ -513,7 +531,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
           ...(l.attrs ? { attributes: l.attrs } : {}),
           ...(l.weighing ? { weighing: l.weighing } : {}),
           ...(kind === 'purchase' && breakdown && l.parts && Object.values(l.parts).some((v) => v.trim())
-            ? { costParts: { factory: parsePrice(state, l.parts.factory || '0', currency), shipping: parsePrice(state, l.parts.shipping || '0', currency), tax: parsePrice(state, l.parts.tax || '0', currency), customs: parsePrice(state, l.parts.customs || '0', currency) } }
+            ? { costParts: { factory: parsePrice(state, l.parts.factory || '0', currency), shipping: parsePrice(state, l.parts.shipping || '0', currency), tax: parsePrice(state, l.parts.tax || '0', currency), customs: parsePrice(state, l.parts.customs || '0', currency), ...(l.parts.other?.trim() ? { other: parsePrice(state, l.parts.other, currency) } : {}) } }
             : {}),
         })),
         discount: preview.disc,
@@ -740,6 +758,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
                                 ['shipping', 'الشحن'],
                                 ['tax', 'الضريبة'],
                                 ['customs', 'الجمارك'],
+                                ['other', 'مصاريف تانية'],
                               ] as const
                             ).map(([k, label]) => (
                               <label key={k}>
@@ -747,7 +766,20 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
                                 <input className="num-input" inputMode="decimal" value={l.parts?.[k] ?? ''} onChange={(e) => setPart(l.key, k, e.target.value)} placeholder="0" />
                               </label>
                             ))}
-                            <b className="cost-sum">= رأس مال القطعة {l.price || '0'}</b>
+                            <label className="cost-full">
+                              = الكلفة الكاملة للقطعة
+                              <input className="num-input" inputMode="decimal" value={l.price} onChange={(e) => setFullCost(l.key, e.target.value)} placeholder="0" />
+                            </label>
+                            {(() => {
+                              try {
+                                const q = Number(String(l.qty).replace(',', '.'));
+                                const p = l.price.trim() ? parsePrice(state, l.price, currency) : 0;
+                                if (!(q > 0) || !p) return null;
+                                return <small className="cost-sum">الكلفة الكاملة للكمية ({qtyText(q)}): {money(state, Math.round(q * p), currency)}</small>;
+                              } catch {
+                                return null;
+                              }
+                            })()}
                           </span>
                         )}
                         {setPrices && !dealersMode && (

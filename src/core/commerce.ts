@@ -865,7 +865,7 @@ export function allocate(total: number, weights: number[]): number[] {
 
 /** تفصيل تكلفة القطعة: كل جزء سعر وحدة صالح. */
 function cleanCostParts(p: CostParts, n: number): CostParts {
-  const out = { factory: p.factory ?? 0, shipping: p.shipping ?? 0, tax: p.tax ?? 0, customs: p.customs ?? 0 };
+  const out: CostParts = { factory: p.factory ?? 0, shipping: p.shipping ?? 0, tax: p.tax ?? 0, customs: p.customs ?? 0, ...(p.other ? { other: p.other } : {}) };
   for (const v of Object.values(out)) if (!isUnitPrice(v)) fail(`السطر ${n}: تفصيل التكلفة غير صالح`);
   return out;
 }

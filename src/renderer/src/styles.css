@@ -4307,3 +4307,6 @@ table.lines td[data-label="السعر"] .num-input { min-width: 96px; }
 .line-total-btn { background: none; border: 1px dashed transparent; padding: 2px 4px; font: inherit; color: inherit; cursor: pointer; border-radius: 6px; }
 .line-total-btn:hover { border-color: var(--border, #ccc); }
 @media print { .line-total-btn { border: none; } }
+.cost-parts .cost-full { color: var(--primary); font-weight: 700; }
+.cost-parts .cost-full input { width: 110px; font-weight: 700; border-color: var(--primary); }
+.cost-parts small.cost-sum { flex-basis: 100%; font-size: 12px; padding: 0; }

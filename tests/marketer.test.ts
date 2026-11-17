@@ -139,5 +139,10 @@ describe('purchase cost breakdown', () => {
     expect(inv.lines[0]!.costParts).toEqual({ factory: 600, shipping: 200, tax: 200, customs: 200 });
     expect(l.state.stock['x']!.value).toBe(12000);
     expect(() => l.postInvoice({ kind: 'purchase', date: '2026-11-01', currency: 'USD', lines: [{ itemId: 'x', qty: 1, price: 1200, costParts: { factory: -1, shipping: 0, tax: 0, customs: 0 } }] })).toThrow();
+    // مصاريف تانية (تنزيل، نقل): الكلفة الكاملة 13
+    const inv2 = l.postInvoice({ kind: 'purchase', date: '2026-11-01', currency: 'USD', lines: [{ itemId: 'x', qty: 10, price: 1300, costParts: { factory: 600, shipping: 200, tax: 200, customs: 200, other: 100 } }] });
+    expect(inv2.lines[0]!.costParts).toEqual({ factory: 600, shipping: 200, tax: 200, customs: 200, other: 100 });
+    expect(l.state.stock['x']!.value).toBe(25000);
+    expect(() => l.postInvoice({ kind: 'purchase', date: '2026-11-01', currency: 'USD', lines: [{ itemId: 'x', qty: 1, price: 1200, costParts: { factory: 0, shipping: 0, tax: 0, customs: 0, other: -5 } }] })).toThrow();
   });
 });

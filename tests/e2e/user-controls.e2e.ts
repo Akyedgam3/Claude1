@@ -207,3 +207,44 @@ test('free price: POS line price / total and invoice line total, not bound to th
     await close();
   }
 });
+
+test('purchase cost breakdown: shipping + customs + other expenses = full cost (and typing the full cost fills the factory price)', async () => {
+  const { page, close } = await launch();
+  try {
+    await activate(page);
+    await createCompany(page, { name: 'محل الاستيراد', activity: 'تجارة عامة' });
+    const call = (method: string, ...args: unknown[]) => page.evaluate(([mm, a]) => (window as any).mizan.invoke('company:call', mm, a), [method, args] as const);
+    await call('saveItem', { id: 'p', code: 'P', name: 'براد', kind: 'stock', unit: 'قطعة', price: 0, priceCurrency: 'SYP' });
+    await nav(page, 'فاتورة شراء');
+    await page.locator('label', { hasText: 'تفصيل تكلفة القطعة' }).locator('input').check();
+    const row = page.locator('table.lines tbody tr').first();
+    const itemInput = row.locator('.with-button input').first();
+    await itemInput.click();
+    await itemInput.fill('براد');
+    await page.locator('.picker-list li').first().waitFor();
+    await itemInput.press('Enter');
+    await row.locator('.qty-cell input').first().fill('2');
+    const part = (label: string) => row.locator('.cost-parts label', { hasText: label }).locator('input');
+    await part('سعر المعمل').fill('100');
+    await part('الشحن').fill('20');
+    await part('الجمارك').fill('15');
+    await part('مصاريف تانية').fill('5');
+    const full = row.locator('.cost-full input');
+    await expect(full).toHaveValue('140');
+    await expect(row.locator('small.cost-sum')).toContainText('280');
+    // بكتب الكلفة الكاملة مباشرة: سعر المعمل بيتعدّل لحاله
+    await full.fill('150');
+    await expect(part('سعر المعمل')).toHaveValue('110');
+    if (process.env.SHOT) await row.locator('.cost-parts').screenshot({ path: '/tmp/claude-0/cost.png' });
+    await page.getByRole('button', { name: /حفظ الفاتورة/ }).click();
+    await toast(page, 'تم حفظ');
+    const st = (await page.evaluate(() => (window as any).mizan.invoke('company:state'))).state;
+    const scale = 10 ** st.currencies['SYP'].decimals;
+    const line = st.invoices.at(-1).lines[0];
+    expect(line.price / scale).toBe(150);
+    expect(line.costParts.other / scale).toBe(5);
+    expect(st.stock['p'].value / scale).toBe(300);
+  } finally {
+    await close();
+  }
+});

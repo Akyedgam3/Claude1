@@ -383,6 +383,8 @@ export interface CostParts {
   shipping: number;
   tax: number;
   customs: number;
+  /** مصاريف تانية (تنزيل، نقل داخلي، تخليص...) */
+  other?: number;
 }
 
 /** وزن على دفعات متل ما بيوزن موزع الفروج: كل وزنة لحال، وزن الأقفاص الفاضية بينطرح، وعدد الطيور والنافق. */

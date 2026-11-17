@@ -289,6 +289,7 @@ function MobileInvoiceView({ inv }: { inv: Invoice }) {
                   <small className="cost-line">
                     معمل {plainMoney(state, l.costParts.factory, inv.currency)} + شحن {plainMoney(state, l.costParts.shipping, inv.currency)} + ضريبة {plainMoney(state, l.costParts.tax, inv.currency)} + جمارك{' '}
                     {plainMoney(state, l.costParts.customs, inv.currency)}
+                    {l.costParts.other ? <> + مصاريف {plainMoney(state, l.costParts.other, inv.currency)}</> : null} = الكلفة الكاملة {plainMoney(state, l.price, inv.currency)}
                   </small>
                 )}
                 {l.note && <small>{l.note}</small>}
@@ -482,9 +483,10 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
         const pm = (v: number) => plainMoney(state, v, inv.currency);
         sub.push(
           <span className="cost-line">
-            {[['معمل', cp.factory], ['شحن', cp.shipping], ['ضريبة', cp.tax], ['جمارك', cp.customs]].map(([k, v], i) => (
+            {[['معمل', cp.factory], ['شحن', cp.shipping], ['ضريبة', cp.tax], ['جمارك', cp.customs], ...(cp.other ? [['مصاريف', cp.other]] : [])].map(([k, v], i) => (
               <span key={k as string}>{i > 0 ? '+ ' : ''}{k} {pm(v as number)} </span>
             ))}
+            <span>= الكلفة الكاملة {pm(l.price)}</span>
           </span>,
         );
       }
