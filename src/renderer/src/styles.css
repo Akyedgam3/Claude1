@@ -4285,3 +4285,18 @@ table.lines td[data-label="السعر"] .num-input { min-width: 96px; }
 .inv-status.void { background: rgba(100, 116, 139, 0.15); color: #475569; }
 .inv-meta { margin-inline-start: auto; }
 .inv-nav { margin-inline-start: auto; display: inline-flex; gap: 6px; }
+
+/* رموز QR إضافية + الفاتورة ما تفيض لصفحة تانية بالسطر الأخير بس */
+.doc-side { flex-wrap: wrap; }
+.thermal-doc .t-qrs { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 6px; }
+.thermal-doc .t-qrs > div { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.thermal-doc .t-qrs small { font-size: 0.8em; text-align: center; max-width: 30mm; }
+.extra-qr-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; align-items: center; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px dashed var(--border, #ddd); }
+.extra-qr-row button { justify-self: start; }
+@media print {
+  .doc-foot, .doc-terms, .doc-signatures, .doc-bottom, .thermal-doc .t-thanks, .thermal-doc .t-footer, .thermal-doc .t-qrs { break-inside: avoid; }
+  .doc-foot, .doc-signatures, .thermal-doc .t-thanks { break-before: avoid; }
+}
+.perm-group h4 { margin: 10px 0 4px; font-size: 0.95em; color: var(--muted, #667); }
+.perm-grid label.check:has(.perm-hint) { flex-wrap: wrap; align-items: center; }
+.perm-grid .perm-hint { flex-basis: 100%; font-size: 0.78em; line-height: 1.35; padding-inline-start: 24px; }

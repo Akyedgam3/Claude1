@@ -16,7 +16,9 @@ const sideOf = (k: InvoiceKind): Side => (k === 'purchase' || k === 'purchase_re
 const SIDE_KINDS: Record<Side, InvoiceKind[]> = { sale: ['sale', 'sale_return'], purchase: ['purchase', 'purchase_return'] };
 
 export function Invoices() {
-  const { state, navigate, can, call, notify } = useCompany();
+  const { state, navigate, can, call, notify, user } = useCompany();
+  // بدون صلاحية «فواتير باقي المستخدمين» بيشوف فواتيره هو بس
+  const mineOnly = !can('invoices.all');
   const users = state.users;
   const [query, setQuery] = useState('');
   // قسمين: فواتير المبيع (مع مرتجعاتها) وفواتير الشراء (مع مرتجعاتها)، والقسم بينحفظ
@@ -57,6 +59,7 @@ export function Invoices() {
         .filter(
           (i) =>
             (showDeleted || !i.deleted) &&
+            (!mineOnly || i.createdBy === user.id) &&
             sideOf(i.kind) === side &&
             (kind === 'all' || i.kind === kind) &&
             (!from || i.date >= from) &&
@@ -65,7 +68,7 @@ export function Invoices() {
         )
         .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
         .slice(0, 1000),
-    [state, query, side, kind, from, to, showDeleted],
+    [state, query, side, kind, from, to, showDeleted, mineOnly, user.id],
   );
 
   return (

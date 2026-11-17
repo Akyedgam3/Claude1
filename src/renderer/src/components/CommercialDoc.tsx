@@ -1,7 +1,7 @@
 import qrcode from 'qrcode-generator';
 import { useMemo, type CSSProperties, type ReactNode } from 'react';
 import type { PrintSettings } from '../../../core';
-import { qrLinkTarget } from '../../../core';
+import { qrLinkTarget, whatsappNumber } from '../../../core';
 import { useCompany } from '../api';
 
 // قالب موحّد لكل المستندات التجارية (فاتورة، مرتجع، عرض سعر...) بثلاثة تصاميم:
@@ -82,6 +82,19 @@ export function QrImage({ text, size = 180 }: { text: string; size?: number }) {
   }, [text, size]);
   if (!src) return <Qr text={text} size={size} />;
   return <img className="doc-qr" src={src} width={size} height={size} alt="QR" style={{ imageRendering: 'pixelated' }} />;
+}
+
+/** رموز QR الإضافية (واتساب، شام كاش، محفظة...) بعد تنظيفها: الفاضي بيتشال، والرقم بيصير رابط واتساب. */
+export function extraQrs(p: PrintSettings): { text: string; label: string }[] {
+  return (p.extraQrs ?? [])
+    .map((q) => {
+      const v = (q.value ?? '').trim();
+      // «نص» (رقم محفظة شام كاش، IBAN...) بينكتب بالـQR متل ما هو؛ واتساب ورابط بيصيروا روابط
+      const text = !v ? '' : q.kind === 'text' ? v : q.kind === 'whatsapp' ? (whatsappNumber(v) ? `https://wa.me/${whatsappNumber(v)}` : '') : (qrLinkTarget(v) ?? '');
+      return { text, label: (q.label ?? '').trim() };
+    })
+    .filter((q) => q.text)
+    .slice(0, 4);
 }
 
 export function CommercialDoc({ model, className, preview }: { model: DocModel; className?: string; preview?: PrintSettings }) {
@@ -186,6 +199,12 @@ export function CommercialDoc({ model, className, preview }: { model: DocModel; 
               {p.qrLink?.trim() && p.qrCaption?.trim() && <small>{p.qrCaption}</small>}
             </div>
           )}
+          {extraQrs(p).map((q, i) => (
+            <div key={i} className="doc-qr-box">
+              <Qr text={q.text} />
+              {q.label && <small>{q.label}</small>}
+            </div>
+          ))}
           <div>
             {model.words && <p className="doc-words">{model.words}</p>}
             {model.notes && <p className="doc-notes">{model.notes}</p>}

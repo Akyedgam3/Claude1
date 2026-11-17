@@ -107,6 +107,9 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
   const lockedBox = user.role !== 'owner' && user.cashAccountId && state.accounts[user.cashAccountId] ? user.cashAccountId : null;
   const base = state.info!.baseCurrency;
   const isSale = kind === 'sale' || kind === 'sale_return';
+  // صلاحيات دقيقة: تغيير السعر والبيع بالدين
+  const lockPrice = kind === 'sale' && !can('price.edit');
+  const cashOnly = kind === 'sale' && !can('sales.credit');
   const stockIn = kind === 'purchase' || kind === 'sale_return';
   // تعديل فاتورة: منعبّي كل شي من الفاتورة القديمة، وعند الحفظ بتنلغى وبتنسجّل الجديدة بنفس الرقم
   const editing = editId ? state.invoices.find((i) => i.id === editId && i.kind === kind && !i.voidEntryId) : undefined;
@@ -154,6 +157,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
   // الخصم من الصندوق: كامل، لا (دين)، أو جزء. البرنامج بيتذكّر آخر اختيار لكل نوع فاتورة
   const payKey = `mizan.payMode.${kind}`;
   const [payMode, setPayModeState] = useState<'cash' | 'credit' | 'partial'>(() => {
+    if (cashOnly) return 'cash';
     if (editing) return editing.paid >= editing.total ? 'cash' : editing.paid === 0 ? 'credit' : 'partial';
     if (d) return d.payMode;
     try {
@@ -897,8 +901,8 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
                     </div>
                   </td>
                   <td data-label="السعر">
-                    <input className="num-input" value={l.price} onChange={(e) => setLine(l.key, { price: e.target.value, manualPrice: true, src: priceSrc(e.target.value) })} inputMode="decimal" onKeyDown={enterNext} />
-                    {(() => {
+                    <input className="num-input" value={l.price} readOnly={lockPrice && !!l.itemId} title={lockPrice && l.itemId ? 'ما عندك صلاحية تغيير السعر' : undefined} onChange={(e) => setLine(l.key, { price: e.target.value, manualPrice: true, src: priceSrc(e.target.value) })} inputMode="decimal" onKeyDown={enterNext} />
+                    {!(lockPrice && l.itemId) && (() => {
                       const h = l.itemId ? partyHistory.last.get(l.itemId) : undefined;
                       if (!h || (h.unit || '') !== (l.unit || '')) return null;
                       const v = h.currency === currency ? h.price : convertPrice(state, h.price, h.currency, currency, ratesFor(currency, rateText));
@@ -994,7 +998,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
               {profit.revenue > 0 && <small>{Math.round((profit.profit / profit.revenue) * 100)}% · التكلفة {money(state, profit.cost, base)}</small>}
             </div>
           )}
-          <PaySwitch kind={kind} mode={payMode} onChange={setPayMode} />
+          <PaySwitch kind={kind} mode={payMode} onChange={setPayMode} cashOnly={cashOnly} />
           {payMode !== 'cash' && !partyId && <p className="bad small-note">{isSale ? 'اختر العميل في الأعلى ليُسجَّل الدين عليه' : 'اختر المورد في الأعلى ليُسجَّل الدين له'}</p>}
           <div className="kv">
             {payMode === 'partial' && (
@@ -1135,14 +1139,14 @@ function SerialHit({ serial, q }: { serial: string; q: string }) {
 }
 
 /** زر «ينخصم من الصندوق أو لا»: كامل / بالدين / جزء. */
-function PaySwitch({ kind, mode, onChange }: { kind: InvoiceKind; mode: 'cash' | 'credit' | 'partial'; onChange: (m: 'cash' | 'credit' | 'partial') => void }) {
+function PaySwitch({ kind, mode, onChange, cashOnly }: { kind: InvoiceKind; mode: 'cash' | 'credit' | 'partial'; onChange: (m: 'cash' | 'credit' | 'partial') => void; cashOnly?: boolean }) {
   const inflow = kind === 'sale' || kind === 'purchase_return';
   const labels = inflow
     ? { cash: 'قبض كامل في الصندوق', credit: 'دون قبض (دين عليه)', partial: 'قبض جزئي' }
     : { cash: 'خصم من الصندوق', credit: 'دون خصم (دين له)', partial: 'دفع جزئي' };
   return (
     <div className="pay-switch">
-      {(['cash', 'credit', 'partial'] as const).map((m) => (
+      {(cashOnly ? (['cash'] as const) : (['cash', 'credit', 'partial'] as const)).map((m) => (
         <button key={m} type="button" className={`${m} ${mode === m ? 'active' : ''}`} onClick={() => onChange(m)}>
           {labels[m]}
         </button>

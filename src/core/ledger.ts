@@ -196,6 +196,7 @@ function validateUser(state: CompanyState, user: User): void {
   if (others.some((u) => u.username.toLowerCase() === user.username.toLowerCase())) fail('اسم المستخدم مستخدم مسبقاً');
   const ownersLeft = others.filter((u) => u.role === 'owner' && u.active).length + (user.role === 'owner' && user.active ? 1 : 0);
   if (ownersLeft === 0) fail('يجب أن يبقى مالك واحد فعّال على الأقل');
+  if (user.hiddenScreens !== undefined && (!Array.isArray(user.hiddenScreens) || user.hiddenScreens.length > 200 || user.hiddenScreens.some((k) => typeof k !== 'string' || k.length > 40))) fail('قائمة الأقسام المخفية غير صالحة');
   if (user.cashAccountId) {
     const a = state.accounts[user.cashAccountId];
     if (!a || a.isGroup || a.type !== 'asset') fail('الصندوق غير موجود');
@@ -488,6 +489,8 @@ export type EventSink = (event: CompanyEvent) => void;
 export class Ledger {
   /** اسم المستخدم الذي ينفّذ العمليات حالياً (يُسجَّل في كل مستند). */
   actor = 'system';
+  /** فحص إضافي قبل تسجيل أي فاتورة (صلاحيات المستخدم الحالي: البيع بالدين...). بيحطه المنفّذ وقت العملية بس. */
+  invoiceCheck?: (invoice: Invoice) => void;
 
   constructor(
     private readonly sink: EventSink,
@@ -868,6 +871,7 @@ export class Ledger {
       { ...draft, createdBy: draft.createdBy ?? this.actor },
       opts,
     );
+    this.invoiceCheck?.(invoice);
     if (draft.marketerId) {
       const m = this.state.parties[draft.marketerId];
       if (!m?.marketerRate) fail('المسوّق غير موجود أو ما إلو نسبة');
@@ -1011,6 +1015,7 @@ export class Ledger {
     if (old.kind === 'purchase' && this.sameStock(old, next)) return this.repriceInvoice(old, next);
     const trial = new Ledger(() => {}, structuredClone(this.state));
     trial.actor = this.actor;
+    if (this.invoiceCheck) trial.invoiceCheck = this.invoiceCheck;
     try {
       trial.voidInvoice(old.id, old.date);
     } catch (e) {

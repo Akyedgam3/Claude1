@@ -7,7 +7,7 @@ import logoSmall from './assets/logo-64.png';
 import { ConfirmHost, justClosedModal } from './components/ui';
 import logo from './assets/logo.png';
 import { Icon } from './components/icons';
-import { NAV, navAllowed, type NavItem } from './nav';
+import { NAV, navAllowed, SCREEN_PARENT, type NavItem } from './nav';
 import { QuickSearch } from './components/QuickSearch';
 import { Assistant, openAssistant } from './assistant/Assistant';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -309,6 +309,14 @@ export function App() {
   setMaskHere(!UNMASKED_SCREENS.has(screen.key));
   const screens = visible.filter((n): n is NavItem => typeof n !== 'string');
   const allowed = new Set(screens.map((n) => n.key));
+  const navKeys = new Set(NAV.filter((n): n is NavItem => typeof n !== 'string').map((n) => n.key));
+  // الشاشات المخفية عن هالمستخدم (أو شاشة مربوطة فيها) ما بتنفتح حتى لو حدا وصلها من زر تاني
+  const hiddenFor = (key: string) => {
+    const hidden = ctx.user.role !== 'owner' ? (ctx.user.hiddenScreens ?? []) : [];
+    if (!hidden.length) return false;
+    const k = navKeys.has(key) ? key : SCREEN_PARENT[key];
+    return !!k && k !== 'dashboard' && hidden.includes(k);
+  };
   shortcuts.current = Object.fromEntries(Object.entries(SHORTCUTS).filter(([, key]) => allowed.has(key)));
 
   return (
@@ -426,7 +434,14 @@ export function App() {
           {ctx.session.viaRecovery && <div className="banner bad">دخلت برمز الاسترداد. غيّر كلمة السر الآن من الإعدادات ← حسابي.</div>}
           <OpenInvoices />
           <ErrorBoundary resetKey={`${screen.key}:${screen.param ?? ''}`}>
-            <Screen key={moneyHidden && !UNMASKED_SCREENS.has(screen.key) ? 'hidden' : 'shown'} screen={screen} />
+            {hiddenFor(screen.key) ? (
+              <div className="empty-state card">
+                <h3>هالقسم مقفول على حسابك</h3>
+                <p className="muted">صاحب المحل مخبّيه عنك من المستخدمين والصلاحيات.</p>
+              </div>
+            ) : (
+              <Screen key={moneyHidden && !UNMASKED_SCREENS.has(screen.key) ? 'hidden' : 'shown'} screen={screen} />
+            )}
           </ErrorBoundary>
         </main>
       </div>

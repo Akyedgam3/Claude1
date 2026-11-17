@@ -328,6 +328,7 @@ function ReceiptTab() {
           {flag('showPrice', 'عمود سعر الوحدة')}
           {flag('grid', 'جدول بخطوط', false)}
           {flag('showQr', 'رمز QR', false)}
+          {flag('showExtraQrs', 'رموز QR الإضافية (واتساب، شام كاش...)')}
         </div>
         <div className="form-grid">
           <Field label="نص قبل رقم التواصل">
@@ -444,6 +445,7 @@ function PrintTab() {
               <p className="muted wide">اكتب رقم واتساب (بيصير رابط محادثة معك)، أو رابط موقعك أو صفحتك أو موقعك عالخريطة.</p>
             </div>
           )}
+          <ExtraQrsEditor value={p.extraQrs ?? []} onChange={(extraQrs) => setP({ ...p, extraQrs })} />
           <Field label="الشروط والأحكام (اختياري)">
             <textarea rows={3} value={p.terms ?? ''} onChange={(e) => setP({ ...p, terms: e.target.value })} placeholder={'البضاعة المباعة لا ترد بعد 7 أيام\nالكفالة لا تشمل سوء الاستخدام'} />
           </Field>
@@ -538,6 +540,10 @@ function PrintTab() {
           <input type="checkbox" checked={p.showPreviousBalance !== false} onChange={(e) => setP({ ...p, showPreviousBalance: e.target.checked })} />
           إظهار الحساب السابق للزبون على الفاتورة (والباقي بذمته بعدها)
         </label>
+        <label className="check">
+          <input type="checkbox" checked={p.fitOnePage !== false} onChange={(e) => setP({ ...p, fitOnePage: e.target.checked })} />
+          الفاتورة بصفحة وحدة (إذا فاضت شوي بتتصغّر لتجي بورقة وحدة، والإيصال الحراري بينطبع على قد طوله بدون ورقة زيادة)
+        </label>
         <Field label="عنوان فاتورة المبيع المطبوعة">
           <input placeholder="فاتورة مبيع" value={p.saleTitle ?? ''} disabled={!!p.hideSaleTitle} onChange={(e) => setP({ ...p, saleTitle: e.target.value })} />
         </Field>
@@ -558,6 +564,40 @@ function PrintTab() {
         </div>
       </form>
     </section>
+  );
+}
+
+const QR_KINDS = { whatsapp: 'واتساب', link: 'رابط', text: 'نص / رقم محفظة' } as const;
+
+/** رموز QR إضافية على الفاتورة: واتساب، شام كاش، صفحة فيسبوك... */
+function ExtraQrsEditor({ value, onChange }: { value: NonNullable<PrintSettings['extraQrs']>; onChange: (v: NonNullable<PrintSettings['extraQrs']>) => void }) {
+  const set = (i: number, patch: Partial<NonNullable<PrintSettings['extraQrs']>[number]>) => onChange(value.map((q, k) => (k === i ? { ...q, ...patch } : q)));
+  return (
+    <div className="wide extra-qrs">
+      <h4>رموز QR إضافية على الفاتورة</h4>
+      <p className="muted">مثلاً: QR واتساب ليراسلك الزبون، وQR شام كاش (رقم المحفظة أو الكود) ليدفع منه، أو صفحتك عالفيسبوك. بيطلعوا جنب بعض أسفل الفاتورة (لحد 4).</p>
+      {value.map((q, i) => (
+        <div key={i} className="extra-qr-row">
+          <select value={q.kind ?? 'link'} onChange={(e) => set(i, { kind: e.target.value as 'whatsapp' | 'link' | 'text' })}>
+            {Object.entries(QR_KINDS).map(([k, v]) => (
+              <option key={k} value={k}>
+                {v}
+              </option>
+            ))}
+          </select>
+          <input value={q.label ?? ''} onChange={(e) => set(i, { label: e.target.value })} placeholder="الكلمة تحته (ادفع بشام كاش)" />
+          <input className="ltr" value={q.value} onChange={(e) => set(i, { value: e.target.value })} placeholder={q.kind === 'whatsapp' ? '0999123456' : q.kind === 'text' ? 'رقم أو كود المحفظة' : 'facebook.com/...'} />
+          <button type="button" className="ghost" onClick={() => onChange(value.filter((_, k) => k !== i))}>
+            حذف
+          </button>
+        </div>
+      ))}
+      {value.length < 4 && (
+        <button type="button" onClick={() => onChange([...value, { kind: value.length ? 'text' : 'whatsapp', label: value.length ? 'ادفع بشام كاش' : 'راسلنا عالواتساب', value: '' }])}>
+          + إضافة QR
+        </button>
+      )}
+    </div>
   );
 }
 

@@ -46,7 +46,8 @@ export function usePrinter() {
     async print(kind: DocKind, paper = defaultPaper(kind)) {
       try {
         const printer = settings.printers?.[kind === 'report' ? 'invoice' : kind];
-        await withPaper(paper, () => api.print({ paper, ...(printer ? { printer } : {}), copies: kind === 'invoice' ? (settings.copies ?? 1) : 1 }));
+        const fit = kind !== 'report' && settings.fitOnePage !== false;
+        await withPaper(paper, () => api.print({ paper, ...(printer ? { printer } : {}), copies: kind === 'invoice' ? (settings.copies ?? 1) : 1, fit }));
       } catch (e) {
         notify((e as Error).message, 'error');
       }

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { applyListPricing, attributesFor, ATTRIBUTE_SUGGESTIONS, niceUnitCost, buyDiscountOf, generateVariants, itemPlace, itemPlacesText, listPrices, withPlace, type Item, type ItemKind, type ItemUnit, type RecipeLine } from '../../../core';
-import { api, major, money, unitMoney, parseAmount, parsePrice, qtyText, toInput, today, uid, useCompany } from '../api';
+import { api, convertPrice, fxRates, major, money, unitMoney, parseAmount, parsePrice, qtyText, toInput, today, uid, useCompany } from '../api';
 import { Barcode, ExportButtons, usePrinter } from '../components/print';
 import { CameraScanButton, ColorPicker, ConfirmButton, CurrencySelect, ItemName, Empty, Field, itemMatches, itemOptions, Modal, PageHeader, Picker, SearchBox, Tabs } from '../components/ui';
 import { Icon } from '../components/icons';
@@ -49,86 +49,126 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
     try {
       const rows = await api.importExcel();
       if (!rows) return;
-      const byCode = new Map(Object.values(state.items).map((i) => [i.code, i]));
-      const existingCodes = new Set(byCode.keys());
+      const live = Object.values(state.items).filter((i) => !i.archived);
+      const byCode = new Map(live.map((i) => [i.code, i]));
+      const byBarcode = new Map(live.filter((i) => i.barcode).map((i) => [String(i.barcode).trim(), i]));
+      const norm = (t: string) => t.trim().replace(/\s+/g, ' ').toLowerCase();
+      const byName = new Map(live.map((i) => [norm(i.name), i]));
+      const existingCodes = new Set(Object.values(state.items).map((i) => i.code));
       const base = state.info!.baseCurrency;
       const parsed: Item[] = [];
+      // مواد موجودة بالملف بسعر أو بيانات جديدة: منحدّثها (إعادة الاستيراد بأسعار جديدة)
+      const updated: Item[] = [];
       // الكمية والتكلفة (اختياريين): بينسجّلوا بضاعة أول المدة
       const stock: { itemId: string; qty: number; unitCost: number }[] = [];
       let skippedStock = 0;
+      const seen = new Set<string>();
       const num = (v: unknown) => Number(String(v ?? '').replace(/[,،\s]/g, '').replace('٫', '.')) || 0;
+      const has = (r: Record<string, unknown>, k: string) => String(r[k] ?? '').trim() !== '';
+      const currencyOf = (r: Record<string, unknown>, fallback: string) => {
+        if (!has(r, 'العملة')) return fallback;
+        const curText = String(r['العملة']).trim();
+        // العملات المضافة أولاً بالرمز أو الاسم الكامل («ليرة تركية» قبل «ليرة»)
+        const custom = Object.values(state.currencies).find((c) => [c.code, c.nameAr, c.symbol].some((x) => x.toLowerCase() === curText.toLowerCase()));
+        return custom?.code ?? (/^(usd|\$|دولار)/i.test(curText) ? 'USD' : /^(syp|ل\.?س|ليرة)/i.test(curText) ? 'SYP' : fallback);
+      };
+      const price = (r: Record<string, unknown>, k: string, cur: string) => parsePrice(state, String(r[k]).replace(/[,،\s]/g, ''), cur);
       for (const r of rows) {
         const name = String(r['الاسم'] ?? '').trim();
         if (!name) continue;
         const qty = num(r['الكمية']);
         const cost = String(r['التكلفة'] ?? '').trim() ? parsePrice(state, String(r['التكلفة']).replace(/[,،\s]/g, ''), base) : 0;
-        const code = String(r['الرمز'] ?? '').trim() || nextCode([...existingCodes]);
-        const old = byCode.get(code);
+        const codeText = String(r['الرمز'] ?? '').trim();
+        const barcodeText = String(r['الباركود'] ?? '').trim();
+        // المادة موجودة؟ بالرمز، وإلا بالباركود، وإلا بنفس الاسم
+        const old = (codeText && byCode.get(codeText)) || (barcodeText && byBarcode.get(barcodeText)) || (!codeText ? byName.get(norm(name)) : undefined) || undefined;
         if (old) {
-          // مادة مستوردة من قبل: منضيف كميتها بس إذا رصيدها لسا صفر (حتى ما تتضاعف لو انعاد الاستيراد)
+          if (seen.has(old.id)) continue;
+          seen.add(old.id);
+          // الأسعار والبيانات الجديدة من الملف (اللي مكتوبة بس) بتحلّ محل القديمة
+          const cur = currencyOf(r, old.priceCurrency);
+          const next: Item = { ...old, priceCurrency: cur };
+          const sameCur = cur === old.priceCurrency;
+          if (has(r, 'سعر النشرة')) Object.assign(next, applyListPricing(state.info ?? undefined, { ...next, listPrice: price(r, 'سعر النشرة', cur) }));
+          else if (has(r, 'سعر المبيع') || has(r, 'سعر المفرق')) next.price = price(r, has(r, 'سعر المبيع') ? 'سعر المبيع' : 'سعر المفرق', cur);
+          else if (!sameCur) continue; // عملة جديدة بدون سعر: ما منغيّر شي
+          for (const [col, key] of [['سعر الجملة', 'wholesalePrice'], ['سعر جملة الجملة', 'bulkPrice'], ['سعر الوكيل', 'agentPrice']] as const) {
+            if (has(r, col)) next[key] = price(r, col, cur);
+            else if (!sameCur) delete next[key];
+          }
+          if (barcodeText) next.barcode = barcodeText;
+          if (has(r, 'التصنيف')) next.category = String(r['التصنيف']).trim();
+          if (has(r, 'الماركة')) next.brand = String(r['الماركة']).trim();
+          if (has(r, 'رقم القطعة')) next.partNumber = String(r['رقم القطعة']).trim();
+          if (JSON.stringify(next) !== JSON.stringify(old)) updated.push(next);
+          // الكمية: بس إذا رصيدها لسا صفر (حتى ما تتضاعف لو انعاد الاستيراد)
           if (qty > 0) {
             if (old.kind === 'stock' && !old.trackSerial && !(state.stock[old.id]?.totalQty ?? 0)) stock.push({ itemId: old.id, qty, unitCost: cost });
             else skippedStock++;
           }
           continue;
         }
-        if (existingCodes.has(code)) continue;
+        const code = codeText && !existingCodes.has(codeText) ? codeText : nextCode([...existingCodes]);
         existingCodes.add(code); // يمنع تكرار الرمز داخل نفس الملف
-        const curText = String(r['العملة'] ?? base).trim();
-        // العملات المضافة أولاً بالرمز أو الاسم الكامل («ليرة تركية» قبل «ليرة»)
-        const custom = Object.values(state.currencies).find((c) => [c.code, c.nameAr, c.symbol].some((x) => x.toLowerCase() === curText.toLowerCase()));
-        const currency = custom?.code ?? (/^(usd|\$|دولار)/i.test(curText) ? 'USD' : /^(syp|ل\.?س|ليرة)/i.test(curText) ? 'SYP' : base);
+        const currency = currencyOf(r, base);
         const id = uid();
         if (qty > 0) stock.push({ itemId: id, qty, unitCost: cost });
         // سعر النشرة (كهربائيات): أسعار البيع والجملة بتنحسب منه بنسب الشركة، والتعبئة بتصير وحدة كرتونة
         const listText = String(r['سعر النشرة'] ?? '').trim();
         const pack = Math.round(num(r['التعبئة'] ?? r['العدد بالكرتونة']));
         const brandName = r['الماركة'] ? String(r['الماركة']).trim() : '';
+        let item: Item;
         if (listText) {
-          parsed.push(
-            applyListPricing(state.info ?? undefined, {
-              id,
-              code,
-              name,
-              kind: 'stock',
-              unit: String(r['الوحدة'] ?? profile.units[0] ?? 'قطعة'),
-              priceCurrency: currency,
-              price: 0,
-              listPrice: parsePrice(state, listText.replace(/[,،\s]/g, ''), currency),
-              ...(pack > 1 ? { units: [{ name: `كرتونة ${pack}`, factor: pack }] } : {}),
-              ...(r['الباركود'] ? { barcode: String(r['الباركود']) } : {}),
-              ...(r['التصنيف'] ? { category: String(r['التصنيف']) } : {}),
-              ...(brandName ? { brand: brandName } : {}),
-            }),
-          );
-          continue;
+          item = applyListPricing(state.info ?? undefined, {
+            id,
+            code,
+            name,
+            kind: 'stock',
+            unit: String(r['الوحدة'] ?? profile.units[0] ?? 'قطعة'),
+            priceCurrency: currency,
+            price: 0,
+            listPrice: parsePrice(state, listText.replace(/[,،\s]/g, ''), currency),
+            ...(pack > 1 ? { units: [{ name: `كرتونة ${pack}`, factor: pack }] } : {}),
+            ...(barcodeText ? { barcode: barcodeText } : {}),
+            ...(r['التصنيف'] ? { category: String(r['التصنيف']) } : {}),
+            ...(brandName ? { brand: brandName } : {}),
+          });
+        } else {
+          item = {
+            id,
+            code,
+            name,
+            kind: 'stock',
+            unit: String(r['الوحدة'] ?? profile.units[0] ?? 'قطعة'),
+            priceCurrency: currency,
+            price: parsePrice(state, String(r['سعر المبيع'] ?? r['سعر المفرق'] ?? '0'), currency),
+            ...(r['سعر الجملة'] ? { wholesalePrice: parsePrice(state, String(r['سعر الجملة']), currency) } : {}),
+            ...(r['سعر جملة الجملة'] ? { bulkPrice: parsePrice(state, String(r['سعر جملة الجملة']), currency) } : {}),
+            ...(r['سعر الوكيل'] ? { agentPrice: parsePrice(state, String(r['سعر الوكيل']), currency) } : {}),
+            ...(barcodeText ? { barcode: barcodeText } : {}),
+            ...(r['التصنيف'] ? { category: String(r['التصنيف']) } : {}),
+            ...(r['الماركة'] ? { brand: String(r['الماركة']) } : {}),
+            ...(r['رقم القطعة'] ? { partNumber: String(r['رقم القطعة']) } : {}),
+          };
         }
-        parsed.push({
-          id,
-          code,
-          name,
-          kind: 'stock',
-          unit: String(r['الوحدة'] ?? profile.units[0] ?? 'قطعة'),
-          priceCurrency: currency,
-          price: parsePrice(state, String(r['سعر المبيع'] ?? r['سعر المفرق'] ?? '0'), currency),
-          ...(r['سعر الجملة'] ? { wholesalePrice: parsePrice(state, String(r['سعر الجملة']), currency) } : {}),
-          ...(r['سعر جملة الجملة'] ? { bulkPrice: parsePrice(state, String(r['سعر جملة الجملة']), currency) } : {}),
-          ...(r['سعر الوكيل'] ? { agentPrice: parsePrice(state, String(r['سعر الوكيل']), currency) } : {}),
-          ...(r['الباركود'] ? { barcode: String(r['الباركود']) } : {}),
-          ...(r['التصنيف'] ? { category: String(r['التصنيف']) } : {}),
-          ...(r['الماركة'] ? { brand: String(r['الماركة']) } : {}),
-          ...(r['رقم القطعة'] ? { partNumber: String(r['رقم القطعة']) } : {}),
-        });
+        parsed.push(item);
+        // نفس المادة مكررة بالملف: المرة التانية بتحدّثها بدل ما تنعمل مادة تانية
+        byName.set(norm(name), item);
+        if (barcodeText) byBarcode.set(barcodeText, item);
+        byCode.set(code, item);
+        seen.add(id);
       }
-      if (!parsed.length && !stock.length) {
+      if (!parsed.length && !stock.length && !updated.length) {
         if (skippedStock) return notify(`ما انضاف شي: ${skippedStock} مادة إلها رصيد من قبل، فما انضافت كميتها مرة تانية`, 'error');
         return notify('لا توجد مواد جديدة ولا كميات بالملف (الأعمدة: الاسم، الرمز، الوحدة، سعر المبيع أو سعر النشرة، العملة، الباركود، التصنيف، الماركة، التعبئة، الكمية، التكلفة)', 'error');
       }
       if (parsed.length && !(await call<number>('saveItems', parsed))) return;
+      if (updated.length && !(await call<number>('saveItems', updated))) return;
       if (stock.length && !(await call('postOpeningBalances', { date: today(), stock }))) return;
       notify(
         [
           parsed.length ? `تم استيراد ${parsed.length} مادة` : '',
+          updated.length ? `تحدّثت أسعار وبيانات ${updated.length} مادة موجودة` : '',
           stock.length ? `وتسجيل كميات ${stock.length} مادة كبضاعة أول المدة` : '',
           skippedStock ? `(${skippedStock} مادة إلها رصيد من قبل، ما انضافت كميتها)` : '',
         ]
@@ -425,6 +465,35 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
   const [extraAttr, setExtraAttr] = useState('');
   const attributeNames = [...new Set([...attributesFor(profile, f.category), ...Object.keys(attrs)])];
 
+  /** تغيير عملة السعر بيحوّل كل الأسعار بسعر الصرف (10$ ← 10 × سعر الدولار ل.س)، مش بس بيغيّر الرمز. */
+  const changeCurrency = (to: string) => {
+    const from = f.priceCurrency;
+    if (to === from) return;
+    const rates = fxRates(state, today());
+    let missing = false;
+    const conv = (t: string) => {
+      if (!t.trim()) return t;
+      const v = convertPrice(state, parseAmount(state, t, from), from, to, rates);
+      if (v === null) {
+        missing = true;
+        return t;
+      }
+      return toInput(state, v, to);
+    };
+    const keys = ['price', 'wholesalePrice', 'listPrice', 'specialPrice', 'bulkPrice', 'agentPrice', 'dealerPrice'] as const;
+    const next = { ...f, priceCurrency: to };
+    for (const k of keys) next[k] = conv(f[k]);
+    const nextUnits = units.map((u) => ({ ...u, price: conv(u.price) }));
+    if (missing) {
+      notify(`ما في سعر صرف مسجّل بين ${state.currencies[from]?.nameAr ?? from} و${state.currencies[to]?.nameAr ?? to}. سجّله من «العملات وسعر الصرف» أو اكتب الأسعار بإيدك.`, 'error');
+      setF({ ...f, priceCurrency: to });
+      return;
+    }
+    setF(next);
+    setUnits(nextUnits);
+    if (f.price.trim()) notify(`انحوّلت الأسعار لـ${state.currencies[to]?.nameAr ?? to} بسعر الصرف`);
+  };
+
   const save = async () => {
     let data: Item;
     try {
@@ -610,7 +679,7 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
               </datalist>
             </Field>
             <Field label="عملة السعر">
-              <CurrencySelect value={f.priceCurrency} onChange={(c) => setF({ ...f, priceCurrency: c })} />
+              <CurrencySelect value={f.priceCurrency} onChange={changeCurrency} />
             </Field>
             {feature('listPricing') && (
               <>

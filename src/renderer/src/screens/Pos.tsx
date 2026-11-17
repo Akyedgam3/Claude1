@@ -516,9 +516,11 @@ export function Pos() {
           <button className="primary big" disabled={busy || !cart.length} onClick={() => pay(false)}>
             دفع نقداً
           </button>
-          <button className="big" disabled={busy || !cart.length || !partyId} onClick={() => pay(true)}>
-            على الحساب
-          </button>
+          {can('sales.credit') && (
+            <button className="big" disabled={busy || !cart.length || !partyId} onClick={() => pay(true)}>
+              على الحساب
+            </button>
+          )}
         </div>
         <div className="pos-footer">
           <label className="check">

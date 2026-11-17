@@ -109,6 +109,10 @@ export interface PrintSettings {
   /** بدل ملخص الفاتورة: رابط واتساب/موقع/فيسبوك أو رقم هاتف (بيصير رابط واتساب). */
   qrLink?: string;
   qrCaption?: string; // كلمة تحت الـQR («تواصل معنا عالواتساب»)
+  /** رموز QR إضافية (واتساب، شام كاش، رقم محفظة، صفحة...) بتنطبع جنب بعض أسفل الفاتورة والإيصال. */
+  extraQrs?: { label?: string; value: string; kind?: 'whatsapp' | 'link' | 'text' }[];
+  /** خلي الفاتورة صفحة وحدة: بيصغّر الخط والفراغات شوي إذا كانت رح تفيض لصفحة تانية (افتراضياً نعم) */
+  fitOnePage?: boolean;
   showStamp?: boolean; // ختم مدفوعة / آجل / ملغاة (افتراضياً نعم)
   showSignatures?: boolean; // خانات التوقيع
   terms?: string; // الشروط والأحكام أسفل الفاتورة
@@ -150,6 +154,7 @@ export interface ReceiptSettings {
   thanks?: string; // «نشكر لكم زيارتكم»
   footer?: string; // نص حر بالآخر
   showQr?: boolean; // افتراضياً لا
+  showExtraQrs?: boolean; // رموز QR الإضافية (افتراضياً نعم إذا في)
   displayWelcome?: string; // رسالة شاشة الزبون وقت ما في طلب
 }
 
@@ -216,6 +221,8 @@ export interface User {
   role: Role;
   extra?: string[]; // صلاحيات إضافية فوق الدور
   denied?: string[]; // صلاحيات محجوبة من الدور
+  /** شاشات مخفية عن هالمستخدم (مفاتيح NAV)، فوق الصلاحيات: ما بتطلع بالقائمة ولا بالرئيسية وما بتنفتح. */
+  hiddenScreens?: string[];
   active: boolean;
   /** صندوق المستخدم: مبيعاته وسنداته بتنزل فيه لحالها (ولغير المالك ما بيقدر يغيّره). */
   cashAccountId?: string;

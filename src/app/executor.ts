@@ -70,6 +70,20 @@ export function execute(store: CompanyStore, actor: User, method: string, args: 
 
   const special = Object.prototype.hasOwnProperty.call(SPECIAL, method) ? SPECIAL[method] : undefined;
   if (special) return { value: special(store, user, args), seq: store.lastSeq };
+  // البيع بالدين بصلاحية لحالها: أي فاتورة مبيع (من الفاتورة، نقطة البيع، الطاولات، الصيانة...) لازم تندفع كاملة إذا ما معه ياها
+  if (!can(user, 'sales.credit')) {
+    store.ledger.invoiceCheck = (inv) => {
+      if (inv.kind === 'sale' && inv.paid < inv.total) fail(`لا تملك صلاحية: ${PERMISSIONS['sales.credit']}. لازم الفاتورة تندفع كاملة`);
+    };
+  }
+  try {
+    return executeChecked(store, user, method, args);
+  } finally {
+    delete store.ledger.invoiceCheck;
+  }
+}
+
+function executeChecked(store: CompanyStore, user: User, method: string, args: unknown[]): { value: unknown; seq: number } {
 
   const permission = permissionFor(method, args) ?? fail(`عملية غير معروفة: ${method}`);
   requirePermission(user, permission);

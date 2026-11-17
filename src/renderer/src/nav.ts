@@ -1,6 +1,9 @@
 // قائمة شاشات البرنامج (القائمة الجانبية)، ومنها بيختار المستخدم أزرار الشاشة الرئيسية كمان.
 import type { Feature, Permission } from '../../core';
 
+/** شاشات بتنفتح من شاشات تانية (مش من القائمة) ومربوطة بشاشة بالقائمة: إذا الأصل مخفي هي كمان مخفية. */
+export const SCREEN_PARENT: Record<string, string> = { invoice: 'invoices', sale_return: 'sale', purchase_return: 'purchase', quote: 'quotes' };
+
 export interface NavItem {
   key: string;
   label: string;
@@ -70,7 +73,8 @@ export const NAV: (NavItem | string)[] = [
 ];
 
 /** الشاشة مسموحة لهالمستخدم وهالنشاط؟ */
-export function navAllowed(n: NavItem, ctx: { feature: (f: Feature) => boolean; can: (p: Permission) => boolean }): boolean {
+export function navAllowed(n: NavItem, ctx: { feature: (f: Feature) => boolean; can: (p: Permission) => boolean; user?: { role: string; hiddenScreens?: string[] } }): boolean {
+  if (n.key !== 'dashboard' && ctx.user && ctx.user.role !== 'owner' && ctx.user.hiddenScreens?.includes(n.key)) return false;
   if (n.feature && !ctx.feature(n.feature)) return false;
   if (n.features && !n.features.some(ctx.feature)) return false;
   if (n.perm && !ctx.can(n.perm)) return false;

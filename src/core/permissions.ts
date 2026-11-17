@@ -7,6 +7,9 @@ export const PERMISSIONS = {
   'sales.void': 'إلغاء الفواتير',
   'returns.create': 'المرتجعات',
   'discount.give': 'إعطاء خصم',
+  'price.edit': 'تغيير سعر المادة وقت البيع',
+  'sales.credit': 'البيع بالدين (آجل أو دفعة ناقصة)',
+  'invoices.all': 'رؤية فواتير باقي المستخدمين',
   'purchases.create': 'فواتير الشراء',
   'vouchers.create': 'سندات القبض والدفع',
   'vouchers.void': 'إلغاء السندات',
@@ -58,14 +61,14 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   owner: ALL_PERMISSIONS,
   manager: ALL_PERMISSIONS.filter((p) => p !== 'users.manage' && p !== 'period.close'),
   accountant: [
-    'sales.create', 'sales.void', 'returns.create', 'discount.give', 'purchases.create', 'vouchers.create', 'vouchers.void',
+    'sales.create', 'sales.void', 'returns.create', 'discount.give', 'price.edit', 'sales.credit', 'invoices.all', 'purchases.create', 'vouchers.create', 'vouchers.void',
     'journal.create', 'costs.view', 'parties.manage', 'reports.financial', 'reports.stock', 'accounts.manage', 'rates.manage',
     'stock.adjust', 'backup.manage',
   ],
-  cashier: ['sales.create', 'returns.create', 'pos.use', 'restaurant.use', 'appointments.manage', 'tailoring.manage', 'printjobs.manage', 'dealers.manage', 'bookings.manage', 'solar.manage', 'vouchers.create', 'parties.manage'],
-  storekeeper: ['items.manage', 'stock.adjust', 'stock.transfer', 'production.manage', 'purchases.create', 'reports.stock'],
-  technician: ['repairs.manage', 'appointments.manage', 'tailoring.manage', 'sitejobs.manage', 'shipments.manage', 'printjobs.manage', 'solar.manage', 'parties.manage'],
-  viewer: ['reports.stock'],
+  cashier: ['sales.create', 'price.edit', 'sales.credit', 'invoices.all', 'returns.create', 'pos.use', 'restaurant.use', 'appointments.manage', 'tailoring.manage', 'printjobs.manage', 'dealers.manage', 'bookings.manage', 'solar.manage', 'vouchers.create', 'parties.manage'],
+  storekeeper: ['invoices.all', 'items.manage', 'stock.adjust', 'stock.transfer', 'production.manage', 'purchases.create', 'reports.stock'],
+  technician: ['invoices.all', 'repairs.manage', 'appointments.manage', 'tailoring.manage', 'sitejobs.manage', 'shipments.manage', 'printjobs.manage', 'solar.manage', 'parties.manage'],
+  viewer: ['reports.stock', 'invoices.all'],
 };
 
 export function permissionsOf(user: User): Set<Permission> {

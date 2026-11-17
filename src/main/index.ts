@@ -270,23 +270,86 @@ const PAGE_SIZES: Record<string, 'A4' | 'A5'> = { a4: 'A4', a5: 'A5' };
 /** مقاس ورق مخصص بالمليمتر (ملصقات: 40×30، 50×25...) ← ميكرون لـ Electron. */
 function customSize(opts: { size?: { w: number; h: number } }): { width: number; height: number } | null {
   const s = opts.size;
-  if (!s || !(s.w >= 10 && s.w <= 300 && s.h >= 10 && s.h <= 300)) return null;
+  if (!s || !(s.w >= 10 && s.w <= 300 && s.h >= 10 && s.h <= 3000)) return null;
   return { width: Math.round(s.w * 1000), height: Math.round(s.h * 1000) };
 }
 
-async function printOrPdf(contents: WebContents, opts: { paper: string; printer?: string; copies?: number; pdf?: string; size?: { w: number; h: number } }): Promise<string | boolean> {
+const PX_PER_MM = 96 / 25.4;
+
+const pdfPages = (data: Buffer): number => (data.toString('latin1').match(/\/Type\s*\/Page[^s]/g) ?? []).length;
+
+/**
+ * قبل الطباعة:
+ * - الحراري (80/58mm): منقيس الإيصال بوضع الطباعة ومنبعت طول الورقة على قده، فما بيتقسم لورقتين
+ *   (كانت الطابعة تقص ورقة تانية فيها «شكراً لزيارتكم» بس).
+ * - A4/A5: منجرّب الطباعة بملف PDF بالذاكرة؛ إذا طلعت صفحتين منصغّر شوي شوي (لحد 76%) لتجي بصفحة وحدة،
+ *   وإذا الفاتورة طويلة فعلاً منتركها متل ما هي.
+ * بيرجّع دالة بترجّع الصفحة متل ما كانت.
+ */
+async function fitForPrint(contents: WebContents, paper: string, fit: boolean): Promise<{ height?: number; scale?: number; restore: () => Promise<void> }> {
+  const none = { restore: async () => {} };
+  if (paper === '80mm' || paper === '58mm') {
+    const dbg = contents.debugger;
+    let attached = false;
+    try {
+      if (!dbg.isAttached()) {
+        dbg.attach('1.3');
+        attached = true;
+      }
+      await dbg.sendCommand('Emulation.setEmulatedMedia', { media: 'print' });
+      const px = (await contents.executeJavaScript(`(() => {
+        const all = [...document.querySelectorAll('.print-area')].filter((e) => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden');
+        const el = all[all.length - 1];
+        return el ? Math.ceil(el.getBoundingClientRect().height) : 0;
+      })()`)) as number;
+      await dbg.sendCommand('Emulation.setEmulatedMedia', { media: '' });
+      if (!px) return none;
+      return { height: Math.min(3000, Math.max(40, Math.ceil(px / PX_PER_MM + 8))), restore: none.restore };
+    } catch {
+      return none;
+    } finally {
+      try {
+        if (attached) dbg.detach();
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  const size = PAGE_SIZES[paper];
+  if (!fit || !size) return none;
+  try {
+    const pages = async (scale?: number) => pdfPages(await contents.printToPDF({ printBackground: true, preferCSSPageSize: true, pageSize: size, ...(scale ? { scale } : {}) }));
+    if ((await pages()) !== 2) return none;
+    for (const scale of [0.94, 0.88, 0.82, 0.76, 0.7]) if ((await pages(scale)) === 1) return { scale, restore: none.restore };
+  } catch {
+    /* منطبع عادي */
+  }
+  return none;
+}
+
+async function printOrPdf(contents: WebContents, opts: { paper: string; printer?: string; copies?: number; pdf?: string; size?: { w: number; h: number }; fit?: boolean }): Promise<string | boolean> {
+  const fitted = opts.size ? { restore: async () => {} } : await fitForPrint(contents, opts.paper, opts.fit !== false);
+  try {
+    return await printOrPdfRaw(contents, { ...(fitted.height ? { ...opts, size: { w: opts.paper === '58mm' ? 58 : 80, h: fitted.height } } : opts), ...(fitted.scale ? { scale: fitted.scale } : {}) });
+  } finally {
+    await fitted.restore();
+  }
+}
+
+async function printOrPdfRaw(contents: WebContents, opts: { paper: string; printer?: string; copies?: number; pdf?: string; size?: { w: number; h: number }; scale?: number }): Promise<string | boolean> {
   const custom = customSize(opts);
   if (opts.pdf) {
     const res = await afterDialog(dialog.showSaveDialog(win!, { title: 'حفظ PDF', defaultPath: path.join(app.getPath('documents'), `${safeFolderName(opts.pdf)}.pdf`), filters: [{ name: 'PDF', extensions: ['pdf'] }] }));
     if (res.canceled || !res.filePath) return false;
-    const data = await contents.printToPDF({ printBackground: true, preferCSSPageSize: true, ...(custom ? { pageSize: custom, margins: { top: 0, bottom: 0, left: 0, right: 0 } } : PAGE_SIZES[opts.paper] ? { pageSize: PAGE_SIZES[opts.paper] } : {}) });
+    // printToPDF بياخد المقاس بالإنش (مش ميكرون متل print)
+    const data = await contents.printToPDF({ printBackground: true, preferCSSPageSize: true, ...(opts.scale ? { scale: opts.scale } : {}), ...(custom ? { pageSize: { width: custom.width / 25400, height: custom.height / 25400 }, margins: { top: 0, bottom: 0, left: 0, right: 0 } } : PAGE_SIZES[opts.paper] ? { pageSize: PAGE_SIZES[opts.paper] } : {}) });
     fs.writeFileSync(res.filePath, data);
     return res.filePath;
   }
   return new Promise<boolean>((resolve) => {
     contents.print(
       // حجم الورق لازم ينبعت للطابعة صراحة: بدونه الطابعة بتاخد A4 (الافتراضي عندها) وبتعطي «الورق غلط» إذا حاطط A5
-      { printBackground: true, silent: !!opts.printer, ...(opts.printer ? { deviceName: opts.printer } : {}), ...(custom ? { pageSize: custom, margins: { marginType: 'none' as const } } : PAGE_SIZES[opts.paper] ? { pageSize: PAGE_SIZES[opts.paper] } : {}), copies: Math.max(1, Math.min(5, opts.copies ?? 1)) },
+      { printBackground: true, silent: !!opts.printer, ...(opts.scale ? { scaleFactor: Math.round(opts.scale * 100) } : {}), ...(opts.printer ? { deviceName: opts.printer } : {}), ...(custom ? { pageSize: custom, margins: { marginType: 'none' as const } } : PAGE_SIZES[opts.paper] ? { pageSize: PAGE_SIZES[opts.paper] } : {}), copies: Math.max(1, Math.min(5, opts.copies ?? 1)) },
       (success) => {
         refocus();
         resolve(success);
@@ -814,8 +877,8 @@ function registerIpc(): void {
 
   // ── الطباعة والتصدير ──
   handle('print:printers', async () => (await win!.webContents.getPrintersAsync()).map((p) => ({ name: p.name, label: p.displayName || p.name })));
-  handle('print:run', (opts: { paper: string; printer?: string; copies?: number; size?: { w: number; h: number } }) => printOrPdf(win!.webContents, opts));
-  handle('export:pdf', (opts: { paper: string; name: string }) => printOrPdf(win!.webContents, { paper: opts.paper, pdf: opts.name }));
+  handle('print:run', (opts: { paper: string; printer?: string; copies?: number; size?: { w: number; h: number }; fit?: boolean }) => printOrPdf(win!.webContents, opts));
+  handle('export:pdf', (opts: { paper: string; name: string; fit?: boolean }) => printOrPdf(win!.webContents, { paper: opts.paper, pdf: opts.name, ...(opts.fit === false ? { fit: false } : {}) }));
 
   handle('export:excel', async (name: string, sheets: ExportSheet[], format: 'xlsx' | 'csv' = 'xlsx') => {
     const res = await afterDialog(dialog.showSaveDialog(win!, {

@@ -4,6 +4,23 @@ import { uid, useCompany } from '../api';
 import { Field, Modal, PageHeader } from '../components/ui';
 import { DealerBoxSetup } from '../components/DealerBox';
 import { cashAccounts } from './InvoiceEditor';
+import { NAV, type NavItem } from '../nav';
+
+/** الصلاحيات مقسومة لمجموعات لحتى تنقرا بسهولة */
+const PERM_GROUPS: { title: string; perms: Permission[] }[] = [
+  { title: 'البيع والفواتير', perms: ['sales.create', 'pos.use', 'price.edit', 'discount.give', 'sales.credit', 'returns.create', 'sales.void', 'invoices.all'] },
+  { title: 'الأرباح والتقارير', perms: ['costs.view', 'reports.financial', 'reports.stock'] },
+  { title: 'المواد والمخزون', perms: ['items.manage', 'items.hidden', 'purchases.create', 'stock.adjust', 'stock.transfer', 'production.manage'] },
+  { title: 'المال والحسابات', perms: ['vouchers.create', 'vouchers.void', 'parties.manage', 'journal.create', 'accounts.manage', 'rates.manage'] },
+  { title: 'الإدارة', perms: ['settings.manage', 'users.manage', 'backup.manage', 'period.close', 'partners.manage', 'employees.manage'] },
+];
+const GROUPED = new Set(PERM_GROUPS.flatMap((g) => g.perms));
+const PERM_HINTS: Partial<Record<Permission, string>> = {
+  'costs.view': 'بدونها ما بيشوف ربح الفاتورة ولا ربح اليوم ولا التكلفة، لا بالفواتير ولا بنقطة البيع ولا بالرئيسية',
+  'price.edit': 'بدونها السعر بيطلع من بطاقة المادة وما بيقدر يغيّره',
+  'sales.credit': 'بدونها كل فاتورة مبيع لازم تندفع كاملة (وبيختفي زر «على الحساب» بنقطة البيع)',
+  'invoices.all': 'بدونها بسجل الفواتير بيشوف فواتيره هو بس',
+};
 
 export function Users() {
   const { state, user: me } = useCompany();
@@ -46,8 +63,11 @@ export function Users() {
 }
 
 function UserForm({ user, onClose }: { user: User | null; onClose: () => void }) {
-  const { call, notify, user: me, state } = useCompany();
+  const { call, notify, user: me, state, feature } = useCompany();
   const boxes = cashAccounts(state);
+  const [hidden, setHidden] = useState<Set<string>>(new Set(user?.hiddenScreens ?? []));
+  // الأقسام الموجودة بنشاط المحل (من غير الرئيسية)
+  const sections = NAV.filter((n): n is NavItem => typeof n !== 'string' && n.key !== 'dashboard' && (!n.feature || feature(n.feature)) && (!n.features || n.features.some(feature)));
   const [f, setF] = useState({
     // مع صندوق المورد: الحساب الجديد (الصيدلية) افتراضياً عالصندوق المشترك
     cashAccountId: user ? (user.cashAccountId ?? '') : state.accounts['11019'] ? (boxes.find((b) => !b.hidden)?.id ?? '') : '',
@@ -89,6 +109,7 @@ function UserForm({ user, onClose }: { user: User | null; onClose: () => void })
             ...(f.extra.size ? { extra: [...f.extra] } : {}),
             ...(f.denied.size ? { denied: [...f.denied] } : {}),
             ...(f.cashAccountId ? { cashAccountId: f.cashAccountId } : {}),
+            ...(f.role !== 'owner' && hidden.size ? { hiddenScreens: [...hidden] } : {}),
           };
           if (!user && f.password.length < 6) return notify('كلمة السر 6 أحرف على الأقل', 'error');
           const res = user ? await call('updateUser', data, f.password || undefined) : await call('createUser', data, f.password);
@@ -137,14 +158,51 @@ function UserForm({ user, onClose }: { user: User | null; onClose: () => void })
         {f.role !== 'owner' && (
           <div className="field wide">
             <span>الصلاحيات (يمكنك إضافة أو سحب صلاحيات من الدور)</span>
+            {[...PERM_GROUPS, { title: 'أقسام النشاط', perms: ALL_PERMISSIONS.filter((p) => !GROUPED.has(p)) }].map((g) => (
+              <div key={g.title} className="perm-group">
+                <h4>{g.title}</h4>
+                <div className="perm-grid">
+                  {g.perms.map((p) => (
+                    <label key={p} className={`check ${f.extra.has(p) ? 'good' : f.denied.has(p) ? 'bad' : ''}`} title={PERM_HINTS[p]}>
+                      <input type="checkbox" checked={effective.has(p)} onChange={(e) => toggle(p, e.target.checked)} />
+                      {PERMISSIONS[p]}
+                      {PERM_HINTS[p] && <small className="muted perm-hint">{PERM_HINTS[p]}</small>}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {f.role !== 'owner' && (
+          <div className="field wide">
+            <span>الأقسام اللي بيشوفها (شيل الإشارة عن أي قسم لتخبّيه عنه حتى لو معه صلاحيته)</span>
+            <div className="button-row">
+              <button type="button" className="ghost" onClick={() => setHidden(new Set())}>
+                إظهار الكل
+              </button>
+              <button type="button" className="ghost" onClick={() => setHidden(new Set(sections.map((n) => n.key)))}>
+                إخفاء الكل
+              </button>
+            </div>
             <div className="perm-grid">
-              {ALL_PERMISSIONS.map((p) => (
-                <label key={p} className={`check ${f.extra.has(p) ? 'good' : f.denied.has(p) ? 'bad' : ''}`}>
-                  <input type="checkbox" checked={effective.has(p)} onChange={(e) => toggle(p, e.target.checked)} />
-                  {PERMISSIONS[p]}
+              {sections.map((n) => (
+                <label key={n.key} className={`check ${hidden.has(n.key) ? 'bad' : ''}`}>
+                  <input
+                    type="checkbox"
+                    checked={!hidden.has(n.key)}
+                    onChange={(e) => {
+                      const next = new Set(hidden);
+                      if (e.target.checked) next.delete(n.key);
+                      else next.add(n.key);
+                      setHidden(next);
+                    }}
+                  />
+                  {n.label}
                 </label>
               ))}
             </div>
+            <small className="muted">القسم بيضل مخفي حتى لو إجت صلاحيته من الدور. الرئيسية بتضل ظاهرة دايماً.</small>
           </div>
         )}
         <div className="form-actions wide">
