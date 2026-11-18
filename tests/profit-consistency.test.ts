@@ -59,8 +59,9 @@ describe('profit and balances stay consistent', () => {
     l2.postInvoice({ kind: 'sale', date: D, partyId: 'c', lines: [{ itemId: 'a', qty: 4, price: 1000 }] });
     const p = l2.postInvoice({ kind: 'purchase', date: D, partyId: 's', lines: [{ itemId: 'a', qty: 10, price: 700 }] });
     l2.voidInvoice(p.id, D);
-    expect(l2.state.stock['a']).toMatchObject({ totalQty: -4, value: 0 });
-    expect(dayGross(l2)).toBe(4_000);
+    // انلغى الشراء: الـ4 المنباعين بيضلوا بآخر تكلفة معروفة (700)، مش ببلاش
+    expect(l2.state.stock['a']).toMatchObject({ totalQty: -4, value: -2_800 });
+    expect(dayGross(l2)).toBe(4 * 300);
     const tb = trialBalance(l2.state);
     expect(tb.totalDebit).toBe(tb.totalCredit);
   });

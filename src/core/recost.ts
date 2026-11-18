@@ -1,4 +1,5 @@
 import { SYSTEM_ACCOUNTS } from './chart-templates';
+import { roundPrice } from './money';
 import { COUNTER_ACCOUNT } from './operations';
 import type { CompanyState, Invoice, StockAdjustment } from './types';
 
@@ -44,18 +45,21 @@ interface Move {
   value: number;
   /** خروج بيتصحّح (بيع، تالف...) */
   fix?: { doc: 'invoice' | 'adjustment'; id: string; line: number; component?: number; recorded: number; warehouseId: string };
+  /** بيحدّث «آخر تكلفة» (شراء، رصيد افتتاحي، إنتاج) متل البيع العادي */
+  last?: boolean;
   /** دخول سجّل «تغطية رصيد سالب» قديماً (shortfall) */
   shortfall?: { doc: 'invoice' | 'adjustment'; id: string; line: number; recorded: number; warehouseId: string };
 }
 
 const OUT_ADJ = new Set(['damage', 'consumption', 'count']);
 
-export function costPlan(state: CompanyState): CostPlan {
+export function costPlan(state: CompanyState, only?: Set<string>): CostPlan {
   const locked = state.info?.lockedUntil ?? '';
   const entryNo = new Map(state.entries.map((e) => [e.id, e.number]));
   const voidedAdj = new Set(state.adjustments.filter((a) => a.voidOf).map((a) => a.voidOf!));
   const moves: Move[] = [];
-  const stockItem = (id: string | undefined) => !!id && state.items[id]?.kind === 'stock';
+  // only: مواد معيّنة بس (بعد عملية عليها) — أسرع بكتير من كل المحل
+  const stockItem = (id: string | undefined) => !!id && state.items[id]?.kind === 'stock' && (!only || only.has(id));
 
   const invSeq = (inv: Invoice) => entryNo.get(inv.entryId) ?? 0;
   for (const inv of state.invoices) {
@@ -68,7 +72,7 @@ export function costPlan(state: CompanyState): CostPlan {
         const base = { date: inv.date, seq, itemId: l.itemId! };
         if (inv.kind === 'sale') moves.push({ ...base, qty: -qty, value: l.cost ?? 0, ...(open ? { fix: { doc: 'invoice', id: inv.id, line: i, recorded: l.cost ?? 0, warehouseId: inv.warehouseId } } : {}) });
         else if (inv.kind === 'purchase')
-          moves.push({ ...base, qty, value: l.cost ?? 0, ...(open && l.shortfall ? { shortfall: { doc: 'invoice', id: inv.id, line: i, recorded: l.shortfall, warehouseId: inv.warehouseId } } : {}), ...(!open && l.shortfall ? { value: (l.cost ?? 0) - l.shortfall } : {}) });
+          moves.push({ ...base, qty, value: l.cost ?? 0, last: true, ...(open && l.shortfall ? { shortfall: { doc: 'invoice', id: inv.id, line: i, recorded: l.shortfall, warehouseId: inv.warehouseId } } : {}), ...(!open && l.shortfall ? { value: (l.cost ?? 0) - l.shortfall } : {}) });
         else if (inv.kind === 'sale_return') moves.push({ ...base, qty, value: l.cost ?? 0 });
         else moves.push({ ...base, qty: -qty, value: l.cost ?? 0 }); // مرتجع شراء: بتكلفته المسجّلة
       }
@@ -89,14 +93,16 @@ export function costPlan(state: CompanyState): CostPlan {
       const base = { date: a.date, seq: adjSeq(a), itemId: l.itemId };
       if (l.qty < 0 && OUT_ADJ.has(a.kind)) moves.push({ ...base, qty: l.qty, value: -l.cost, ...(open ? { fix: { doc: 'adjustment', id: a.id, line: i, recorded: -l.cost, warehouseId: a.warehouseId } } : {}) });
       else if (l.qty > 0)
-        moves.push({ ...base, qty: l.qty, value: l.cost, ...(open && l.shortfall ? { shortfall: { doc: 'adjustment', id: a.id, line: i, recorded: l.shortfall, warehouseId: a.warehouseId } } : {}), ...(!open && l.shortfall ? { value: l.cost - l.shortfall } : {}) });
+        moves.push({ ...base, qty: l.qty, value: l.cost, ...(a.kind === 'opening' ? { last: true } : {}), ...(open && l.shortfall ? { shortfall: { doc: 'adjustment', id: a.id, line: i, recorded: l.shortfall, warehouseId: a.warehouseId } } : {}), ...(!open && l.shortfall ? { value: l.cost - l.shortfall } : {}) });
       else moves.push({ ...base, qty: l.qty, value: -l.cost });
     });
   }
+  // الإنتاج ما إلو قيد: ترتيبه محفوظ وقت ما انعمل (والقديم: حسب وقت إنشائه بين القيود)
+  const entryTimes = state.entries.map((e) => (e as { createdAt?: string }).createdAt ?? '');
   for (const p of state.productions) {
-    const seq = 0;
+    const seq = p.seq ?? (p.createdAt ? entryTimes.filter((t) => t && t <= p.createdAt!).length + 0.5 : 0);
     for (const i of p.inputs) if (stockItem(i.itemId)) moves.push({ date: p.date, seq, itemId: i.itemId, qty: -i.qty, value: i.cost });
-    for (const o of p.outputs) if (stockItem(o.itemId)) moves.push({ date: p.date, seq, itemId: o.itemId, qty: o.qty, value: o.cost });
+    for (const o of p.outputs) if (stockItem(o.itemId)) moves.push({ date: p.date, seq, itemId: o.itemId, qty: o.qty, value: o.cost, last: true });
   }
   moves.sort((a, b) => a.date.localeCompare(b.date) || a.seq - b.seq);
 
@@ -113,7 +119,7 @@ export function costPlan(state: CompanyState): CostPlan {
     let qty = 0;
     let value = 0;
     let lastCost = 0;
-    const pending: { m: Move; qty: number }[] = []; // قطع انباعت قبل ما تدخل بضاعتها
+    const pending: { m: Move; qty: number; unit: number; whole: number; q: number }[] = []; // قطع انباعت قبل ما تدخل بضاعتها
     for (const m of list) {
       if (m.qty < 0) {
         const q = -m.qty;
@@ -125,23 +131,24 @@ export function costPlan(state: CompanyState): CostPlan {
         }
         const have = Math.max(qty, 0);
         const take = Math.min(have, q);
-        const avg = qty > 0 ? value / qty : lastCost;
-        const cost = take > 0 ? Math.round(avg * take) : 0;
+        // قيمة سالبة مع كمية موجبة (مرتجع شراء بتكلفة أعلى من الوسطي مثلاً): منرجع لآخر تكلفة، ما في تكلفة سالبة
+        const avg = qty > 0 && value >= 0 ? value / qty : lastCost;
+        const cost = take > 0 ? Math.max(0, Math.round(avg * take)) : 0;
         qty -= q;
         value -= cost;
         correct.set(m, cost);
-        if (q > take) pending.push({ m, qty: q - take });
+        if (q > take) pending.push({ m, qty: q - take, unit: Math.max(0, avg), whole: q - take, q });
       } else if (m.qty > 0) {
         // شراء قديم سجّل «تغطية رصيد سالب» وما في بيع مفتوح ينتظر: منخلّيه متل ما هو
         if (m.shortfall && !pending.length) {
           kept.add(m);
           qty += m.qty;
           value += m.value - m.shortfall.recorded;
-          lastCost = m.value / m.qty;
+          if (m.last) lastCost = roundPrice(m.value / m.qty);
           continue;
         }
         let v = m.value;
-        const unit = v / m.qty;
+        const unit = Math.max(0, v / m.qty);
         let room = m.qty;
         // البضاعة الجديدة بتغطي القطع اللي انباعت قبلها، بسعرها
         while (room > 0 && pending.length) {
@@ -156,12 +163,18 @@ export function costPlan(state: CompanyState): CostPlan {
         }
         qty += m.qty;
         value += v;
-        lastCost = unit;
+        if (m.last) lastCost = roundPrice(m.value / m.qty);
         // رصيد سالب ما في قطع منتظرة بتغطيه (خروج بتكلفة مسجّلة): القيمة بتصير الكمية × السعر
         if (qty <= 0) value = Math.round(qty * unit);
       }
     }
-    // ما إجت بضاعة تغطي اللي انباع بالسالب: بيضل بآخر تكلفة معروفة وقتها (أو صفر)
+    // ما إجت بضاعة تغطي اللي انباع بالسالب: بيضل بالتكلفة المعروفة وقتها (الوسطي أو آخر تكلفة)، متل البيع العادي
+    // (ما انغطّى منه شي: نفس تقريب البيع العادي = الوسطي × كل الكمية)
+    // وما في أي تكلفة معروفة للمادة (ولا شراء ولا رصيد): منترك التكلفة المسجّلة متل ما هي
+    for (const p of pending) {
+      if (p.qty === p.whole && p.unit === 0 && p.q === p.whole) correct.set(p.m, p.m.fix?.recorded ?? 0);
+      else correct.set(p.m, p.qty === p.whole ? Math.round(p.unit * p.q) : (correct.get(p.m) ?? 0) + Math.round(p.unit * p.qty));
+    }
   }
 
   const lines: CostLineFix[] = [];

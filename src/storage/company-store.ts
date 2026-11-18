@@ -206,6 +206,12 @@ export class CompanyStore {
     } catch (e) {
       console.warn('recalculateCosts', e);
     }
+    try {
+      const d = new Date();
+      this.ledger.repairInventoryGap(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+    } catch (e) {
+      console.warn('repairInventoryGap', e);
+    }
   }
 
   /** إنشاء شركة جديدة مشفّرة. يعيد رمز الاسترداد الذي يجب أن يحفظه المالك. */

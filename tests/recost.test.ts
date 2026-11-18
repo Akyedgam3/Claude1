@@ -40,6 +40,7 @@ describe('automatic cost correction', () => {
   it('fixes data recorded by the old versions: profits per invoice and per day become right', () => {
     oldVersion();
     const l = shop();
+    l.autoRecost = false; // منحاكي البيانات القديمة (قبل التصحيح التلقائي)
     const s1 = l.postInvoice({ kind: 'sale', date: D1, partyId: 'c', lines: [{ itemId: 'a', qty: 5, price: 1000 }] });
     l.postInvoice({ kind: 'purchase', date: D2, partyId: 's', lines: [{ itemId: 'a', qty: 10, price: 600 }] });
     const s2 = l.postInvoice({ kind: 'sale', date: D2, partyId: 'c', lines: [{ itemId: 'a', qty: 5, price: 1000 }] });
@@ -47,6 +48,7 @@ describe('automatic cost correction', () => {
     expect(invoiceProfit(l.state, s1).profit).toBe(5000);
     expect(invoiceProfit(l.state, s2).profit).toBe(-1000);
     StockPlanner.prototype.in = origIn;
+    l.autoRecost = true;
 
     expect(l.recalculateCosts()).toBeGreaterThan(0);
     expect(invoiceProfit(l.state, l.state.invoices.find((i) => i.id === s1.id)!).profit).toBe(2000);
@@ -63,8 +65,7 @@ describe('automatic cost correction', () => {
     const l = shop();
     const s1 = l.postInvoice({ kind: 'sale', date: D1, partyId: 'c', lines: [{ itemId: 'a', qty: 4, price: 1000 }] });
     l.postInvoice({ kind: 'purchase', date: D2, partyId: 's', lines: [{ itemId: 'a', qty: 10, price: 700 }] });
-    expect(gross(l, D1)).toBe(4000);
-    l.recalculateCosts();
+    // من 1.2.87 التصحيح بيصير فوراً مع الشراء، مش بس لما تنفتح الشركة
     expect(gross(l, D1)).toBe(4 * 300);
     expect(gross(l, D2)).toBe(0);
     expect(invoiceProfit(l.state, l.state.invoices.find((i) => i.id === s1.id)!).profit).toBe(1200);
@@ -109,5 +110,17 @@ describe('automatic cost correction', () => {
       l.loadDemoData();
       expect(l.recalculateCosts(), a).toBe(0);
     }
+  });
+});
+
+describe('one-time repair of old data', () => {
+  it('closes a gap between the inventory account and the real stock value (left by old versions)', () => {
+    const l = shop();
+    l.postInvoice({ kind: 'purchase', date: D1, partyId: 's', lines: [{ itemId: 'a', qty: 10, price: 600 }] });
+    // نسخة قديمة كانت تخلّي حساب المخزون أعلى من قيمة البضاعة
+    l.postEntry({ date: D1, memo: 'خطأ قديم', lines: [{ accountId: SYSTEM_ACCOUNTS.inventory, debit: 838 }, { accountId: SYSTEM_ACCOUNTS.cogs, credit: 838 }] });
+    expect(l.repairInventoryGap(D2)).toBe(838);
+    consistent(l);
+    expect(l.repairInventoryGap(D2)).toBe(0);
   });
 });

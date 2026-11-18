@@ -202,7 +202,8 @@ export class StockPlanner {
   /** متوسط تكلفة الوحدة الأساسية حالياً. */
   unitCost(itemId: string): number {
     const w = this.get(itemId);
-    return w.totalQty > 0 ? w.value / w.totalQty : w.lastCost;
+    // قيمة سالبة مع كمية موجبة (بعد إلغاء شراء قديم مثلاً) ما بتعطي تكلفة سالبة: منرجع لآخر تكلفة شراء
+    return w.totalQty > 0 && w.value >= 0 ? w.value / w.totalQty : Math.max(0, w.lastCost);
   }
 
   /** إخراج كمية من المخزون: يعيد التكلفة والدفعات المسحوبة (الأقرب انتهاءً أولاً). */

@@ -1012,7 +1012,13 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft, opts: { n
 
   const entryLines: LineDraft[] = [];
   const push = (l: LineDraft) => {
-    if ((l.debit ?? 0) > 0 || (l.credit ?? 0) > 0) entryLines.push(l);
+    // مبلغ سالب بينقلب للطرف التاني (ما بينحذف بصمت، وإلا القيد بيختل عن حركة المخزون)
+    const debit = (l.debit ?? 0) < 0 ? 0 : (l.debit ?? 0);
+    const credit = (l.credit ?? 0) < 0 ? 0 : (l.credit ?? 0);
+    const fixed = { ...l, debit: debit + Math.max(0, -(l.credit ?? 0)), credit: credit + Math.max(0, -(l.debit ?? 0)) };
+    if (!fixed.debit) delete (fixed as { debit?: number }).debit;
+    if (!fixed.credit) delete (fixed as { credit?: number }).credit;
+    if ((fixed.debit ?? 0) > 0 || (fixed.credit ?? 0) > 0) entryLines.push(fixed);
   };
   push({ accountId: cashAccountId, ...money(paid), ...fx });
   if (partyId) push({ accountId: partySide, ...money(total - paid), ...fx, partyId });

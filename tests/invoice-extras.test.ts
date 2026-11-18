@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CURRENCIES, Ledger, chartFor, defaultTaxes, incomeStatement, invoicePartyBalance, invoiceProfit, partyBalance, trialBalance, accountBalance, type Item } from '../src/core';
+import { costPlan } from '../src/core/recost';
 
 function shop() {
   const l = new Ledger(() => {});
@@ -93,8 +94,10 @@ describe('edit the price of a purchase whose goods moved or sold', () => {
     expect(re.number).toBe(p.number);
     expect(l.state.invoices.find((i) => i.id === p.id)!.voidEntryId).toBeTruthy();
     expect(l.state.stock['rice']!.qty).toEqual({ main: 5, b: 3 });
-    // 8 بالمخزون من أصل 10: 8,000 فرق على المخزون، و2,000 على تكلفة المبيعات
-    expect(l.state.stock['rice']!.value).toBe(valueBefore - 8_000);
+    // السعر نزل: قيمة الباقي بالمخزون نزلت، وتكلفة اللي انباع انحسبت من جديد بالوسطي المرجّح (تصحيح تلقائي)
+    expect(l.state.stock['rice']!.value).toBeLessThan(valueBefore);
+    expect(costPlan(l.state).lines).toHaveLength(0);
+    expect(accountBalance(l.state, '1104').balance).toBe(Object.values(l.state.stock).reduce((x, y) => x + y.value, 0));
     expect(partyBalance(l.state, 'sup2').base).toBe(-110_000);
     const tb = trialBalance(l.state);
     expect(tb.totalDebit).toBe(tb.totalCredit);

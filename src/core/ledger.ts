@@ -391,6 +391,16 @@ function hasMovements(state: CompanyState, accountId: string): boolean {
 }
 
 /** آخر سعر صرف مسجّل بالتاريخ المطلوب أو قبله (1 للعملة الأساسية). */
+/** مواد المخزون بأسطر فاتورة (مع مكوّنات الأصناف المركّبة). */
+function stockItemsOf(state: CompanyState, lines: { itemId?: string | null; components?: { itemId: string }[] }[]): Set<string> {
+  const out = new Set<string>();
+  for (const l of lines) {
+    if (l.itemId && state.items[l.itemId]?.kind === 'stock') out.add(l.itemId);
+    for (const c of l.components ?? []) if (state.items[c.itemId]?.kind === 'stock') out.add(c.itemId);
+  }
+  return out;
+}
+
 export function findRate(state: CompanyState, currency: string, date: string, kind: RateKind = 'market'): number | undefined {
   if (currency === state.info?.baseCurrency) return 1;
   let best: ExchangeRate | undefined;
@@ -491,6 +501,22 @@ export class Ledger {
   actor = 'system';
   /** فحص إضافي قبل تسجيل أي فاتورة (صلاحيات المستخدم الحالي: البيع بالدين...). بيحطه المنفّذ وقت العملية بس. */
   invoiceCheck?: (invoice: Invoice) => void;
+  /**
+   * تصحيح التكاليف التلقائي بعد أي عملية بتغيّر تكلفة اللي انباع (إلغاء، تعديل، شراء أو جرد بتاريخ قديم):
+   * الأرباح بتضل صحيحة فوراً، مش بس لما تنفتح الشركة. (نسخ التجربة الداخلية بتطفيه)
+   */
+  autoRecost = true;
+  private recostPaused = 0;
+  private afterStockChange(itemIds?: Iterable<string>): void {
+    if (!this.autoRecost || this.recostPaused) return;
+    try {
+      // بعد كل عملية مخزون: منتأكد من تكلفة موادها بس (سريع)؛ وبعد الإلغاء والتعديل: كل المواد
+      this.recalculateCosts(itemIds ? new Set(itemIds) : undefined);
+    } catch (e) {
+      // العملية نفسها انحفظت؛ التصحيح بيرجع ينعمل لما تنفتح الشركة
+      console.warn('recalculateCosts', e);
+    }
+  }
 
   constructor(
     private readonly sink: EventSink,
@@ -879,6 +905,7 @@ export class Ledger {
     }
     this.emit({ type: 'invoice.posted', invoice, entry });
     if (invoice.marketerId) this.postCommission(invoice);
+    this.afterStockChange(stockItemsOf(this.state, invoice.lines));
     return invoice;
   }
 
@@ -1015,6 +1042,7 @@ export class Ledger {
     if (old.kind === 'purchase' && this.sameStock(old, next)) return this.repriceInvoice(old, next);
     const trial = new Ledger(() => {}, structuredClone(this.state));
     trial.actor = this.actor;
+    trial.autoRecost = false;
     if (this.invoiceCheck) trial.invoiceCheck = this.invoiceCheck;
     try {
       trial.voidInvoice(old.id, old.date);
@@ -1023,8 +1051,16 @@ export class Ledger {
       fail(`${(e as Error).message}. لتعدّل السعر بس خلّي المواد والكميات متل ما هي. ولتغيّر الكمية: رجّع البضاعة للمستودع الأصلي (إلغاء التحويل)، أو اعمل مرتجع شراء بالفرق.`);
     }
     trial.postInvoice(next, { number: old.number, replaces: old.id });
-    this.voidInvoice(old.id, old.date);
-    return this.postInvoice(next, { number: old.number, replaces: old.id });
+    this.recostPaused++;
+    let result: Invoice;
+    try {
+      this.voidInvoice(old.id, old.date);
+      result = this.postInvoice(next, { number: old.number, replaces: old.id });
+    } finally {
+      this.recostPaused--;
+    }
+    this.afterStockChange(new Set([...stockItemsOf(this.state, old.lines), ...stockItemsOf(this.state, result.lines)]));
+    return result;
   }
 
   /**
@@ -1083,6 +1119,28 @@ export class Ledger {
       { ...d, createdBy: d.createdBy ?? this.actor },
       { number: old.number, replaces: old.id, reprice: true },
     );
+    // الشراء القديم كان مغطّي بضاعة انباعت قبل (رصيد سالب): التغطية بتضل متل ما هي على الفاتورة الجديدة،
+    // وإلا القيد العكسي بيرجّعها لحساب المخزون وقيمة البضاعة ما بتتغيّر (الحساب بيختلف عن المخزون)
+    const oldItems = old.lines.filter((l) => l.itemId);
+    const newItems = invoice.lines.filter((l) => l.itemId);
+    let keptShortfall = 0;
+    oldItems.forEach((l, i) => {
+      const n = newItems[i];
+      if (!l.shortfall || !n) return;
+      n.shortfall = l.shortfall;
+      keptShortfall += l.shortfall;
+    });
+    if (keptShortfall) {
+      const extra = this.buildEntry({
+        date: invoice.date,
+        memo: entry.memo,
+        lines: [
+          { accountId: SYSTEM_ACCOUNTS.cogs, ...(keptShortfall > 0 ? { debit: keptShortfall } : { credit: -keptShortfall }) },
+          { accountId: SYSTEM_ACCOUNTS.inventory, ...(keptShortfall > 0 ? { credit: keptShortfall } : { debit: -keptShortfall }) },
+        ],
+      });
+      entry.lines.push(...extra.lines);
+    }
     const voidEntry = this.reversal(this.state.entries.find((e) => e.id === old.entryId)!, old.date);
     const costs = new Map<string, { old: number; next: number; qty: number }>();
     for (const l of old.lines) if (l.itemId) { const c = costs.get(l.itemId) ?? { old: 0, next: 0, qty: 0 }; c.old += l.cost ?? 0; c.qty += l.qty * (l.factor ?? 1); costs.set(l.itemId, c); }
@@ -1114,7 +1172,16 @@ export class Ledger {
           number: n + 3,
         }
       : undefined;
+    // قيود «تصحيح التكلفة» القديمة على هالفاتورة بتنعكس معها (الأرقام المصحّحة صارت بأسطرها)
+    this.voidCostFixes(old.id, old.date);
+    const m = this.state.entries.length;
+    if (m !== n) {
+      voidEntry.number = m + 1;
+      entry.number = m + 2;
+      if (cogsEntry) cogsEntry.number = m + 3;
+    }
     this.emit({ type: 'invoice.repriced', invoiceId: old.id, voidEntry, invoice, entry, adjust, ...(cogsEntry ? { cogsEntry } : {}) });
+    this.afterStockChange(stockItemsOf(this.state, old.lines));
     return invoice;
   }
 
@@ -1174,6 +1241,7 @@ export class Ledger {
       const o = this.state.workOrders[src.id];
       if (o) this.emit({ type: 'workorder.saved', order: { ...o, status: o.status === 'done' ? 'open' : o.status, deliveries: o.deliveries.filter((d) => d.invoiceId !== invoice.id) } });
     }
+    this.afterStockChange(stockItemsOf(this.state, invoice.lines));
   }
 
   /** سند قبض (من زبون مثلاً) أو سند دفع (لمورد أو مصروف). */
@@ -1315,12 +1383,14 @@ export class Ledger {
   adjustStock(d: AdjustDraft): StockAdjustment {
     const { adjustment, entry } = buildAdjustment(this.ops(), d);
     this.emit({ type: 'stock.adjusted', adjustment, ...(entry ? { entry } : {}) });
+    this.afterStockChange(adjustment.lines.map((l) => l.itemId));
     return adjustment;
   }
 
   countStock(d: CountDraft): StockAdjustment {
     const { adjustment, entry } = buildCount(this.ops(), d);
     this.emit({ type: 'stock.adjusted', adjustment, ...(entry ? { entry } : {}) });
+    this.afterStockChange(adjustment.lines.map((l) => l.itemId));
     return adjustment;
   }
 
@@ -1357,6 +1427,7 @@ export class Ledger {
     };
     this.emit({ type: 'stock.adjusted', adjustment, ...(entry ? { entry } : {}) });
     this.voidCostFixes(a.id, date);
+    this.afterStockChange(a.lines.map((l) => l.itemId));
     return adjustment;
   }
 
@@ -1375,8 +1446,34 @@ export class Ledger {
    * تصحيح التكاليف التلقائي (recost.ts): بيعيد حساب تكلفة المبيعات والتالف من أول حركة،
    * وبيصحّح أي فرق بقيد بتاريخ المستند. بيرجّع عدد المستندات اللي اتصحّحت (صفر إذا كل شي مزبوط).
    */
-  recalculateCosts(): number {
-    const plan = costPlan(this.state);
+  /**
+   * تسوية لمرة وحدة: نسخ قديمة (تعديل فاتورة شراء كانت مغطّية بيع بالسالب، أو تكلفة سالبة) كانت تخلّي
+   * رصيد حساب المخزون غير قيمة البضاعة الفعلية. منسجّل الفرق على تكلفة المبيعات بقيد واضح، وبعدها بيضلوا متطابقين.
+   */
+  repairInventoryGap(today: string): number {
+    const inv = SYSTEM_ACCOUNTS.inventory;
+    let account = 0;
+    for (const e of this.state.entries) for (const l of e.lines) if (l.accountId === inv) account += l.baseDebit - l.baseCredit;
+    const value = Object.values(this.state.stock).reduce((s, x) => s + x.value, 0);
+    const gap = account - value;
+    if (!gap) return 0;
+    const locked = this.state.info?.lockedUntil ?? '';
+    if (today <= locked) return 0;
+    this.postEntry({
+      date: today,
+      memo: 'تسوية تلقائية: فرق بين حساب المخزون وقيمة البضاعة (من نسخة قديمة)',
+      lines: [
+        { accountId: SYSTEM_ACCOUNTS.cogs, ...(gap > 0 ? { debit: gap } : { credit: -gap }) },
+        { accountId: inv, ...(gap > 0 ? { credit: gap } : { debit: -gap }) },
+      ],
+      source: { type: 'recost', id: 'inventory-gap' },
+    });
+    return gap;
+  }
+
+  recalculateCosts(only?: Set<string>): number {
+    if (only && !only.size) return 0;
+    const plan = costPlan(this.state, only);
     if (!plan.lines.length && !plan.docs.length) return 0;
     const entries = plan.docs.map((d, k) => ({
       ...this.buildEntry({
@@ -1407,8 +1504,9 @@ export class Ledger {
   }
 
   postProduction(d: ProductionDraft): Production {
-    const production = buildProduction(this.ops(), d);
+    const production = { ...buildProduction(this.ops(), d), seq: this.state.entries.length + 0.5 };
     this.emit({ type: 'production.posted', production });
+    this.afterStockChange([...production.inputs.map((i) => i.itemId), ...production.outputs.map((o) => o.itemId)]);
     return production;
   }
 

@@ -493,6 +493,8 @@ export interface Production {
   memo: string;
   createdBy: string;
   createdAt?: string;
+  /** ترتيبها بين القيود يوم ما انعملت (لتصحيح التكاليف بنفس اليوم) */
+  seq?: number;
 }
 
 // ───────────── الصيانة: السيارات والأجهزة ─────────────
