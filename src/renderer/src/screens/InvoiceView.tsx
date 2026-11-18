@@ -571,6 +571,10 @@ export function partyAccountRows(state: CompanyState, inv: Invoice): { before: {
   return {
     before: [
       { label: prev > 0 ? 'حساب سابق' : sale ? 'رصيد سابق إله' : 'رصيد سابق إلنا', value: m(Math.abs(prev)) },
+      // دين بعملة تانية (فاتورة قديمة بالدولار مثلاً): انحسب محوّل بسعر اليوم، ومنكتب أصله
+      ...(bal.others.length
+        ? [{ label: 'منه بعملة تانية', value: bal.others.map((o) => money(state, Math.abs(o.amount), o.currency) + (s * o.amount < 0 ? ' (إله)' : '')).join(' + ') }]
+        : []),
       ...(adds && prev > 0 ? [{ label: 'الإجمالي مع الحساب السابق', value: m(prev + inv.total) }] : []),
     ],
     after: [{ label: after >= 0 ? (sale ? 'الباقي بذمته' : 'الباقي علينا') : sale ? 'رصيد إله عندنا' : 'رصيد إلنا عنده', value: m(Math.abs(after)) }],

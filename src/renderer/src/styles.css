@@ -4310,3 +4310,7 @@ table.lines td[data-label="السعر"] .num-input { min-width: 96px; }
 .cost-parts .cost-full { color: var(--primary); font-weight: 700; }
 .cost-parts .cost-full input { width: 110px; font-weight: 700; border-color: var(--primary); }
 .cost-parts small.cost-sum { flex-basis: 100%; font-size: 12px; padding: 0; }
+/* دين الزبون وقت البيع */
+.pos-party-balance { display: block; margin-top: 4px; font-weight: 600; }
+.party-prev small { display: block; font-weight: 400; }
+.party-after { font-size: 1.1em; }

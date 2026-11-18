@@ -498,6 +498,36 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
     }
   })();
 
+  /**
+   * حساب الزبون/المورد قبل هالفاتورة (كل العملات، محوّلة لعملة الفاتورة)، لحتى يبيّن وقت الكتابة
+   * «عليه من قبل» و«بيصير عليه». بالتعديل منطرح الفاتورة القديمة نفسها.
+   */
+  const prevAccount = useMemo(() => {
+    if (!partyId) return null;
+    const by: Record<string, number> = {};
+    const skip = editing ? new Set([editing.entryId]) : null;
+    for (const e of state.entries) {
+      if (skip?.has(e.id)) continue;
+      for (const l of e.lines) if (l.partyId === partyId) by[l.currency] = (by[l.currency] ?? 0) + l.debit - l.credit;
+    }
+    const rates = ratesFor(currency, rateText);
+    let total = 0;
+    const parts: string[] = [];
+    let missing = false;
+    for (const [cur, v] of Object.entries(by)) {
+      const dec = state.currencies[cur]?.decimals ?? 0;
+      if (!v || (dec >= 2 && Math.abs(v) < 5 * 10 ** (dec - 2))) continue;
+      const c = convertPrice(state, v, cur, currency, rates);
+      if (c === null) missing = true;
+      else total += Math.round(c);
+      parts.push(money(state, Math.abs(v), cur));
+    }
+    if (!parts.length) return null;
+    const sign = kind === 'sale' || kind === 'sale_return' ? 1 : -1; // موجب = بالاتجاه الطبيعي (الزبون عليه، أو نحنا علينا للمورد)
+    return { total: sign * total, parts, multi: Object.keys(by).filter((c) => by[c]).length > 1 || !by[currency], missing };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [partyId, state, editing, currency, rateText, kind]);
+
   // حساب جاري: المدفوع أكتر من الفاتورة ← الزيادة بتنسجّل دفعة من الدين القديم (سند قبض/دفع بنفس الصندوق)
   const extra = payMode === 'partial' && (kind === 'sale' || kind === 'purchase') && paid > preview.total ? paid - preview.total : 0;
 
@@ -1082,6 +1112,22 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
                 <strong className="bad">{money(state, preview.total - paid, currency)}</strong>
               </>
             )}
+            {prevAccount && (kind === 'sale' || kind === 'purchase') && (() => {
+              const after = prevAccount.total + (preview.total - paid);
+              const sale = kind === 'sale';
+              return (
+                <>
+                  <span>{prevAccount.total >= 0 ? (sale ? 'عليه من قبل' : 'إله من قبل') : sale ? 'إله عندنا من قبل' : 'إلنا عنده من قبل'}</span>
+                  <strong className="party-prev">
+                    {money(state, Math.abs(prevAccount.total), currency)}
+                    {prevAccount.multi && <small className="muted"> ({prevAccount.parts.join(' + ')})</small>}
+                  </strong>
+                  <span>{after >= 0 ? (sale ? 'بيصير عليه' : 'بيصير إله') : sale ? 'بيصير إله عندنا' : 'بيصير إلنا عنده'}</span>
+                  <strong className={after > 0 ? 'bad party-after' : 'good party-after'}>{money(state, Math.abs(after), currency)}</strong>
+                  {prevAccount.missing && <small className="muted" style={{ gridColumn: '1 / -1' }}>في دين بعملة ما إلها سعر صرف اليوم، ما انحسب بالمجموع</small>}
+                </>
+              );
+            })()}
           </div>
           <button className="primary big" disabled={saving || used.length === 0} onClick={save}>
             حفظ الفاتورة <small>(Ctrl+Enter)</small>

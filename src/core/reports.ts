@@ -547,16 +547,28 @@ export function invoiceProfit(state: CompanyState, inv: Invoice): { revenue: num
  * حساب الشخص حول الفاتورة (بعملتها): الرصيد قبلها، وبعدها.
  * موجب = لنا عليه (زبون مديون)، سالب = إله علينا. «قبلها» = كل الحركات اللي انسجّلت قبل قيد الفاتورة.
  */
-export function invoicePartyBalance(state: CompanyState, inv: Invoice): { previous: number; after: number; extraPaid: number } | null {
+/**
+ * حساب الزبون/المورد حول فاتورة: اللي كان عليه قبلها (previous) وبعدها (after) بعملة الفاتورة.
+ * الديون بعملات تانية (فاتورة قديمة بالدولار والجديدة بالليرة مثلاً) بتنحسب كمان، محوّلة بسعر صرف يوم الفاتورة،
+ * وبتطلع بـ others بعملتها الأصلية لحتى تنكتب جنب بعض.
+ */
+export function invoicePartyBalance(state: CompanyState, inv: Invoice): { previous: number; after: number; extraPaid: number; others: { currency: string; amount: number }[] } | null {
   if (!inv.partyId) return null;
   let previous = 0;
   let own = 0;
   let extraPaid = 0;
+  const other = new Map<string, number>();
   const entries = state.entries;
   for (let i = 0; i < entries.length; i++) {
     const e = entries[i]!;
     const mine = e.id === inv.entryId;
-    for (const l of e.lines) if (l.partyId === inv.partyId && l.currency === inv.currency) (mine ? (own += l.debit - l.credit) : (previous += l.debit - l.credit));
+    for (const l of e.lines) {
+      if (l.partyId !== inv.partyId) continue;
+      if (l.currency === inv.currency) {
+        if (mine) own += l.debit - l.credit;
+        else previous += l.debit - l.credit;
+      } else if (!mine) other.set(l.currency, (other.get(l.currency) ?? 0) + l.debit - l.credit);
+    }
     if (mine) {
       // الزيادة المدفوعة مع الفاتورة (أكتر من قيمتها) بتنسجّل سند لحالو بعدها مباشرة: منحسبها بـ«الباقي»
       const memo = `دفعة على الحساب مع ${INVOICE_NAMES[inv.kind]} رقم ${inv.number}`;
@@ -569,10 +581,32 @@ export function invoicePartyBalance(state: CompanyState, inv: Invoice): { previo
             extraPaid += Math.abs(l.debit - l.credit);
           }
       }
-      return { previous, after: previous + own, extraPaid };
+      const others: { currency: string; amount: number }[] = [];
+      const to = state.currencies[inv.currency];
+      const baseCur = state.info?.baseCurrency;
+      for (const [cur, amount] of other) {
+        if (amount === 0) continue;
+        // كسور صغيرة من تقريب قديم (أقل من 5 سنت) ما منحسبها
+        const dec = state.currencies[cur]?.decimals ?? 0;
+        if (dec >= 2 && Math.abs(amount) < 5 * 10 ** (dec - 2)) continue;
+        others.push({ currency: cur, amount });
+        const from = state.currencies[cur];
+        const r = cur === baseCur ? 1 : rateOn(state, cur, inv.date);
+        const invRate = inv.currency === baseCur ? 1 : inv.rate;
+        if (!from || !to || !r || !(invRate > 0) || !baseCur) continue;
+        previous += Math.round(((amount * r) / invRate) * 10 ** (to.decimals - from.decimals));
+      }
+      return { previous, after: previous + own, extraPaid, others };
     }
   }
   return null;
+}
+
+/** سعر الصرف (سوق) بتاريخ معيّن أو قبله. */
+function rateOn(state: CompanyState, currency: string, date: string): number | undefined {
+  let best: { date: string; rate: number } | undefined;
+  for (const r of state.rates) if (r.currency === currency && (r.kind ?? 'market') === 'market' && r.date <= date && (!best || r.date > best.date)) best = r;
+  return best?.rate;
 }
 
 /** حركة على حساب شخص (فاتورة، دين، قبض، دفع) مع ما تبقّى منها غير مسدَّد. */

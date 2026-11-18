@@ -248,3 +248,46 @@ test('purchase cost breakdown: shipping + customs + other expenses = full cost (
     await close();
   }
 });
+
+test('second $100 credit invoice shows the old debt while writing and on the printed invoice', async () => {
+  const { page, close } = await launch();
+  try {
+    await activate(page);
+    await createCompany(page, { name: 'محل الديون', activity: 'تجارة عامة' });
+    const call = (method: string, ...args: unknown[]) => page.evaluate(([mm, a]) => (window as any).mizan.invoke('company:call', mm, a), [method, args] as const);
+    const today = new Date().toISOString().slice(0, 10);
+    await call('setRate', { date: today, currency: 'USD', rate: 11000, kind: 'market' });
+    await call('saveParty', { id: 'c', kind: 'customer', name: 'أبو سمير' });
+    await call('saveItem', { id: 'w', code: 'W', name: 'جوال', kind: 'service', unit: 'قطعة', price: 10000, priceCurrency: 'USD' });
+    await call('postInvoice', { kind: 'sale', date: today, currency: 'USD', partyId: 'c', paid: 0, lines: [{ itemId: 'w', qty: 1, price: 10000 }] });
+
+    // الفاتورة التانية: وقت الكتابة بيبيّن عليه من قبل وبيصير عليه
+    await nav(page, 'فاتورة مبيع');
+    const partyInput = page.locator('.field', { hasText: 'العميل' }).locator('input').first();
+    await partyInput.click();
+    await partyInput.fill('أبو سمير');
+    await page.locator('.picker-list li').first().waitFor();
+    await partyInput.press('Enter');
+    await page.locator('.field', { hasText: 'العملة' }).locator('select').first().selectOption('USD');
+    const row = page.locator('table.lines tbody tr').first();
+    const itemInput = row.locator('.with-button input').first();
+    await itemInput.click();
+    await itemInput.fill('جوال');
+    await page.locator('.picker-list li').first().waitFor();
+    await itemInput.press('Enter');
+    await page.locator('.pay-switch button', { hasText: 'دون قبض' }).click();
+    await expect(page.locator('.kv', { hasText: 'عليه من قبل' })).toContainText('100.00');
+    await expect(page.locator('.party-after')).toContainText('200.00');
+    await page.getByRole('button', { name: /حفظ الفاتورة/ }).click();
+    await toast(page, 'تم حفظ');
+
+    // الفاتورة المطبوعة: حساب سابق 100 والباقي بذمته 200
+    await nav(page, 'سجل الفواتير');
+    await page.locator('table tbody tr').first().click();
+    const doc = page.locator('.invoice-doc').first();
+    await expect(doc).toContainText('حساب سابق');
+    await expect(doc.locator('.doc-totals .after', { hasText: 'الباقي بذمته' })).toContainText('200.00');
+  } finally {
+    await close();
+  }
+});

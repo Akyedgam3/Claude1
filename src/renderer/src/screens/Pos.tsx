@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { itemTitle, resolveScan, type Invoice, type Item } from '../../../core';
+import { itemTitle, partyBalance, resolveScan, type Invoice, type Item } from '../../../core';
 import { convertPrice, fxRates, money, cleanNumber, parseAmount, parseDiscount, parsePrice, qtyText, shownCurrencies, today, toInput, uid, useCompany } from '../api';
 import { usePrinter } from '../components/print';
 import { ItemName, matches, partyOptions, Picker, ScanInput } from '../components/ui';
@@ -387,6 +387,22 @@ export function Pos() {
             </button>
           )}
         </div>
+        {partyId && (() => {
+          // دين الزبون الحالي (كل العملات) لحتى الكاشير يعرف عليه قديش قبل ما يبيعه بالدين
+          const b = Object.entries(partyBalance(state, partyId).byCurrency).filter(([c, v]) => {
+            const dec = state.currencies[c]?.decimals ?? 0;
+            return v !== 0 && !(dec >= 2 && Math.abs(v) < 5 * 10 ** (dec - 2));
+          });
+          if (!b.length) return null;
+          const owes = b.filter(([, v]) => v > 0);
+          const credit = b.filter(([, v]) => v < 0);
+          return (
+            <small className="pos-party-balance">
+              {owes.length > 0 && <span className="bad">عليه من قبل: {owes.map(([c, v]) => money(state, v, c)).join(' + ')}</span>}
+              {credit.length > 0 && <span className="good"> إله عندنا: {credit.map(([c, v]) => money(state, -v, c)).join(' + ')}</span>}
+            </small>
+          );
+        })()}
         </div>
         <div className="pos-lines">
           {cart.length === 0 && <p className="muted center">السلة فارغة</p>}
