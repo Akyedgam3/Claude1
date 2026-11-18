@@ -49,6 +49,8 @@ type Listener = (payload: unknown) => void;
 const listeners = new Map<string, Set<Listener>>();
 /** صفحة التحميل بالموقع (زر للجوال وزر للكمبيوتر)، ورابط تطبيق أندرويد الثابت. */
 const UPDATE_PAGE = 'https://waznsy.com/get.html';
+const PLAY_URL = 'market://details?id=com.waznsy.wazn';
+const PLAY_WEB = 'https://play.google.com/store/apps/details?id=com.waznsy.wazn';
 const APK_URL = 'https://waznsy.com/dl/Wazn.apk';
 const send = (channel: string, payload?: unknown) => listeners.get(channel)?.forEach((fn) => fn(payload));
 
@@ -316,6 +318,11 @@ function registerHandlers(): void {
   handle('app:openUpdate', async () => {
     const u = (lastLicense ?? licenseStatus()).update;
     if (!u) throw new Error('لا يوجد تحديث');
+    if (native.isPlayStore()) {
+      // نسخة Google Play: التحديث من المتجر
+      await native.openUrl(PLAY_URL).catch(() => native.openUrl(PLAY_WEB));
+      return 'browser';
+    }
     if (!native.canSelfUpdate()) {
       await native.openUrl(UPDATE_PAGE);
       return 'browser';
@@ -359,6 +366,10 @@ function registerHandlers(): void {
   });
 
   handle('app:openUpdatePage', async () => {
+    if (native.isPlayStore()) {
+      await native.openUrl(PLAY_URL).catch(() => native.openUrl(PLAY_WEB));
+      return true;
+    }
     await native.openUrl(UPDATE_PAGE);
     return true;
   }, { allowLocked: true });

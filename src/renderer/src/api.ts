@@ -5,6 +5,11 @@ import type { LicenseStatus } from '../../license/manager';
 
 /** نسخة الموبايل (أندرويد): مستقلة، بدون شبكة محلية ولا شاشة زبون. */
 export const IS_MOBILE = typeof __WAZN_MOBILE__ !== 'undefined' && __WAZN_MOBILE__ === true;
+/** نسخة Google Play (أندرويد بدون التحديث الذاتي): التحديث من المتجر */
+export const IS_PLAY = (() => {
+  const cap = (globalThis as { Capacitor?: { isNativePlatform?: () => boolean; getPlatform?: () => string; isPluginAvailable?: (n: string) => boolean } }).Capacitor;
+  return IS_MOBILE && !!cap?.isNativePlatform?.() && cap.getPlatform?.() === 'android' && !cap.isPluginAvailable?.('WaznUpdate');
+})();
 /** نسخة الويب (آيفون بالمتصفح): نفس نسخة الموبايل بس للاتصال عن بعد بجهاز المحل، بدون بيانات محلية. */
 export const IS_WEB = IS_MOBILE && typeof __WAZN_WEB__ !== 'undefined' && __WAZN_WEB__ === true;
 

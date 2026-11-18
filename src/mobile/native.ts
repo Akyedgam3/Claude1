@@ -141,7 +141,10 @@ export const native = {
   },
 
   /** هل التطبيق بيقدر يحدّث حالو (أندرويد فقط، بالمتصفح لأ). */
-  canSelfUpdate: () => isNative() && Capacitor.getPlatform() === 'android',
+  canSelfUpdate: () => isNative() && Capacitor.getPlatform() === 'android' && Capacitor.isPluginAvailable('WaznUpdate'),
+
+  /** نسخة Google Play: التحديث من المتجر بس (سياسة غوغل بتمنع التطبيق يحدّث حالو). */
+  isPlayStore: () => isNative() && Capacitor.getPlatform() === 'android' && !Capacitor.isPluginAvailable('WaznUpdate'),
 
   /** بينزّل ملف التحديث ويفحصه. الخطأ فيه `code`: space, corrupt, package, old, signature, network. */
   async downloadUpdate(url: string, onProgress: (done: number, total: number) => void): Promise<{ version: string; size: number }> {

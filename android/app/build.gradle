@@ -33,6 +33,12 @@ android {
             }
         }
     }
+    // direct: نسخة الموقع (APK، بتحدّث حالها). play: نسخة Google Play (AAB، بتتحدّث من المتجر)
+    flavorDimensions = ["store"]
+    productFlavors {
+        direct { dimension "store" }
+        play { dimension "store" }
+    }
     buildTypes {
         release {
             if (System.getenv('WAZN_KEYSTORE')) signingConfig signingConfigs.release

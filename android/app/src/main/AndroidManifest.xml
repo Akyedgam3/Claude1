@@ -8,7 +8,6 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:usesCleartextTraffic="true"
-        android:requestLegacyExternalStorage="true"
         android:theme="@style/AppTheme">
 
         <activity
@@ -43,8 +42,7 @@
     <!-- كاميرا لقراءة الباركود إذا قارئ غوغل مش موجود -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
-    <!-- تحديث التطبيق من جوّاتو (WaznUpdatePlugin) -->
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- إذن تنصيب التحديث بالنسخة المباشرة بس: src/direct/AndroidManifest.xml -->
     <!-- النسخ التلقائي بمجلد Documents/Wazn: أندرويد 10 وأقدم بدهم إذن التخزين (الأحدث ما بيحتاج لملفات التطبيق نفسه) -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />

@@ -1,7 +1,7 @@
 # يبني تطبيق وزن لأندرويد (APK غير موقّع) ويحطه بفرع apk/<النسخة> بنفس المستودع.
 # التشغيل: دفع فرع اسمه build/android-<أي شي> (scripts/publish-android.sh بيعملها).
 # التوقيع بيصير بعدين بمفتاح keys/wazn-android.jks (مش موجود على GitHub).
-name: Build Android APK
+name: Build Android APK + Play AAB
 
 on:
   push:
@@ -45,16 +45,18 @@ jobs:
         run: |
           chmod +x gradlew
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-          ./gradlew assembleRelease --no-daemon --stacktrace
+          ./gradlew assembleDirectRelease bundlePlayRelease --no-daemon --stacktrace
 
       - name: Push the unsigned APK to apk/<version>
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          APK=android/app/build/outputs/apk/release/app-release-unsigned.apk
-          ls -la "$APK"
-          mkdir -p /tmp/out && cp "$APK" /tmp/out/Wazn-unsigned.apk
+          # direct = نسخة الموقع (APK بتحدّث حالها)، play = نسخة Google Play (AAB بدون تحديث ذاتي)
+          APK=android/app/build/outputs/apk/direct/release/app-direct-release-unsigned.apk
+          AAB=android/app/build/outputs/bundle/playRelease/app-play-release.aab
+          ls -la "$APK" "$AAB"
+          mkdir -p /tmp/out && cp "$APK" /tmp/out/Wazn-unsigned.apk && cp "$AAB" /tmp/out/Wazn-play-unsigned.aab
           cd /tmp/out
           git init -q -b "apk/$VERSION"
-          git add Wazn-unsigned.apk
+          git add Wazn-unsigned.apk Wazn-play-unsigned.aab
           git -c user.name=github-actions -c user.email=github-actions@users.noreply.github.com commit -q -m "Unsigned APK $VERSION (${GITHUB_SHA::7})"
           git push -f "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" "apk/$VERSION"

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- النسخة المباشرة (من موقع وزن): التطبيق بيحدّث حالو، فبدو إذن تنصيب التحديث.
+     نسخة Google Play ما فيها هالإذن (التحديث من المتجر بس). -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+</manifest>

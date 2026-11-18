@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { LicenseStatus } from '../../../license/manager';
-import { api, IS_MOBILE } from '../api';
+import { api, IS_MOBILE, IS_PLAY } from '../api';
 import { Icon } from './icons';
 
 type Update = NonNullable<LicenseStatus['update']>;
@@ -100,6 +100,8 @@ export function UpdateNotice({ update, current, notify, floating }: { update: Up
                   <div className="banner">أول مرة بس: فعّل «السماح من هذا المصدر» لوزن، وارجع اضغط «تنصيب التحديث».</div>
                 ) : state === 'installing' ? (
                   <p className="muted">اضغط «تحديث» أو «تثبيت» بالشاشة اللي طلعت. بياناتك بتضل متل ما هي.</p>
+                ) : IS_PLAY ? (
+                  <p className="muted">التحديث من Google Play، وبياناتك ما بتتأثر.</p>
                 ) : (
                   <p className="muted">التطبيق بينزّل التحديث ويتأكد منه، وبعدين بينصّبه فوق النسخة الحالية. بياناتك ما بتتأثر.</p>
                 )}
@@ -109,9 +111,9 @@ export function UpdateNotice({ update, current, notify, floating }: { update: Up
             )}
             <div className="actions">
               <button className="primary" onClick={() => void download()} disabled={busy}>
-                <Icon name="download" size={16} /> {IS_MOBILE && (state === 'permission' || state === 'installing') ? 'تنصيب التحديث' : busy ? 'عم ينزل…' : 'تحميل التحديث'}
+                <Icon name="download" size={16} /> {IS_PLAY ? 'تحديث من Google Play' : IS_MOBILE && (state === 'permission' || state === 'installing') ? 'تنصيب التحديث' : busy ? 'عم ينزل…' : 'تحميل التحديث'}
               </button>
-              {IS_MOBILE && state === 'error' && (
+              {IS_MOBILE && !IS_PLAY && state === 'error' && (
                 <button className="ghost" onClick={() => void api.openUpdatePage().catch(() => undefined)}>
                   تحميل من الموقع
                 </button>
