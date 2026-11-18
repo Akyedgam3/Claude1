@@ -30,6 +30,11 @@ export interface QueuedOp {
   method: string;
   args: unknown[];
   at: number;
+  /**
+   * الطلب المباشر اللي تأخّر ردّه فانحسبت العملية «مأجّلة»: إذا الجهاز الرئيسي كان نفّذه فعلاً
+   * ما منعيده (وإلا الفاتورة بتنسجّل مرتين بنفس التاريخ).
+   */
+  orig?: string;
 }
 
 /** وصف آخر نسخة كاملة محفوظة بالسحابة (meta/latest). */
@@ -69,6 +74,12 @@ export const eventId = (epoch: number, last: number) => `${pad(epoch, 13)}_${pad
 export class CloudHost {
   private epoch = 0;
   private pending: EventItem[] = [];
+  /** طلبات مباشرة تنفّذت (لنعرف إذا وصلت نفس العملية بعدين كمأجّلة) */
+  private done = new Set<string>();
+  private markDone(id: string): void {
+    this.done.add(id);
+    if (this.done.size > 5000) this.done.delete(this.done.values().next().value!);
+  }
   private timer: ReturnType<typeof setTimeout> | null = null;
   private flushing: Promise<void> = Promise.resolve();
   private chain: Promise<unknown> = Promise.resolve();
@@ -93,7 +104,12 @@ export class CloudHost {
     // بقايا التشغيلة الماضية: الأجهزة البعيدة بتاخد الحالة من جديد
     // (العمليات المأجّلة من الجوال ونتايجها منخليها: بتتنفّذ هلق)
     for (const coll of ['events', 'req', 'res', 'snap'] as const) {
-      for (const id of await this.t.list(this.room.room, coll)) if (!((coll === 'req' || coll === 'res') && id.startsWith(QUEUE_PREFIX))) await this.t.del(this.room.room, coll, id);
+      for (const id of await this.t.list(this.room.room, coll)) {
+        if ((coll === 'req' || coll === 'res') && id.startsWith(QUEUE_PREFIX)) continue;
+        // رد ما حدا قراه = طلب تنفّذ والجهاز البعيد ما استلم الرد (ممكن يرجع يبعته كمأجّل)
+        if (coll === 'res') this.markDone(id);
+        await this.t.del(this.room.room, coll, id);
+      }
     }
     await this.newEpoch();
     await this.saveLatest();
@@ -238,6 +254,7 @@ export class CloudHost {
         return this.sendSnapshot(id, String(req.token));
       case 'call': {
         const { value, seq } = await this.company.call(String(req.token), String(req.method), Array.isArray(req.args) ? req.args : []);
+        this.markDone(id);
         // العمليات بتوصل قبل الرد، فالجهاز البعيد بيشوف النتيجة فوراً
         await this.flush();
         return { value: value ?? null, seq };
@@ -254,6 +271,10 @@ export class CloudHost {
       }
       case 'queued': {
         if (!id.startsWith(QUEUE_PREFIX)) throw new Error('طلب غير معروف');
+        if (typeof req.orig === 'string' && req.orig && (this.done.has(req.orig) || (await this.t.get(this.room.room, 'res', req.orig).catch(() => null)))) {
+          // نفس العملية تنفّذت قبل (الرد بس تأخّر عالجوال): ما منعيدها
+          return { value: null, seq: 0, duplicate: true };
+        }
         const { value, seq } = await this.company.runQueued(String(req.username ?? ''), String(req.password ?? ''), String(req.method), Array.isArray(req.args) ? req.args : []);
         await this.flush();
         return { value: value ?? null, seq };

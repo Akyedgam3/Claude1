@@ -188,7 +188,7 @@ export class CloudClient {
    * عملية والجهاز الرئيسي مطفي: بتتسجّل بالسحابة لتتنفّذ عليه لما يرجع، وبتبيّن هون فوراً
    * (منجرّبها على نسخة من البيانات بنفس الصلاحيات قبل ما نسجّلها).
    */
-  private async runLocal(method: string, args: unknown[]): Promise<{ value: unknown; seq: number }> {
+  private async runLocal(method: string, args: unknown[], orig?: string): Promise<{ value: unknown; seq: number }> {
     if (!this.state || !this.user) throw new Error('غير متصل');
     if (isSpecialMethod(method)) throw new Error('هالعملية بتحتاج الجهاز الرئيسي يكون شغّال');
     const run = (state: CompanyState, sink: (e: CompanyEvent) => void) => {
@@ -197,7 +197,7 @@ export class CloudClient {
     };
     run(structuredClone(this.state), () => undefined); // تجربة: إذا في خطأ (رصيد، صلاحية...) ما منسجّل شي
     const id = `${QUEUE_PREFIX}${Date.now().toString(36).padStart(9, '0')}${[...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, '0')).join('')}`;
-    const op: QueuedOp = { op: 'queued', username: this.creds.username, password: this.creds.password, method, args, at: Date.now() };
+    const op: QueuedOp = { op: 'queued', username: this.creds.username, password: this.creds.password, method, args, at: Date.now(), ...(orig ? { orig } : {}) };
     try {
       await this.t.set(this.room.room, 'req', id, { ...(await seal(this.room.key, `req/${id}`, op)), at: op.at });
     } catch {
@@ -265,14 +265,18 @@ export class CloudClient {
   /** عملية باسم المستخدم؛ إذا الجهاز الرئيسي انفتح من جديد منسجّل دخول تلقائياً ومنعيد. */
   async call(method: string, args: unknown[]): Promise<{ value: unknown; seq: number }> {
     if (this.offline) return this.runLocal(method, args);
+    let sent = '';
     try {
-      return await this.request<{ value: unknown; seq: number }>({ op: 'call', token: this.token, method, args });
+      const p = this.request<{ value: unknown; seq: number }>({ op: 'call', token: this.token, method, args });
+      sent = this.lastId;
+      return await p;
     } catch (e) {
       if ((e as Error).message === OFFLINE && this.state && this.user) {
-        // الجهاز الرئيسي طفي بنص الشغل: منكمّل على آخر نسخة ومنأجّل العملية
+        // الجهاز الرئيسي طفي بنص الشغل (أو الرد تأخّر): منكمّل على آخر نسخة ومنأجّل العملية،
+        // ومنبعت معها رقم الطلب الأصلي، فإذا الجهاز الرئيسي كان نفّذها ما بيعيدها
         this.offline = true;
         this.onMode();
-        return this.runLocal(method, args);
+        return this.runLocal(method, args, sent || undefined);
       }
       if (!(e as { expired?: boolean }).expired) throw e;
       await this.relogin();

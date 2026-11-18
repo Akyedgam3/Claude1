@@ -311,6 +311,35 @@ describe('cloud host and client', () => {
     await c.close();
   });
 
+  it('a reply that comes too late does not record the invoice twice (the queued copy is skipped)', async () => {
+    const c = await client();
+    await c.login();
+    c.probeMs = 40;
+    c.listen(() => undefined, () => undefined, () => undefined);
+    const reports: { done: number; failed: unknown[] }[] = [];
+    c.onQueueReport = (r) => reports.push(r);
+    // الجهاز الرئيسي بطيء: بينفّذ الفاتورة بس الرد بيوصل بعد ما الجوال يستسلم
+    const realCall = sessions.call.bind(sessions);
+    let slow = true;
+    (sessions as unknown as { call: (tok: string, m: string, a: unknown[]) => Promise<unknown> }).call = (tok, m, a) => {
+      const v = realCall(tok, m, a);
+      return slow ? new Promise((r) => setTimeout(() => r(v), 150)) : Promise.resolve(v);
+    };
+    (c as unknown as { timeoutMs: number }).timeoutMs = 60;
+    const r = await c.call('postInvoice', [sale]);
+    expect(r.value).toMatchObject({ createdBy: 'u2' });
+    expect(c.pending).toHaveLength(1); // انحسبت مأجّلة عالجوال
+    slow = false;
+    (c as unknown as { timeoutMs: number }).timeoutMs = 5000;
+    await until(() => !c.offline && c.pending.length === 0, 3000);
+    await wait(100);
+    expect(Object.keys(store.ledger.state.invoices)).toHaveLength(1); // مرة وحدة بس
+    expect(reports).toEqual([{ done: 1, failed: [] }]);
+    // والجوال رجع على نسخة الجهاز الرئيسي (فاتورة وحدة)
+    await until(() => Object.keys(c.snapshot().state.invoices).length === 1);
+    await c.close();
+  });
+
   it('sends a full backup file to the phone for users allowed to back up', async () => {
     const owner = await client('admin', 'secret123');
     await owner.login();
