@@ -31,7 +31,21 @@ export const native = {
 
   async print(name: string): Promise<boolean> {
     if (isNative()) return (await WaznPrint.print({ name })).ok;
-    window.print();
+    // المتصفح (سفاري خصوصاً على الآيفون): window.print بيرجع قبل ما تنرسم المعاينة، فلازم نضل محضّرين الصفحة
+    // (حجم الورق، الإيصال أو A4، الأرقام مش مخفية) لحد ما تخلص الطباعة
+    await new Promise<void>((resolve) => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        window.removeEventListener('afterprint', finish);
+        resolve();
+      };
+      window.addEventListener('afterprint', finish);
+      window.print();
+      // بعض المتصفحات ما بتبعت afterprint: منرجّع الصفحة بعد شوي على كل حال
+      setTimeout(finish, 20_000);
+    });
     return true;
   },
 

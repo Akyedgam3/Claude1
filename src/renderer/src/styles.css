@@ -4352,3 +4352,11 @@ table.lines td[data-label="السعر"] .num-input { min-width: 96px; }
 .cj-lines input.cj-out { border-color: #dc2626; }
 .cj-totals { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; justify-content: flex-end; margin-top: 12px; }
 .cj-totals span { display: flex; flex-direction: column; }
+
+/* سفاري ما بيطبع الخلفيات إلا إذا انطلب: الترويسة الملوّنة (نص أبيض على أخضر) كانت تختفي */
+@media print {
+  html, body, .print-area, .print-area * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
