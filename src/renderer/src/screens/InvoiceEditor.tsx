@@ -701,7 +701,8 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
                 </option>
               ))}
             </select>
-            {marketerId && state.parties[marketerId]?.marketerRate && can('costs.view') && <small className="muted">عمولتو {state.parties[marketerId]!.marketerRate}% من ربح الفاتورة (البيع ناقص تكلفة البضاعة)، بتنحسب وبتنسجّل لما تحفظ</small>}
+            {marketerId && marketerId === partyId && <small className="bad">المسوّق هو نفسه الزبون: ما بتنحسبله عمولة على هالفاتورة (وما بتنخصم من حسابه)</small>}
+            {marketerId && marketerId !== partyId && state.parties[marketerId]?.marketerRate && can('costs.view') && <small className="muted">عمولتو {state.parties[marketerId]!.marketerRate}% من ربح الفاتورة (البيع ناقص تكلفة البضاعة)، بتنحسب وبتنسجّل لما تحفظ</small>}
           </Field>
         )}
         {state.info?.vatNumber && (

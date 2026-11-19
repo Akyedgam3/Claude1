@@ -291,3 +291,48 @@ test('second $100 credit invoice shows the old debt while writing and on the pri
     await close();
   }
 });
+
+test('item card: edit the purchase price (stock cost follows, qty stays), delete with stock, restore', async () => {
+  const { page, close } = await launch();
+  try {
+    await activate(page);
+    await createCompany(page, { name: 'محل المواد', activity: 'تجارة عامة' });
+    const call = (method: string, ...args: unknown[]) => page.evaluate(([mm, a]) => (window as any).mizan.invoke('company:call', mm, a), [method, args] as const);
+    const today = new Date().toISOString().slice(0, 10);
+    await call('saveParty', { id: 's', kind: 'supplier', name: 'مورد' });
+    await call('saveItem', { id: 'r', code: 'R1', name: 'رز', kind: 'stock', unit: 'كيس', price: 100000, priceCurrency: 'SYP' });
+    await call('postInvoice', { kind: 'purchase', date: today, partyId: 's', lines: [{ itemId: 'r', qty: 10, price: 60000 }] });
+    const st = async () => (await page.evaluate(() => (window as any).mizan.invoke('company:state'))).state;
+    const scale = 10 ** (await st()).currencies['SYP'].decimals;
+
+    await nav(page, 'المواد');
+    await page.locator('tr', { hasText: 'رز' }).first().click();
+    const m = page.locator('.modal');
+    await m.getByRole('button', { name: 'الأسعار والوحدات' }).click();
+    const buy = m.locator('.buy-price input').first();
+    await expect(buy).toHaveValue(/600/);
+    await buy.fill('500');
+    await expect(m.locator('.buy-price label.check')).toContainText('الكمية ما بتتغيّر');
+    await m.getByRole('button', { name: 'حفظ' }).click();
+    await toast(page, 'تم الحفظ');
+    let s = await st();
+    expect(s.stock['r'].totalQty).toBe(10);
+    expect(s.stock['r'].value / scale).toBe(5000);
+
+    // حذف وهي إلها رصيد
+    await page.locator('tr', { hasText: 'رز' }).first().click();
+    await m.getByRole('button', { name: /حذف/ }).click();
+    await m.getByRole('button', { name: /رصيدها/ }).click();
+    await toast(page, /بيضلّوا بالحسابات/);
+    s = await st();
+    expect(s.items['r'].archived).toBe(true);
+    expect(s.stock['r'].totalQty).toBe(10);
+    await page.getByRole('button', { name: /المحذوفة \(1\)/ }).click();
+    await page.locator('tr', { hasText: 'رز' }).getByRole('button', { name: 'ترجيع' }).click();
+    await toast(page, 'رجعت');
+    s = await st();
+    expect(s.items['r'].archived).toBeFalsy();
+  } finally {
+    await close();
+  }
+});

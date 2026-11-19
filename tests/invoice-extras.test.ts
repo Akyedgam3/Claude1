@@ -49,9 +49,12 @@ describe('delete an invoice made by mistake', () => {
 });
 
 describe('delete an item', () => {
-  it('refuses while it has stock, then hides it and frees its code', () => {
+  it('deletes even with stock (stock stays in the books), hides it and frees its code', () => {
     const l = shop();
-    expect(() => l.deleteItem('rice')).toThrow(/رصيد/);
+    const qty = l.state.stock['rice']!.totalQty;
+    l.deleteItem('rice');
+    expect(l.state.items['rice']!.archived).toBe(true);
+    expect(l.state.stock['rice']!.totalQty).toBe(qty);
     l.saveItem({ id: 'oops', code: '0002', name: 'غلط', kind: 'stock', unit: 'قطعة', price: 1, priceCurrency: 'SYP', barcode: '123' });
     l.deleteItem('oops');
     expect(l.state.items['oops']!.archived).toBe(true);

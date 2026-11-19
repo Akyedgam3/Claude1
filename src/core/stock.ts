@@ -12,6 +12,7 @@ export interface StockMove {
   serials?: string[];
   lastCost?: boolean; // تحديث آخر تكلفة (عند الشراء)
   costValue?: number; // قيمة الشراء نفسها لآخر تكلفة (إذا القيمة غيرها لأنها غطّت رصيد سالب)
+  setLastCost?: number; // «تعديل سعر الشراء»: آخر سعر شراء صار هاد
 }
 
 function fail(message: string): never {
@@ -34,6 +35,7 @@ export function applyMove(state: CompanyState, m: StockMove): void {
   lvl.totalQty = roundQty(lvl.totalQty + m.qty);
   lvl.value += m.value;
   if (m.lastCost && m.qty > 0) lvl.lastCost = roundPrice((m.costValue ?? m.value) / m.qty); // بيحفظ أجزاء السنت (قطع رخيصة)
+  if (m.setLastCost !== undefined) lvl.lastCost = m.setLastCost;
   const sign = m.qty >= 0 ? 1 : -1;
   for (const b of m.batches ?? []) {
     const batches = (lvl.batches ??= {});
@@ -126,6 +128,7 @@ export function adjustmentMoves(a: StockAdjustment): StockMove[] {
     ...(l.batch ? { batches: [{ batch: l.batch, qty: Math.abs(l.qty), ...(l.expiry ? { expiry: l.expiry } : {}) }] } : {}),
     ...(l.serials ? { serials: l.serials } : {}),
     ...(a.kind === 'opening' ? { lastCost: true } : {}),
+    ...(a.kind === 'revalue' && l.unitCost !== undefined && !a.voidOf ? { setLastCost: l.unitCost } : {}),
   }));
 }
 

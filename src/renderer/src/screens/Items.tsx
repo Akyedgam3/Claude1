@@ -11,6 +11,9 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
   const { state, profile, feature, can, call, notify, navigate } = useCompany();
   const [query, setQuery] = useState(initialQuery ?? '');
   const [category, setCategory] = useState('');
+  // «المحذوفة»: المواد اللي انحذفت (بترجع بكبسة، مع رصيدها وفواتيرها)
+  const [showDeleted, setShowDeleted] = useState(false);
+  const deletedCount = useMemo(() => Object.values(state.items).filter((i) => i.archived && !i.hidden).length, [state.items]);
   const [editing, setEditing] = useState<Item | 'new' | null>(null);
   const [variants, setVariants] = useState(false);
   const [labels, setLabels] = useState<Item[] | null>(null);
@@ -40,9 +43,9 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
   const items = useMemo(
     () =>
       Object.values(state.items)
-        .filter((i) => !i.archived && itemMatches(i, query) && (!category || i.category === category))
+        .filter((i) => (showDeleted ? i.archived && !i.hidden : !i.archived) && itemMatches(i, query) && (!category || i.category === category))
         .sort((a, b) => a.code.localeCompare(b.code, 'ar', { numeric: true })),
-    [state.items, query, category],
+    [state.items, query, category, showDeleted],
   );
 
   const importExcel = async () => {
@@ -269,9 +272,15 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
             ))}
           </select>
         )}
+        {(deletedCount > 0 || showDeleted) && (
+          <button type="button" className={showDeleted ? 'primary' : 'ghost'} onClick={() => setShowDeleted(!showDeleted)}>
+            {showDeleted ? '← رجوع للمواد' : `المحذوفة (${deletedCount})`}
+          </button>
+        )}
       </div>
+      {showDeleted && <p className="muted">المواد المحذوفة ما بتطلع بالبيع ولا بالقوائم. رصيدها (إذا إلها) وفواتيرها القديمة محفوظين، وبترجع متل ما كانت بكبسة «ترجيع».</p>}
       {items.length === 0 ? (
-        <Empty>{query ? 'لا توجد نتائج' : 'لم تُضف أي مادة بعد'}</Empty>
+        <Empty>{query ? 'لا توجد نتائج' : showDeleted ? 'ما في مواد محذوفة' : 'لم تُضف أي مادة بعد'}</Empty>
       ) : (
         <table className="table">
           <thead>
@@ -299,7 +308,7 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
               const qty = s?.totalQty ?? 0;
               const low = i.kind === 'stock' && i.minStock !== undefined && qty <= i.minStock;
               return (
-                <tr key={i.id} className={canEdit ? 'clickable' : ''} onClick={() => canEdit && setEditing(i)}>
+                <tr key={i.id} className={canEdit && !i.archived ? 'clickable' : ''} onClick={() => canEdit && !i.archived && setEditing(i)}>
                   <td className="mono">{i.code}</td>
                   <td>
                     <ItemName item={i} />
@@ -309,6 +318,23 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
                     {i.trackSerial && <span className="tag">S/N</span>}
                     {i.weighed && <span className="tag">وزن</span>}
                     {i.hidden && <span className="tag">مخفية</span>}
+                    {i.archived && (
+                      <>
+                        <span className="tag bad">محذوفة</span>
+                        {canEdit && (
+                          <button
+                            type="button"
+                            className="ghost small"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (await call('restoreItem', i.id)) notify(`رجعت «${i.name}»`);
+                            }}
+                          >
+                            ترجيع
+                          </button>
+                        )}
+                      </>
+                    )}
                   </td>
                   {feature('partNumbers') && <td className="mono">{i.partNumber}</td>}
                   {feature('partNumbers') && <td>{i.compat}</td>}
@@ -316,7 +342,7 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
                   <td>{itemPlacesText(state, i)}</td>
                   <td className={`num ${low ? 'bad' : ''}`}>
                     {i.kind === 'stock' ? `${qtyText(qty)} ${i.unit}` : '—'}
-                    {i.kind === 'stock' && !i.trackSerial && !i.trackExpiry && can('stock.adjust') && (
+                    {i.kind === 'stock' && !i.archived && !i.trackSerial && !i.trackExpiry && can('stock.adjust') && (
                       <button
                         className="ghost small add-qty"
                         title="إضافة كمية بدون فاتورة شراء"
@@ -462,6 +488,17 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
   const stockItems = useMemo(() => itemOptions(state, (i) => i.kind === 'stock' && i.id !== item?.id), [state, item]);
   const hasStock = !!item && (state.stock[item.id]?.totalQty ?? 0) !== 0;
+  // سعر الشراء (متل دفترة): آخر سعر شراء بعملة المادة؛ تعديله بيعمل «تعديل سعر شراء» (وتكلفة الرصيد إذا بدك)
+  const canBuyPrice = can('costs.view') && can('items.manage');
+  const stockLvl = item ? state.stock[item.id] : undefined;
+  const buyInitial = (() => {
+    const last = stockLvl?.lastCost ?? 0;
+    if (!last) return '';
+    const v = convertPrice(state, last, base, item?.priceCurrency ?? base, fxRates(state, today()));
+    return v === null ? '' : toInput(state, Math.round(v * 1e6) / 1e6, item?.priceCurrency ?? base);
+  })();
+  const [buy, setBuy] = useState(buyInitial);
+  const [buyApply, setBuyApply] = useState(true);
   const [extraAttr, setExtraAttr] = useState('');
   const attributeNames = [...new Set([...attributesFor(profile, f.category), ...Object.keys(attrs)])];
 
@@ -491,6 +528,7 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
     }
     setF(next);
     setUnits(nextUnits);
+    if (buy.trim()) setBuy(conv(buy));
     if (f.price.trim()) notify(`انحوّلت الأسعار لـ${state.currencies[to]?.nameAr ?? to} بسعر الصرف`);
   };
 
@@ -540,7 +578,22 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
     } catch (e) {
       return notify((e as Error).message, 'error');
     }
+    // سعر الشراء: بيتحوّل للعملة الأساسية بسعر اليوم
+    let buyBase: number | null = null;
+    if (canBuyPrice && data.kind === 'stock' && buy.trim() && buy.trim() !== buyInitial.trim()) {
+      try {
+        buyBase = convertPrice(state, parsePrice(state, buy, data.priceCurrency), data.priceCurrency, base, fxRates(state, today()));
+      } catch (e) {
+        return notify((e as Error).message, 'error');
+      }
+      if (buyBase === null) return notify('ما في سعر صرف اليوم لعملة سعر الشراء. سجّله أول', 'error');
+    }
     if (await call('saveItem', data)) {
+      if (buyBase !== null) {
+        const qty = state.stock[data.id]?.totalQty ?? 0;
+        const ok = await call('revalueItem', { date: today(), itemId: data.id, unitCost: Math.round(buyBase * 1e6) / 1e6, applyToStock: buyApply && qty > 0 });
+        if (!ok) return;
+      }
       notify('تم الحفظ');
       onSaved?.(data);
       onClose();
@@ -681,6 +734,28 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
             <Field label="عملة السعر">
               <CurrencySelect value={f.priceCurrency} onChange={changeCurrency} />
             </Field>
+            {canBuyPrice && f.kind === 'stock' && (
+              <div className="buy-price wide">
+                <Field label={`سعر الشراء (${state.currencies[f.priceCurrency]?.symbol ?? f.priceCurrency})`}>
+                  <input value={buy} onChange={(e) => setBuy(e.target.value)} inputMode="decimal" placeholder="آخر سعر شراء" />
+                </Field>
+                <div className="buy-price-info">
+                  {stockLvl && stockLvl.totalQty > 0 ? (
+                    <small className="muted">
+                      الرصيد هلق {qtyText(stockLvl.totalQty)} {item?.unit} · متوسط التكلفة {unitMoney(state, stockLvl.value / stockLvl.totalQty, base)}
+                    </small>
+                  ) : (
+                    <small className="muted">بيطلع تلقائياً بفواتير الشراء الجاية</small>
+                  )}
+                  {buy.trim() !== buyInitial.trim() && buy.trim() && stockLvl && stockLvl.totalQty > 0 && (
+                    <label className="check">
+                      <input type="checkbox" checked={buyApply} onChange={(e) => setBuyApply(e.target.checked)} />
+                      صحّح تكلفة الكمية الموجودة ({qtyText(stockLvl.totalQty)}) على هالسعر — الكمية ما بتتغيّر
+                    </label>
+                  )}
+                </div>
+              </div>
+            )}
             {feature('listPricing') && (
               <>
                 <Field label="سعر النشرة">
@@ -878,10 +953,10 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
             <ConfirmButton
               className="push-start"
               label={`حذف ${profile.itemLabel}`}
-              confirmLabel="متأكد؟ احذفها"
+              confirmLabel={hasStock ? `متأكد؟ رصيدها (${qtyText(state.stock[item.id]!.totalQty)}) بيضل بالحسابات` : 'متأكد؟ احذفها'}
               onConfirm={async () => {
                 if (await call('deleteItem', item.id)) {
-                  notify(`انحذفت «${item.name}». فواتيرها القديمة بتضل متل ما هي`);
+                  notify(hasStock ? `انحذفت «${item.name}» من القوائم. كميتها وقيمتها بيضلّوا بالحسابات، وبترجعها من «المحذوفة»` : `انحذفت «${item.name}». فواتيرها القديمة بتضل متل ما هي`);
                   onClose();
                 }
               }}

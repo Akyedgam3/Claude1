@@ -47,6 +47,8 @@ interface Move {
   fix?: { doc: 'invoice' | 'adjustment'; id: string; line: number; component?: number; recorded: number; warehouseId: string };
   /** بيحدّث «آخر تكلفة» (شراء، رصيد افتتاحي، إنتاج) متل البيع العادي */
   last?: boolean;
+  /** «تعديل سعر الشراء»: آخر تكلفة صارت هالسعر (والقيمة بتتغيّر بـ value بدون كمية) */
+  setLast?: number;
   /** دخول سجّل «تغطية رصيد سالب» قديماً (shortfall) */
   shortfall?: { doc: 'invoice' | 'adjustment'; id: string; line: number; recorded: number; warehouseId: string };
 }
@@ -84,13 +86,17 @@ export function costPlan(state: CompanyState, only?: Set<string>): CostPlan {
       });
     });
   }
-  const adjSeq = (a: StockAdjustment) => (a.entryId ? (entryNo.get(a.entryId) ?? 0) : 0);
+  const adjSeq = (a: StockAdjustment) => (a.entryId ? (entryNo.get(a.entryId) ?? 0) : (a.seq ?? 0));
   for (const a of state.adjustments) {
     if (a.voidOf || voidedAdj.has(a.id)) continue;
     const open = a.date > locked;
     a.lines.forEach((l, i) => {
       if (!stockItem(l.itemId)) return;
       const base = { date: a.date, seq: adjSeq(a), itemId: l.itemId };
+      if (a.kind === 'revalue') {
+        moves.push({ ...base, qty: 0, value: l.cost, ...(l.unitCost !== undefined ? { setLast: l.unitCost } : {}) });
+        return;
+      }
       if (l.qty < 0 && OUT_ADJ.has(a.kind)) moves.push({ ...base, qty: l.qty, value: -l.cost, ...(open ? { fix: { doc: 'adjustment', id: a.id, line: i, recorded: -l.cost, warehouseId: a.warehouseId } } : {}) });
       else if (l.qty > 0)
         moves.push({ ...base, qty: l.qty, value: l.cost, ...(a.kind === 'opening' ? { last: true } : {}), ...(open && l.shortfall ? { shortfall: { doc: 'adjustment', id: a.id, line: i, recorded: l.shortfall, warehouseId: a.warehouseId } } : {}), ...(!open && l.shortfall ? { value: l.cost - l.shortfall } : {}) });
@@ -138,6 +144,11 @@ export function costPlan(state: CompanyState, only?: Set<string>): CostPlan {
         value -= cost;
         correct.set(m, cost);
         if (q > take) pending.push({ m, qty: q - take, unit: Math.max(0, avg), whole: q - take, q });
+      } else if (m.qty === 0) {
+        // تعديل سعر الشراء: القيمة بتتغيّر والكمية لأ
+        value += m.value;
+        if (m.setLast !== undefined) lastCost = m.setLast;
+        continue;
       } else if (m.qty > 0) {
         // شراء قديم سجّل «تغطية رصيد سالب» وما في بيع مفتوح ينتظر: منخلّيه متل ما هو
         if (m.shortfall && !pending.length) {

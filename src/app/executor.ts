@@ -116,7 +116,7 @@ function executeChecked(store: CompanyStore, user: User, method: string, args: u
     const hidden = (id: unknown) => typeof id === 'string' && !!store.ledger.state.items[id]?.hidden;
     const lines = (x: unknown) => ((x as { lines?: { itemId?: unknown }[] } | undefined)?.lines ?? []);
     if (method === 'saveItem' && hidden((args[0] as { id?: unknown } | undefined)?.id)) fail('المادة غير موجودة');
-    if (['deleteItem', 'archiveItem'].includes(method) && hidden(args[0])) fail('المادة غير موجودة');
+    if (['deleteItem', 'archiveItem', 'restoreItem', 'revalueItem'].includes(method) && hidden(method === 'revalueItem' ? (args[0] as { itemId?: unknown } | undefined)?.itemId : args[0])) fail('المادة غير موجودة');
     if ((method === 'saveItem' && (args[0] as { hidden?: unknown } | undefined)?.hidden) || args.some((a) => lines(a).some((l) => hidden(l.itemId)))) fail('المادة غير موجودة');
   }
   // صندوق المستخدم: مبيعاته وسنداته بتنزل فيه (لغير المالك إجباري، وللمالك افتراضي)
@@ -136,6 +136,8 @@ function executeChecked(store: CompanyStore, user: User, method: string, args: u
   }
   // الاستبدال فيه شراء كمان
   if (method === 'tradeIn') requirePermission(user, 'purchases.create');
+  // تعديل سعر الشراء بيكشف التكلفة
+  if (method === 'revalueItem') requirePermission(user, 'costs.view');
   if (method === 'saveOrder') {
     // خصم الطلب بالمطعم بيحتاج نفس صلاحية الخصم (إذا تغيّر)
     const o = args[0] as { id?: string; discount?: number } | undefined;

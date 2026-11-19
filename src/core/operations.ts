@@ -20,6 +20,7 @@ export const ADJUSTMENT_NAMES: Record<AdjustmentKind, string> = {
   count: 'جرد',
   damage: 'تالف / منتهي الصلاحية',
   consumption: 'استهلاك داخلي',
+  revalue: 'تعديل سعر الشراء',
 };
 
 export const COUNTER_ACCOUNT: Record<AdjustmentKind, string> = {
@@ -27,6 +28,7 @@ export const COUNTER_ACCOUNT: Record<AdjustmentKind, string> = {
   count: SYSTEM_ACCOUNTS.countDifferences,
   damage: SYSTEM_ACCOUNTS.damaged,
   consumption: SYSTEM_ACCOUNTS.consumption,
+  revalue: SYSTEM_ACCOUNTS.countDifferences,
 };
 
 function nextNumber(state: CompanyState, key: string): number {
@@ -34,13 +36,13 @@ function nextNumber(state: CompanyState, key: string): number {
 }
 
 /** قيد يثبت فرق قيمة المخزون مقابل الحساب المناسب. */
-function stockEntry(ctx: OpsContext, kind: AdjustmentKind, date: string, value: number, memo: string, id: string, shortfall = 0): JournalEntry | undefined {
+function stockEntry(ctx: OpsContext, kind: AdjustmentKind, date: string, value: number, memo: string, id: string, shortfall = 0, counter = COUNTER_ACCOUNT[kind]): JournalEntry | undefined {
   if (value === 0 && shortfall === 0) return undefined;
   const base = { currency: ctx.baseCode, rate: 1 };
   const lines: LineDraft[] = [];
   if (value !== 0) {
     lines.push({ accountId: SYSTEM_ACCOUNTS.inventory, ...(value > 0 ? { debit: value } : { credit: -value }), ...base });
-    lines.push({ accountId: COUNTER_ACCOUNT[kind], ...(value > 0 ? { credit: value } : { debit: -value }), ...base });
+    lines.push({ accountId: counter, ...(value > 0 ? { credit: value } : { debit: -value }), ...base });
   }
   // إدخال على رصيد سالب: تكلفة اللي انباع قبل بتنتقل من المخزون لتكلفة البضاعة المباعة
   if (shortfall > 0) lines.push({ accountId: SYSTEM_ACCOUNTS.cogs, debit: shortfall, ...base }, { accountId: SYSTEM_ACCOUNTS.inventory, credit: shortfall, ...base });
@@ -86,6 +88,37 @@ export function buildAdjustment(ctx: OpsContext, d: AdjustDraft): { adjustment: 
   return finishAdjustment(ctx, d.kind, d.date, warehouseId, expand(lines), d.memo);
 }
 
+export interface RevalueDraft {
+  date: string;
+  itemId: string;
+  /** سعر الشراء الجديد للوحدة الأساسية (بالعملة الأساسية) */
+  unitCost: number;
+  /** كمان صحّح تكلفة البضاعة الموجودة هلق (الكمية ما بتتغيّر) */
+  applyToStock: boolean;
+  memo?: string;
+}
+
+/**
+ * «تعديل سعر الشراء» من بطاقة المادة (متل دفترة): بيصير آخر سعر شراء (بيطلع بفواتير الشراء الجاية)،
+ * وإذا بدك بتتصحّح قيمة الرصيد الموجود = الكمية × السعر الجديد، بدون ما تتغيّر الكمية.
+ * فرق القيمة: إذا المادة ما إلها ولا فاتورة شراء (رصيدها كله افتتاحي) على «الأرصدة الافتتاحية» (تصحيح إدخال غلط ما بيأثر عالربح)،
+ * وإلا على «فروقات الجرد والتقييم».
+ */
+export function buildRevalue(ctx: OpsContext, d: RevalueDraft): { adjustment: StockAdjustment; entry?: JournalEntry } {
+  const { state } = ctx;
+  const item = state.items[d.itemId] ?? fail('المادة غير موجودة');
+  if (item.kind !== 'stock') fail(`"${item.name}" ليست مادة مخزنية`);
+  if (!(d.unitCost >= 0) || !Number.isFinite(d.unitCost)) fail('سعر شراء غير صالح');
+  const warehouseId = Object.keys(state.warehouses)[0] ?? fail('لا يوجد مستودع');
+  const lvl = state.stock[item.id];
+  const qty = lvl?.totalQty ?? 0;
+  const delta = d.applyToStock && qty > 0 ? Math.round(qty * d.unitCost) - (lvl?.value ?? 0) : 0;
+  const purchased = state.invoices.some((i) => i.kind === 'purchase' && !i.voidEntryId && i.lines.some((l) => l.itemId === item.id));
+  const counter = purchased ? SYSTEM_ACCOUNTS.countDifferences : SYSTEM_ACCOUNTS.openingBalances;
+  const memo = d.memo?.trim() || `تعديل سعر شراء «${item.name}»${delta ? ` وتكلفة الرصيد (${+qty.toFixed(3)} ${item.unit})` : ''}`;
+  return finishAdjustment(ctx, 'revalue', d.date, warehouseId, [{ itemId: item.id, qty: 0, cost: delta, unitCost: d.unitCost }], memo, counter);
+}
+
 /** سطر تسوية قبل تقسيمه حسب الدفعات. */
 interface RawLine {
   itemId: string;
@@ -122,13 +155,14 @@ function finishAdjustment(
   warehouseId: string,
   lines: AdjustmentLine[],
   memo?: string,
+  counter?: string,
 ): { adjustment: StockAdjustment; entry?: JournalEntry } {
   const id = crypto.randomUUID();
   const number = nextNumber(ctx.state, 'adjustment');
   const text = memo?.trim() || `${ADJUSTMENT_NAMES[kind]} رقم ${number}`;
   const value = lines.reduce((s, l) => s + l.cost, 0);
   const shortfall = lines.reduce((s, l) => s + (l.shortfall ?? 0), 0);
-  const entry = stockEntry(ctx, kind, date, value, text, id, shortfall);
+  const entry = stockEntry(ctx, kind, date, value, text, id, shortfall, counter);
   const adjustment: StockAdjustment = {
     id,
     number,

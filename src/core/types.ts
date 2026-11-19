@@ -441,13 +441,15 @@ export interface Invoice {
 
 // ───────────── عمليات المخزون ─────────────
 
-export type AdjustmentKind = 'opening' | 'count' | 'damage' | 'consumption';
+export type AdjustmentKind = 'opening' | 'count' | 'damage' | 'consumption' | 'revalue';
 
 export interface AdjustmentLine {
   itemId: string;
   qty: number; // فرق الكمية بالوحدة الأساسية (موجب = زيادة)
   cost: number; // فرق القيمة بالعملة الأساسية (بنفس الإشارة)
   shortfall?: number; // إدخال على رصيد سالب: فرق تكلفة اللي انباع قبل (على تكلفة البضاعة المباعة)
+  /** «تعديل سعر الشراء» (revalue): سعر الشراء الجديد للوحدة (بيصير آخر سعر شراء، والكمية ما بتتغيّر) */
+  unitCost?: number;
   batch?: string;
   expiry?: string;
   serials?: string[];
@@ -467,6 +469,8 @@ export interface StockAdjustment {
   createdAt?: string;
   /** هالعملية بتلغي عملية تانية (نفس الكميات والقيمة بالعكس) */
   voidOf?: string;
+  /** ترتيبها بين القيود إذا ما إلها قيد (تعديل سعر شراء بدون فرق قيمة) */
+  seq?: number;
 }
 
 export interface StockTransfer {

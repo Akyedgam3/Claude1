@@ -64,7 +64,7 @@ function run(seed: number, steps: number) {
     const date = pick(DAYS);
     const cur = r() < 0.6 ? 'USD' : 'SYP';
     const conv = (n: number) => (cur === 'SYP' ? n * 110 * (SYP_DEC / 100) : n);
-    const op = int(0, 19);
+    const op = int(0, 21);
     const before = process.env.FUZZ_DEBUG ? structuredClone({ stock: l.state.stock, n: l.state.entries.length }) : null;
     try {
       switch (op) {
@@ -195,6 +195,18 @@ function run(seed: number, steps: number) {
           l.postProduction({ date, inputs: [{ itemId: 'b', qty: int(1, 2) }, { itemId: 'c', qty: 1 }], outputs: [{ itemId: 'mix', qty: int(1, 3) }] });
           if (r() < 0.6) l.postInvoice({ kind: 'sale', date, currency: 'USD', paid: undefined, lines: [{ itemId: 'mix', qty: 1, price: 3000 }] });
           ops.push('production');
+          break;
+        }
+        case 20: {
+          l.revalueItem({ date, itemId: pick(['a', 'b', 'c']), unitCost: int(100, 1200), applyToStock: r() < 0.7 });
+          ops.push('revalue');
+          break;
+        }
+        case 21: {
+          const id = pick(['a', 'b', 'c']);
+          if (l.state.items[id]!.archived) l.restoreItem(id);
+          else if (r() < 0.3) l.deleteItem(id);
+          ops.push('delete/restore item');
           break;
         }
         case 19: {

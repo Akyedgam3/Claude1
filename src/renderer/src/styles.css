@@ -4314,3 +4314,7 @@ table.lines td[data-label="السعر"] .num-input { min-width: 96px; }
 .pos-party-balance { display: block; margin-top: 4px; font-weight: 600; }
 .party-prev small { display: block; font-weight: 400; }
 .party-after { font-size: 1.1em; }
+/* سعر الشراء ببطاقة المادة */
+.buy-price { display: grid; grid-template-columns: minmax(160px, 1fr) 2fr; gap: 10px; align-items: end; padding: 10px; border-radius: 10px; background: var(--primary-soft, #eef6f3); }
+.buy-price-info { display: flex; flex-direction: column; gap: 4px; padding-bottom: 6px; }
+@media (max-width: 700px) { .buy-price { grid-template-columns: 1fr; } }

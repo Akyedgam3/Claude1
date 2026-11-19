@@ -23,10 +23,12 @@ import { DEALER_BOX_ID } from './dealerbox';
 import {
   buildAdjustment,
   buildCount,
+  buildRevalue,
   buildProduction,
   buildTransfer,
   type AdjustDraft,
   type CountDraft,
+  type RevalueDraft,
   type OpsContext,
   type ProductionDraft,
   type TransferDraft,
@@ -862,11 +864,19 @@ export class Ledger {
   deleteItem(itemId: string): void {
     const item = this.state.items[itemId] ?? fail('المادة غير موجودة');
     if (item.archived) fail('المادة محذوفة مسبقاً');
-    const qty = this.state.stock[itemId]?.totalQty ?? 0;
-    if (item.kind === 'stock' && Math.abs(qty) > 1e-9) fail(`ما فيك تحذف «${item.name}» وإلها رصيد (${+qty.toFixed(3)} ${item.unit}). صفّر رصيدها من الجرد أو بيعها أول`);
+    // المادة اللي إلها رصيد بتنحذف من القوائم والبيع بس، وكميتها وقيمتها بيضلّوا بالحسابات (وبترجع من «المحذوفة»)
     const inRecipe = Object.values(this.state.items).find((i) => !i.archived && i.recipe?.some((r) => r.itemId === itemId));
     if (inRecipe) fail(`«${item.name}» داخلة بوصفة «${inRecipe.name}»؛ شيلها من الوصفة أول`);
     this.saveItem({ ...item, archived: true });
+  }
+
+  /** ترجيع مادة محذوفة (بكل رصيدها وفواتيرها). */
+  restoreItem(itemId: string): void {
+    const item = this.state.items[itemId] ?? fail('المادة غير موجودة');
+    if (!item.archived) return;
+    const { archived: _a, ...rest } = item;
+    void _a;
+    this.saveItem(rest);
   }
 
   /** حفظ مجموعة مواد دفعة واحدة (استيراد من Excel أو توليد مقاسات وألوان). */
@@ -911,6 +921,8 @@ export class Ledger {
 
   /** عمولة المسوّق عن فاتورة = ربحها (سعر البيع ناقص تكلفة البضاعة، بعملة الفاتورة) × نسبته. إذا ما في ربح ما في عمولة. */
   private commissionAmount(invoice: Invoice, m: Party): number {
+    // المسوّق اشترى لحالو (هو الزبون): ما في عمولة، وإلا بتنخصم من دينه على نفس الفاتورة
+    if (invoice.partyId && invoice.partyId === m.id) return 0;
     const posted = this.state.invoices.find((i) => i.id === invoice.id) ?? invoice;
     const baseCur = this.state.currencies[this.base.code]!;
     const cur = this.state.currencies[invoice.currency] ?? baseCur;
@@ -1387,6 +1399,14 @@ export class Ledger {
     return adjustment;
   }
 
+  /** تعديل سعر الشراء من بطاقة المادة (وتكلفة الرصيد الموجود إذا بدك). */
+  revalueItem(d: RevalueDraft): StockAdjustment {
+    const { adjustment: built, entry } = buildRevalue(this.ops(), d);
+    const adjustment = entry ? built : { ...built, seq: this.state.entries.length + 0.5 };
+    this.emit({ type: 'stock.adjusted', adjustment, ...(entry ? { entry } : {}) });
+    this.afterStockChange([d.itemId]);
+    return adjustment;
+  }
   countStock(d: CountDraft): StockAdjustment {
     const { adjustment, entry } = buildCount(this.ops(), d);
     this.emit({ type: 'stock.adjusted', adjustment, ...(entry ? { entry } : {}) });

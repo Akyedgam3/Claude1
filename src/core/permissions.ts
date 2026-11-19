@@ -106,6 +106,8 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
   saveItem: 'items.manage',
   saveItems: 'items.manage',
   deleteItem: 'items.manage',
+  restoreItem: 'items.manage',
+  revalueItem: 'items.manage',
   saveWarehouse: 'stock.transfer',
   postInvoice: (args) => {
     const kind = (args[0] as { kind?: string } | undefined)?.kind;

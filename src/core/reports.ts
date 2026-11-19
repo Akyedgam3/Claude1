@@ -199,7 +199,8 @@ export interface StockRow {
 
 export function stockReport(state: CompanyState): StockRow[] {
   return Object.values(state.items)
-    .filter((i) => i.kind === 'stock' && !i.archived)
+    // المادة المحذوفة وإلها رصيد بتضل بتقرير المخزون (بضاعتها لسا موجودة وقيمتها بالحسابات)
+    .filter((i) => i.kind === 'stock' && (!i.archived || Math.abs(state.stock[i.id]?.totalQty ?? 0) > 1e-9 || (state.stock[i.id]?.value ?? 0) !== 0))
     .map((item) => {
       const s = state.stock[item.id];
       const qty = s?.totalQty ?? 0;
