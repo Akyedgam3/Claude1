@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { invoiceProfit, partyBalance, type Invoice, type Party } from '../../../core';
-import { dateText, money, today, uid, useCompany } from '../api';
+import { invoiceProfit, isMarketer, marketerTerms, partyBalance, type Invoice, type Party } from '../../../core';
+import { dateText, money, parseAmount, toInput, today, uid, useCompany } from '../api';
 import { askConfirm, Empty, Field, Modal, PageHeader, Stat } from '../components/ui';
 import { Icon } from '../components/icons';
 import { PayForm } from './Debts';
@@ -45,7 +45,7 @@ export function Marketers() {
       return l ? { amount: l.credit, base: l.baseCredit } : { amount: 0, base: 0 };
     };
     return Object.values(state.parties)
-      .filter((p) => p.marketerRate && !p.archived)
+      .filter((p) => isMarketer(p) && !p.archived)
       .map((m) => {
         const invoices = state.invoices
           .filter((i) => i.marketerId === m.id && i.kind === 'sale' && !i.voidEntryId && i.date >= from && i.date <= to)
@@ -98,7 +98,7 @@ export function Marketers() {
                 <div className="marketer-head" onClick={() => setOpen(open === m.id ? null : m.id)}>
                   <div>
                     <h3>
-                      {m.name} <span className="tag">{m.marketerRate}% من الربح</span>
+                      {m.name} <span className="tag">{marketerTerms(m)}</span>
                     </h3>
                     {m.phone && <small className="muted ltr">{m.phone}</small>}
                   </div>
@@ -146,7 +146,7 @@ export function Marketers() {
                       className="ghost small"
                       title="للفواتير القديمة اللي انحسبت عمولتها من قيمة الفاتورة: بتنحسب من جديد من ربح كل فاتورة"
                       onClick={async () => {
-                        if (!(await askConfirm(`تعيد حساب عمولات ${m.name} من ربح كل فاتورة (${m.marketerRate}%)؟ العمولات القديمة بتتصحّح، والمدفوع إلو بيضل محسوب.`))) return;
+                        if (!(await askConfirm(`تعيد حساب عمولات ${m.name} (${marketerTerms(m)})؟ العمولات القديمة بتتصحّح، والمدفوع إلو بيضل محسوب.`))) return;
                         const r = (await call('recalcCommissions', m.id, today())) as { changed: number; before: number; after: number } | null;
                         if (r) notify(r.changed ? `تصحّحت ${r.changed} فاتورة: العمولة كانت ${money(state, r.before)} وصارت ${money(state, r.after)}` : 'العمولات مزبوطة، ما في شي يتصحّح');
                       }}
@@ -195,7 +195,7 @@ export function Marketers() {
                           <th>الزبون</th>
                           <th className="num">قيمة الفاتورة</th>
                           {can('profits.view') && <th className="num">ربح الفاتورة</th>}
-                          <th className="num">العمولة ({m.marketerRate}% من الربح)</th>
+                          <th className="num">العمولة ({marketerTerms(m)})</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -228,15 +228,37 @@ function MarketerForm({ party, onClose }: { party: Party | null; onClose: () => 
   const [name, setName] = useState(party?.name ?? '');
   const [phone, setPhone] = useState(party?.phone ?? '');
   const [rate, setRate] = useState(party?.marketerRate ? String(party.marketerRate) : '');
+  // طريقة العمولة: % من الربح (الافتراضي)، % من إجمالي الفاتورة، أو مبلغ ثابت على كل فاتورة
+  const baseCur = state.info!.baseCurrency;
+  const [mode, setMode] = useState<'profit' | 'total' | 'fixed'>(party?.commissionMode ?? 'profit');
+  const [fixed, setFixed] = useState(party?.commissionFixed ? toInput(state, party.commissionFixed, baseCur) : '');
   const save = async () => {
     const r = Number(rate.replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))));
     if (!name.trim()) return notify('اكتب اسم المسوّق', 'error');
-    if (!(r > 0 && r <= 100)) return notify('النسبة لازم تكون بين 0 و100', 'error');
+    let amount = 0;
+    if (mode === 'fixed') {
+      try {
+        amount = parseAmount(state, fixed, baseCur);
+      } catch (e) {
+        return notify((e as Error).message, 'error');
+      }
+      if (!(amount > 0)) return notify('اكتب مبلغ العمولة على كل فاتورة', 'error');
+    } else if (!(r > 0 && r <= 100)) return notify('النسبة لازم تكون بين 0 و100', 'error');
     const twin = !party && Object.values(state.parties).find((p) => !p.archived && p.name.trim() === name.trim());
     const base: Party = party ?? (twin || { id: uid(), name: name.trim(), kind: 'supplier' });
-    const next: Party = { ...base, name: name.trim(), marketerRate: r, ...(phone.trim() ? { phone: phone.trim() } : {}) };
+    const { marketerRate: _r, commissionFixed: _f, commissionMode: _m, ...rest } = base;
+    void _r;
+    void _f;
+    void _m;
+    const next: Party = {
+      ...rest,
+      name: name.trim(),
+      commissionMode: mode,
+      ...(mode === 'fixed' ? { commissionFixed: amount } : { marketerRate: r }),
+      ...(phone.trim() ? { phone: phone.trim() } : {}),
+    };
     if (await call('saveParty', next)) {
-      notify(party ? 'تم التعديل' : `تمت إضافة ${next.name} كمسوّق (${r}%)`);
+      notify(party ? 'تم التعديل' : `تمت إضافة ${next.name} كمسوّق (${marketerTerms(next)})`);
       onClose();
     }
   };
@@ -246,14 +268,34 @@ function MarketerForm({ party, onClose }: { party: Party | null; onClose: () => 
         <Field label="الاسم" wide>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="مثلاً: أحمد" autoFocus />
         </Field>
-        <Field label="نسبته % من ربح الفاتورة">
-          <input value={rate} onChange={(e) => setRate(e.target.value)} inputMode="decimal" placeholder="مثلاً 33.33 (التلت)" />
+        <Field label="طريقة العمولة" wide>
+          <select value={mode} onChange={(e) => setMode(e.target.value as 'profit' | 'total' | 'fixed')}>
+            <option value="profit">نسبة % من ربح الفاتورة</option>
+            <option value="total">نسبة % من إجمالي الفاتورة</option>
+            <option value="fixed">مبلغ ثابت على كل فاتورة</option>
+          </select>
         </Field>
+        {mode === 'fixed' ? (
+          <Field label={`المبلغ على كل فاتورة (${state.currencies[baseCur]?.symbol ?? baseCur})`}>
+            <input value={fixed} onChange={(e) => setFixed(e.target.value)} inputMode="decimal" placeholder="مثلاً 5000" />
+          </Field>
+        ) : (
+          <Field label={mode === 'total' ? 'نسبته % من إجمالي الفاتورة' : 'نسبته % من ربح الفاتورة'}>
+            <input value={rate} onChange={(e) => setRate(e.target.value)} inputMode="decimal" placeholder={mode === 'total' ? 'مثلاً 5' : 'مثلاً 33.33 (التلت)'} />
+          </Field>
+        )}
         <Field label="رقم الهاتف (اختياري)">
           <input dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} />
         </Field>
       </div>
-      <p className="muted">العمولة نسبة من <b>ربح</b> كل فاتورة (سعر البيع ناقص تكلفة البضاعة)، مش من قيمة الفاتورة. إذا الفاتورة ما فيها ربح ما في عمولة. التلت = 33.33. تغيير النسبة بيمشي على الفواتير الجاية بس.</p>
+      <p className="muted">
+        {mode === 'profit'
+          ? 'العمولة من ربح كل فاتورة (سعر البيع ناقص تكلفة البضاعة). إذا الفاتورة ما فيها ربح ما في عمولة. التلت = 33.33.'
+          : mode === 'total'
+            ? 'العمولة من إجمالي الفاتورة (بعد الخصم وقبل الضريبة)، بغض النظر عن الربح.'
+            : 'نفس المبلغ على كل فاتورة مبيع بتنعمل عن طريقه، مهما كانت قيمتها.'}{' '}
+        التغيير بيمشي على الفواتير الجاية بس (وزر «إعادة حساب العمولات» بيطبّقه عالقديمة).
+      </p>
       <div className="form-actions">
         <button className="primary big" onClick={save}>
           حفظ

@@ -4328,3 +4328,27 @@ table.lines td[data-label="السعر"] .num-input { min-width: 96px; }
 .health-result.bad { border-color: #dc2626; background: rgba(220, 38, 38, 0.06); }
 .health-result ul { margin: 8px 0; padding-inline-start: 20px; }
 .health-result li.warn { color: #b45309; }
+/* نقطة البيع: مواد بدون سعر وزر المزيد */
+.pos-item.no-price { opacity: 0.6; border-style: dashed; }
+.pos-more { width: 100%; margin-top: 8px; }
+.markup-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.markup-row input { width: 64px; text-align: center; }
+
+/* الطباعة من لوحة جانبية أو أي شي بيمرّر (كشف حساب الزبون...): كل اللي حوالين المستند بيتمدّد وبيوقف «لزق»،
+   وإلا سفاري بيقص المستند وبتطلع صفحة فاضية، وكروم بينزّله لتحت */
+@media print {
+  *:has(.print-area) {
+    position: static !important;
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+    transform: none !important;
+  }
+}
+/* يومية الصندوق */
+.cj-balance { display: flex; flex-direction: column; justify-content: center; padding: 6px 12px; border-radius: 10px; background: var(--primary-soft, #eef6f3); }
+.cj-balance b { font-size: 1.3em; }
+.cj-lines input.cj-in { border-color: #16a34a; }
+.cj-lines input.cj-out { border-color: #dc2626; }
+.cj-totals { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; justify-content: flex-end; margin-top: 12px; }
+.cj-totals span { display: flex; flex-direction: column; }

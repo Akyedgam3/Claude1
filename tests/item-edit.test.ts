@@ -90,3 +90,30 @@ describe('marketer buying for himself', () => {
     expect(partyBalance(l.state, 'm').base).toBe(2000 - 80);
   });
 });
+
+describe('marketer commission methods', () => {
+  const setup = () => {
+    const l = shop();
+    l.postInvoice({ kind: 'purchase', date: D, partyId: 's', lines: [{ itemId: 'a', qty: 10, price: 600 }] });
+    return l;
+  };
+  const commission = (l: Ledger, id: string) => -partyBalance(l.state, id).base;
+  it('% of profit (default), % of invoice total, fixed per invoice', () => {
+    const l = setup();
+    l.saveParty({ id: 'p', kind: 'supplier', name: 'ربح', marketerRate: 10 });
+    l.saveParty({ id: 't', kind: 'supplier', name: 'إجمالي', marketerRate: 5, commissionMode: 'total' });
+    l.saveParty({ id: 'f', kind: 'supplier', name: 'ثابت', commissionMode: 'fixed', commissionFixed: 150 });
+    for (const m of ['p', 't', 'f']) l.postInvoice({ kind: 'sale', date: D, partyId: 'c', marketerId: m, lines: [{ itemId: 'a', qty: 2, price: 1000 }] });
+    expect(commission(l, 'p')).toBe(80); // 10% من (2000 − 1200)
+    expect(commission(l, 't')).toBe(100); // 5% من 2000
+    expect(commission(l, 'f')).toBe(150);
+  });
+  it('recalculating applies a changed method to old invoices', () => {
+    const l = setup();
+    l.saveParty({ id: 'm', kind: 'supplier', name: 'مسوّق', marketerRate: 10 });
+    l.postInvoice({ kind: 'sale', date: D, partyId: 'c', marketerId: 'm', lines: [{ itemId: 'a', qty: 2, price: 1000 }] });
+    l.saveParty({ ...l.state.parties['m']!, commissionMode: 'total' });
+    l.recalcCommissions('m', D);
+    expect(commission(l, 'm')).toBe(200);
+  });
+});

@@ -6,10 +6,22 @@ import { adjustmentMoves, applyMove, assertMovesPossible, invoiceMoves, negate, 
 import { bookingConflicts } from './halls';
 import { cleanWeighing, weighingNet } from './poultry';
 import { computeTaxes } from './tax';
-import type { CompanyEvent, CostParts, CompanyState, FabricRoll, Invoice, InvoiceKind, InvoiceLine, JournalEntry, LengthUnit, Order, Quote, RepairOrder, Shipment, ShipmentStatus, SiteJob, SiteJobLine, StoneBlock, TailorOrder, Weighing, WorkOrder, WorkStage } from './types';
+import type { CompanyEvent, CostParts, CompanyState, FabricRoll, Invoice, InvoiceKind, InvoiceLine, JournalEntry, LengthUnit, Order, Quote, RepairOrder, Shipment, ShipmentStatus, SiteJob, SiteJobLine, StoneBlock, TailorOrder, Weighing, WorkOrder, WorkStage , Party } from './types';
 
 function fail(message: string): never {
   throw new Error(message);
+}
+
+/** المسوّق: إلو نسبة، أو مبلغ ثابت على كل فاتورة */
+export function isMarketer(p: Party | undefined | null): p is Party {
+  if (!p) return false;
+  return p.commissionMode === 'fixed' ? (p.commissionFixed ?? 0) > 0 : (p.marketerRate ?? 0) > 0;
+}
+
+/** وصف عمولة المسوّق بكلمتين: «15% من الربح»، «5% من الفاتورة»، «مبلغ ثابت». */
+export function marketerTerms(p: Party): string {
+  if (p.commissionMode === 'fixed') return 'مبلغ ثابت على كل فاتورة';
+  return `${p.marketerRate ?? 0}% ${p.commissionMode === 'total' ? 'من إجمالي الفاتورة' : 'من الربح'}`;
 }
 
 export const INVOICE_KIND_NAMES: Record<InvoiceKind, string> = {
@@ -38,6 +50,7 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
     case 'party.saved':
       if (!event.party.name.trim()) fail('الاسم مطلوب');
       if (event.party.marketerRate !== undefined && !(event.party.marketerRate > 0 && event.party.marketerRate <= 100)) fail('نسبة المسوّق بين 0 و100');
+      if (event.party.commissionFixed !== undefined && !(Number.isSafeInteger(event.party.commissionFixed) && event.party.commissionFixed >= 0)) fail('مبلغ العمولة غير صالح');
       if (event.party.marketerBasis !== undefined && event.party.marketerBasis !== 'sales' && event.party.marketerBasis !== 'profit') fail('أساس عمولة المسوّق غير معروف');
       if (event.party.priceTier !== undefined && !['retail', 'wholesale', 'bulk', 'agent', 'special'].includes(event.party.priceTier)) fail('نوع الزبون غير معروف');
       return;

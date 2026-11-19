@@ -76,3 +76,32 @@ describe('data health check', () => {
     expect(r.issues[0]!.text).toContain('حساب المخزون');
   });
 });
+
+describe('cash journal (postVouchers)', () => {
+  it('all lines or none; each line is a normal voucher on the person’s account', () => {
+    const { store, dir } = setup();
+    try {
+      execute(store, store.user, 'saveParty', [{ id: 'a', kind: 'both', name: 'ماني اوت' }]);
+      execute(store, store.user, 'saveParty', [{ id: 'b', kind: 'both', name: 'خداش' }]);
+      const before = store.ledger.state.entries.length;
+      expect(() =>
+        execute(store, store.user, 'postVouchers', [[
+          { kind: 'receipt', date: '2026-11-19', amount: 500000, partyId: 'a', memo: 'x' },
+          { kind: 'payment', date: '2026-11-19', amount: 0, partyId: 'b', memo: 'y' },
+        ]]),
+      ).toThrow(/السطر 2/);
+      expect(store.ledger.state.entries.length).toBe(before);
+      execute(store, store.user, 'postVouchers', [[
+        { kind: 'receipt', date: '2026-11-19', amount: 500000, partyId: 'a', memo: 'x' },
+        { kind: 'payment', date: '2026-11-19', amount: 500000, partyId: 'b', memo: 'y' },
+      ]]);
+      expect(store.ledger.state.entries.length).toBe(before + 2);
+      const bal = (id: string) => store.ledger.state.entries.flatMap((e) => e.lines).filter((l) => l.partyId === id).reduce((s, l) => s + l.debit - l.credit, 0);
+      expect(bal('a')).toBe(-500000); // إله
+      expect(bal('b')).toBe(500000); // عليه
+    } finally {
+      store.close();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});

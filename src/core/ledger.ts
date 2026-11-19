@@ -1,4 +1,4 @@
-import { applyCommerceEvent, buildInvoice, convertOrder, orderTotals, piecesTotal, repairToInvoiceLines, rollRemaining, siteJobDeposits, siteJobToInvoiceLines, siteJobTotals, stoneBlockUsage, shipmentSummary, UNIT_NAMES, tailorDeposits, tailorToInvoiceLines, validateCommerceEvent, workOrderProgress, type InvoiceDraft, type InvoiceLineDraft } from './commerce';
+import { applyCommerceEvent, buildInvoice, isMarketer, marketerTerms, convertOrder, orderTotals, piecesTotal, repairToInvoiceLines, rollRemaining, siteJobDeposits, siteJobToInvoiceLines, siteJobTotals, stoneBlockUsage, shipmentSummary, UNIT_NAMES, tailorDeposits, tailorToInvoiceLines, validateCommerceEvent, workOrderProgress, type InvoiceDraft, type InvoiceLineDraft } from './commerce';
 import { ACTIVITIES } from './activities';
 import { PARTNER_MOVE_NAMES, partnerSourceId, type PartnerMoveKind } from './partners';
 import { feedRatesFor, type FeedRates } from './feed-rates';
@@ -912,7 +912,7 @@ export class Ledger {
     this.invoiceCheck?.(invoice);
     if (draft.marketerId) {
       const m = this.state.parties[draft.marketerId];
-      if (!m?.marketerRate) fail('المسوّق غير موجود أو ما إلو نسبة');
+      if (!isMarketer(m)) fail('المسوّق غير موجود أو ما إلو عمولة');
       if (invoice.kind !== 'sale') fail('المسوّق بس لفواتير المبيع');
     }
     this.emit({ type: 'invoice.posted', invoice, entry });
@@ -925,6 +925,15 @@ export class Ledger {
   private commissionAmount(invoice: Invoice, m: Party): number {
     // المسوّق اشترى لحالو (هو الزبون): ما في عمولة، وإلا بتنخصم من دينه على نفس الفاتورة
     if (invoice.partyId && invoice.partyId === m.id) return 0;
+    const baseCurrency = this.state.currencies[this.base.code]!;
+    const invCurrency = this.state.currencies[invoice.currency] ?? baseCurrency;
+    if (m.commissionMode === 'fixed') {
+      // مبلغ ثابت بالعملة الأساسية ← بعملة الفاتورة
+      const fixed = m.commissionFixed ?? 0;
+      if (!fixed) return 0;
+      return invoice.currency === this.base.code || !invoice.rate ? fixed : Math.max(0, Math.round(fixed / (invoice.rate * 10 ** (baseCurrency.decimals - invCurrency.decimals))));
+    }
+    if (m.commissionMode === 'total') return Math.max(0, Math.round(((invoice.subtotal - invoice.discount) * (m.marketerRate ?? 0)) / 100));
     const posted = this.state.invoices.find((i) => i.id === invoice.id) ?? invoice;
     const baseCur = this.state.currencies[this.base.code]!;
     const cur = this.state.currencies[invoice.currency] ?? baseCur;
@@ -941,7 +950,7 @@ export class Ledger {
    */
   recalcCommissions(marketerId: string, date: string): { changed: number; before: number; after: number } {
     const m = this.state.parties[marketerId];
-    if (!m?.marketerRate) fail('المسوّق غير موجود أو ما إلو نسبة');
+    if (!isMarketer(m)) fail('المسوّق غير موجود أو ما إلو عمولة');
     let changed = 0;
     let before = 0;
     let after = 0;
@@ -970,7 +979,7 @@ export class Ledger {
     if (!this.state.info || this.state.info.commissionsFromProfit) return 0;
     let changed = 0;
     for (const m of Object.values(this.state.parties)) {
-      if (!m.marketerRate) continue;
+      if (!isMarketer(m)) continue;
       if (!this.state.invoices.some((i) => i.marketerId === m.id)) continue;
       changed += this.recalcCommissions(m.id, date).changed;
     }
@@ -984,7 +993,7 @@ export class Ledger {
    */
   writeOffMarketerOver(marketerId: string, date: string): number {
     const m = this.state.parties[marketerId];
-    if (!m?.marketerRate) fail('المسوّق غير موجود أو ما إلو نسبة');
+    if (!isMarketer(m)) fail('المسوّق غير موجود أو ما إلو عمولة');
     const by: Record<string, number> = {};
     for (const e of this.state.entries) for (const l of e.lines) if (l.partyId === marketerId) by[l.currency] = (by[l.currency] ?? 0) + l.debit - l.credit;
     let n = 0;
@@ -1021,7 +1030,7 @@ export class Ledger {
   /** عمولة المسوّق عن فاتورة: مصروف «عمولات المسوّقين» ودين إلو (بيتصفّى بسند دفع). */
   private postCommission(invoice: Invoice): void {
     const m = this.state.parties[invoice.marketerId!];
-    if (!m?.marketerRate) return;
+    if (!m || !isMarketer(m)) return;
     const amount = this.commissionAmount(invoice, m);
     if (amount <= 0) return;
     if (!this.state.accounts[COMMISSION_ACCOUNT]) {
@@ -1031,7 +1040,7 @@ export class Ledger {
     const cur = invoice.currency !== this.base.code ? { currency: invoice.currency, rate: invoice.rate } : {};
     this.postEntry({
       date: invoice.date,
-      memo: `عمولة ${m.name} (${m.marketerRate}% من الربح) عن فاتورة مبيع رقم ${invoice.number}${invoice.partyId ? ` — ${this.state.parties[invoice.partyId]?.name ?? ''}` : ''}`,
+      memo: `عمولة ${m.name} (${marketerTerms(m)}) عن فاتورة مبيع رقم ${invoice.number}${invoice.partyId ? ` — ${this.state.parties[invoice.partyId]?.name ?? ''}` : ''}`,
       lines: [
         { accountId: COMMISSION_ACCOUNT, debit: amount, ...cur },
         { accountId: SYSTEM_ACCOUNTS.suppliers, credit: amount, partyId: m.id, ...cur },
@@ -1259,6 +1268,26 @@ export class Ledger {
   }
 
   /** سند قبض (من زبون مثلاً) أو سند دفع (لمورد أو مصروف). */
+  /**
+   * «يومية الصندوق»: كذا قبض ودفع مع بعض. بتنجرّب كلها على نسخة أول، فإذا سطر غلط ما بينسجّل ولا واحد.
+   * كل سطر بيصير سند عادي (بيطلع بالسندات وبكشف حساب صاحبه).
+   */
+  postVouchers(list: VoucherDraft[]): JournalEntry[] {
+    if (!Array.isArray(list) || !list.length) fail('ما في ولا سطر');
+    if (list.length > 500) fail('السطور كتير، قسّمها على أكتر من يومية');
+    const trial = new Ledger(() => {}, structuredClone(this.state));
+    trial.actor = this.actor;
+    trial.autoRecost = false;
+    list.forEach((v, i) => {
+      try {
+        trial.postVoucher(v);
+      } catch (e) {
+        fail(`السطر ${i + 1}: ${(e as Error).message}`);
+      }
+    });
+    return list.map((v) => this.postVoucher(v));
+  }
+
   postVoucher(v: VoucherDraft): JournalEntry {
     if (!(v.amount > 0) || !Number.isSafeInteger(v.amount)) fail('المبلغ يجب أن يكون أكبر من صفر');
     const party = v.partyId ? (this.state.parties[v.partyId] ?? fail('الطرف غير موجود')) : null;

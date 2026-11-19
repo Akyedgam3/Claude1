@@ -121,6 +121,10 @@ function executeChecked(store: CompanyStore, user: User, method: string, args: u
   }
   // صندوق المستخدم: مبيعاته وسنداته بتنزل فيه (لغير المالك إجباري، وللمالك افتراضي)
   const box = user.cashAccountId && store.ledger.state.accounts[user.cashAccountId] ? user.cashAccountId : undefined;
+  if (box && method === 'postVouchers' && Array.isArray(args[0])) {
+    // يومية الصندوق: كل سطر بصندوق المستخدم (لغير المالك)
+    for (const v of args[0] as { cashAccountId?: string }[]) if (v && typeof v === 'object' && (user.role !== 'owner' || !v.cashAccountId)) v.cashAccountId = box;
+  }
   if (box) {
     const draft = (method === 'postInvoice' || method === 'postVoucher' ? args[0] : method === 'replaceInvoice' ? args[1] : undefined) as { cashAccountId?: string; kind?: string; accountId?: string } | undefined;
     if (draft && typeof draft === 'object' && (draft.kind !== 'purchase' || user.role !== 'owner')) {
@@ -131,7 +135,7 @@ function executeChecked(store: CompanyStore, user: User, method: string, args: u
   if (!can(user, 'items.hidden')) {
     const st = store.ledger.state;
     const touches = (x: unknown) => x && typeof x === 'object' && ['cashAccountId', 'from', 'to', 'accountId'].some((k) => { const v = (x as Record<string, unknown>)[k]; return typeof v === 'string' && !!st.accounts[v]?.hidden; });
-    if (args.some(touches)) fail('الصندوق غير موجود');
+    if (args.some(touches) || args.some((a) => Array.isArray(a) && a.some(touches))) fail('الصندوق غير موجود');
     if (method === 'voidEntry' && st.entries.find((e) => e.id === args[0])?.lines.some((l) => st.accounts[l.accountId]?.hidden)) fail('القيد غير موجود');
   }
   // الاستبدال فيه شراء كمان

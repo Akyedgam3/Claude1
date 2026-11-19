@@ -439,3 +439,50 @@ test('a cashier from the preset sees no purchase prices, profits or purchase inv
     await close();
   }
 });
+
+test('cash journal: several receipts and payments on one box with F9; POS shows unpriced items; cancelled invoices in their own list', async () => {
+  const { page, close } = await launch();
+  try {
+    await activate(page);
+    await createCompany(page, { name: 'مكتب الحوالات', activity: 'تجارة عامة' });
+    const call = (method: string, ...args: unknown[]) => page.evaluate(([mm, a]) => (window as any).mizan.invoke('company:call', mm, a), [method, args] as const);
+    const today = new Date().toISOString().slice(0, 10);
+    await call('saveParty', { id: 'a', kind: 'both', name: 'ماني اوت' });
+    await call('saveParty', { id: 'b', kind: 'both', name: 'خداش' });
+
+    await nav(page, 'يومية الصندوق');
+    const rows = page.locator('.cj-lines tbody tr');
+    const pickWho = async (i: number, name: string) => {
+      const inp = rows.nth(i).locator('.with-button input').first();
+      await inp.click();
+      await inp.fill(name);
+      await page.locator('.picker-list li').first().waitFor();
+      await inp.press('Enter');
+    };
+    await rows.nth(0).locator('input.cj-in').fill('5000');
+    await pickWho(0, 'ماني اوت');
+    await rows.nth(1).locator('input.cj-out').fill('3000');
+    await pickWho(1, 'خداش');
+    await expect(page.locator('.cj-totals')).toContainText('2,000');
+    await page.keyboard.press('F9');
+    await toast(page, 'تسجّلت 2 حركة');
+    const st = (await page.evaluate(() => (window as any).mizan.invoke('company:state'))).state;
+    expect(st.entries.filter((e: any) => e.source?.type === 'receipt' || e.source?.type === 'payment')).toHaveLength(2);
+
+    // نقطة البيع: مادة بدون سعر بتطلع (مش مخفية)
+    await call('saveItem', { id: 'np', code: 'NP', name: 'مادة بلا سعر', kind: 'service', unit: 'قطعة', price: 0, priceCurrency: 'SYP' });
+    await nav(page, 'نقطة البيع');
+    await expect(page.locator('.pos-item.no-price', { hasText: 'مادة بلا سعر' })).toBeVisible();
+
+    // فاتورة ملغاة بتروح على قائمة «الملغاة»
+    await call('saveItem', { id: 's', code: 'S', name: 'خدمة', kind: 'service', unit: 'قطعة', price: 100000, priceCurrency: 'SYP' });
+    const inv = (await call('postInvoice', { kind: 'sale', date: today, lines: [{ itemId: 's', qty: 1, price: 100000 }] })) as any;
+    await call('voidInvoice', inv.value?.id ?? inv.id, today);
+    await nav(page, 'سجل الفواتير');
+    await expect(page.locator('table tbody tr', { hasText: 'ملغاة' })).toHaveCount(0);
+    await page.getByRole('button', { name: /الملغاة \(1\)/ }).click();
+    await expect(page.locator('table tbody tr', { hasText: 'ملغاة' })).toHaveCount(1);
+  } finally {
+    await close();
+  }
+});

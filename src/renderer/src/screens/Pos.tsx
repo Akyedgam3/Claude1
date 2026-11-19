@@ -92,19 +92,21 @@ export function Pos() {
     }
     return n;
   }, [state.invoices]);
-  const sellable = useMemo(
-    () => Object.values(state.items).filter((i) => !i.archived && !i.dealerId && (i.price > 0 || i.units?.some((u) => (u.price ?? 0) > 0))),
-    [state.items],
-  );
+  // كل المواد بتطلع (حتى اللي لسا ما إلها سعر: بتنعلّم «بدون سعر» بدل ما تختفي)
+  const hasPrice = (i: Item) => i.price > 0 || !!i.units?.some((u) => (u.price ?? 0) > 0);
+  const sellable = useMemo(() => Object.values(state.items).filter((i) => !i.archived && !i.dealerId), [state.items]);
+  const [limit, setLimit] = useState(60);
   const categories = useMemo(() => [...new Set(sellable.map((i) => i.category).filter(Boolean))] as string[], [sellable]);
-  const grid = useMemo(
+  const matching = useMemo(
     () =>
       sellable
-        .filter((i) => (!category || i.category === category) && matches(query, i.name, i.code, i.barcode))
-        .sort((a, b) => (popularity[b.id] ?? 0) - (popularity[a.id] ?? 0))
-        .slice(0, 60),
+        .filter((i) => (!category || i.category === category) && matches(query, i.name, i.code, i.barcode, i.partNumber, i.brand, ...(i.units ?? []).map((u) => u.barcode)))
+        // الأكثر مبيعاً أول، والمسعّرة قبل اللي ما إلها سعر
+        .sort((a, b) => Number(hasPrice(b)) - Number(hasPrice(a)) || (popularity[b.id] ?? 0) - (popularity[a.id] ?? 0) || a.name.localeCompare(b.name, 'ar')),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [sellable, category, query, popularity],
   );
+  const grid = matching.slice(0, limit);
   const inCart = useMemo(() => {
     const m: Record<string, number> = {};
     for (const l of cart) m[l.itemId] = (m[l.itemId] ?? 0) + 1;
@@ -309,7 +311,18 @@ export function Pos() {
             const p = i.price > 0 ? priceOf(i) : null;
             return (
               <div key={i.id} className="pos-tile">
-                <button className={`pos-item ${inCart[i.id] ? 'in-cart' : ''}`} onClick={() => (i.price > 0 ? add(i) : i.units?.[0] && add(i, { unit: i.units[0].name }))}>
+                <button
+                  className={`pos-item ${inCart[i.id] ? 'in-cart' : ''} ${hasPrice(i) ? '' : 'no-price'}`}
+                  onClick={() => {
+                    if (i.price > 0) return add(i);
+                    const u = i.units?.find((x) => (x.price ?? 0) > 0);
+                    if (u) return add(i, { unit: u.name });
+                    // ما إلها سعر: اللي معه تغيير السعر بيضيفها وبيكتب السعر، والباقي بيعرف ليش
+                    if (!can('price.edit')) return notify(`«${i.name}» ما إلها سعر مبيع. حطلها سعر من المواد`, 'error');
+                    add(i, { price: 0 });
+                    notify(`«${i.name}» ما إلها سعر: اكبس على السعر بالسلة واكتبه`);
+                  }}
+                >
                   {inCart[i.id] ? (
                     <span key={inCart[i.id]} className="badge">
                       {inCart[i.id]}
@@ -325,8 +338,10 @@ export function Pos() {
                           <b>{money(state, p, cur)}</b> <i>/ {i.unit}</i>
                         </>
                       )
-                    ) : (
+                    ) : hasPrice(i) ? (
                       ''
+                    ) : (
+                      <i className="muted">بدون سعر</i>
                     )}
                   </span>
                   {i.kind === 'stock' && can('stock.qty') && (
@@ -352,6 +367,11 @@ export function Pos() {
             );
           })}
         </div>
+        {matching.length > grid.length && (
+          <button type="button" className="ghost pos-more" onClick={() => setLimit(limit + 120)}>
+            عرض المزيد ({matching.length - grid.length} مادة كمان) — أو ابحث بالاسم أو الباركود
+          </button>
+        )}
       </div>
 
       <CartBar tab={mobileTab.tab} setTab={mobileTab.setTab} count={cart.length} total={money(state, total, cur)} />

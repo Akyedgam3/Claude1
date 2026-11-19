@@ -50,6 +50,9 @@ export function Invoices({ initial }: { initial?: string } = {}) {
   const [to, setTo] = useState('');
   const [showDeleted, setShowDeleted] = useState(false);
   const deletedCount = useMemo(() => state.invoices.filter((i) => i.deleted).length, [state.invoices]);
+  // الملغاة (والنسخ القديمة من الفواتير المعدّلة) بقائمة لحالها، مش مخلوطة بالفواتير الشغّالة
+  const [showVoided, setShowVoided] = useState(false);
+  const voidedCount = useMemo(() => state.invoices.filter((i) => i.voidEntryId && !i.deleted && sideOf(i.kind) === side).length, [state.invoices, side]);
   // قائمة الكبسة اليمين على الفاتورة
   const [menu, setMenu] = useState<{ inv: Invoice; x: number; y: number } | null>(null);
   // ربح كل فاتورة مبيع (بس لأصحاب صلاحية التكلفة، وبينطفى من الإعدادات)
@@ -61,6 +64,7 @@ export function Invoices({ initial }: { initial?: string } = {}) {
         .filter(
           (i) =>
             (showDeleted || !i.deleted) &&
+            (i.deleted ? true : showVoided ? !!i.voidEntryId : !i.voidEntryId) &&
             (!mineOnly || i.createdBy === user.id) &&
             sideOf(i.kind) === side &&
             (kind === 'all' || i.kind === kind) &&
@@ -70,7 +74,7 @@ export function Invoices({ initial }: { initial?: string } = {}) {
         )
         .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
         .slice(0, 1000),
-    [state, query, side, kind, from, to, showDeleted, mineOnly, user.id],
+    [state, query, side, kind, from, to, showDeleted, showVoided, mineOnly, user.id],
   );
 
   return (
@@ -151,6 +155,11 @@ export function Invoices({ initial }: { initial?: string } = {}) {
             <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
           </Field>
         </div>
+        {(voidedCount > 0 || showVoided) && (
+          <button type="button" className={showVoided ? 'primary' : 'ghost'} onClick={() => setShowVoided(!showVoided)}>
+            {showVoided ? '← الفواتير الشغّالة' : `الملغاة (${voidedCount})`}
+          </button>
+        )}
         {deletedCount > 0 && (
           <label className="check">
             <input type="checkbox" checked={showDeleted} onChange={(e) => setShowDeleted(e.target.checked)} /> إظهار المحذوفة ({deletedCount})

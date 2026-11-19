@@ -253,6 +253,10 @@ export interface Party {
   marketerRate?: number;
   /** قديم (1.2.71): العمولة صارت دايماً من ربح الفاتورة، والحقل بيضل للتوافق بس. */
   marketerBasis?: 'sales' | 'profit';
+  /** طريقة عمولة المسوّق (من 1.2.91): % من الربح (الافتراضي)، % من إجمالي الفاتورة، أو مبلغ ثابت على كل فاتورة */
+  commissionMode?: 'profit' | 'total' | 'fixed';
+  /** المبلغ الثابت على كل فاتورة (بالعملة الأساسية، أصغر وحدة) */
+  commissionFixed?: number;
   archived?: boolean;
 }
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { attributesFor, ATTRIBUTE_SUGGESTIONS, isCashBox, computeTaxes, PRICE_TIER_NAMES, tierPrice, niceUnitCost, PRICE_SCALE, roundPrice, findRate, itemPlace, listPrices, withPlace, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
+import { isMarketer, marketerTerms, attributesFor, ATTRIBUTE_SUGGESTIONS, isCashBox, computeTaxes, PRICE_TIER_NAMES, tierPrice, niceUnitCost, PRICE_SCALE, roundPrice, findRate, itemPlace, listPrices, withPlace, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
 import { convertPrice, dateText, fxRates, money, cleanNumber, qtyTotalText, qtyText, parseAmount, parseDiscount, parsePrice, rateInverted, toInput, today, uid, useCompany } from '../api';
 import { askConfirm, CurrencySelect, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
 import { invoiceDrafts } from '../drafts';
@@ -182,7 +182,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
   const [salesman, setSalesman] = useState(editing?.salesman ?? d?.salesman ?? '');
   const [vatNumber, setVatNumber] = useState(editing?.vatNumber ?? d?.vatNumber ?? '');
   const [marketerId, setMarketerId] = useState(editing?.marketerId ?? d?.marketerId ?? '');
-  const marketers = useMemo(() => Object.values(state.parties).filter((p) => p.marketerRate && !p.archived), [state.parties]);
+  const marketers = useMemo(() => Object.values(state.parties).filter((p) => isMarketer(p) && !p.archived), [state.parties]);
   const [notes, setNotes] = useState(editing?.notes ?? d?.notes ?? '');
   const [newItem, setNewItem] = useState<string | null>(null);
   const [weighLine, setWeighLine] = useState<string | null>(null);
@@ -571,7 +571,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
         paid: extra > 0 ? preview.total : paid,
         cashAccountId: cashId,
         ...(salesman.trim() ? { salesman: salesman.trim() } : {}),
-        ...(kind === 'sale' && marketerId && state.parties[marketerId]?.marketerRate ? { marketerId } : {}),
+        ...(kind === 'sale' && marketerId && isMarketer(state.parties[marketerId]) ? { marketerId } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
       };
       const res = editing ? await call<Invoice>('replaceInvoice', editing.id, draft) : await call<Invoice>('postInvoice', draft);
@@ -752,12 +752,12 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
               <option value="">— لأ —</option>
               {marketers.map((m) => (
                 <option key={m.id} value={m.id}>
-                  {m.name} ({m.marketerRate}% من الربح)
+                  {m.name} ({marketerTerms(m)})
                 </option>
               ))}
             </select>
             {marketerId && marketerId === partyId && <small className="bad">المسوّق هو نفسه الزبون: ما بتنحسبله عمولة على هالفاتورة (وما بتنخصم من حسابه)</small>}
-            {marketerId && marketerId !== partyId && state.parties[marketerId]?.marketerRate && can('profits.view') && <small className="muted">عمولتو {state.parties[marketerId]!.marketerRate}% من ربح الفاتورة (البيع ناقص تكلفة البضاعة)، بتنحسب وبتنسجّل لما تحفظ</small>}
+            {marketerId && marketerId !== partyId && isMarketer(state.parties[marketerId]) && (state.parties[marketerId]!.commissionMode !== 'profit' && state.parties[marketerId]!.commissionMode !== undefined ? true : can('profits.view')) && <small className="muted">عمولتو {marketerTerms(state.parties[marketerId]!)}، بتنحسب وبتنسجّل لما تحفظ</small>}
           </Field>
         )}
         {state.info?.vatNumber && (

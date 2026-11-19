@@ -502,6 +502,34 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
     return v === null ? '' : toInput(state, Math.round(v * 1e6) / 1e6, item?.priceCurrency ?? base);
   })();
   const [buy, setBuy] = useState(buyInitial);
+  // «سعر المبيع = سعر الشراء + نسبة»: النسبة الافتراضية من آخر مرة (بهالجهاز) أو 50%
+  const [markup, setMarkup] = useState(() => {
+    try {
+      return localStorage.getItem('wazn.markup') ?? '50';
+    } catch {
+      return '50';
+    }
+  });
+  const applyMarkup = () => {
+    const pct = Number(markup.replace(',', '.'));
+    if (!buy.trim() || !(pct >= 0)) return notify('اكتب سعر الشراء والنسبة', 'error');
+    try {
+      const cost = parsePrice(state, buy, f.priceCurrency);
+      const dec = state.currencies[f.priceCurrency]?.decimals ?? 2;
+      // تقريب لأقرب وحدة صغيرة مفهومة: الليرة لأقرب 1، والدولار لأقرب سنت
+      const step = dec >= 2 ? 1 : 10 ** dec;
+      const price = Math.round((cost * (1 + pct / 100)) / step) * step;
+      setF({ ...f, price: toInput(state, price, f.priceCurrency) });
+      try {
+        localStorage.setItem('wazn.markup', markup);
+      } catch {
+        /* ما في تخزين */
+      }
+      notify(`سعر المبيع صار ${toInput(state, price, f.priceCurrency)} (الشراء + ${pct}%)`);
+    } catch (e) {
+      notify((e as Error).message, 'error');
+    }
+  };
   const [buyApply, setBuyApply] = useState(true);
   const [extraAttr, setExtraAttr] = useState('');
   const attributeNames = [...new Set([...attributesFor(profile, f.category), ...Object.keys(attrs)])];
@@ -751,6 +779,14 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
                   ) : (
                     <small className="muted">بيطلع تلقائياً بفواتير الشراء الجاية</small>
                   )}
+                  <div className="markup-row">
+                    <span>سعر المبيع = الشراء +</span>
+                    <input value={markup} onChange={(e) => setMarkup(e.target.value)} inputMode="decimal" aria-label="نسبة الربح" />
+                    <span>%</span>
+                    <button type="button" className="ghost small" disabled={!buy.trim()} onClick={applyMarkup}>
+                      احسب السعر
+                    </button>
+                  </div>
                   {buy.trim() !== buyInitial.trim() && buy.trim() && stockLvl && stockLvl.totalQty > 0 && (
                     <label className="check">
                       <input type="checkbox" checked={buyApply} onChange={(e) => setBuyApply(e.target.checked)} />

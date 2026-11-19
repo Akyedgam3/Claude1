@@ -50,6 +50,7 @@ export const NAV: (NavItem | string)[] = [
   { key: 'statement', label: 'كشف الحساب', icon: 'file', perms: ['reports.financial', 'vouchers.create'], also: 'balances.view' },
   { key: 'marketers', label: 'المسوّقين', icon: 'users', perm: 'reports.financial' },
   { key: 'vouchers', label: 'سندات القبض والدفع', icon: 'wallet', perm: 'vouchers.create' },
+  { key: 'cashjournal', label: 'يومية الصندوق', icon: 'journal', perm: 'vouchers.create' },
   { key: 'invoices', label: 'سجل الفواتير', icon: 'receipt' },
   'المخزون والبطاقات',
   { key: 'items', label: 'المواد', icon: 'package' },

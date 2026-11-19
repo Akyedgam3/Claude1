@@ -364,6 +364,9 @@ export function PartyForm({
             ...(f.priceTier !== 'retail' ? { priceTier: f.priceTier as Party['priceTier'] } : {}),
             ...(creditLimit > 0 ? { creditLimit } : {}),
             ...(Number(f.marketerRate) > 0 ? { marketerRate: Math.min(100, Number(f.marketerRate)) } : {}),
+            // طريقة العمولة بتتعدّل من شاشة المسوّقين: هون منحافظ عليها
+            ...(party?.commissionMode ? { commissionMode: party.commissionMode } : {}),
+            ...(party?.commissionFixed ? { commissionFixed: party.commissionFixed } : {}),
             ...(feature('listPricing') && f.listDiscount.trim() !== '' && Number.isFinite(Number(f.listDiscount)) ? { listDiscount: Number(f.listDiscount) } : {}),
             ...(f.phone.trim() ? { phone: f.phone.trim() } : {}),
             ...(f.address.trim() ? { address: f.address.trim() } : {}),
@@ -426,9 +429,13 @@ export function PartyForm({
             <input value={f.creditLimit} onChange={set('creditLimit')} inputMode="decimal" />
           </Field>
         )}
-        <Field label="مسوّق بيجيب زباين؟ نسبته % من ربح الفاتورة (فاضي = لأ)">
+        {party?.commissionMode === 'fixed' ? (
+          <p className="muted">مسوّق بمبلغ ثابت على كل فاتورة (بيتعدّل من شاشة «المسوّقين»).</p>
+        ) : (
+        <Field label={party?.commissionMode === 'total' ? 'مسوّق؟ نسبته % من إجمالي الفاتورة (فاضي = لأ)' : 'مسوّق بيجيب زباين؟ نسبته % من ربح الفاتورة (فاضي = لأ)'}>
           <input value={f.marketerRate} onChange={(e) => setF({ ...f, marketerRate: e.target.value.replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/[^\d.]/g, '') })} inputMode="decimal" placeholder="مثلاً 15" />
         </Field>
+        )}
         <Field label="ملاحظات" wide>
           <textarea value={f.notes} onChange={set('notes')} rows={2} />
         </Field>

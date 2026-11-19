@@ -57,6 +57,7 @@ import { Debts } from './screens/Debts';
 import { Marketers } from './screens/Marketers';
 import { Tour } from './components/Tour';
 import { Vouchers } from './screens/Vouchers';
+import { CashJournal } from './screens/CashJournal';
 import { Welcome } from './screens/Welcome';
 import { useCloudHost } from './cloud/useCloudHost';
 import { WebConnect } from './cloud/WebConnect';
@@ -551,6 +552,8 @@ function Screen({ screen }: { screen: { key: string; param?: string } }) {
       return <Marketers />;
     case 'partners':
       return <Partners key={p ?? ''} {...(p ? { tab: p } : {})} />;
+    case 'cashjournal':
+      return <CashJournal />;
     case 'vouchers':
       return <Vouchers key={p ?? ''} {...(p === 'payment' || p === 'receipt' ? { initialKind: p } : {})} />;
     case 'rates':
