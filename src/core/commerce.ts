@@ -135,6 +135,19 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       if (prev?.invoiceId && a.status !== 'done' && !invoiceVoided(state, prev.invoiceId)) fail('الموعد مفوتر');
       return;
     }
+    case 'draft.saved': {
+      const d = event.draft;
+      if (!(d.kind in INVOICE_KIND_NAMES)) fail('نوع فاتورة غير معروف');
+      if (!DATE_RE.test(d.date)) fail('تاريخ غير صالح');
+      if (d.partyId && !state.parties[d.partyId]) fail('الزبون أو المورد غير موجود');
+      if (!state.currencies[d.currency]) fail('عملة غير معروفة');
+      if (!Array.isArray(d.lines) || d.lines.length > 2000) fail('مسودة غير صالحة');
+      if (JSON.stringify(d.data ?? null).length > 1_500_000) fail('المسودة كبيرة كتير');
+      return;
+    }
+    case 'draft.deleted':
+      if (!state.drafts?.[event.id]) fail('المسودة غير موجودة');
+      return;
     case 'quote.saved': {
       const q = event.quote;
       if (!DATE_RE.test(q.date) || (q.validUntil && !DATE_RE.test(q.validUntil))) fail('تاريخ غير صالح');
@@ -623,6 +636,13 @@ export function applyCommerceEvent(state: CompanyState, event: CompanyEvent): vo
     case 'quote.saved':
       state.quotes[event.quote.id] = { ...event.quote };
       bump(state, 'quote', event.quote.number);
+      return;
+    case 'draft.saved':
+      (state.drafts ??= {})[event.draft.id] = { ...event.draft };
+      bump(state, 'draft', event.draft.number);
+      return;
+    case 'draft.deleted':
+      if (state.drafts) delete state.drafts[event.id];
       return;
     case 'tailor.saved':
       state.tailorOrders[event.order.id] = { ...event.order };

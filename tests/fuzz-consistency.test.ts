@@ -18,6 +18,7 @@ import {
 } from '../src/core';
 import { partyDebts } from '../src/core/reports';
 import { costPlan } from '../src/core/recost';
+import { healthCheck } from '../src/core/health';
 
 // اختبار ضغط: آلاف العمليات العشوائية (شراء، بيع نقدي وآجل، مرتجعات، سندات، ديون، تعديل وإلغاء فواتير،
 // جرد وتالف، دولار وليرة، بيع بالسالب) وبعد كل خطوة منتأكد إنو كل الأرقام بتطابق بعضها.
@@ -303,6 +304,11 @@ function check(l: Ledger, events: CompanyEvent[], where: string) {
     if (it) console.log('  STOCK', JSON.stringify(s.stock[it]));
   }
   expect(plan.lines.length + plan.docs.length, `${where} costs not corrected: ${JSON.stringify(plan.docs.slice(0, 3))}`).toBe(0);
+  // 9) فحص البيانات (اللي بالإعدادات) بيقول سليم
+  if (process.env.FUZZ_HEALTH !== '0') {
+    const h = healthCheck(s);
+    expect(h.issues.filter((i) => i.level !== 'info'), `${where} health`).toEqual([]);
+  }
   // 7) إعادة بناء الحالة من الأحداث بتعطي نفس النتيجة (الأحداث هي المصدر)
   const replay = emptyState();
   for (const e of events) applyEvent(replay, structuredClone(e));

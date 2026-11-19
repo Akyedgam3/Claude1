@@ -54,7 +54,8 @@ export const invoiceDrafts = {
   /** آخر فاتورة مفتوحة من هالنوع (لما يرجع من القائمة بيلاقيها متل ما تركها). */
   latest(name: string, kind: string): InvoiceDraft | undefined {
     load(name);
-    return drafts.filter((d) => d.kind === kind).sort((a, b) => b.updated - a.updated)[0];
+    // تعديلات مسودة محفوظة (sd-...) ما بتنفتح كفاتورة جديدة
+    return drafts.filter((d) => d.kind === kind && !d.id.startsWith('sd-')).sort((a, b) => b.updated - a.updated)[0];
   },
   save(name: string, draft: InvoiceDraft) {
     load(name);

@@ -1103,6 +1103,29 @@ export interface Quote {
   createdBy?: string;
 }
 
+/** فاتورة مسودة (من 1.2.89): لقطة للطباعة + حالة شاشة الفاتورة لترجع تنفتح متل ما انحفظت. */
+export interface SavedDraft {
+  id: string;
+  number: number;
+  kind: InvoiceKind;
+  date: string;
+  partyId?: string | null;
+  title: string; // اسم الزبون/المورد أو «زبون نقدي»
+  currency: string;
+  lines: { description: string; qty: number; unit?: string; price: number; discount?: number }[];
+  subtotal: number;
+  discount: number;
+  taxes: { name: string; amount: number }[];
+  total: number;
+  notes?: string;
+  /** حالة شاشة الفاتورة (InvoiceEditor بيعرف شكلها) */
+  data: unknown;
+  createdBy: string;
+  createdAt: string;
+  updatedBy?: string;
+  updatedAt: string;
+}
+
 // ───────────── الحالة الكاملة والأحداث ─────────────
 
 export interface CompanyState {
@@ -1145,6 +1168,8 @@ export interface CompanyState {
   partners: Record<string, Partner>;
   employees?: Record<string, Employee>;
   quotes: Record<string, Quote>;
+  /** فواتير مسودة: محفوظة ومشتركة بين الأجهزة، بس ما إلها أي أثر عالمخزون والحسابات لحد ما تنعتمد */
+  drafts?: Record<string, SavedDraft>;
   rolls: Record<string, FabricRoll>;
   workOrders: Record<string, WorkOrder>;
   installments: Record<string, InstallmentPlan>;
@@ -1208,6 +1233,8 @@ export type CompanyEvent =
   | { type: 'partner.saved'; partner: Partner }
   | { type: 'employee.saved'; employee: Employee }
   | { type: 'quote.saved'; quote: Quote }
+  | { type: 'draft.saved'; draft: SavedDraft }
+  | { type: 'draft.deleted'; id: string; invoiceId?: string }
   | { type: 'rolls.saved'; rolls: FabricRoll[] }
   | { type: 'workorder.saved'; order: WorkOrder }
   | { type: 'installment.saved'; plan: InstallmentPlan };

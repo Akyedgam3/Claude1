@@ -136,6 +136,12 @@ function executeChecked(store: CompanyStore, user: User, method: string, args: u
   }
   // الاستبدال فيه شراء كمان
   if (method === 'tradeIn') requirePermission(user, 'purchases.create');
+  // حذف/تعديل مسودة: الصلاحية حسب نوعها المحفوظ (مش اللي بعته الطلب)
+  if (method === 'deleteDraft' || method === 'saveDraft') {
+    const id = method === 'deleteDraft' ? args[0] : (args[0] as { id?: unknown } | undefined)?.id;
+    const saved = typeof id === 'string' ? store.ledger.state.drafts?.[id] : undefined;
+    if (saved) requirePermission(user, permissionFor('saveDraft', [{ kind: saved.kind }])!);
+  }
   // تعديل سعر الشراء بيكشف التكلفة
   if (method === 'revalueItem') requirePermission(user, 'costs.view');
   if (method === 'saveOrder') {

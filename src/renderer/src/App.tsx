@@ -470,9 +470,9 @@ function Screen({ screen }: { screen: { key: string; param?: string } }) {
     case 'purchase':
     case 'sale_return':
     case 'purchase_return':
-      return <InvoiceEditor key={`${screen.key}-${p ?? ''}`} kind={screen.key} {...(p?.startsWith('draft:') ? { draftId: p.slice(6) } : p ? { editId: p } : {})} />;
+      return <InvoiceEditor key={`${screen.key}-${p ?? ''}`} kind={screen.key} {...(p?.startsWith('draft:') ? { draftId: p.slice(6) } : p?.startsWith('sd:') ? { savedDraftId: p.slice(3) } : p ? { editId: p } : {})} />;
     case 'invoices':
-      return <Invoices />;
+      return <Invoices key={p ?? ''} {...(p ? { initial: p } : {})} />;
     case 'invoice':
       return <InvoiceView id={p!} />;
     case 'repairs':

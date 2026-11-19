@@ -4,6 +4,7 @@ import { dateText, major, money, today, useCompany } from '../api';
 import { ExportButtons } from '../components/print';
 import { ConfirmButton, Empty, Field, matches, PageHeader, SearchBox } from '../components/ui';
 import { Icon } from '../components/icons';
+import { DraftsList } from '../components/DraftsList';
 
 /** صلاحية تعديل الفاتورة: إلغاء + إنشاء من نفس النوع، ومش طالعة من طلب أو مشروع. */
 export function canEditInvoice(inv: Invoice, can: (p: never) => boolean): boolean {
@@ -11,11 +12,11 @@ export function canEditInvoice(inv: Invoice, can: (p: never) => boolean): boolea
   return !inv.voidEntryId && !inv.source && can('sales.void' as never) && can(create as never);
 }
 
-type Side = 'sale' | 'purchase';
+type Side = 'sale' | 'purchase' | 'drafts';
 const sideOf = (k: InvoiceKind): Side => (k === 'purchase' || k === 'purchase_return' ? 'purchase' : 'sale');
-const SIDE_KINDS: Record<Side, InvoiceKind[]> = { sale: ['sale', 'sale_return'], purchase: ['purchase', 'purchase_return'] };
+const SIDE_KINDS: Record<Side, InvoiceKind[]> = { sale: ['sale', 'sale_return'], purchase: ['purchase', 'purchase_return'], drafts: [] };
 
-export function Invoices() {
+export function Invoices({ initial }: { initial?: string } = {}) {
   const { state, navigate, can, call, notify, user } = useCompany();
   // بدون صلاحية «فواتير باقي المستخدمين» بيشوف فواتيره هو بس
   const mineOnly = !can('invoices.all');
@@ -23,6 +24,7 @@ export function Invoices() {
   const [query, setQuery] = useState('');
   // قسمين: فواتير المبيع (مع مرتجعاتها) وفواتير الشراء (مع مرتجعاتها)، والقسم بينحفظ
   const [side, setSideState] = useState<Side>(() => {
+    if (initial === 'drafts') return 'drafts';
     try {
       return localStorage.getItem('wazn.invoiceSide') === 'purchase' ? 'purchase' : 'sale';
     } catch {
@@ -40,7 +42,7 @@ export function Invoices() {
   };
   const [kind, setKind] = useState<InvoiceKind | 'all'>('all');
   const counts = useMemo(() => {
-    const c = { sale: 0, purchase: 0 };
+    const c = { sale: 0, purchase: 0, drafts: 0 };
     for (const i of state.invoices) if (!i.deleted) c[sideOf(i.kind)]++;
     return c;
   }, [state.invoices]);
@@ -116,7 +118,19 @@ export function Invoices() {
         <button className={side === 'purchase' ? 'active' : ''} onClick={() => setSide('purchase')}>
           فواتير الشراء ({counts.purchase})
         </button>
+        <button className={side === 'drafts' ? 'active' : ''} onClick={() => setSide('drafts')}>
+          المسودات ({Object.keys(state.drafts ?? {}).length})
+        </button>
       </div>
+      {side === 'drafts' && (
+        <>
+          <div className="toolbar">
+            <SearchBox value={query} onChange={setQuery} placeholder="ابحث برقم المسودة أو اسم الزبون أو مادة..." />
+          </div>
+          <DraftsList query={query} />
+        </>
+      )}
+      {side !== 'drafts' && (<>
       <div className="toolbar">
         <SearchBox value={query} onChange={setQuery} placeholder="ابحث برقم الفاتورة، اسم العميل، المندوب، أو رقم IMEI..." />
         <select value={kind} onChange={(e) => setKind(e.target.value as InvoiceKind | 'all')}>
@@ -225,6 +239,7 @@ export function Invoices() {
           </div>
         </div>
       )}
+      </>)}
     </div>
   );
 }

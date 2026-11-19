@@ -79,6 +79,12 @@ export function permissionsOf(user: User): Set<Permission> {
   return set;
 }
 
+function kindPermission(kind: string | undefined): Permission {
+  if (kind === 'purchase' || kind === 'purchase_return') return 'purchases.create';
+  if (kind === 'sale_return') return 'returns.create';
+  return 'sales.create';
+}
+
 export function can(user: User | null | undefined, permission: Permission): boolean {
   return !!user && permissionsOf(user).has(permission);
 }
@@ -115,6 +121,9 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
     if (kind === 'sale_return') return 'returns.create';
     return 'sales.create';
   },
+  // المسودة بصلاحية نوع الفاتورة نفسها (المنفّذ بيتأكد من نوع المسودة المحفوظة بالحذف)
+  saveDraft: (args) => kindPermission((args[0] as { kind?: string } | undefined)?.kind),
+  deleteDraft: (args) => kindPermission(args[1] as string | undefined),
   voidInvoice: 'sales.void',
   deleteInvoice: 'sales.void',
   replaceInvoice: 'sales.void',

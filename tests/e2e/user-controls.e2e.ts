@@ -336,3 +336,64 @@ test('item card: edit the purchase price (stock cost follows, qty stays), delete
     await close();
   }
 });
+
+test('draft invoices: save as draft (no stock move), find it in the log, print it, approve it into a real invoice', async () => {
+  const { page, close } = await launch();
+  try {
+    await activate(page);
+    await createCompany(page, { name: 'محل المسودات', activity: 'تجارة عامة' });
+    const call = (method: string, ...args: unknown[]) => page.evaluate(([mm, a]) => (window as any).mizan.invoke('company:call', mm, a), [method, args] as const);
+    const today = new Date().toISOString().slice(0, 10);
+    await call('saveParty', { id: 's', kind: 'supplier', name: 'مورد' });
+    await call('saveParty', { id: 'c', kind: 'customer', name: 'أبو علي' });
+    await call('saveItem', { id: 'r', code: 'R1', name: 'رز', kind: 'stock', unit: 'كيس', price: 100000, priceCurrency: 'SYP' });
+    await call('postInvoice', { kind: 'purchase', date: today, partyId: 's', lines: [{ itemId: 'r', qty: 10, price: 60000 }] });
+    const st = async () => (await page.evaluate(() => (window as any).mizan.invoke('company:state'))).state;
+
+    await nav(page, 'فاتورة مبيع');
+    const partyInput = page.locator('.field', { hasText: 'العميل' }).locator('input').first();
+    await partyInput.click();
+    await partyInput.fill('أبو علي');
+    await page.locator('.picker-list li').first().waitFor();
+    await partyInput.press('Enter');
+    const row = page.locator('table.lines tbody tr').first();
+    const itemInput = row.locator('.with-button input').first();
+    await itemInput.click();
+    await itemInput.fill('رز');
+    await page.locator('.picker-list li').first().waitFor();
+    await itemInput.press('Enter');
+    await row.locator('.qty-cell input').first().fill('3');
+    await page.getByRole('button', { name: 'حفظ كمسودة' }).click();
+    await toast(page, /انحفظت المسودة رقم 1/);
+    let s = await st();
+    expect(s.stock['r'].totalQty).toBe(10); // ما تحرّكت البضاعة
+    expect(s.invoices.filter((i: any) => i.kind === 'sale')).toHaveLength(0);
+
+    // سجل الفواتير ← المسودات
+    await expect(page.getByRole('button', { name: /المسودات \(1\)/ })).toBeVisible();
+    const draftRow = page.locator('.drafts-table tbody tr', { hasText: 'أبو علي' });
+    await expect(draftRow).toBeVisible();
+    await draftRow.getByRole('button', { name: 'طباعة' }).click();
+    await expect(page.locator('.modal .invoice-doc .doc-stamp')).toContainText('مسودة');
+    await page.locator('.modal header button').first().click();
+
+    // فتح واعتماد
+    await draftRow.getByRole('button', { name: /فتح واعتماد/ }).click();
+    await expect(page.locator('.draft-banner')).toContainText('المسودة رقم 1');
+    await expect(page.locator('table.lines tbody tr').first().locator('.qty-cell input').first()).toHaveValue('3');
+    await page.getByRole('button', { name: /اعتماد المسودة كفاتورة/ }).click();
+    await toast(page, /انعتمدت المسودة 1/);
+    s = await st();
+    expect(s.stock['r'].totalQty).toBe(7);
+    expect(Object.keys(s.drafts ?? {})).toHaveLength(0);
+    expect(s.invoices.filter((i: any) => i.kind === 'sale')).toHaveLength(1);
+
+    // فحص البيانات بالإعدادات
+    await nav(page, 'الإعدادات');
+    await page.getByRole('button', { name: 'فحص البيانات' }).click();
+    await page.getByRole('button', { name: /افحص هلق/ }).click();
+    await expect(page.locator('.health-result.good')).toContainText('سليم');
+  } finally {
+    await close();
+  }
+});

@@ -4318,3 +4318,13 @@ table.lines td[data-label="السعر"] .num-input { min-width: 96px; }
 .buy-price { display: grid; grid-template-columns: minmax(160px, 1fr) 2fr; gap: 10px; align-items: end; padding: 10px; border-radius: 10px; background: var(--primary-soft, #eef6f3); }
 .buy-price-info { display: flex; flex-direction: column; gap: 4px; padding-bottom: 6px; }
 @media (max-width: 700px) { .buy-price { grid-template-columns: 1fr; } }
+/* فواتير المسودة */
+.save-draft { width: 100%; margin-top: 8px; justify-content: center; border-style: dashed; }
+.draft-banner { border-inline-start: 4px solid #b45309; }
+.drafts-table .row-actions { white-space: nowrap; display: flex; gap: 4px; justify-content: flex-end; }
+/* فحص البيانات */
+.health-result { margin-top: 12px; padding: 12px; border-radius: 10px; border: 1px solid var(--border, #ddd); }
+.health-result.good { border-color: #16a34a; background: rgba(22, 163, 74, 0.06); }
+.health-result.bad { border-color: #dc2626; background: rgba(220, 38, 38, 0.06); }
+.health-result ul { margin: 8px 0; padding-inline-start: 20px; }
+.health-result li.warn { color: #b45309; }

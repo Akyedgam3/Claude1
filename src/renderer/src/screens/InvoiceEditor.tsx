@@ -100,7 +100,7 @@ export function itemPrice(state: CompanyState, item: Item, opts: { party?: Party
   return v === null ? '' : toInput(state, v, opts.currency);
 }
 
-export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { kind: string; editId?: string; draftId?: string }) {
+export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, savedDraftId }: { kind: string; editId?: string; draftId?: string; savedDraftId?: string }) {
   const kind = kindProp as InvoiceKind;
   const { state, call, notify, navigate, feature, can, user, profile } = useCompany();
   // صندوق المستخدم: لغير المالك ثابت (السيرفر كمان بيفرضه)
@@ -116,8 +116,10 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
   const editInput = (v: number) => (editing ? toInput(state, v, editing.currency) : '');
   // الفاتورة المفتوحة (إذا راح على شاشة تانية ورجع، أو فاتح كذا فاتورة مع بعض)
   const company = state.info?.name ?? '';
-  const [draftId] = useState(() => draftProp ?? invoiceDrafts.latest(company, kind)?.id ?? uid());
-  const [d] = useState(() => (editing ? undefined : (invoiceDrafts.get(company, draftId)?.data as DraftData | undefined)));
+  // مسودة محفوظة (فواتير المسودة): بتنفتح من حالتها المحفوظة، والتعديلات غير المحفوظة عليها بتضل بتبويب لحالها
+  const savedDraft = savedDraftId ? state.drafts?.[savedDraftId] : undefined;
+  const [draftId] = useState(() => (savedDraftId ? `sd-${savedDraftId}` : (draftProp ?? invoiceDrafts.latest(company, kind)?.id ?? uid())));
+  const [d] = useState(() => (editing ? undefined : ((invoiceDrafts.get(company, draftId)?.data ?? savedDraft?.data) as DraftData | undefined)));
   const [partyId, setPartyId] = useState<string | null>(editing?.partyId ?? d?.partyId ?? null);
   const [date, setDate] = useState(editing?.date ?? d?.date ?? today());
   const [currency, setCurrency] = useState(editing?.currency ?? (d && state.currencies[d.currency] ? d.currency : base));
@@ -614,8 +616,12 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
           await call('saveItem', latest[item.id]);
         }
       }
+      if (res && savedDraft) {
+        // المسودة انعتمدت وصارت فاتورة: بتنشال من المسودات
+        await call('deleteDraft', savedDraft.id, kind, res.value.id);
+      }
       if (res) {
-        notify(editing ? `تم تعديل ${INVOICE_KIND_NAMES[kind]} رقم ${res.value.number}` : `تم حفظ ${INVOICE_KIND_NAMES[kind]} رقم ${res.value.number}`);
+        notify(editing ? `تم تعديل ${INVOICE_KIND_NAMES[kind]} رقم ${res.value.number}` : savedDraft ? `انعتمدت المسودة ${savedDraft.number} وصارت ${INVOICE_KIND_NAMES[kind]} رقم ${res.value.number}` : `تم حفظ ${INVOICE_KIND_NAMES[kind]} رقم ${res.value.number}`);
         if (!editing) {
           savedRef.current = true;
           invoiceDrafts.remove(company, draftId);
@@ -624,6 +630,50 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
       }
     } catch (e) {
       notify((e as Error).message, 'error');
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  };
+
+  /** «حفظ كمسودة»: بتنحفظ بالشركة (بتبيّن عكل الأجهزة) بدون أي أثر عالمخزون والحسابات، وبتنعتمد بعدين. */
+  const saveAsDraft = async () => {
+    if (savingRef.current) return;
+    if (!used.length) return notify('أضف مادة واحدة على الأقل', 'error');
+    if (preview.error) return notify(preview.error, 'error');
+    savingRef.current = true;
+    setSaving(true);
+    try {
+      const data: DraftData = { partyId, date, currency, rateText, warehouseId, lines, discount, taxIds, paidText, payMode, cashAccountId, salesman, vatNumber, marketerId, notes };
+      const snapshot = used.map((l) => {
+        const item = l.itemId ? state.items[l.itemId] : null;
+        const price = parsePrice(state, l.price || '0', currency);
+        const qty = Number(cleanNumber(l.qty || '0'));
+        const gross = Math.round(qty * price);
+        const disc = parseDiscount(state, l.discount, currency, gross);
+        return { description: l.description || (item ? itemTitle(item) : ''), qty, ...(l.unit || item?.unit ? { unit: l.unit || item!.unit } : {}), price, ...(disc ? { discount: disc } : {}) };
+      });
+      const res = await call<{ id: string; number: number }>('saveDraft', {
+        id: savedDraft?.id ?? uid(),
+        kind,
+        date,
+        partyId: partyId ?? null,
+        title: (partyId && state.parties[partyId]?.name) || (isSale ? 'زبون نقدي' : 'مورد نقدي'),
+        currency,
+        lines: snapshot,
+        subtotal: preview.subtotal,
+        discount: preview.disc,
+        taxes: preview.taxes.map((t) => ({ name: t.tax.name, amount: t.amount })),
+        total: preview.total,
+        ...(notes.trim() ? { notes: notes.trim() } : {}),
+        data,
+      });
+      if (res) {
+        savedRef.current = true;
+        invoiceDrafts.remove(company, draftId);
+        notify(`انحفظت المسودة رقم ${res.value.number} — ما أثّرت عالمخزون ولا الحسابات`);
+        navigate('invoices', 'drafts');
+      }
     } finally {
       savingRef.current = false;
       setSaving(false);
@@ -645,6 +695,11 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
         )}
         {!editing && returnKind && can(returnKind === 'sale_return' ? 'returns.create' : 'purchases.create') && <button onClick={() => navigate(returnKind)}>{INVOICE_KIND_NAMES[returnKind]}</button>}
       </PageHeader>
+      {savedDraft && !editing && (
+        <div className="banner draft-banner">
+          عم تشتغل على <b>المسودة رقم {savedDraft.number}</b>. «حفظ الفاتورة» بيعتمدها (بتصير فاتورة حقيقية وبتتحرّك البضاعة والحسابات)، و«حفظ كمسودة» بيحفظ التعديلات بس.
+        </div>
+      )}
       {editing && <div className="banner">عم تعدّل الفاتورة رقم {editing.number}. لما تحفظ، القديمة بتنلغى وبتنسجّل هي بنفس الرقم، والمخزون والحسابات بيتصلّحوا لحالهن (والقديمة بتضل بالسجل ملغاة).</div>}
 
       <section className="card form-grid four">
@@ -1131,8 +1186,13 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp }: { 
             })()}
           </div>
           <button className="primary big" disabled={saving || used.length === 0} onClick={save}>
-            حفظ الفاتورة <small>(Ctrl+Enter)</small>
+            {savedDraft ? 'اعتماد المسودة كفاتورة' : 'حفظ الفاتورة'} <small>(Ctrl+Enter)</small>
           </button>
+          {!editing && (
+            <button type="button" className="save-draft" disabled={saving || used.length === 0} onClick={() => void saveAsDraft()} title="بتنحفظ وبتبيّن عكل الأجهزة، بدون ما تأثّر عالمخزون والحسابات">
+              <Icon name="file" size={16} /> {savedDraft ? 'حفظ التعديلات على المسودة' : 'حفظ كمسودة'}
+            </button>
+          )}
         </section>
       </div>
 
@@ -1203,8 +1263,8 @@ export function OpenInvoices() {
       </span>
       {drafts.map((d) => (
         <span key={d.id} className={`open-invoice ${inEditor && current === d.id ? 'active' : ''}`}>
-          <button type="button" role="tab" onClick={() => navigate(d.kind, `draft:${d.id}`)}>
-            {INVOICE_KIND_NAMES[d.kind as InvoiceKind] ?? d.kind} · {d.title}
+          <button type="button" role="tab" onClick={() => navigate(d.kind, d.id.startsWith('sd-') ? `sd:${d.id.slice(3)}` : `draft:${d.id}`)}>
+            {d.id.startsWith('sd-') ? 'مسودة' : (INVOICE_KIND_NAMES[d.kind as InvoiceKind] ?? d.kind)} · {d.title}
             {d.count > 0 && <small> ({d.count})</small>}
           </button>
           <button
@@ -1212,7 +1272,7 @@ export function OpenInvoices() {
             className="close"
             title="تجاهل هالفاتورة"
             onClick={async () => {
-              if (!(await askConfirm('تتجاهل هالفاتورة؟ ما رح تنحفظ.'))) return;
+              if (!(await askConfirm(d.id.startsWith('sd-') ? 'تتجاهل التعديلات اللي ما انحفظت على هالمسودة؟ (المسودة نفسها بتضل)' : 'تتجاهل هالفاتورة؟ ما رح تنحفظ.'))) return;
               invoiceDrafts.remove(company, d.id);
               if (inEditor && current === d.id) navigate(d.kind, `draft:${uid()}`);
             }}

@@ -70,6 +70,7 @@ import type {
   StockAdjustment,
   StockTransfer,
   Quote,
+  SavedDraft,
   SiteJob,
   Shipment,
   StoneBlock,
@@ -113,6 +114,7 @@ export function emptyState(): CompanyState {
     siteJobs: {},
     partners: {},
     quotes: {},
+    drafts: {},
     rolls: {},
     workOrders: {},
     installments: {},
@@ -1666,6 +1668,30 @@ export class Ledger {
   }
 
   // ───────────── عروض الأسعار ─────────────
+
+  /** حفظ فاتورة مسودة (جديدة أو تعديل): ما بتحرّك مخزون ولا حسابات. */
+  saveDraft(d: Omit<SavedDraft, 'number' | 'createdBy' | 'createdAt' | 'updatedAt' | 'updatedBy'>): SavedDraft {
+    const existing = this.state.drafts?.[d.id];
+    if (existing && existing.kind !== d.kind) fail('ما بيصير تغيّر نوع المسودة');
+    const now = new Date().toISOString();
+    const draft: SavedDraft = {
+      ...d,
+      number: existing?.number ?? (this.state.counters['draft'] ?? 0) + 1,
+      createdBy: existing?.createdBy ?? this.actor,
+      createdAt: existing?.createdAt ?? now,
+      ...(existing ? { updatedBy: this.actor } : {}),
+      updatedAt: now,
+    };
+    this.emit({ type: 'draft.saved', draft });
+    return draft;
+  }
+
+  /** حذف مسودة (أو بعد ما تنعتمد فاتورة: invoiceId). */
+  deleteDraft(id: string, kind?: string, invoiceId?: string): void {
+    const d = this.state.drafts?.[id] ?? fail('المسودة غير موجودة');
+    if (kind && kind !== d.kind) fail('نوع المسودة غير مطابق');
+    this.emit({ type: 'draft.deleted', id, ...(invoiceId ? { invoiceId } : {}) });
+  }
 
   saveQuote(draft: QuoteDraft): Quote {
     const existing = this.state.quotes[draft.id];

@@ -8,7 +8,7 @@ import { useCompany } from '../api';
 // عصري (ألوان الشركة)، كلاسيكي (جداول بإطارات)، وبسيط (أبيض وأسود). الطابعات الحرارية تأخذ نسخة مضغوطة تلقائياً.
 
 export type DocTemplate = 'modern' | 'classic' | 'minimal';
-export type DocStamp = 'paid' | 'credit' | 'void' | 'quote' | null;
+export type DocStamp = 'paid' | 'credit' | 'void' | 'quote' | 'draft' | null;
 
 export interface DocLine {
   description: ReactNode;
@@ -36,7 +36,7 @@ export interface DocModel {
   signatures?: [string, string];
 }
 
-const STAMP_TEXT: Record<Exclude<DocStamp, null>, string> = { paid: 'مدفوعة', credit: 'آجل', void: 'ملغاة', quote: 'عرض سعر' };
+const STAMP_TEXT: Record<Exclude<DocStamp, null>, string> = { paid: 'مدفوعة', credit: 'آجل', void: 'ملغاة', quote: 'عرض سعر', draft: 'مسودة' };
 
 export function Qr({ text, size = 104 }: { text: string; size?: number }) {
   const qr = qrcode(0, 'M');

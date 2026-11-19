@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ACTIVITIES, ACTIVITY_LIST, ALL_FEATURES, DEFAULT_SCALE, FEATURE_INFO, type Activity, type ActivityCustomization, type Feature, type Paper, type PrintSettings, type ReceiptSettings } from '../../../core';
+import { ACTIVITIES, ACTIVITY_LIST, ALL_FEATURES, DEFAULT_SCALE, FEATURE_INFO, healthCheck, type HealthReport, type Activity, type ActivityCustomization, type Feature, type Paper, type PrintSettings, type ReceiptSettings } from '../../../core';
 import { Icon } from '../components/icons';
 import { startTour } from '../components/Tour';
 import { CommercialDoc, QrImage, sampleModel } from '../components/CommercialDoc';
@@ -9,7 +9,7 @@ import { sampleReceipt, ThermalReceipt } from '../components/ThermalReceipt';
 import { Field, Modal, PageHeader, Tabs } from '../components/ui';
 import { CloudTab } from '../cloud/CloudTab';
 
-type Tab = 'company' | 'customize' | 'print' | 'receipt' | 'taxes' | 'lan' | 'cloud' | 'backup' | 'period' | 'account' | 'license' | 'reset';
+type Tab = 'company' | 'customize' | 'print' | 'receipt' | 'taxes' | 'lan' | 'cloud' | 'backup' | 'period' | 'account' | 'license' | 'reset' | 'health';
 
 export function Settings({ tab: initial }: { tab?: string }) {
   const { can, session, user } = useCompany();
@@ -37,6 +37,7 @@ export function Settings({ tab: initial }: { tab?: string }) {
           { key: 'period', label: 'إقفال الفترات', hidden: !can('period.close') },
           { key: 'account', label: 'حسابي' },
           { key: 'license', label: 'الترخيص', hidden: !local || user.role !== 'owner' },
+          { key: 'health', label: 'فحص البيانات', hidden: !can('settings.manage') && !can('reports.financial') },
           { key: 'reset', label: 'تصفير الشركة', hidden: !local || user.role !== 'owner' },
         ]}
       />
@@ -52,6 +53,7 @@ export function Settings({ tab: initial }: { tab?: string }) {
       {tab === 'account' && <AccountTab />}
       {tab === 'license' && <LicenseTab />}
       {tab === 'reset' && <ResetTab />}
+      {tab === 'health' && <HealthTab />}
     </div>
   );
 }
@@ -598,6 +600,66 @@ function ExtraQrsEditor({ value, onChange }: { value: NonNullable<PrintSettings[
         </button>
       )}
     </div>
+  );
+}
+
+/** فحص البيانات: نفس قواعد الاختبارات على بيانات المحل، وتقرير قصير للدعم بدل «عنا خلل». */
+function HealthTab() {
+  const { state, info, notify } = useCompany();
+  const [report, setReport] = useState<HealthReport | null>(null);
+  const run = () => setReport(healthCheck(state));
+  const text = () => {
+    if (!report) return '';
+    return [
+      `تقرير فحص وزن — ${new Date().toLocaleString('ar-SY')}`,
+      `النسخة: ${info.version}${IS_MOBILE ? ' (جوال)' : ''} — النشاط: ${state.info?.activity ?? ''}`,
+      `فواتير ${report.stats.invoices} · قيود ${report.stats.entries} · مواد ${report.stats.items} · زباين/موردين ${report.stats.parties} · مستخدمين ${report.stats.users} · مسودات ${report.stats.drafts}`,
+      report.ok && !report.issues.length ? 'النتيجة: كل شي سليم ✓' : 'النتيجة:',
+      ...report.issues.map((i) => `${i.level === 'error' ? '✗' : i.level === 'warn' ? '!' : '·'} ${i.text}`),
+    ].join('\n');
+  };
+  return (
+    <section className="card">
+      <h3>فحص البيانات</h3>
+      <p className="muted">بيتأكد إنو الحسابات متوازنة، وقيمة المخزون مطابقة، وديون كل زبون مطابقة لفواتيره، والتكاليف مصحّحة. ما بيغيّر شي ولا بيبعت شي لحالو.</p>
+      <div className="button-row">
+        <button className="primary" onClick={run}>
+          <Icon name="check" size={16} /> افحص هلق
+        </button>
+        {report && (
+          <button
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(text());
+                notify('انسخ التقرير: الصقه بالواتساب وابعته للدعم');
+              } catch {
+                notify('ما قدرنا ننسخ، صوّر الشاشة وابعتها', 'error');
+              }
+            }}
+          >
+            نسخ التقرير للدعم
+          </button>
+        )}
+      </div>
+      {report && (
+        <div className={`health-result ${report.ok ? 'good' : 'bad'}`}>
+          <strong>{report.ok ? (report.issues.length ? 'البيانات سليمة (مع ملاحظات)' : 'كل شي سليم ✓') : 'في مشكلة بالبيانات'}</strong>
+          {report.issues.length > 0 && (
+            <ul>
+              {report.issues.map((i, k) => (
+                <li key={k} className={i.level === 'error' ? 'bad' : i.level === 'warn' ? 'warn' : 'muted'}>
+                  {i.text}
+                </li>
+              ))}
+            </ul>
+          )}
+          {!report.ok && <p>انسخ التقرير وابعته للدعم مع نسخة احتياطية، ولا تحذف شي.</p>}
+          <small className="muted">
+            فواتير {report.stats.invoices} · قيود {report.stats.entries} · مواد {report.stats.items} · زباين وموردين {report.stats.parties}
+          </small>
+        </div>
+      )}
+    </section>
   );
 }
 
