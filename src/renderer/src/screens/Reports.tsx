@@ -53,7 +53,7 @@ export function Reports({ tab: initial }: { tab?: string }) {
       <Tabs<Tab>
         value={tab}
         onChange={setTab}
-        tabs={(Object.keys(TITLES) as Tab[]).map((k) => ({ key: k, label: TITLES[k], hidden: k === 'daily' ? !(fin || can('sales.create')) : k === 'stock' ? !can('reports.stock') : !fin || (k === 'items' && !can('costs.view')) }))}
+        tabs={(Object.keys(TITLES) as Tab[]).map((k) => ({ key: k, label: TITLES[k], hidden: k === 'daily' ? !(fin || can('sales.create')) : k === 'stock' ? !can('reports.stock') : !fin || ((k === 'items' || k === 'income') && !can('profits.view')) }))}
       />
       {usesPeriod && (
         <div className="toolbar period">

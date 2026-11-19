@@ -144,7 +144,7 @@ function fromData(question: string, ctx: AskContext, focus?: string): Reply | nu
   }
   const theItem = item ?? loose[0];
   // ربح مادة: «شقد ربحت من الزيت هالشهر؟»
-  if (theItem && (t.has('ربح') || t.has('خساره')) && can('costs.view')) {
+  if (theItem && (t.has('ربح') || t.has('خساره')) && can('profits.view')) {
     const s = itemsSummary(state, { from: p.from, to: p.to }).find((r) => r.item.id === theItem.id);
     if (!s || !s.soldQty) return reply(`${theItem.name}: ما انباع منها شي ${p.label}.`, [{ label: 'مراقبة المواد', screen: 'itemwatch', param: theItem.id }]);
     const pct = s.revenue ? Math.round((s.profit / s.revenue) * 1000) / 10 : 0;
@@ -165,7 +165,7 @@ function fromData(question: string, ctx: AskContext, focus?: string): Reply | nu
   }
 
   // «شو المواد اللي عم اخسر فيها؟» / «شو أكتر مادة بتربح؟»
-  if (t.has('ماده') && (t.has('خساره') || t.has('ربح')) && can('costs.view') && fin) {
+  if (t.has('ماده') && (t.has('خساره') || t.has('ربح')) && can('profits.view') && fin) {
     const all = itemsSummary(state, { from: p.from, to: p.to }).filter((r) => r.soldQty);
     const losing = t.has('خساره') || /(خسران|عم اخسر|بخسر)/.test(norm);
     const list = losing ? all.filter((r) => r.profit < 0).sort((a, b) => a.profit - b.profit) : all.sort((a, b) => b.profit - a.profit);
@@ -187,7 +187,7 @@ function fromData(question: string, ctx: AskContext, focus?: string): Reply | nu
   if (!asks) return null;
 
   if (t.has('ربح') || t.has('خساره')) {
-    if (!fin || !can('costs.view')) return reply('الأرباح بتطلع بس لمين إله صلاحية التقارير المالية والتكاليف.');
+    if (!fin || !can('profits.view')) return reply('الأرباح بتطلع بس لمين إله صلاحية التقارير المالية والتكاليف.');
     const inc = incomeStatement(state, { from: p.from, to: p.to });
     return reply(`صافي الربح ${p.label}: ${fmt(inc.netProfit)}\n(الإيرادات ${fmt(inc.revenue)} − المصاريف والتكلفة ${fmt(inc.expenses)})`, [
       { label: 'الأرباح والخسائر', screen: 'reports', param: 'income' },

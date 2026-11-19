@@ -476,7 +476,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
 
   // ربح الفاتورة وقت البيع (تقديري بمتوسط التكلفة الحالي)، بالعملة الأساسية. بينطفى من الإعدادات
   const profit = useMemo(() => {
-    if (kind !== 'sale' || !can('costs.view') || state.info!.print?.profitWhileSelling !== true || !used.length || preview.error || !(rate > 0)) return null;
+    if (kind !== 'sale' || !can('profits.view') || state.info!.print?.profitWhileSelling !== true || !used.length || preview.error || !(rate > 0)) return null;
     const scale = 10 ** (state.currencies[base]!.decimals - state.currencies[currency]!.decimals);
     const revenue = Math.round((preview.subtotal - preview.disc) * rate * scale);
     let cost = 0;
@@ -757,7 +757,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
               ))}
             </select>
             {marketerId && marketerId === partyId && <small className="bad">المسوّق هو نفسه الزبون: ما بتنحسبله عمولة على هالفاتورة (وما بتنخصم من حسابه)</small>}
-            {marketerId && marketerId !== partyId && state.parties[marketerId]?.marketerRate && can('costs.view') && <small className="muted">عمولتو {state.parties[marketerId]!.marketerRate}% من ربح الفاتورة (البيع ناقص تكلفة البضاعة)، بتنحسب وبتنسجّل لما تحفظ</small>}
+            {marketerId && marketerId !== partyId && state.parties[marketerId]?.marketerRate && can('profits.view') && <small className="muted">عمولتو {state.parties[marketerId]!.marketerRate}% من ربح الفاتورة (البيع ناقص تكلفة البضاعة)، بتنحسب وبتنسجّل لما تحفظ</small>}
           </Field>
         )}
         {state.info?.vatNumber && (
@@ -833,7 +833,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
                       <div className="line-item">
                         <strong>{l.description}</strong>
                         <small>
-                          {[item?.code, item?.partNumber, stock !== null ? `الرصيد: ${stock}` : null].filter(Boolean).join(' · ')}
+                          {[item?.code, item?.partNumber, stock !== null && can('stock.qty') ? `الرصيد: ${stock}` : null].filter(Boolean).join(' · ')}
                           {short && <span className="bad"> — الكمية أكبر من الرصيد</span>}
                         </small>
                         {kind === 'purchase' && breakdown && (
@@ -1168,7 +1168,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
                 <strong className="bad">{money(state, preview.total - paid, currency)}</strong>
               </>
             )}
-            {prevAccount && (kind === 'sale' || kind === 'purchase') && (() => {
+            {prevAccount && (kind === 'sale' || kind === 'purchase') && can('balances.view') && (() => {
               const after = prevAccount.total + (preview.total - paid);
               const sale = kind === 'sale';
               return (

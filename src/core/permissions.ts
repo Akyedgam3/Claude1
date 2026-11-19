@@ -15,7 +15,11 @@ export const PERMISSIONS = {
   'vouchers.void': 'إلغاء السندات',
   'journal.create': 'القيود اليدوية',
   'items.manage': 'إدارة المواد والأسعار',
-  'costs.view': 'رؤية التكاليف والأرباح',
+  'costs.view': 'رؤية سعر الشراء والتكلفة',
+  'profits.view': 'رؤية الأرباح',
+  'purchases.view': 'رؤية فواتير الشراء وأسعارها',
+  'stock.qty': 'رؤية كميات المخزون',
+  'balances.view': 'رؤية ديون وأرصدة الزباين والموردين',
   'items.hidden': 'رؤية المواد المخفية',
   'parties.manage': 'إدارة العملاء والموردين',
   'stock.adjust': 'الجرد والتالف والأرصدة الافتتاحية',
@@ -61,21 +65,25 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   owner: ALL_PERMISSIONS,
   manager: ALL_PERMISSIONS.filter((p) => p !== 'users.manage' && p !== 'period.close'),
   accountant: [
-    'sales.create', 'sales.void', 'returns.create', 'discount.give', 'price.edit', 'sales.credit', 'invoices.all', 'purchases.create', 'vouchers.create', 'vouchers.void',
+    'sales.create', 'sales.void', 'returns.create', 'discount.give', 'price.edit', 'sales.credit', 'invoices.all', 'purchases.create', 'purchases.view', 'profits.view', 'stock.qty', 'balances.view', 'vouchers.create', 'vouchers.void',
     'journal.create', 'costs.view', 'parties.manage', 'reports.financial', 'reports.stock', 'accounts.manage', 'rates.manage',
     'stock.adjust', 'backup.manage',
   ],
-  cashier: ['sales.create', 'price.edit', 'sales.credit', 'invoices.all', 'returns.create', 'pos.use', 'restaurant.use', 'appointments.manage', 'tailoring.manage', 'printjobs.manage', 'dealers.manage', 'bookings.manage', 'solar.manage', 'vouchers.create', 'parties.manage'],
-  storekeeper: ['invoices.all', 'items.manage', 'stock.adjust', 'stock.transfer', 'production.manage', 'purchases.create', 'reports.stock'],
-  technician: ['invoices.all', 'repairs.manage', 'appointments.manage', 'tailoring.manage', 'sitejobs.manage', 'shipments.manage', 'printjobs.manage', 'solar.manage', 'parties.manage'],
-  viewer: ['reports.stock', 'invoices.all'],
+  cashier: ['stock.qty', 'balances.view', 'sales.create', 'price.edit', 'sales.credit', 'invoices.all', 'returns.create', 'pos.use', 'restaurant.use', 'appointments.manage', 'tailoring.manage', 'printjobs.manage', 'dealers.manage', 'bookings.manage', 'solar.manage', 'vouchers.create', 'parties.manage'],
+  storekeeper: ['stock.qty', 'purchases.view', 'invoices.all', 'items.manage', 'stock.adjust', 'stock.transfer', 'production.manage', 'purchases.create', 'reports.stock'],
+  technician: ['stock.qty', 'balances.view', 'invoices.all', 'repairs.manage', 'appointments.manage', 'tailoring.manage', 'sitejobs.manage', 'shipments.manage', 'printjobs.manage', 'solar.manage', 'parties.manage'],
+  viewer: ['reports.stock', 'invoices.all', 'stock.qty'],
 };
 
 export function permissionsOf(user: User): Set<Permission> {
   if (!user.active) return new Set();
   const set = new Set<Permission>(ROLE_PERMISSIONS[user.role]);
   for (const p of user.extra ?? []) if (p in PERMISSIONS) set.add(p as Permission);
-  if (user.role !== 'owner') for (const p of user.denied ?? []) set.delete(p as Permission);
+  // توافق مع المستخدمين القدام (قبل 1.2.90): «التكاليف» كانت تشمل الأرباح، و«فواتير الشراء» بتشمل رؤيتها
+  const denied = new Set(user.denied ?? []);
+  if (set.has('costs.view') && !denied.has('profits.view')) set.add('profits.view');
+  if (set.has('purchases.create') && !denied.has('purchases.view')) set.add('purchases.view');
+  if (user.role !== 'owner') for (const p of denied) set.delete(p as Permission);
   return set;
 }
 

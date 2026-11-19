@@ -397,3 +397,45 @@ test('draft invoices: save as draft (no stock move), find it in the log, print i
     await close();
   }
 });
+
+test('a cashier from the preset sees no purchase prices, profits or purchase invoices', async () => {
+  const { page, close } = await launch();
+  try {
+    await activate(page);
+    await createCompany(page, { name: 'محل الكاشير', activity: 'تجارة عامة' });
+    const call = (method: string, ...args: unknown[]) => page.evaluate(([mm, a]) => (window as any).mizan.invoke('company:call', mm, a), [method, args] as const);
+    const today = new Date().toISOString().slice(0, 10);
+    await call('saveParty', { id: 's', kind: 'supplier', name: 'مورد' });
+    await call('saveItem', { id: 'r', code: 'R1', name: 'رز', kind: 'stock', unit: 'كيس', price: 100000, priceCurrency: 'SYP' });
+    await call('postInvoice', { kind: 'purchase', date: today, partyId: 's', lines: [{ itemId: 'r', qty: 10, price: 60000 }] });
+    await call('postInvoice', { kind: 'sale', date: today, lines: [{ itemId: 'r', qty: 1, price: 100000 }] });
+
+    const m = page.locator('.modal');
+    await nav(page, 'المستخدمون');
+    await page.getByRole('button', { name: '+ مستخدم' }).click();
+    await m.locator('.field', { hasText: 'الاسم' }).first().locator('input').fill('خالد');
+    await m.locator('.field', { hasText: 'اسم الدخول' }).locator('input').fill('khaled');
+    await m.locator('.field', { hasText: 'كلمة السر' }).locator('input').fill('khaled123');
+    await m.getByRole('button', { name: 'كاشير ما بيشوف أسعار الشراء والأرباح' }).click();
+    await expect(m.locator('label.check', { hasText: 'رؤية سعر الشراء والتكلفة' }).locator('input')).not.toBeChecked();
+    await expect(m.locator('label.check', { hasText: 'رؤية الأرباح' }).locator('input')).not.toBeChecked();
+    await m.getByRole('button', { name: 'حفظ' }).click();
+    await toast(page, 'تم الحفظ');
+
+    await page.getByRole('button', { name: 'تسجيل الخروج' }).click();
+    await page.locator('.recent button').first().click();
+    await m.locator('select').selectOption('khaled');
+    await m.locator('input[type=password]').fill('khaled123');
+    await m.getByRole('button', { name: 'دخول', exact: true }).click();
+    await expect(page.locator('.user-chip')).toContainText('خالد');
+
+    await nav(page, 'سجل الفواتير');
+    await expect(page.getByRole('button', { name: /فواتير الشراء/ })).toHaveCount(0);
+    await expect(page.locator('table thead')).not.toContainText('الربح');
+    await nav(page, 'المواد');
+    await expect(page.locator('table thead')).not.toContainText('التكلفة');
+    await expect(page.locator('table thead')).not.toContainText('آخر سعر شراء');
+  } finally {
+    await close();
+  }
+});

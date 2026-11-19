@@ -104,11 +104,11 @@ export function Dashboard() {
   // كل مربعات الإحصائيات الممكنة (المستخدم بيختار منها)
   const STATS: { id: string; label: string; ok: boolean; el: () => ReactNode }[] = [
     { id: 'todaySales', label: 'مبيعات اليوم', ok: true, el: () => <Stat label="مبيعات اليوم" value={money(state, data.todaySales)} hint={`${data.todayCount} فاتورة`} onClick={() => navigate('reports', 'daily')} /> },
-    { id: 'todayProfit', label: 'ربح اليوم', ok: can('costs.view'), el: () => <Stat label="صافي ربح اليوم" value={money(state, data.todayProfit)} hint="كل الفواتير، بعد المصاريف والتالف" tone={data.todayProfit >= 0 ? 'good' : 'bad'} onClick={() => navigate('reports', 'income')} /> },
+    { id: 'todayProfit', label: 'ربح اليوم', ok: can('profits.view'), el: () => <Stat label="صافي ربح اليوم" value={money(state, data.todayProfit)} hint="كل الفواتير، بعد المصاريف والتالف" tone={data.todayProfit >= 0 ? 'good' : 'bad'} onClick={() => navigate('reports', 'income')} /> },
     { id: 'yesterdaySales', label: 'مبيعات مبارح', ok: true, el: () => <Stat label="مبيعات مبارح" value={money(state, data.yesterdaySales)} onClick={() => navigate('reports', 'daily')} /> },
     { id: 'weekSales', label: 'مبيعات آخر 7 أيام', ok: true, el: () => <Stat label="مبيعات آخر 7 أيام" value={money(state, weekSales)} onClick={() => navigate('reports', 'daily')} /> },
     { id: 'monthSales', label: 'مبيعات الشهر', ok: true, el: () => <Stat label="مبيعات الشهر" value={money(state, data.monthSales)} hint={`${data.monthCount} فاتورة`} onClick={() => navigate('reports', 'income')} /> },
-    { id: 'monthProfit', label: 'ربح الشهر', ok: can('costs.view'), el: () => <Stat label="ربح الشهر" value={money(state, data.monthProfit)} tone={data.monthProfit >= 0 ? 'good' : 'bad'} hint="المبيعات − التكلفة − المصاريف" onClick={() => navigate('reports', 'income')} /> },
+    { id: 'monthProfit', label: 'ربح الشهر', ok: can('profits.view'), el: () => <Stat label="ربح الشهر" value={money(state, data.monthProfit)} tone={data.monthProfit >= 0 ? 'good' : 'bad'} hint="المبيعات − التكلفة − المصاريف" onClick={() => navigate('reports', 'income')} /> },
     { id: 'avgInvoice', label: 'متوسط الفاتورة اليوم', ok: true, el: () => <Stat label="متوسط الفاتورة اليوم" value={money(state, data.todayCount ? Math.round(data.todaySales / data.todayCount) : 0)} onClick={() => navigate('reports', 'daily')} /> },
     { id: 'monthPurchases', label: 'مشتريات الشهر', ok: true, el: () => <Stat label="مشتريات الشهر" value={money(state, data.monthPurchases)} onClick={() => navigate('invoices')} /> },
     { id: 'receivables', label: 'ديون لنا على الناس', ok: true, el: () => <Stat label="ديون لنا على الناس" value={money(state, data.receivables)} onClick={() => navigate('debts')} /> },
@@ -251,7 +251,7 @@ export function Dashboard() {
       )}
       {customizing && <CustomizeDash fin={fin} actions={availActions} avail={avail} layout={layout} cards={DASH_CARDS} defaultActions={availActions.filter((x) => !x.extra).map((x) => x.id)} onSave={(l) => setLayout(l)} onReset={() => setLayout(null)} onClose={() => setCustomizing(false)} />}
 
-      {fin && can('costs.view') && shown('dailyProfit') && <DailyProfitCard />}
+      {fin && can('profits.view') && shown('dailyProfit') && <DailyProfitCard />}
 
       {fin && (
         <div className="two-col">

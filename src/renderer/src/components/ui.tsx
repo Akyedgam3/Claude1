@@ -283,6 +283,12 @@ export function ColorPicker({ value, onChange }: { value: string; onChange: (v: 
   );
 }
 
+/** صلاحية «رؤية كميات المخزون» للمستخدم الحالي (App بيحطها): بدونها ما بتطلع الكمية بقوائم اختيار المواد */
+let stockQtyVisible = true;
+export function setStockQtyVisible(v: boolean): void {
+  stockQtyVisible = v;
+}
+
 export function itemOptions(state: CompanyState, filter?: (i: Item) => boolean): (Option & { item: Item })[] {
   return Object.values(state.items)
     .filter((i) => !i.archived && !i.dealerId && (!filter || filter(i)))
@@ -294,7 +300,7 @@ export function itemOptions(state: CompanyState, filter?: (i: Item) => boolean):
         item.partNumber,
         item.compat,
         item.attributes ? Object.values(item.attributes).join(' ') : '',
-        item.kind === 'stock' ? `الرصيد: ${state.stock[item.id]?.totalQty ?? 0}` : item.kind === 'composite' ? 'مركّب' : 'خدمة',
+        item.kind === 'stock' ? (stockQtyVisible ? `الرصيد: ${state.stock[item.id]?.totalQty ?? 0}` : '') : item.kind === 'composite' ? 'مركّب' : 'خدمة',
       ]
         .filter(Boolean)
         .join(' · '),

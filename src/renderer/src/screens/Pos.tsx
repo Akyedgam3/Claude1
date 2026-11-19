@@ -329,7 +329,7 @@ export function Pos() {
                       ''
                     )}
                   </span>
-                  {i.kind === 'stock' && (
+                  {i.kind === 'stock' && can('stock.qty') && (
                     <small>
                       {qtyText(state.stock[i.id]?.totalQty ?? 0)} {i.unit}
                     </small>
@@ -387,7 +387,7 @@ export function Pos() {
             </button>
           )}
         </div>
-        {partyId && (() => {
+        {partyId && can('balances.view') && (() => {
           // دين الزبون الحالي (كل العملات) لحتى الكاشير يعرف عليه قديش قبل ما يبيعه بالدين
           const b = Object.entries(partyBalance(state, partyId).byCurrency).filter(([c, v]) => {
             const dec = state.currencies[c]?.decimals ?? 0;

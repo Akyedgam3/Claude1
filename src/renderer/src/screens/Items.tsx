@@ -341,7 +341,7 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
                   <td>{i.category}</td>
                   <td>{itemPlacesText(state, i)}</td>
                   <td className={`num ${low ? 'bad' : ''}`}>
-                    {i.kind === 'stock' ? `${qtyText(qty)} ${i.unit}` : '—'}
+                    {i.kind === 'stock' ? (can('stock.qty') ? `${qtyText(qty)} ${i.unit}` : '••') : '—'}
                     {i.kind === 'stock' && !i.archived && !i.trackSerial && !i.trackExpiry && can('stock.adjust') && (
                       <button
                         className="ghost small add-qty"
@@ -378,14 +378,16 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
 
 /** زيادة رصيد مادة بسرعة من قائمة المواد، بدون فاتورة شراء (قيد «إضافة بضاعة» بالمخزون). */
 function QuickAddStock({ item, onClose }: { item: Item; onClose: () => void }) {
-  const { state, call, notify } = useCompany();
+  const { state, call, notify, can } = useCompany();
+  // بدون صلاحية سعر الشراء: ما منعرض التكلفة الحالية (بتنضاف بآخر تكلفة لحالها)
+  const showCost = can('costs.view');
   const base = state.info!.baseCurrency;
   const s = state.stock[item.id];
   const avg = s && s.totalQty > 0 ? Math.round(s.value / s.totalQty) : (s?.lastCost ?? 0);
   const whs = Object.values(state.warehouses);
   const [warehouseId, setWarehouseId] = useState(whs[0]?.id ?? 'main');
   const [qty, setQty] = useState('');
-  const [cost, setCost] = useState(avg ? toInput(state, avg, base) : '');
+  const [cost, setCost] = useState(avg && showCost ? toInput(state, avg, base) : '');
   const save = async () => {
     const q = Number(qty.replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))));
     if (!(q > 0)) return notify('اكتب الكمية', 'error');
@@ -416,9 +418,11 @@ function QuickAddStock({ item, onClose }: { item: Item; onClose: () => void }) {
         <Field label={`الكمية المضافة (${item.unit})`}>
           <input value={qty} onChange={(e) => setQty(e.target.value)} inputMode="decimal" autoFocus />
         </Field>
-        <Field label={`تكلفة الوحدة (${state.currencies[base]?.symbol ?? base}) — اختياري`}>
-          <input value={cost} onChange={(e) => setCost(e.target.value)} inputMode="decimal" />
-        </Field>
+        {showCost && (
+          <Field label={`تكلفة الوحدة (${state.currencies[base]?.symbol ?? base}) — اختياري`}>
+            <input value={cost} onChange={(e) => setCost(e.target.value)} inputMode="decimal" />
+          </Field>
+        )}
         {whs.length > 1 && (
           <Field label="المستودع">
             <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>

@@ -95,9 +95,7 @@ export function Parties({ focus }: { focus?: string }) {
                     <td dir="ltr" className="mono">
                       {party.phone}
                     </td>
-                    <td className="num">
-                      <BalanceText value={balance.base} />
-                    </td>
+                    <td className="num">{can('balances.view') ? <BalanceText value={balance.base} /> : '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -140,8 +138,8 @@ export function PartyPanel({ party, onEdit }: { party: Party; onEdit?: () => voi
       <header className="panel-header">
         <h3>{party.name}</h3>
         <span className="button-row">
-          <PrintButtons kind="report" name={`كشف حساب ${party.name}`} papers={['a4', '80mm']} />
-          {balance.base > 0 && (
+          {can('balances.view') && <PrintButtons kind="report" name={`كشف حساب ${party.name}`} papers={['a4', '80mm']} />}
+          {can('balances.view') && balance.base > 0 && (
             <button
               title="رسالة تذكير بالدين جاهزة للإرسال"
               onClick={() => {
@@ -161,7 +159,7 @@ export function PartyPanel({ party, onEdit }: { party: Party; onEdit?: () => voi
         <strong dir="ltr">{party.phone || '—'}</strong>
         <span>العنوان</span>
         <strong>{party.address || '—'}</strong>
-        {Object.entries(balance.byCurrency).map(([c, v]) => (
+        {can('balances.view') && Object.entries(balance.byCurrency).map(([c, v]) => (
           <span key={c} style={{ display: 'contents' }}>
             <span>الرصيد بـ{state.currencies[c]?.nameAr}</span>
             <strong>
@@ -242,6 +240,7 @@ export function PartyPanel({ party, onEdit }: { party: Party; onEdit?: () => voi
           )}
         </>
       )}
+      {can('balances.view') ? (<>
       <div className="panel-actions">
         <h4>كشف الحساب</h4>
         <label className="check">
@@ -314,6 +313,7 @@ export function PartyPanel({ party, onEdit }: { party: Party; onEdit?: () => voi
         {details && <ItemsSummary partyId={party.id} />}
         </div>
       )}
+      </>) : <p className="muted">كشف الحساب والرصيد بصلاحية «رؤية ديون وأرصدة الزباين والموردين».</p>}
     </aside>
   );
 }

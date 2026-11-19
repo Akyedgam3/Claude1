@@ -8,19 +8,31 @@ import { NAV, type NavItem } from '../nav';
 
 /** الصلاحيات مقسومة لمجموعات لحتى تنقرا بسهولة */
 const PERM_GROUPS: { title: string; perms: Permission[] }[] = [
-  { title: 'البيع والفواتير', perms: ['sales.create', 'pos.use', 'price.edit', 'discount.give', 'sales.credit', 'returns.create', 'sales.void', 'invoices.all'] },
-  { title: 'الأرباح والتقارير', perms: ['costs.view', 'reports.financial', 'reports.stock'] },
-  { title: 'المواد والمخزون', perms: ['items.manage', 'items.hidden', 'purchases.create', 'stock.adjust', 'stock.transfer', 'production.manage'] },
+  { title: 'شو بيشوف (الأسعار والأرقام الحساسة)', perms: ['costs.view', 'profits.view', 'purchases.view', 'stock.qty', 'balances.view', 'invoices.all', 'items.hidden'] },
+  { title: 'البيع والفواتير', perms: ['sales.create', 'pos.use', 'price.edit', 'discount.give', 'sales.credit', 'returns.create', 'sales.void'] },
+  { title: 'التقارير', perms: ['reports.financial', 'reports.stock'] },
+  { title: 'المواد والمخزون', perms: ['items.manage', 'purchases.create', 'stock.adjust', 'stock.transfer', 'production.manage'] },
   { title: 'المال والحسابات', perms: ['vouchers.create', 'vouchers.void', 'parties.manage', 'journal.create', 'accounts.manage', 'rates.manage'] },
   { title: 'الإدارة', perms: ['settings.manage', 'users.manage', 'backup.manage', 'period.close', 'partners.manage', 'employees.manage'] },
 ];
 const GROUPED = new Set(PERM_GROUPS.flatMap((g) => g.perms));
 const PERM_HINTS: Partial<Record<Permission, string>> = {
-  'costs.view': 'بدونها ما بيشوف ربح الفاتورة ولا ربح اليوم ولا التكلفة، لا بالفواتير ولا بنقطة البيع ولا بالرئيسية',
+  'costs.view': 'بدونها ما بيشوف سعر الشراء ولا التكلفة ولا قيمة البضاعة، بأي شاشة',
+  'profits.view': 'بدونها ما بيشوف ربح الفاتورة ولا ربح اليوم ولا تقارير الأرباح',
+  'purchases.view': 'بدونها ما بتطلع فواتير الشراء بالسجل ولا بتنفتح (فيها أسعار الشراء)',
+  'stock.qty': 'بدونها ما بيشوف كمية المواد الموجودة، لا بالمواد ولا بالبيع',
+  'balances.view': 'بدونها ما بيشوف ديون الزباين والموردين ولا كشوف حساباتهم',
+  'invoices.all': 'بدونها بسجل الفواتير بيشوف فواتيره هو بس',
   'price.edit': 'بدونها السعر بيطلع من بطاقة المادة وما بيقدر يغيّره',
   'sales.credit': 'بدونها كل فاتورة مبيع لازم تندفع كاملة (وبيختفي زر «على الحساب» بنقطة البيع)',
-  'invoices.all': 'بدونها بسجل الفواتير بيشوف فواتيره هو بس',
 };
+
+/** قوالب جاهزة بكبسة: الدور + سحب صلاحيات حساسة */
+const PRESETS: { label: string; role: Role; denied: Permission[]; hint: string }[] = [
+  { label: 'كاشير ما بيشوف أسعار الشراء والأرباح', role: 'cashier', denied: ['costs.view', 'profits.view', 'purchases.view'], hint: 'بيبيع وبيقبض، وما بيعرف بشو اشتريت ولا قديش ربحت' },
+  { label: 'كاشير بيع نقدي بس', role: 'cashier', denied: ['costs.view', 'profits.view', 'purchases.view', 'sales.credit', 'price.edit', 'discount.give', 'balances.view', 'invoices.all'], hint: 'بيع نقدي بسعر المادة، بدون دين ولا خصم ولا تغيير سعر، وبيشوف فواتيره بس' },
+  { label: 'أمين مستودع بدون أسعار', role: 'storekeeper', denied: ['costs.view', 'profits.view'], hint: 'بيستلم البضاعة وبيجرد، وما بيشوف التكلفة' },
+];
 
 export function Users() {
   const { state, user: me } = useCompany();
@@ -154,6 +166,18 @@ function UserForm({ user, onClose }: { user: User | null; onClose: () => void })
             <input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} />
             فعّال (إلغاء التفعيل يمنعه من الدخول فوراً)
           </label>
+        )}
+        {f.role !== 'owner' && (
+          <div className="field wide presets">
+            <span>قوالب جاهزة (بتقدر تعدّل بعدها)</span>
+            <div className="button-row">
+              {PRESETS.map((p) => (
+                <button key={p.label} type="button" className="ghost small" title={p.hint} onClick={() => setF({ ...f, role: p.role, extra: new Set(), denied: new Set(p.denied) })}>
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
         {f.role !== 'owner' && (
           <div className="field wide">

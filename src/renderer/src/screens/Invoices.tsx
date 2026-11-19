@@ -26,7 +26,7 @@ export function Invoices({ initial }: { initial?: string } = {}) {
   const [side, setSideState] = useState<Side>(() => {
     if (initial === 'drafts') return 'drafts';
     try {
-      return localStorage.getItem('wazn.invoiceSide') === 'purchase' ? 'purchase' : 'sale';
+      return localStorage.getItem('wazn.invoiceSide') === 'purchase' && can('purchases.view') ? 'purchase' : 'sale';
     } catch {
       return 'sale';
     }
@@ -53,7 +53,7 @@ export function Invoices({ initial }: { initial?: string } = {}) {
   // قائمة الكبسة اليمين على الفاتورة
   const [menu, setMenu] = useState<{ inv: Invoice; x: number; y: number } | null>(null);
   // ربح كل فاتورة مبيع (بس لأصحاب صلاحية التكلفة، وبينطفى من الإعدادات)
-  const showProfit = can('costs.view') && state.info!.print?.showInvoiceProfit !== false;
+  const showProfit = can('profits.view') && state.info!.print?.showInvoiceProfit !== false;
 
   const rows = useMemo(
     () =>
@@ -115,9 +115,11 @@ export function Invoices({ initial }: { initial?: string } = {}) {
         <button className={side === 'sale' ? 'active' : ''} onClick={() => setSide('sale')}>
           فواتير المبيع ({counts.sale})
         </button>
-        <button className={side === 'purchase' ? 'active' : ''} onClick={() => setSide('purchase')}>
-          فواتير الشراء ({counts.purchase})
-        </button>
+        {can('purchases.view') && (
+          <button className={side === 'purchase' ? 'active' : ''} onClick={() => setSide('purchase')}>
+            فواتير الشراء ({counts.purchase})
+          </button>
+        )}
         <button className={side === 'drafts' ? 'active' : ''} onClick={() => setSide('drafts')}>
           المسودات ({Object.keys(state.drafts ?? {}).length})
         </button>

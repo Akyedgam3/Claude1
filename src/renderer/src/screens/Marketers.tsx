@@ -111,7 +111,7 @@ export function Marketers() {
                       <small>مبيعاته</small>
                       <b>{money(state, sales)}</b>
                     </span>
-                    {can('costs.view') && (
+                    {can('profits.view') && (
                       <span>
                         <small>ربح فواتيره</small>
                         <b>{money(state, profit)}</b>
@@ -141,7 +141,7 @@ export function Marketers() {
                       تعديل النسبة
                     </button>
                   )}
-                  {can('vouchers.create') && can('costs.view') && invoices.length > 0 && (
+                  {can('vouchers.create') && can('profits.view') && invoices.length > 0 && (
                     <button
                       className="ghost small"
                       title="للفواتير القديمة اللي انحسبت عمولتها من قيمة الفاتورة: بتنحسب من جديد من ربح كل فاتورة"
@@ -194,7 +194,7 @@ export function Marketers() {
                           <th>الفاتورة</th>
                           <th>الزبون</th>
                           <th className="num">قيمة الفاتورة</th>
-                          {can('costs.view') && <th className="num">ربح الفاتورة</th>}
+                          {can('profits.view') && <th className="num">ربح الفاتورة</th>}
                           <th className="num">العمولة ({m.marketerRate}% من الربح)</th>
                         </tr>
                       </thead>
@@ -205,7 +205,7 @@ export function Marketers() {
                             <td className="mono">#{inv.number}</td>
                             <td>{inv.partyId ? state.parties[inv.partyId]?.name : 'زبون نقدي'}</td>
                             <td className="num">{money(state, inv.total, inv.currency)}</td>
-                            {can('costs.view') && <td className={`num ${p < 0 ? 'bad' : ''}`}>{money(state, p)}</td>}
+                            {can('profits.view') && <td className={`num ${p < 0 ? 'bad' : ''}`}>{money(state, p)}</td>}
                             <td className="num good">{money(state, com.amount, inv.currency)}</td>
                           </tr>
                         ))}

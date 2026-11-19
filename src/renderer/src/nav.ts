@@ -12,6 +12,7 @@ export interface NavItem {
   features?: Feature[]; // أي واحدة منها
   perm?: Permission;
   perms?: Permission[]; // أي واحدة منها
+  also?: Permission; // وكمان هي (فوق perm/perms)
 }
 
 export const NAV: (NavItem | string)[] = [
@@ -45,8 +46,8 @@ export const NAV: (NavItem | string)[] = [
   { key: 'repairs', label: 'أوامر الصيانة', icon: 'wrench', feature: 'repairs', perm: 'repairs.manage' },
   { key: 'appointments', label: 'المواعيد', icon: 'calendar', feature: 'appointments', perm: 'appointments.manage' },
   { key: 'purchase', label: 'فاتورة شراء', icon: 'purchase', perm: 'purchases.create' },
-  { key: 'debts', label: 'الديون', icon: 'debts', perm: 'vouchers.create' },
-  { key: 'statement', label: 'كشف الحساب', icon: 'file', perms: ['reports.financial', 'vouchers.create'] },
+  { key: 'debts', label: 'الديون', icon: 'debts', perm: 'vouchers.create', also: 'balances.view' },
+  { key: 'statement', label: 'كشف الحساب', icon: 'file', perms: ['reports.financial', 'vouchers.create'], also: 'balances.view' },
   { key: 'marketers', label: 'المسوّقين', icon: 'users', perm: 'reports.financial' },
   { key: 'vouchers', label: 'سندات القبض والدفع', icon: 'wallet', perm: 'vouchers.create' },
   { key: 'invoices', label: 'سجل الفواتير', icon: 'receipt' },
@@ -79,5 +80,6 @@ export function navAllowed(n: NavItem, ctx: { feature: (f: Feature) => boolean; 
   if (n.features && !n.features.some(ctx.feature)) return false;
   if (n.perm && !ctx.can(n.perm)) return false;
   if (n.perms && !n.perms.some(ctx.can)) return false;
+  if (n.also && !ctx.can(n.also)) return false;
   return true;
 }

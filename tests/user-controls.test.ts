@@ -66,3 +66,26 @@ describe('user controls', () => {
     }
   });
 });
+
+describe('fine-grained visibility (1.2.90)', () => {
+  it('existing users keep what they saw: costs implied profits, purchases implied viewing purchase invoices', () => {
+    const acc: User = { id: 'a', username: 'a', displayName: 'a', role: 'accountant', active: true };
+    expect(can(acc, 'profits.view')).toBe(true);
+    expect(can(acc, 'purchases.view')).toBe(true);
+    const custom: User = { id: 'b', username: 'b', displayName: 'b', role: 'cashier', active: true, extra: ['costs.view'] };
+    expect(can(custom, 'profits.view')).toBe(true);
+    const keeper: User = { id: 'k', username: 'k', displayName: 'k', role: 'storekeeper', active: true };
+    expect(can(keeper, 'purchases.view')).toBe(true);
+    expect(can(keeper, 'stock.qty')).toBe(true);
+  });
+  it('the owner can switch each one off separately', () => {
+    const u: User = { id: 'a', username: 'a', displayName: 'a', role: 'accountant', active: true, denied: ['profits.view'] };
+    expect(can(u, 'costs.view')).toBe(true);
+    expect(can(u, 'profits.view')).toBe(false);
+    const c: User = { id: 'c', username: 'c', displayName: 'c', role: 'cashier', active: true, denied: ['stock.qty', 'balances.view'] };
+    expect(can(c, 'stock.qty')).toBe(false);
+    expect(can(c, 'balances.view')).toBe(false);
+    expect(can(c, 'purchases.view')).toBe(false);
+    expect(can(c, 'costs.view')).toBe(false);
+  });
+});

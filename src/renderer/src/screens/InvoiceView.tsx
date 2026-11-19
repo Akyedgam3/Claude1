@@ -21,6 +21,8 @@ export function InvoiceView({ id }: { id: string }) {
   const { state, call, notify, navigate, can } = useCompany();
   const inv = state.invoices.find((i) => i.id === id);
   if (!inv) return <Empty>الفاتورة غير موجودة</Empty>;
+  // فواتير الشراء فيها أسعار الشراء: بصلاحيتها بس
+  if ((inv.kind === 'purchase' || inv.kind === 'purchase_return') && !can('purchases.view')) return <Empty>ما عندك صلاحية تشوف فواتير الشراء</Empty>;
   if (IS_MOBILE) return <MobileInvoiceView inv={inv} />;
 
   return (
@@ -73,7 +75,7 @@ export function InvoiceView({ id }: { id: string }) {
           </button>
         </div>
       )}
-      {inv.kind === 'sale' && !inv.voidEntryId && can('costs.view') && state.info!.print?.showInvoiceProfit !== false && (() => {
+      {inv.kind === 'sale' && !inv.voidEntryId && can('profits.view') && state.info!.print?.showInvoiceProfit !== false && (() => {
         const p = invoiceProfit(state, inv);
         return (
           <div className={`profit-box no-print ${p.profit < 0 ? 'loss' : ''}`} style={{ maxWidth: 420 }}>
@@ -138,7 +140,7 @@ function InvoiceInfoBar({ inv }: { inv: Invoice }) {
           <small>الباقي من هالفاتورة</small>
           <b className={remaining > 0 ? 'bad' : ''}>{m(remaining)}</b>
         </span>
-        {party && (
+        {party && can('balances.view') && (
           <span>
             <small>حساب {party.name} كله</small>
             <b>{bal.length ? bal.map(([c, v]) => `${v > 0 ? 'عليه' : 'إلو'} ${m(Math.abs(v), c)}`).join(' + ') : 'مصفّى'}</b>
@@ -207,7 +209,7 @@ function MobileInvoiceView({ inv }: { inv: Invoice }) {
   useLayoutEffect(() => {
     document.querySelector('.content')?.scrollTo({ top: 0 });
   }, [inv.id]);
-  const profit = inv.kind === 'sale' && !inv.voidEntryId && can('costs.view') && state.info!.print?.showInvoiceProfit !== false ? invoiceProfit(state, inv) : null;
+  const profit = inv.kind === 'sale' && !inv.voidEntryId && can('profits.view') && state.info!.print?.showInvoiceProfit !== false ? invoiceProfit(state, inv) : null;
 
   return (
     <div className="page m-inv-page">

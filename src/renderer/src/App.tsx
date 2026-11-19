@@ -4,7 +4,7 @@ import type { EventItem } from '../../app/lan';
 import type { LicenseStatus } from '../../license/manager';
 import { api, Company, IS_MOBILE, moneyMask, noteIdleDispatcher, setMaskHere, IS_WEB, makeCtxHelpers, visibleState, type AppInfo, type CompanyCtx, type SessionInfo } from './api';
 import logoSmall from './assets/logo-64.png';
-import { ConfirmHost, justClosedModal } from './components/ui';
+import { ConfirmHost, justClosedModal, setStockQtyVisible } from './components/ui';
 import logo from './assets/logo.png';
 import { Icon } from './components/icons';
 import { NAV, navAllowed, SCREEN_PARENT, type NavItem } from './nav';
@@ -300,6 +300,8 @@ export function App() {
     );
   }
   if (!ctx) return splash;
+  // قوائم اختيار المواد (itemOptions) بتخفي الكمية إذا المستخدم ما إلو «رؤية كميات المخزون»
+  setStockQtyVisible(ctx.can('stock.qty'));
 
   const visible = NAV.filter((n) => {
     if (typeof n === 'string') return true;
