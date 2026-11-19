@@ -1,7 +1,7 @@
 #!/bin/bash
 # يبني ملف التنصيب لويندوز وينشره كـ Release على Akyedgam3/mizan-updates.
 # الاستعمال: scripts/publish-release.sh [ملف_ملاحظات.md]
-# النسخة من package.json. يحتاج wine (بينزّله لحالو على أوبونتو إذا ناقص).
+# النسخة من package.json. ما بيحتاج wine (scripts/eb-nowine.cjs).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 REPO=$(pwd)
@@ -9,12 +9,7 @@ VERSION=$(node -p "require('./package.json').version")
 NOTES=${1:-}
 UPDATES=${UPDATES_DIR:-/home/user/mizan-updates}
 
-if ! command -v wine >/dev/null || ! dpkg -s wine32:i386 >/dev/null 2>&1; then
-  echo "تنزيل wine..."
-  dpkg --add-architecture i386
-  apt-get update -qq
-  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq wine64 wine wine32:i386 >/dev/null
-fi
+# ما في داعي لـ wine: scripts/eb-nowine.cjs بيستخرج برنامج إزالة التنصيب بـ JavaScript (wine بيوقع ببعض البيئات)
 
 # مفتاح غوغل درايف (مستثنى من git) لازم يكون موجود، وإلا النسخ على درايف ما بيشتغل بالنسخة المنشورة
 [ -s keys/gdrive-client.json ] || { echo "خطأ: keys/gdrive-client.json ناقص (سر Google Drive). اطلبه من صاحب المشروع قبل النشر."; exit 1; }
@@ -22,11 +17,11 @@ rm -rf dist dist32 out
 npm run build >/dev/null
 # نسخة البيع ما لازم يكون فيها مفتاح التطوير أبداً
 if grep -q MCowBQYDK2VwAyEAWu46 out/main/index.js; then echo "خطأ: مفتاح التطوير موجود بالنسخة!"; exit 1; fi
-WINEDEBUG=-all CSC_IDENTITY_AUTO_DISCOVERY=false xvfb-run --auto-servernum npx electron-builder --win nsis --x64 --publish never >/dev/null
+CSC_IDENTITY_AUTO_DISCOVERY=false node scripts/eb-nowine.cjs --win nsis --x64 --publish never >/dev/null
 ls -la dist/Wazn-Setup.exe
 # نسخة 32 بت للأجهزة القديمة (ويندوز 10 32 بت)، نفس الكود بس Electron ia32
 rm -rf dist32
-WINEDEBUG=-all CSC_IDENTITY_AUTO_DISCOVERY=false xvfb-run --auto-servernum npx electron-builder --win nsis --ia32 --publish never -c.directories.output=dist32 '-c.nsis.artifactName=Wazn-Setup-32bit.${ext}' >/dev/null
+CSC_IDENTITY_AUTO_DISCOVERY=false node scripts/eb-nowine.cjs --win nsis --ia32 --publish never -c.directories.output=dist32 '-c.nsis.artifactName=Wazn-Setup-32bit.${ext}' >/dev/null
 ls -la dist32/Wazn-Setup-32bit.exe
 
 # فرع مؤقت فوق main فيه الملف؛ الـ workflow بالمستودع العام بينشره وبيحذف الفرع
