@@ -539,3 +539,62 @@ test('edit everywhere: a voucher from the cash box, a manual entry, a stock open
     await close();
   }
 });
+
+test('price lists: cost price, a named list (purchase + %) made from the invoice, chosen per customer and per invoice', async () => {
+  const { page, close } = await launch();
+  try {
+    await activate(page);
+    await createCompany(page, { name: 'محل القوائم', activity: 'تجارة عامة' });
+    const call = (method: string, ...args: unknown[]) => page.evaluate(([mm, a]) => (window as any).mizan.invoke('company:call', mm, a), [method, args] as const);
+    const today = new Date().toISOString().slice(0, 10);
+    await call('saveParty', { id: 'sup', kind: 'supplier', name: 'المورد' });
+    await call('saveParty', { id: 'cus', kind: 'customer', name: 'أبو خالد', priceTier: 'wholesale' });
+    await call('saveItem', { id: 'z', code: 'Z', name: 'زيت', kind: 'stock', unit: 'قطعة', price: 150000, wholesalePrice: 130000, priceCurrency: 'SYP' });
+    await call('postInvoice', { kind: 'purchase', date: today, partyId: 'sup', lines: [{ itemId: 'z', qty: 10, price: 100000 }] });
+    const st = async () => (await page.evaluate(() => (window as any).mizan.invoke('company:state'))).state;
+
+    // الفاتورة: الزبون جملة ← 1300، سعر الكلفة ← 1000
+    await nav(page, 'فاتورة مبيع');
+    const partyInput = page.locator('.field', { hasText: 'العميل' }).locator('.with-button input').first();
+    await partyInput.click();
+    await partyInput.fill('أبو خالد');
+    await page.locator('.picker-list li').first().click();
+    const row = page.locator('table.lines tbody tr').first();
+    await row.locator('.with-button input').first().click();
+    await row.locator('.with-button input').first().fill('زيت');
+    await page.locator('.picker-list li').first().waitFor();
+    await row.locator('.with-button input').first().press('Enter');
+    const price = row.locator('td[data-label="السعر"] input');
+    await expect(price).toHaveValue(/1[,٬]?300/);
+    const select = page.locator('select.price-list-select');
+    await select.selectOption('cost');
+    await expect(price).toHaveValue(/1[,٬]?000/);
+
+    // قائمة جديدة من الفاتورة: «نص جملة» = سعر الشراء + 15%، ومنخليها قائمة الزبون
+    await select.selectOption('__new__');
+    const m = page.locator('.modal', { hasText: 'قائمة أسعار جديدة' });
+    await m.locator('.field', { hasText: 'اسم القائمة' }).locator('input').fill('نص جملة');
+    await m.locator('.field', { hasText: 'السعر من' }).locator('select').selectOption('cost');
+    await m.locator('.field', { hasText: 'النسبة' }).locator('input').fill('15');
+    await m.locator('label.check input').check();
+    await m.getByRole('button', { name: 'حفظ' }).click();
+    await expect(price).toHaveValue(/1[,٬]?150/);
+    let s = await st();
+    const list = s.info.priceLists[0];
+    expect(list).toMatchObject({ name: 'نص جملة', basis: 'cost', percent: 15 });
+    expect(s.parties['cus'].priceList).toBe(list.id);
+    await page.getByRole('button', { name: /حفظ الفاتورة/ }).click();
+    await toast(page, 'تم حفظ');
+    s = await st();
+    expect(s.invoices.at(-1).total / 10 ** s.currencies['SYP'].decimals).toBe(1150);
+
+    // شاشة «قوائم الأسعار» بالقائمة: القائمة الجديدة وزبونها وسعر المادة فيها
+    await nav(page, 'قوائم الأسعار');
+    const r = page.locator('.price-lists table tbody tr', { hasText: 'نص جملة' }).first();
+    await expect(r).toContainText('سعر الشراء + 15%');
+    await r.click();
+    await expect(page.locator('.price-lists .print-area tbody tr', { hasText: 'زيت' })).toContainText(/1[,٬]?150/);
+  } finally {
+    await close();
+  }
+});

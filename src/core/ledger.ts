@@ -9,6 +9,7 @@ import { cashAccountFor, SYSTEM_ACCOUNTS } from './chart-templates';
 import { convertMinor, currencyProblem, type Currency } from './money';
 import { invoiceMoves } from './stock';
 import { costPlan } from './recost';
+import { isBuiltinList } from './price-tiers';
 import { invoiceProfit } from './reports';
 import { POULTRY_CUTS } from './poultry';
 import { dealerStock, dealerUnitCost } from './dealers';
@@ -51,6 +52,8 @@ import type {
   Appointment,
   CompanyEvent,
   CompanyInfo,
+  PriceBasis,
+  PriceListDef,
   CompanyState,
   DiningTable,
   ExchangeRate,
@@ -228,6 +231,18 @@ export function validateEvent(state: CompanyState, event: CompanyEvent): void {
       if (event.info.print?.color && !/^#[0-9a-fA-F]{6}$/.test(event.info.print.color)) fail('لون غير صالح');
       if (event.info.print?.terms && event.info.print.terms.length > 2000) fail('نص الشروط طويل جداً');
       if (event.info.activity !== undefined && !(event.info.activity in ACTIVITIES)) fail('نوع نشاط غير معروف');
+      if (event.info.priceLists) {
+        const names = new Set<string>();
+        for (const l of event.info.priceLists) {
+          if (!l.id || isBuiltinList(l.id)) fail('معرّف قائمة الأسعار غير صالح');
+          if (!l.name?.trim()) fail('اكتب اسم قائمة الأسعار');
+          if (!['cost', 'retail', 'wholesale', 'bulk', 'agent'].includes(l.basis)) fail('أساس قائمة الأسعار غير معروف');
+          if (!Number.isFinite(l.percent) || l.percent <= -100 || l.percent > 10000) fail('نسبة قائمة الأسعار غير صالحة');
+          const n = l.name.trim();
+          if (!l.archived && names.has(n)) fail(`في قائمة أسعار اسمها «${n}»`);
+          if (!l.archived) names.add(n);
+        }
+      }
       if (event.info.customize) {
         const c = event.info.customize;
         for (const list of [c.featuresOn, c.featuresOff, c.categories, c.units, c.attributes]) {
@@ -564,6 +579,27 @@ export class Ledger {
 
   updateCompany(info: Partial<CompanyInfo>): void {
     this.emit({ type: 'company.updated', info });
+  }
+
+  /** قائمة أسعار جديدة أو تعديلها (الاسم والأساس والنسبة). بيرجّع القائمة. */
+  savePriceList(def: { id?: string; name: string; basis: PriceBasis; percent: number }): PriceListDef {
+    const lists = [...(this.state.info!.priceLists ?? [])];
+    const name = (def.name ?? '').trim();
+    const same = lists.find((l) => !l.archived && l.name.trim() === name && l.id !== def.id);
+    if (same) fail(`في قائمة أسعار اسمها «${name}»`);
+    const list: PriceListDef = { id: def.id || `pl-${lists.length + 1}-${Date.now().toString(36)}`, name, basis: def.basis, percent: Math.round((Number(def.percent) || 0) * 100) / 100 };
+    const i = lists.findIndex((l) => l.id === list.id);
+    if (i >= 0) lists[i] = list;
+    else lists.push(list);
+    this.emit({ type: 'company.updated', info: { priceLists: lists } });
+    return list;
+  }
+
+  /** حذف قائمة أسعار: بتنخفى، والزباين اللي عليها بيرجعوا لشريحتهم (مفرق/جملة...). */
+  deletePriceList(id: string): void {
+    const lists = this.state.info!.priceLists ?? [];
+    if (!lists.some((l) => l.id === id && !l.archived)) fail('قائمة الأسعار غير موجودة');
+    this.emit({ type: 'company.updated', info: { priceLists: lists.map((l) => (l.id === id ? { ...l, archived: true } : l)) } });
   }
 
   /** عملة جديدة أو تعديل اسمها ورمزها. العملة الجديدة بيتعمللها صندوق خاص فيها. */

@@ -100,6 +100,9 @@ export function can(user: User | null | undefined, permission: Permission): bool
 /** الصلاحية المطلوبة لكل عملية على الدفتر. العمليات غير المذكورة هنا ممنوعة على الواجهة. */
 export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) => Permission)> = {
   updateCompany: 'settings.manage',
+  // قوائم الأسعار: قائمة جديدة من الفاتورة بصلاحية تغيير السعر (تعديل قائمة موجودة بدو items.manage بالمنفّذ)
+  savePriceList: 'price.edit',
+  deletePriceList: 'items.manage',
   saveAccount: 'accounts.manage',
   setupDealerBox: 'accounts.manage',
   transferBox: 'vouchers.create',

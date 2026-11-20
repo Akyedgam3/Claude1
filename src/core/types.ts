@@ -197,6 +197,21 @@ export interface CompanyInfo {
   hallHidden?: string[];
   /** البيع والشراء على النشرات: حسم الشراء والمعلمين وزيادة الزبون العادي %. */
   listPricing?: { buyDiscount: number; masterDiscount: number; retailMarkup: number; brands?: Record<string, number> };
+  /** قوائم أسعار المحل (من 1.2.94): «نص جملة» = سعر الشراء + 15%... بتنختار للزبون أو وقت الفاتورة. */
+  priceLists?: PriceListDef[];
+}
+
+/** أساس قائمة الأسعار: سعر الشراء (الكلفة) أو أحد أسعار المادة. */
+export type PriceBasis = 'cost' | 'retail' | 'wholesale' | 'bulk' | 'agent';
+
+/** قائمة أسعار باسم بيختاره المحل: السعر = الأساس × (1 + النسبة/100). */
+export interface PriceListDef {
+  id: string;
+  name: string;
+  basis: PriceBasis;
+  /** النسبة % (بالسالب = حسم من الأساس) */
+  percent: number;
+  archived?: boolean;
 }
 
 /** تخصيص النشاط من قبل المستخدم: تشغيل/إيقاف ميزات، وقوائم خاصة به. */
@@ -244,6 +259,8 @@ export interface Party {
   vatNumber?: string;
   creditLimit?: number; // بأصغر وحدة من العملة الأساسية
   priceTier?: PriceTier;
+  /** قائمة الأسعار تبعه (من 1.2.94): 'cost' (سعر الكلفة) أو معرّف قائمة من قوائم المحل؛ إذا موجودة بتغلب على priceTier. */
+  priceList?: string;
   /** حسم خاص لهالزبون من سعر النشرة % (كهربائيات). */
   listDiscount?: number;
   notes?: string;

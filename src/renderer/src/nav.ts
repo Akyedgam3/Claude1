@@ -55,6 +55,7 @@ export const NAV: (NavItem | string)[] = [
   'المخزون والبطاقات',
   { key: 'items', label: 'المواد', icon: 'package' },
   { key: 'itemwatch', label: 'مراقبة المواد', icon: 'eye', perms: ['reports.stock', 'reports.financial'] },
+  { key: 'pricelists', label: 'قوائم الأسعار', icon: 'dollar', feature: 'priceTiers', perms: ['items.manage', 'price.edit'] },
   { key: 'pricelist', label: 'نشرة الأسعار', icon: 'file', feature: 'priceList' },
   { key: 'lists', label: 'النشرات والحسومات', icon: 'file', feature: 'listPricing', perm: 'items.manage' },
   { key: 'stock', label: 'الجرد وعمليات المخزون', icon: 'transfer', perms: ['stock.adjust', 'stock.transfer'] },

@@ -53,6 +53,7 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       if (event.party.commissionFixed !== undefined && !(Number.isSafeInteger(event.party.commissionFixed) && event.party.commissionFixed >= 0)) fail('مبلغ العمولة غير صالح');
       if (event.party.marketerBasis !== undefined && event.party.marketerBasis !== 'sales' && event.party.marketerBasis !== 'profit') fail('أساس عمولة المسوّق غير معروف');
       if (event.party.priceTier !== undefined && !['retail', 'wholesale', 'bulk', 'agent', 'special'].includes(event.party.priceTier)) fail('نوع الزبون غير معروف');
+      if (event.party.priceList !== undefined && event.party.priceList !== 'cost' && !state.info?.priceLists?.some((l) => l.id === event.party.priceList)) fail('قائمة الأسعار غير موجودة');
       return;
     case 'warehouse.saved':
       if (!event.warehouse.name.trim()) fail('اسم المستودع مطلوب');

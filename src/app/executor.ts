@@ -142,6 +142,8 @@ function executeChecked(store: CompanyStore, user: User, method: string, args: u
   if (method === 'tradeIn') requirePermission(user, 'purchases.create');
   // تعديل سند/دين/قيد: كمان صلاحية إنشائه
   if (method === 'editVoucher' || method === 'editDebt') requirePermission(user, 'vouchers.create');
+  // تعديل قائمة أسعار موجودة بيغيّر أسعار زباين تانيين: بدو صلاحية إدارة المواد
+  if (method === 'savePriceList' && (args[0] as { id?: string } | undefined)?.id) requirePermission(user, 'items.manage');
   if (method === 'editEntry') requirePermission(user, 'journal.create');
   // حذف/تعديل مسودة: الصلاحية حسب نوعها المحفوظ (مش اللي بعته الطلب)
   if (method === 'deleteDraft' || method === 'saveDraft') {

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { isMarketer, marketerTerms, attributesFor, ATTRIBUTE_SUGGESTIONS, isCashBox, computeTaxes, PRICE_TIER_NAMES, tierPrice, niceUnitCost, PRICE_SCALE, roundPrice, findRate, itemPlace, listPrices, withPlace, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
+import { isMarketer, marketerTerms, attributesFor, ATTRIBUTE_SUGGESTIONS, isCashBox, computeTaxes, PRICE_TIER_NAMES, tierPrice, COST_LIST, isBuiltinList, partyPriceList, priceListPrice, type PriceTier, niceUnitCost, PRICE_SCALE, roundPrice, findRate, itemPlace, listPrices, withPlace, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
 import { convertPrice, dateText, fxRates, money, cleanNumber, qtyTotalText, qtyText, parseAmount, parseDiscount, parsePrice, rateInverted, toInput, today, uid, useCompany } from '../api';
 import { askConfirm, CurrencySelect, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
 import { invoiceDrafts } from '../drafts';
 import { ItemForm } from './Items';
 import { PartyForm } from './Parties';
 import { Icon } from '../components/icons';
+import { PriceListSelect } from '../components/PriceLists';
 import { WeighingModal, weightsFromQty } from '../components/Weighing';
 import { PlaceInput } from '../components/PlaceInput';
 
@@ -47,6 +48,8 @@ interface DraftData {
   vatNumber?: string;
   marketerId?: string;
   notes: string;
+  /** قائمة الأسعار المختارة بالفاتورة (فاضي = قائمة الزبون) */
+  priceList?: string | null;
 }
 
 const emptyLine = (): LineState => ({ key: uid(), itemId: null, description: '', unit: '', qty: '1', price: '', discount: '', batch: '', expiry: '', serials: '' });
@@ -59,7 +62,7 @@ export function cashAccounts(state: CompanyState, currency?: string) {
 }
 
 /** سعر المادة حسب شريحة العميل والوحدة، محوّلاً لعملة الفاتورة. */
-export function itemPrice(state: CompanyState, item: Item, opts: { party?: Party | null; unit?: string; currency: string; date: string; purchase?: boolean; rates?: Record<string, number>; dealer?: boolean; whole?: boolean }): string {
+export function itemPrice(state: CompanyState, item: Item, opts: { party?: Party | null; unit?: string; currency: string; date: string; purchase?: boolean; rates?: Record<string, number>; dealer?: boolean; whole?: boolean; list?: string }): string {
   const rates = opts.rates ?? fxRates(state, opts.date);
   const decimals = state.currencies[opts.currency]?.decimals ?? 2;
   /**
@@ -85,7 +88,17 @@ export function itemPrice(state: CompanyState, item: Item, opts: { party?: Party
     return v === null || v === 0 ? '' : toInput(state, v, opts.currency);
   }
   const unit = item.units?.find((u) => u.name === opts.unit);
-  const tier = opts.party?.priceTier;
+  // قائمة الأسعار: المختارة بالفاتورة، وإلا قائمة الزبون (سعر الكلفة أو قائمة من قوائم المحل)
+  const listKey = opts.list ?? partyPriceList(opts.party);
+  if (listKey === COST_LIST || !isBuiltinList(listKey)) {
+    const fromList = priceListPrice(state, item, listKey);
+    if (fromList) {
+      const v = convert(unit ? roundPrice(fromList.price * unit.factor) : fromList.price, fromList.currency);
+      return v === null ? '' : toInput(state, v, opts.currency);
+    }
+    if (listKey === COST_LIST) return ''; // ما في سعر شراء لهالمادة
+  }
+  const tier = (isBuiltinList(listKey) && listKey !== COST_LIST ? listKey : opts.party?.priceTier) as PriceTier | undefined;
   let price = tierPrice(item, tier);
   // المورد (صندوقه الخاص) بيبيع أدوية الصيدلية بسعره الأعلى إذا محطوط
   const dealerPrice = opts.dealer && !item.hidden && item.dealerPrice ? item.dealerPrice : undefined;
@@ -121,6 +134,8 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
   const [draftId] = useState(() => (savedDraftId ? `sd-${savedDraftId}` : (draftProp ?? invoiceDrafts.latest(company, kind)?.id ?? uid())));
   const [d] = useState(() => (editing ? undefined : ((invoiceDrafts.get(company, draftId)?.data ?? savedDraft?.data) as DraftData | undefined)));
   const [partyId, setPartyId] = useState<string | null>(editing?.partyId ?? d?.partyId ?? null);
+  // قائمة الأسعار المختارة لهالفاتورة (null = قائمة الزبون)
+  const [listKey, setListKey] = useState<string | null>(d?.priceList ?? null);
   const [date, setDate] = useState(editing?.date ?? d?.date ?? today());
   const [currency, setCurrency] = useState(editing?.currency ?? (d && state.currencies[d.currency] ? d.currency : base));
   const [rateText, setRateText] = useState(() => (editing && editing.currency !== base ? String(rateInverted(state, editing.currency) ? Math.round(10000 / editing.rate) / 10000 : editing.rate) : (d?.rateText ?? '')));
@@ -273,8 +288,8 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
     if (cur !== base && t) r[cur] = rateInverted(state, cur) ? 1 / t : t;
     return r;
   };
-  const priceFor = (item: Item, unit = '', p: Party | null | undefined = party, cur = currency, rates = ratesFor(currency, rateText)) =>
-    itemPrice(state, item, { party: p, unit, currency: cur, date, rates, purchase: kind === 'purchase' || kind === 'purchase_return', dealer: user.cashAccountId === '11019' });
+  const priceFor = (item: Item, unit = '', p: Party | null | undefined = party, cur = currency, rates = ratesFor(currency, rateText), list: string | null = listKey) =>
+    itemPrice(state, item, { party: p, unit, currency: cur, date, rates, purchase: kind === 'purchase' || kind === 'purchase_return', dealer: user.cashAccountId === '11019', ...(list && isSale ? { list } : {}) });
   /** يحوّل مبلغ مكتوب من عملة لعملة (إذا ما في سعر صرف بيضل متل ما هو). */
   const convertText = (text: string, from: string, to: string, rates: Record<string, number>) => {
     if (!text.trim() || from === to) return text;
@@ -289,14 +304,19 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
    * عند تغيير الزبون أو العملة أو سعر الصرف: الأسطر التلقائية بتتسعّر من جديد،
    * والأسعار المكتوبة باليد بتتحوّل من العملة اللي انكتبت فيها (6$ بتصير 6×السعر بالليرة).
    */
-  const reprice = (p: Party | null | undefined, cur: string, typed: string) => {
+  const reprice = (p: Party | null | undefined, cur: string, typed: string, list: string | null = listKey, all = false) => {
     const rates = ratesFor(cur, typed);
     if (currency !== cur && currency !== base && rate) rates[currency] = rate; // السعر المكتوب للعملة القديمة
     setLines((ls) =>
       ls.map((l) => {
         const item = l.itemId ? state.items[l.itemId] : undefined;
         const discount = convertText(l.discount, currency, cur, rates);
-        if (item && !l.manualPrice) return { ...l, discount, price: priceFor(item, l.unit, p, cur, rates) };
+        // all: تغيير قائمة الأسعار بيسعّر كل الأسطر من جديد (حتى اللي انكتب سعرها باليد)
+        if (item && (!l.manualPrice || all)) {
+          const { src: _src, ...rest } = l;
+          void _src;
+          return { ...rest, discount, manualPrice: false, price: priceFor(item, l.unit, p, cur, rates, list) };
+        }
         if (l.src) {
           const v = l.src.currency === cur ? l.src.amount : convertPrice(state, l.src.amount, l.src.currency, cur, rates);
           return v === null ? { ...l, discount } : { ...l, discount, price: toInput(state, v, cur) };
@@ -309,8 +329,25 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
   const changeParty = (id: string | null) => {
     setPartyId(id);
     setPaidText(null);
-    reprice(id ? (state.parties[id] ?? null) : null, currency, rateText);
+    // زبون جديد = قائمته هو
+    setListKey(null);
+    reprice(id ? (state.parties[id] ?? null) : null, currency, rateText, null);
   };
+  /** تغيير قائمة الأسعار بالفاتورة: كل الأسطر بتتسعّر من جديد */
+  const changeList = (key: string) => {
+    const next = key === partyPriceList(party) ? null : key;
+    setListKey(next);
+    // قائمة لسا منعملة: منستنى توصل للحالة ومنسعّر بعدين
+    if (!isBuiltinList(key) && !state.info?.priceLists?.some((l) => l.id === key)) return setPendingList(key);
+    reprice(party, currency, rateText, next, true);
+  };
+  const [pendingList, setPendingList] = useState<string | null>(null);
+  useEffect(() => {
+    if (!pendingList || !state.info?.priceLists?.some((l) => l.id === pendingList)) return;
+    setPendingList(null);
+    reprice(party, currency, rateText, pendingList, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingList, state.info?.priceLists]);
   const changeCurrency = (cur: string) => {
     if (cur === currency) return;
     const rates = reprice(party, cur, '');
@@ -456,9 +493,9 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
   useEffect(() => {
     if (editing || savedRef.current) return;
     if (!used.length && !partyId && !notes.trim()) return invoiceDrafts.remove(company, draftId);
-    const data: DraftData = { partyId, date, currency, rateText, warehouseId, lines, discount, taxIds, paidText, payMode, cashAccountId, salesman, vatNumber, marketerId, notes };
+    const data: DraftData = { partyId, date, currency, rateText, warehouseId, lines, discount, taxIds, paidText, payMode, cashAccountId, salesman, vatNumber, marketerId, notes, priceList: listKey };
     invoiceDrafts.save(company, { id: draftId, kind, title: (partyId && state.parties[partyId]?.name) || (isSale ? 'زبون نقدي' : 'مورد نقدي'), count: used.length, updated: Date.now(), data });
-  }, [editing, company, draftId, kind, isSale, state.parties, used, partyId, date, currency, rateText, warehouseId, lines, discount, taxIds, paidText, payMode, cashAccountId, salesman, vatNumber, marketerId, notes]);
+  }, [editing, company, draftId, kind, isSale, state.parties, used, partyId, date, currency, rateText, warehouseId, lines, discount, taxIds, paidText, payMode, cashAccountId, salesman, vatNumber, marketerId, notes, listKey]);
   const preview = useMemo(() => {
     try {
       const amounts = used.map((l) => {
@@ -644,7 +681,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
     savingRef.current = true;
     setSaving(true);
     try {
-      const data: DraftData = { partyId, date, currency, rateText, warehouseId, lines, discount, taxIds, paidText, payMode, cashAccountId, salesman, vatNumber, marketerId, notes };
+      const data: DraftData = { partyId, date, currency, rateText, warehouseId, lines, discount, taxIds, paidText, payMode, cashAccountId, salesman, vatNumber, marketerId, notes, priceList: listKey };
       const snapshot = used.map((l) => {
         const item = l.itemId ? state.items[l.itemId] : null;
         const price = parsePrice(state, l.price || '0', currency);
@@ -717,7 +754,15 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
               </button>
             )}
           </div>
-          {party?.priceTier && party.priceTier !== 'retail' && <small className="tier-chip">أسعار {PRICE_TIER_NAMES[party.priceTier]}</small>}
+          {isSale && (feature('priceTiers') || !!state.info?.priceLists?.some((l) => !l.archived) || partyPriceList(party) !== 'retail') ? (
+            <div className="price-list-pick">
+              <small>قائمة الأسعار:</small>
+              <PriceListSelect value={listKey ?? partyPriceList(party)} onChange={changeList} disabled={lockPrice} party={party} />
+              {listKey && listKey !== partyPriceList(party) && <small className="tier-chip">مش قائمة الزبون</small>}
+            </div>
+          ) : (
+            party?.priceTier && party.priceTier !== 'retail' && <small className="tier-chip">أسعار {PRICE_TIER_NAMES[party.priceTier]}</small>
+          )}
           {!editing && partyHistory.lastInv && !used.length && (
             <button type="button" className="link repeat-last" onClick={repeatLast}>
               ↻ كرّر آخر فاتورة إلو (رقم {partyHistory.lastInv.number}، {dateText(partyHistory.lastInv.date)})

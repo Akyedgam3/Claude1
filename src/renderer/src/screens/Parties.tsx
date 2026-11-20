@@ -1,8 +1,9 @@
 import { Fragment, useMemo, useState } from 'react';
-import { PRICE_TIER_NAMES, PRICE_TIERS, type PriceTier, lineAmount, partyBalance, partyStatement, siteJobRooms, siteJobTotals, type Invoice, type Party } from '../../../core';
+import { COST_LIST, customPriceLists, isBuiltinList, partyPriceList, priceListName, priceListRule, PRICE_TIERS, type PriceListDef, lineAmount, partyBalance, partyStatement, siteJobRooms, siteJobTotals, type Invoice, type Party } from '../../../core';
 import { major, money, parseAmount, qtyText, toInput, today, uid, useCompany, dateText } from '../api';
 import { ExportButtons, PrintButtons, DocHeader } from '../components/print';
 import { Icon } from '../components/icons';
+import { PriceListForm } from '../components/PriceLists';
 import { entryTarget } from '../components/openEntry';
 import { askConfirm, Empty, Field, matches, Modal, PageHeader, partyOptions, Picker, SearchBox } from '../components/ui';
 import { MeasurementsEditor, TAILOR_STATUS } from './Tailor';
@@ -14,14 +15,14 @@ export function Parties({ focus }: { focus?: string }) {
   const { state, can, feature } = useCompany();
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState<'all' | 'customer' | 'supplier'>('all');
-  const [tier, setTier] = useState<PriceTier | 'all'>('all');
+  const [tier, setTier] = useState<string>('all');
   const [editing, setEditing] = useState<Party | 'new' | null>(null);
   const [selected, setSelected] = useState<string | null>(focus ?? null);
 
   const rows = useMemo(
     () =>
       Object.values(state.parties)
-        .filter((p) => !p.archived && (kind === 'all' || p.kind === kind || p.kind === 'both') && (tier === 'all' || (p.priceTier ?? 'retail') === tier) && matches(query, p.name, p.phone))
+        .filter((p) => !p.archived && (kind === 'all' || p.kind === kind || p.kind === 'both') && (tier === 'all' || partyPriceList(p) === tier) && matches(query, p.name, p.phone))
         .map((p) => ({ party: p, balance: partyBalance(state, p.id) }))
         .sort((a, b) => a.party.name.localeCompare(b.party.name, 'ar')),
     [state, query, kind, tier],
@@ -68,6 +69,12 @@ export function Parties({ focus }: { focus?: string }) {
                 {t.name}
               </option>
             ))}
+            <option value={COST_LIST}>سعر الكلفة</option>
+            {customPriceLists(state.info).map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
           </select>
         )}
       </div>
@@ -90,7 +97,7 @@ export function Parties({ focus }: { focus?: string }) {
                   <tr key={party.id} className={`clickable ${selected === party.id ? 'selected' : ''}`} onClick={() => setSelected(party.id)}>
                     <td>
                       {party.name}
-                      {party.priceTier && party.priceTier !== 'retail' && <small className="tier-chip">{PRICE_TIER_NAMES[party.priceTier]}</small>}
+                      {partyPriceList(party) !== 'retail' && <small className="tier-chip">{priceListName(state.info, partyPriceList(party))}</small>}
                     </td>
                     <td>{KIND_NAMES[party.kind]}</td>
                     <td dir="ltr" className="mono">
@@ -330,7 +337,7 @@ export function PartyForm({
   onSaved?: (p: Party) => void;
   defaultKind?: Party['kind'];
 }) {
-  const { state, call, notify, feature } = useCompany();
+  const { state, call, notify, feature, can } = useCompany();
   const base = state.info!.baseCurrency;
   const [f, setF] = useState({
     name: party?.name ?? '',
@@ -339,12 +346,13 @@ export function PartyForm({
     address: party?.address ?? '',
     vatNumber: party?.vatNumber ?? '',
     notes: party?.notes ?? '',
-    priceTier: party?.priceTier ?? 'retail',
+    priceTier: partyPriceList(party) as string,
     listDiscount: party?.listDiscount !== undefined ? String(party.listDiscount) : '',
     creditLimit: party?.creditLimit ? toInput(state, party.creditLimit, base) : '',
     marketerRate: party?.marketerRate ? String(party.marketerRate) : '',
   });
   const [measurements, setMeasurements] = useState<Record<string, string>>(party?.measurements ?? {});
+  const [newList, setNewList] = useState(false);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
   return (
     <Modal title={party ? 'تعديل' : 'إضافة عميل / مورد'} onClose={onClose} {...(feature('tailoring') ? { width: 760 } : {})}>
@@ -362,7 +370,8 @@ export function PartyForm({
             id: party?.id ?? uid(),
             name: f.name.trim(),
             kind: f.kind as Party['kind'],
-            ...(f.priceTier !== 'retail' ? { priceTier: f.priceTier as Party['priceTier'] } : {}),
+            // قائمة الأسعار: شريحة (مفرق/جملة/...) أو سعر الكلفة أو قائمة من قوائم المحل
+            ...(isBuiltinList(f.priceTier) && f.priceTier !== COST_LIST ? (f.priceTier !== 'retail' ? { priceTier: f.priceTier as Party['priceTier'] } : {}) : { priceList: f.priceTier }),
             ...(creditLimit > 0 ? { creditLimit } : {}),
             ...(Number(f.marketerRate) > 0 ? { marketerRate: Math.min(100, Number(f.marketerRate)) } : {}),
             // طريقة العمولة بتتعدّل من شاشة المسوّقين: هون منحافظ عليها
@@ -404,9 +413,14 @@ export function PartyForm({
         <Field label="العنوان" wide>
           <input value={f.address} onChange={set('address')} />
         </Field>
-        {feature('priceTiers') && f.kind !== 'supplier' && (
-          <Field label="نوع الزبون (بياخد أسعار نوعه لحالها)" wide>
+        {(feature('priceTiers') || customPriceLists(state.info).length > 0) && f.kind !== 'supplier' && (
+          <Field label="قائمة أسعار الزبون (بالفاتورة بتنحط أسعارها لحالها)" wide>
             <div className="tier-pick">
+              {(can('costs.view') || f.priceTier === COST_LIST) && (
+                <button type="button" className={f.priceTier === COST_LIST ? 'active' : ''} onClick={() => setF({ ...f, priceTier: COST_LIST })}>
+                  سعر الكلفة
+                </button>
+              )}
               {PRICE_TIERS.map((t) => (
                 <button type="button" key={t.id} className={f.priceTier === t.id ? 'active' : ''} onClick={() => setF({ ...f, priceTier: t.id })}>
                   {feature('listPricing') && t.id === 'retail' ? 'زبون عادي' : feature('listPricing') && t.id === 'wholesale' ? 'معلم' : t.short}
@@ -415,6 +429,18 @@ export function PartyForm({
               {(party?.priceTier === 'special' || f.priceTier === 'special') && (
                 <button type="button" className={f.priceTier === 'special' ? 'active' : ''} onClick={() => setF({ ...f, priceTier: 'special' })}>
                   سعر خاص
+                </button>
+              )}
+              {customPriceLists(state.info, true)
+                .filter((l) => !l.archived || l.id === f.priceTier)
+                .map((l) => (
+                  <button type="button" key={l.id} title={priceListRule(l)} className={f.priceTier === l.id ? 'active' : ''} onClick={() => setF({ ...f, priceTier: l.id })}>
+                    {l.name}
+                  </button>
+                ))}
+              {can('price.edit') && (
+                <button type="button" className="link" onClick={() => setNewList(true)}>
+                  + قائمة جديدة (سعر الشراء + نسبة…)
                 </button>
               )}
             </div>
@@ -454,6 +480,16 @@ export function PartyForm({
           <button className="primary">حفظ</button>
         </div>
       </form>
+      {newList && (
+        <PriceListForm
+          list={null}
+          onClose={() => setNewList(false)}
+          onSaved={(l: PriceListDef) => {
+            setNewList(false);
+            setF((x) => ({ ...x, priceTier: l.id }));
+          }}
+        />
+      )}
     </Modal>
   );
 }
