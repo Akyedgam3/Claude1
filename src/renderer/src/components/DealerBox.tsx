@@ -6,8 +6,9 @@ import { Icon } from './icons';
 
 /** تفعيل صندوق المورد الخاص (بشاشة المستخدمين): مخفي عن الصيدلية، وبتنزل فيه مبيعات المورد. */
 export function DealerBoxSetup() {
-  const { state, call, notify, can, user } = useCompany();
-  if (!can('items.hidden') || !can('accounts.manage')) return null;
+  const { state, call, notify, can, user, feature } = useCompany();
+  // ميزة الصيدليات بس (المورد اللي بيبيع من بضاعة الصيدلية)
+  if (!feature('dealers') || !can('items.hidden') || !can('accounts.manage')) return null;
   const box = state.accounts[DEALER_BOX_ID];
   if (box) return <p className="banner ok">✓ «{box.name}» مفعّل: مخفي عن الصيدلية. اختار لكل مستخدم صندوقه من نموذج المستخدم.</p>;
   const setup = async () => {
@@ -27,6 +28,31 @@ export function DealerBoxSetup() {
 
 /** بطاقة الرئيسية للمورد: رصيد صندوقه والصندوق المشترك، وشقد لازم يحوّل للصندوق المشترك عن المواد المشتركة. */
 export function DealerBoxCard() {
+  const { feature } = useCompany();
+  return feature('dealers') ? <DealerBoxCardInner /> : <WrongDealerBox />;
+}
+
+/** «صندوق المورد» انعمل بالغلط بمحل مش صيدلية: كبسة بترجّع كل شي للصندوق العادي. */
+function WrongDealerBox() {
+  const { state, call, notify, can } = useCompany();
+  const box = state.accounts[DEALER_BOX_ID];
+  if (!box || box.archived || !can('accounts.manage')) return null;
+  const fix = async () => {
+    if (await call('removeDealerBox')) notify('رجع كل شي للصندوق العادي');
+  };
+  return (
+    <div className="card dealer-box">
+      <p>
+        <b>«{box.name}» انعمل بالغلط:</b> هاد للصيدليات بس (مورد بيبيع من بضاعة الصيدلية). رجّع كل شي للصندوق العادي بكبسة.
+      </p>
+      <button className="primary" onClick={() => void fix()}>
+        رجّع للصندوق العادي
+      </button>
+    </div>
+  );
+}
+
+function DealerBoxCardInner() {
   const { state, call, notify, can } = useCompany();
   const box = state.accounts[DEALER_BOX_ID];
   const shared = cashAccounts(state, state.info!.baseCurrency).filter((a) => !a.hidden);

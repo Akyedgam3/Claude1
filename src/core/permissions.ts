@@ -105,6 +105,7 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
   deletePriceList: 'items.manage',
   saveAccount: 'accounts.manage',
   setupDealerBox: 'accounts.manage',
+  removeDealerBox: 'accounts.manage',
   transferBox: 'vouchers.create',
   drawFromBox: 'vouchers.create',
   fillBox: 'vouchers.create',

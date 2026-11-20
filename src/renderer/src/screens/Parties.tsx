@@ -440,7 +440,7 @@ export function PartyForm({
                 ))}
               {can('price.edit') && (
                 <button type="button" className="link" onClick={() => setNewList(true)}>
-                  + قائمة جديدة (سعر الشراء + نسبة…)
+                  + قائمة جديدة
                 </button>
               )}
             </div>

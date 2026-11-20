@@ -177,7 +177,7 @@ export function CashJournal() {
                 <td data-label="المدفوع">
                   <input className="num-input cj-out" inputMode="decimal" value={r.outText} onChange={(e) => setRow(r.key, { outText: e.target.value, ...(e.target.value ? { inText: '' } : {}) })} />
                 </td>
-                <td data-label="الاسم">
+                <td data-label="الاسم (من مين / لمين)">
                   <div className="with-button">
                     <Picker options={options} value={r.who} onChange={(id) => setRow(r.key, { who: id })} placeholder="اكتب الاسم…" />
                     {can('parties.manage') && (

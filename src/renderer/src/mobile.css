@@ -1188,3 +1188,10 @@ body.mobile .welcome-tabs button:nth-child(even) { border-inline-start: 1px soli
     gap: 4px;
   }
 }
+
+/* يومية الصندوق عالجوال: الاسم (من مين / لمين) أول البطاقة بعرضها، وتحته المقبوض والمدفوع جنب بعض، وبعدين الملاحظات */
+@media (max-width: 699px) {
+  body.mobile .content table.cj-lines td:nth-child(3) { order: -1; grid-column: 1 / -1; padding-inline-end: 36px; }
+  body.mobile .content table.cj-lines td:first-child { grid-column: auto; padding-inline-end: 0; }
+  body.mobile .content table.cj-lines td:nth-child(4) { grid-column: 1 / -1; }
+}

@@ -1,7 +1,8 @@
 import { can, permissionFor, PERMISSIONS, type Permission } from '../core/permissions';
 import type { InvoiceDraft } from '../core/commerce';
 import type { Invoice, User } from '../core/types';
-import { settleDealerInvoice, unsettleDealerInvoice } from '../core/dealerbox';
+import { DEALER_BOX_ID, settleDealerInvoice, unsettleDealerInvoice } from '../core/dealerbox';
+import { accountBalance, isCashBox } from '../core/reports';
 import type { CompanyStore } from '../storage/company-store';
 
 // كل عملية من الواجهة (أو من جهاز على الشبكة) تمر من هنا:
@@ -29,6 +30,28 @@ const SPECIAL: Record<string, Special> = {
     store.ledger.saveUser(u);
     store.setPassword(u.id, password);
     return u;
+  },
+  /**
+   * «صندوق المورد» للصيدليات بس: إذا انعمل بالغلط بمحل تاني، بيرجع كل شي للصندوق العادي:
+   * رصيده بيتحوّل، المستخدمين اللي عليه بيرجعوا للصندوق، وهو بيتأرشف.
+   */
+  removeDealerBox(store, user) {
+    requirePermission(user, 'accounts.manage');
+    const l = store.ledger;
+    const box = l.state.accounts[DEALER_BOX_ID] ?? fail('صندوق المورد غير موجود');
+    const base = l.state.info!.baseCurrency;
+    const target = Object.values(l.state.accounts).find((a) => a.id !== box.id && isCashBox(a) && !a.hidden && !a.archived && (!a.currency || a.currency === base)) ?? fail('ما في صندوق عادي');
+    const bal = accountBalance(l.state, box.id).balance;
+    const date = new Date().toISOString().slice(0, 10);
+    if (bal > 0) l.transferBox({ date, from: box.id, to: target.id, amount: bal, memo: 'إلغاء صندوق المورد' });
+    if (bal < 0) l.transferBox({ date, from: target.id, to: box.id, amount: -bal, memo: 'إلغاء صندوق المورد' });
+    for (const u of Object.values(l.state.users)) {
+      if (u.cashAccountId !== box.id) continue;
+      l.saveUser({ ...u, cashAccountId: target.id });
+      store.syncUser(u.id);
+    }
+    l.saveAccount({ ...box, archived: true });
+    return target.id;
   },
   updateUser(store, user, [data, password]) {
     requirePermission(user, 'users.manage');
