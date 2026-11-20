@@ -126,7 +126,7 @@ function executeChecked(store: CompanyStore, user: User, method: string, args: u
     for (const v of args[0] as { cashAccountId?: string }[]) if (v && typeof v === 'object' && (user.role !== 'owner' || !v.cashAccountId)) v.cashAccountId = box;
   }
   if (box) {
-    const draft = (method === 'postInvoice' || method === 'postVoucher' ? args[0] : method === 'replaceInvoice' ? args[1] : undefined) as { cashAccountId?: string; kind?: string; accountId?: string } | undefined;
+    const draft = (method === 'postInvoice' || method === 'postVoucher' ? args[0] : method === 'replaceInvoice' || method === 'editVoucher' ? args[1] : undefined) as { cashAccountId?: string; kind?: string; accountId?: string } | undefined;
     if (draft && typeof draft === 'object' && (draft.kind !== 'purchase' || user.role !== 'owner')) {
       if (user.role !== 'owner' || !draft.cashAccountId) draft.cashAccountId = box;
     }
@@ -140,6 +140,9 @@ function executeChecked(store: CompanyStore, user: User, method: string, args: u
   }
   // الاستبدال فيه شراء كمان
   if (method === 'tradeIn') requirePermission(user, 'purchases.create');
+  // تعديل سند/دين/قيد: كمان صلاحية إنشائه
+  if (method === 'editVoucher' || method === 'editDebt') requirePermission(user, 'vouchers.create');
+  if (method === 'editEntry') requirePermission(user, 'journal.create');
   // حذف/تعديل مسودة: الصلاحية حسب نوعها المحفوظ (مش اللي بعته الطلب)
   if (method === 'deleteDraft' || method === 'saveDraft') {
     const id = method === 'deleteDraft' ? args[0] : (args[0] as { id?: unknown } | undefined)?.id;

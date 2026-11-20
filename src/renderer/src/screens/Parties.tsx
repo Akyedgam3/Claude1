@@ -3,6 +3,7 @@ import { PRICE_TIER_NAMES, PRICE_TIERS, type PriceTier, lineAmount, partyBalance
 import { major, money, parseAmount, qtyText, toInput, today, uid, useCompany, dateText } from '../api';
 import { ExportButtons, PrintButtons, DocHeader } from '../components/print';
 import { Icon } from '../components/icons';
+import { entryTarget } from '../components/openEntry';
 import { askConfirm, Empty, Field, matches, Modal, PageHeader, partyOptions, Picker, SearchBox } from '../components/ui';
 import { MeasurementsEditor, TAILOR_STATUS } from './Tailor';
 import { meters, SITE_JOB_STATUS } from './SiteJobs';
@@ -281,7 +282,7 @@ export function PartyPanel({ party, onEdit }: { party: Party; onEdit?: () => voi
               const inv = state.invoices.find((i) => i.entryId === r.entryId);
               return (
                 <Fragment key={r.entryId}>
-                  <tr className={inv ? 'clickable' : ''} onClick={() => inv && navigate('invoice', inv.id)}>
+                  <tr className="clickable" title="اكبس لتفتح الحركة (وتعدّلها)" onClick={() => { const t = entryTarget(state, r.entryId); if (t) navigate(t.screen, t.param); }}>
                     <td>{dateText(r.date)}</td>
                     <td>{r.memo}</td>
                     <td className="num">{r.debit ? money(state, r.debit, currency || undefined) : ''}</td>

@@ -437,6 +437,8 @@ export interface EntryDraft {
 
 export interface VoucherDraft {
   kind: 'receipt' | 'payment'; // سند قبض / سند دفع
+  /** داخلي: رقم السند (بالتعديل بيضل نفس الرقم) */
+  number?: number;
   date: string;
   amount: number; // بأصغر وحدة من العملة
   currency?: string;
@@ -1288,6 +1290,75 @@ export class Ledger {
     return list.map((v) => this.postVoucher(v));
   }
 
+  // ───────── التعديل: إلغاء القديم بتاريخه + تسجيل الجديد (بنفس الرقم)، بعد ما ينجرّب على نسخة ─────────
+
+  private editable(entryId: string, types: string[]): JournalEntry {
+    const e = this.state.entries.find((x) => x.id === entryId) ?? fail('القيد غير موجود');
+    if (e.voidOf) fail('هاد قيد إلغاء، ما بيتعدّل');
+    if (this.state.voided[e.id]) fail('هالحركة ملغاة، ما بتتعدّل');
+    if (!e.source || !types.includes(e.source.type)) fail('هالحركة ما بتتعدّل من هون');
+    return e;
+  }
+  private trialCopy(): Ledger {
+    const t = new Ledger(() => {}, structuredClone(this.state));
+    t.actor = this.actor;
+    t.autoRecost = false;
+    return t;
+  }
+
+  /** تعديل سند قبض أو دفع (أو تسديد دين أو سطر من يومية الصندوق): بيضل نفس رقم السند. */
+  editVoucher(entryId: string, v: VoucherDraft): JournalEntry {
+    const e = this.editable(entryId, ['receipt', 'payment']);
+    const num = Number(/رقم (\d+):/.exec(e.memo)?.[1]) || undefined;
+    const next: VoucherDraft = { ...v, ...(num && v.kind === e.source!.type ? { number: num } : {}) };
+    const trial = this.trialCopy();
+    trial.voidEntry(e.id, e.date);
+    trial.postVoucher(next);
+    this.voidEntry(e.id, e.date);
+    return this.postVoucher(next);
+  }
+
+  /** تعديل دين مسجّل مباشرة (دين قديم، سلفة، بضاعة بدون فاتورة). */
+  editDebt(entryId: string, d: DebtDraft): JournalEntry {
+    const e = this.editable(entryId, ['debt']);
+    const trial = this.trialCopy();
+    trial.voidEntry(e.id, e.date);
+    trial.postDebt(d);
+    this.voidEntry(e.id, e.date);
+    return this.postDebt(d);
+  }
+
+  /** تعديل قيد يدوي. */
+  editEntry(entryId: string, draft: EntryDraft): JournalEntry {
+    const e = this.editable(entryId, ['manual']);
+    const next: EntryDraft = { ...draft, source: { type: 'manual', id: crypto.randomUUID() } };
+    const trial = this.trialCopy();
+    trial.voidEntry(e.id, e.date);
+    trial.postEntry(next);
+    this.voidEntry(e.id, e.date);
+    return this.postEntry(next);
+  }
+
+  /** تعديل عملية مخزون (رصيد افتتاحي، تالف، استهلاك): إلغاء بتاريخها + عملية جديدة. */
+  editAdjustment(adjustmentId: string, d: AdjustDraft): StockAdjustment {
+    const a = this.state.adjustments.find((x) => x.id === adjustmentId) ?? fail('العملية غير موجودة');
+    if (a.kind === 'count' || a.kind === 'revalue') fail('الجرد وتعديل سعر الشراء ما بيتعدّلوا: ألغِهن واعمل جديد');
+    if (d.kind !== a.kind) fail('ما بيصير تغيّر نوع العملية');
+    const trial = this.trialCopy();
+    trial.voidAdjustment(a.id, a.date);
+    trial.adjustStock(d);
+    this.recostPaused++;
+    let res: StockAdjustment;
+    try {
+      this.voidAdjustment(a.id, a.date);
+      res = this.adjustStock(d);
+    } finally {
+      this.recostPaused--;
+    }
+    this.afterStockChange([...a.lines.map((l) => l.itemId), ...d.lines.map((l) => l.itemId)]);
+    return res;
+  }
+
   postVoucher(v: VoucherDraft): JournalEntry {
     if (!(v.amount > 0) || !Number.isSafeInteger(v.amount)) fail('المبلغ يجب أن يكون أكبر من صفر');
     const party = v.partyId ? (this.state.parties[v.partyId] ?? fail('الطرف غير موجود')) : null;
@@ -1302,7 +1373,7 @@ export class Ledger {
     const cash = v.cashAccountId ?? cashAccountFor(this.state, currency);
     const fx = { currency, ...(v.rate ? { rate: v.rate } : {}) };
     const inflow = v.kind === 'receipt';
-    const number = this.state.entries.filter((e) => e.source?.type === v.kind && !e.voidOf).length + 1;
+    const number = v.number ?? this.state.entries.filter((e) => e.source?.type === v.kind && !e.voidOf).length + 1;
     return this.postEntry({
       date: v.date,
       memo: `${inflow ? 'سند قبض' : 'سند دفع'} رقم ${number}: ${v.memo}`,

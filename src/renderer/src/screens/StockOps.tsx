@@ -904,6 +904,7 @@ type HistRow = { id: string; kind: 'adjust' | 'transfer' | 'production'; number:
 
 function History() {
   const { state, can, call, notify } = useCompany();
+  const [editingAdj, setEditingAdj] = useState<string | null>(null);
   const showCost = can('costs.view');
   const [kind, setKind] = useState<'' | HistRow['kind']>('');
   const [open, setOpen] = useState<HistRow | null>(null);
@@ -962,10 +963,22 @@ function History() {
           </tbody>
         </table>
       )}
+      {editingAdj && (
+        <EditAdjustment
+          id={editingAdj}
+          onClose={(done) => {
+            setEditingAdj(null);
+            if (done) setOpen(null);
+          }}
+        />
+      )}
       {open && (
         <Modal title={`${open.type} رقم ${open.number}`} onClose={() => setOpen(null)} width={760}>
           <div className="toolbar no-print">
             <PrintButtons kind="report" name={`${open.type} ${open.number}`} papers={['a4', 'a5', '80mm']} />
+            {open.kind === 'adjust' && !open.voided && !open.isVoid && can('stock.adjust') && ['opening', 'damage', 'consumption'].includes(state.adjustments.find((a) => a.id === open.id)?.kind ?? '') && (
+              <button onClick={() => setEditingAdj(open.id)}>تعديل</button>
+            )}
             {open.kind === 'adjust' && !open.voided && !open.isVoid && can('stock.adjust') && (
               <ConfirmButton
                 label="إلغاء العملية (انعملت بالغلط)"
@@ -1091,6 +1104,88 @@ function SerialCount({ item, book, value, onChange, onClose }: { item: Item; boo
       <div className="form-actions">
         <button className="primary" onClick={onClose}>
           تم
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+/** تعديل عملية مخزون (رصيد افتتاحي، تالف، استهلاك): الكميات والتكلفة والتاريخ؛ الحفظ بيلغي القديمة بتاريخها وبيعمل جديدة. */
+function EditAdjustment({ id, onClose }: { id: string; onClose: (done: boolean) => void }) {
+  const { state, call, notify } = useCompany();
+  const a = state.adjustments.find((x) => x.id === id)!;
+  const base = state.info!.baseCurrency;
+  const opening = a.kind === 'opening';
+  const [date, setDate] = useState(a.date);
+  const [rows, setRows] = useState(() =>
+    a.lines.map((l) => ({ key: uid(), itemId: l.itemId, qty: String(Math.abs(l.qty)), cost: opening && l.qty ? toInput(state, Math.round(Math.abs(l.cost) / Math.abs(l.qty)), base) : '' })),
+  );
+  const options = useMemo(() => itemOptions(state, (i) => i.kind === 'stock'), [state]);
+  const save = async () => {
+    const lines = [];
+    for (const r of rows) {
+      const qty = Number(r.qty.replace(',', '.'));
+      if (!r.itemId || !(qty > 0)) continue;
+      let unitCost: number | undefined;
+      if (opening) {
+        try {
+          unitCost = parsePrice(state, r.cost || '0', base);
+        } catch {
+          return notify('التكلفة مش مفهومة', 'error');
+        }
+      }
+      lines.push({ itemId: r.itemId, qty, ...(unitCost !== undefined ? { unitCost } : {}) });
+    }
+    if (!lines.length) return notify('ضيف مادة وحدة على الأقل', 'error');
+    if (await call('editAdjustment', a.id, { kind: a.kind, date, warehouseId: a.warehouseId, lines, memo: a.memo })) {
+      notify('تم تعديل العملية');
+      onClose(true);
+    }
+  };
+  return (
+    <Modal title={`تعديل ${a.memo}`} onClose={() => onClose(false)} width={720}>
+      <p className="muted">لما تحفظ، العملية القديمة بتنلغى بتاريخها وبتنسجّل الجديدة، والأرباح والمخزون بيتصحّحوا لحالهن.</p>
+      <Field label="التاريخ">
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+      </Field>
+      <table className="table lines">
+        <thead>
+          <tr>
+            <th>المادة</th>
+            <th>الكمية</th>
+            {opening && <th>تكلفة الوحدة</th>}
+            <th />
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.key}>
+              <td>
+                <Picker options={options} value={r.itemId} onChange={(v) => setRows(rows.map((x) => (x.key === r.key ? { ...x, itemId: v ?? '' } : x)))} />
+              </td>
+              <td>
+                <input className="num-input" inputMode="decimal" value={r.qty} onChange={(e) => setRows(rows.map((x) => (x.key === r.key ? { ...x, qty: e.target.value } : x)))} />
+              </td>
+              {opening && (
+                <td>
+                  <input className="num-input" inputMode="decimal" value={r.cost} onChange={(e) => setRows(rows.map((x) => (x.key === r.key ? { ...x, cost: e.target.value } : x)))} />
+                </td>
+              )}
+              <td>
+                <button type="button" className="icon" onClick={() => setRows(rows.filter((x) => x.key !== r.key))}>
+                  ×
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="form-actions">
+        <button type="button" onClick={() => setRows([...rows, { key: uid(), itemId: '', qty: '1', cost: '' }])}>
+          + مادة
+        </button>
+        <button className="primary" onClick={() => void save()}>
+          حفظ التعديل
         </button>
       </div>
     </Modal>

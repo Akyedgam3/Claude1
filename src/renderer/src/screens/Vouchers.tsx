@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { amountInWords, type JournalEntry } from '../../../core';
-import { dateText, major, money, parseAmount, today, useCompany } from '../api';
+import { dateText, major, money, parseAmount, toInput, today, useCompany } from '../api';
 import { DocHeader, ExportButtons, PrintButtons } from '../components/print';
 import { ConfirmButton, CurrencySelect, Empty, Field, Modal, PageHeader, partyOptions, Picker } from '../components/ui';
 import { cashAccounts } from './InvoiceEditor';
 
-export function Vouchers({ initialKind }: { initialKind?: 'receipt' | 'payment' } = {}) {
+export function Vouchers({ initialKind, editId }: { initialKind?: 'receipt' | 'payment'; editId?: string } = {}) {
   const { state, call, notify, can } = useCompany();
   const base = state.info!.baseCurrency;
   const [kind, setKind] = useState<'receipt' | 'payment'>(initialKind ?? 'receipt');
@@ -19,6 +19,33 @@ export function Vouchers({ initialKind }: { initialKind?: 'receipt' | 'payment' 
   const [date, setDate] = useState(today());
   const [memo, setMemo] = useState('');
   const [printing, setPrinting] = useState<JournalEntry | null>(null);
+  // تعديل سند: بيتعبّى بالفورم، والحفظ بيلغي القديم وبيسجّل الجديد بنفس الرقم
+  const [editing, setEditing] = useState<JournalEntry | null>(null);
+  const startEdit = (e: JournalEntry) => {
+    const c = e.lines[1]!;
+    const box = e.lines[0]!;
+    setEditing(e);
+    setKind(e.source?.type === 'payment' ? 'payment' : 'receipt');
+    if (c.partyId) {
+      setTarget('party');
+      setPartyId(c.partyId);
+    } else {
+      setTarget('account');
+      setAccountId(c.accountId);
+    }
+    setCurrency(c.currency);
+    setAmount(toInput(state, c.debit || c.credit, c.currency));
+    setCash(box.accountId);
+    setDate(e.date);
+    setMemo(e.memo.replace(/^سند (قبض|دفع) رقم \d+: /, ''));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  useEffect(() => {
+    if (!editId) return;
+    const e = state.entries.find((x) => x.id === editId);
+    if (e && !state.voided[e.id] && !e.voidOf) startEdit(e);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId]);
 
   const boxes = cashAccounts(state, currency);
   const cashId = boxes.some((b) => b.id === cash) ? cash : (boxes.find((b) => b.currency === currency) ?? boxes[0])?.id ?? '1101';
@@ -49,7 +76,7 @@ export function Vouchers({ initialKind }: { initialKind?: 'receipt' | 'payment' 
       return notify((e as Error).message, 'error');
     }
     if (target === 'party' && !partyId) return notify('اختر العميل أو المورد', 'error');
-    const res = await call<JournalEntry>('postVoucher', {
+    const draft = {
       kind,
       date,
       amount: minor,
@@ -58,9 +85,11 @@ export function Vouchers({ initialKind }: { initialKind?: 'receipt' | 'payment' 
       ...(target === 'party' ? { partyId } : { accountId: counterId }),
       cashAccountId: cashId,
       memo: memo.trim() || (kind === 'receipt' ? 'قبض' : 'دفع'),
-    });
+    };
+    const res = editing ? await call<JournalEntry>('editVoucher', editing.id, draft) : await call<JournalEntry>('postVoucher', draft);
     if (res) {
-      notify('تم حفظ السند');
+      notify(editing ? 'تم تعديل السند' : 'تم حفظ السند');
+      setEditing(null);
       setAmount('');
       setMemo('');
       setPrinting(res.value);
@@ -99,6 +128,14 @@ export function Vouchers({ initialKind }: { initialKind?: 'receipt' | 'payment' 
         />
       </PageHeader>
       <section className="card">
+        {editing && (
+          <div className="banner draft-banner">
+            عم تعدّل «{editing.memo}». لما تحفظ، القديم بينلغى بتاريخه وبينسجّل الجديد بنفس الرقم.{' '}
+            <button type="button" className="ghost small" onClick={() => (setEditing(null), setAmount(''), setMemo(''))}>
+              إلغاء التعديل
+            </button>
+          </div>
+        )}
         <div className="segmented">
           <button className={kind === 'receipt' ? 'active' : ''} onClick={() => setKind('receipt')}>
             سند قبض (استلام مال)
@@ -162,7 +199,7 @@ export function Vouchers({ initialKind }: { initialKind?: 'receipt' | 'payment' 
             <input value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="دفعة على الحساب، أجرة محل، أمبيرات..." />
           </Field>
           <div className="form-actions wide">
-            <button className="primary">حفظ السند</button>
+            <button className="primary">{editing ? 'حفظ التعديل' : 'حفظ السند'}</button>
           </div>
         </form>
       </section>
@@ -199,7 +236,14 @@ export function Vouchers({ initialKind }: { initialKind?: 'receipt' | 'payment' 
                       {voided ? (
                         <span className="tag bad">ملغى</span>
                       ) : (
-                        can('vouchers.void') && <ConfirmButton label="إلغاء" onConfirm={() => call('voidEntry', e.id, today()).then((r) => r && notify('تم إلغاء السند'))} />
+                        <>
+                          {can('vouchers.void') && can('vouchers.create') && (
+                            <button className="ghost" onClick={() => startEdit(e)}>
+                              تعديل
+                            </button>
+                          )}
+                          {can('vouchers.void') && <ConfirmButton label="إلغاء" onConfirm={() => call('voidEntry', e.id, today()).then((r) => r && notify('تم إلغاء السند'))} />}
+                        </>
                       )}
                     </td>
                   </tr>

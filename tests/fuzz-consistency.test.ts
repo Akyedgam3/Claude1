@@ -65,7 +65,7 @@ function run(seed: number, steps: number) {
     const date = pick(DAYS);
     const cur = r() < 0.6 ? 'USD' : 'SYP';
     const conv = (n: number) => (cur === 'SYP' ? n * 110 * (SYP_DEC / 100) : n);
-    const op = int(0, 21);
+    const op = int(0, 24);
     const before = process.env.FUZZ_DEBUG ? structuredClone({ stock: l.state.stock, n: l.state.entries.length }) : null;
     try {
       switch (op) {
@@ -208,6 +208,32 @@ function run(seed: number, steps: number) {
           if (l.state.items[id]!.archived) l.restoreItem(id);
           else if (r() < 0.3) l.deleteItem(id);
           ops.push('delete/restore item');
+          break;
+        }
+        case 22: {
+          const vs = l.state.entries.filter((e) => (e.source?.type === 'receipt' || e.source?.type === 'payment') && !e.voidOf && !l.state.voided[e.id]);
+          if (!vs.length) break;
+          const e = pick(vs);
+          const partyId = pick(parties);
+          l.editVoucher(e.id, { kind: partyId.startsWith('c') ? 'receipt' : 'payment', date: e.date, currency: cur, amount: conv(int(100, 3000)), partyId, memo: 'تعديل' });
+          ops.push('edit voucher');
+          break;
+        }
+        case 23: {
+          const ds = l.state.entries.filter((e) => e.source?.type === 'debt' && !e.voidOf && !l.state.voided[e.id]);
+          if (!ds.length) break;
+          const e = pick(ds);
+          const partyId = pick(parties);
+          l.editDebt(e.id, { direction: partyId.startsWith('c') ? 'owed' : 'owe', partyId, date: e.date, currency: cur, amount: conv(int(100, 2000)), reason: 'old' });
+          ops.push('edit debt');
+          break;
+        }
+        case 24: {
+          const as = l.state.adjustments.filter((a) => (a.kind === 'opening' || a.kind === 'damage') && !a.voidOf && !l.state.adjustments.some((x) => x.voidOf === a.id));
+          if (!as.length) break;
+          const a = pick(as);
+          l.editAdjustment(a.id, { kind: a.kind as 'opening' | 'damage', date: a.date, lines: [{ itemId: pick(['a', 'b', 'c']), qty: int(1, 5), unitCost: int(200, 900) }] });
+          ops.push('edit adjustment');
           break;
         }
         case 19: {

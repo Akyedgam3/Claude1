@@ -137,6 +137,11 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
   replaceInvoice: 'sales.void',
   postVoucher: 'vouchers.create',
   postVouchers: 'vouchers.create',
+  // التعديل = إلغاء + جديد: بدو صلاحية الإلغاء (والمنفّذ بيطلب صلاحية الإنشاء كمان)
+  editVoucher: 'vouchers.void',
+  editDebt: 'vouchers.void',
+  editEntry: 'vouchers.void',
+  editAdjustment: 'stock.adjust',
   postDebt: 'vouchers.create',
   settleDebt: 'vouchers.create',
   // أرصدة الحسابات والذمم الافتتاحية قيد مالي؛ أرصدة المخزون وحدها لأمين المستودع

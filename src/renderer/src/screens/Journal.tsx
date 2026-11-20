@@ -1,6 +1,6 @@
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import type { JournalEntry } from '../../../core';
-import { dateText, major, money, parseAmount, today, uid, useCompany } from '../api';
+import { dateText, major, money, parseAmount, toInput, today, uid, useCompany } from '../api';
 import { ExportButtons } from '../components/print';
 import { ConfirmButton, CurrencySelect, Field, matches, PageHeader, partyOptions, Picker, SearchBox } from '../components/ui';
 import { Icon } from '../components/icons';
@@ -17,8 +17,8 @@ interface Row {
 const emptyRow = (): Row => ({ key: uid(), accountId: null, partyId: null, debit: '', credit: '', memo: '' });
 
 /** القيود اليدوية (تسويات، رواتب، استهلاك...) وسجل كل القيود. */
-export function Journal() {
-  const { state, call, notify, can } = useCompany();
+export function Journal({ editId }: { editId?: string } = {}) {
+  const { state, call, notify, can, navigate } = useCompany();
   const base = state.info!.baseCurrency;
   const [date, setDate] = useState(today());
   const [memo, setMemo] = useState('');
@@ -26,6 +26,26 @@ export function Journal() {
   const [rows, setRows] = useState<Row[]>([emptyRow(), emptyRow()]);
   const [query, setQuery] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
+  // تعديل قيد يدوي: بيتعبّى بالفورم، والحفظ بيلغي القديم بتاريخه وبيسجّل الجديد
+  const [editing, setEditing] = useState<JournalEntry | null>(null);
+  const startEdit = (e: JournalEntry) => {
+    const cur = e.lines[0]?.currency ?? base;
+    setEditing(e);
+    setDate(e.date);
+    setMemo(e.memo);
+    setCurrency(cur);
+    setRows([
+      ...e.lines.map((l) => ({ key: uid(), accountId: l.accountId, partyId: l.partyId ?? null, debit: l.debit ? toInput(state, l.debit, l.currency) : '', credit: l.credit ? toInput(state, l.credit, l.currency) : '', memo: l.memo ?? '' })),
+      emptyRow(),
+    ]);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  useEffect(() => {
+    if (!editId) return;
+    const e = state.entries.find((x) => x.id === editId);
+    if (e && e.source?.type === 'manual' && !state.voided[e.id] && !e.voidOf) startEdit(e);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId]);
   const invoicesById = useMemo(() => Object.fromEntries(state.invoices.map((i) => [i.id, i])), [state.invoices]);
   /** مبلغ القيد متل ما بيعرفه الزبون: قيد الفاتورة = إجمالي الفاتورة (بدون سطور التكلفة والمخزون). */
   const amountOf = (e: JournalEntry): { text: string; hint?: string } => {
@@ -73,8 +93,10 @@ export function Journal() {
         ...(r.memo ? { memo: r.memo } : {}),
       }));
     if (lines.some((l) => Number.isNaN(l.debit ?? 0) || Number.isNaN(l.credit ?? 0))) return notify('مبلغ غير صالح', 'error');
-    if (await call('postEntry', { date, memo: memo.trim() || 'قيد يدوي', lines, source: { type: 'manual', id: uid() } })) {
-      notify('تم حفظ القيد');
+    const draft = { date, memo: memo.trim() || 'قيد يدوي', lines };
+    if (editing ? await call('editEntry', editing.id, draft) : await call('postEntry', { ...draft, source: { type: 'manual', id: uid() } })) {
+      notify(editing ? 'تم تعديل القيد' : 'تم حفظ القيد');
+      setEditing(null);
       setRows([emptyRow(), emptyRow()]);
       setMemo('');
     }
@@ -85,7 +107,15 @@ export function Journal() {
       <PageHeader title="القيود اليومية" />
       {can('journal.create') && (
         <section className="card">
-          <h3>قيد يدوي جديد</h3>
+          <h3>{editing ? `تعديل القيد رقم ${editing.number}` : 'قيد يدوي جديد'}</h3>
+          {editing && (
+            <div className="banner draft-banner">
+              لما تحفظ، القيد القديم بينلغى بتاريخه وبينسجّل الجديد.{' '}
+              <button type="button" className="ghost small" onClick={() => (setEditing(null), setRows([emptyRow(), emptyRow()]), setMemo(''))}>
+                إلغاء التعديل
+              </button>
+            </div>
+          )}
           <div className="form-grid four">
             <Field label="التاريخ">
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
@@ -205,7 +235,24 @@ export function Journal() {
                     </td>
                     <td onClick={(ev) => ev.stopPropagation()}>
                       {e.source?.type === 'manual' && !e.voidOf && !state.voided[e.id] && can('vouchers.void') && (
-                        <ConfirmButton label="إلغاء" onConfirm={() => call('voidEntry', e.id, today()).then((r) => r && notify('تم إلغاء القيد'))} />
+                        <span className="button-row">
+                          {can('journal.create') && (
+                            <button className="ghost small" onClick={() => startEdit(e)}>
+                              تعديل
+                            </button>
+                          )}
+                          <ConfirmButton label="إلغاء" onConfirm={() => call('voidEntry', e.id, today()).then((r) => r && notify('تم إلغاء القيد'))} />
+                        </span>
+                      )}
+                      {(e.source?.type === 'receipt' || e.source?.type === 'payment') && !e.voidOf && !state.voided[e.id] && can('vouchers.void') && can('vouchers.create') && (
+                        <button className="ghost small" onClick={() => navigate('vouchers', `edit:${e.id}`)}>
+                          تعديل
+                        </button>
+                      )}
+                      {e.source?.type === 'invoice' && invoicesById[e.source.id] && (
+                        <button className="ghost small" onClick={() => navigate('invoice', e.source!.id)}>
+                          فتح الفاتورة
+                        </button>
                       )}
                     </td>
                   </tr>

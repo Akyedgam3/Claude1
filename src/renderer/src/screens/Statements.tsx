@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { fullStatement, type StatementTarget } from '../../../core';
 import { dateText, major, money, useCompany } from '../api';
+import { entryTarget } from '../components/openEntry';
 import { DocHeader, ExportButtons, PrintButtons } from '../components/print';
 import { Empty, Field, PageHeader, partyOptions, Picker, Stat } from '../components/ui';
 import { asPeriod, PeriodPicker, usePeriod } from '../components/PeriodPicker';
@@ -136,7 +137,7 @@ export function Statements({ initial }: { initial?: string } = {}) {
                     <td className="num">{m(st.opening)}</td>
                   </tr>
                   {st.rows.map((r) => (
-                    <tr key={r.entryId} className={`${r.invoiceId ? 'clickable' : ''} ${r.voided ? 'voided' : ''}`} onClick={() => r.invoiceId && navigate('invoice', r.invoiceId)}>
+                    <tr key={r.entryId} className={`clickable ${r.voided ? 'voided' : ''}`} title="اكبس لتفتح الحركة (وتعدّلها)" onClick={() => { const t = entryTarget(state, r.entryId); if (t) navigate(t.screen, t.param); }}>
                       <td>{dateText(r.date)}</td>
                       <td>{r.type}</td>
                       <td>{r.memo}</td>

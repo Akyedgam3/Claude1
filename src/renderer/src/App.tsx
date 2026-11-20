@@ -555,13 +555,13 @@ function Screen({ screen }: { screen: { key: string; param?: string } }) {
     case 'cashjournal':
       return <CashJournal />;
     case 'vouchers':
-      return <Vouchers key={p ?? ''} {...(p === 'payment' || p === 'receipt' ? { initialKind: p } : {})} />;
+      return <Vouchers key={p ?? ''} {...(p === 'payment' || p === 'receipt' ? { initialKind: p } : p?.startsWith('edit:') ? { editId: p.slice(5) } : {})} />;
     case 'rates':
       return <Rates />;
     case 'reports':
       return <Reports {...(p ? { tab: p } : {})} />;
     case 'journal':
-      return <Journal />;
+      return <Journal key={p ?? ''} {...(p?.startsWith('edit:') ? { editId: p.slice(5) } : {})} />;
     case 'accounts':
       return <Accounts />;
     case 'users':

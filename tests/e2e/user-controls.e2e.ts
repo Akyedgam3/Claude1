@@ -486,3 +486,56 @@ test('cash journal: several receipts and payments on one box with F9; POS shows 
     await close();
   }
 });
+
+test('edit everywhere: a voucher from the cash box, a manual entry, a stock opening', async () => {
+  const { page, close } = await launch();
+  try {
+    await activate(page);
+    await createCompany(page, { name: 'محل التعديل', activity: 'تجارة عامة' });
+    const call = (method: string, ...args: unknown[]) => page.evaluate(([mm, a]) => (window as any).mizan.invoke('company:call', mm, a), [method, args] as const);
+    const st = async () => (await page.evaluate(() => (window as any).mizan.invoke('company:state'))).state;
+    const today = new Date().toISOString().slice(0, 10);
+    await call('saveParty', { id: 'c', kind: 'customer', name: 'أبو سامر' });
+    await call('saveItem', { id: 'r', code: 'R1', name: 'رز', kind: 'stock', unit: 'كيس', price: 100000, priceCurrency: 'SYP' });
+    const scale = 10 ** (await st()).currencies['SYP'].decimals;
+    await call('postVoucher', { kind: 'receipt', date: today, amount: 5000 * scale, partyId: 'c', memo: 'دفعة' });
+
+    // من الصندوق: كبسة عالحركة بتفتح السند للتعديل
+    await nav(page, 'الصندوق');
+    await page.locator('tr.clickable', { hasText: 'دفعة' }).first().click();
+    await expect(page.locator('.draft-banner')).toContainText('عم تعدّل');
+    await page.locator('.field', { hasText: 'المبلغ' }).locator('input').fill('7000');
+    await page.getByRole('button', { name: 'حفظ التعديل' }).click();
+    await toast(page, 'تم تعديل السند');
+    await page.locator('.modal header button').first().click();
+    let s = await st();
+    const live = s.entries.filter((e: any) => e.source?.type === 'receipt' && !e.voidOf && !s.voided[e.id]);
+    expect(live).toHaveLength(1);
+    expect(live[0].memo).toMatch(/سند قبض رقم 1:/);
+
+    // قيد يدوي
+    await call('postEntry', { date: today, memo: 'قيد تجربة', lines: [{ accountId: '5209', debit: 100 * scale }, { accountId: '1101', credit: 100 * scale }], source: { type: 'manual', id: 'm1' } });
+    await nav(page, 'القيود اليومية');
+    await page.locator('tr', { hasText: 'قيد تجربة' }).getByRole('button', { name: 'تعديل' }).click();
+    await expect(page.locator('h3', { hasText: 'تعديل القيد' })).toBeVisible();
+    await page.locator('table.lines tbody tr').first().locator('input.num-input').first().fill('150');
+    await page.locator('table.lines tbody tr').nth(1).locator('input.num-input').nth(1).fill('150');
+    await page.getByRole('button', { name: /حفظ/ }).first().click();
+    await toast(page, 'تم تعديل القيد');
+
+    // رصيد افتتاحي من سجل عمليات المخزون
+    await call('adjustStock', { kind: 'opening', date: today, lines: [{ itemId: 'r', qty: 10, unitCost: 60000 }] });
+    await nav(page, 'الجرد وعمليات المخزون');
+    await page.getByRole('button', { name: /السجل/ }).click();
+    await page.locator('table tbody tr').first().click();
+    await page.locator('.modal').getByRole('button', { name: 'تعديل', exact: true }).click();
+    const m = page.locator('.modal').last();
+    await m.locator('table.lines tbody tr').first().locator('input.num-input').first().fill('12');
+    await m.getByRole('button', { name: 'حفظ التعديل' }).click();
+    await toast(page, 'تم تعديل العملية');
+    s = await st();
+    expect(s.stock['r'].totalQty).toBe(12);
+  } finally {
+    await close();
+  }
+});

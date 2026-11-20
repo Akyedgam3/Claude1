@@ -7,6 +7,7 @@ import { DocHeader, ExportButtons, PrintButtons } from '../components/print';
 import { Empty, Field, Modal, PageHeader, Stat } from '../components/ui';
 import { asPeriod, PeriodPicker, usePeriod } from '../components/PeriodPicker';
 import { Icon } from '../components/icons';
+import { entryTarget } from '../components/openEntry';
 
 /** رصيد الصندوق لكل عملة (بعملتها نفسها). */
 function boxBalances(state: ReturnType<typeof useCompany>['state'], id: string, to?: string): Record<string, number> {
@@ -154,7 +155,7 @@ export function CashBox() {
 }
 
 function CashTable({ rows, opening, m, mc }: { rows: ReturnType<typeof fullStatement>['rows']; opening: number; m: (v: number) => string; mc: (v: number) => string }) {
-  const { navigate } = useCompany();
+  const { navigate, state } = useCompany();
   return (
     <table className="table compact statement">
       <thead>
@@ -173,7 +174,7 @@ function CashTable({ rows, opening, m, mc }: { rows: ReturnType<typeof fullState
           <td className="num">{mc(opening)}</td>
         </tr>
         {rows.map((r) => (
-          <tr key={r.entryId} className={r.invoiceId ? 'clickable' : ''} onClick={() => r.invoiceId && navigate('invoice', r.invoiceId)}>
+          <tr key={r.entryId} className="clickable" title="اكبس لتفتح الحركة (وتعدّلها)" onClick={() => { const t = entryTarget(state, r.entryId); if (t) navigate(t.screen, t.param); }}>
             <td>{dateText(r.date)}</td>
             <td>{r.type}</td>
             <td>{r.memo}</td>

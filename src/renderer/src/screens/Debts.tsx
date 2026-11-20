@@ -272,6 +272,17 @@ function DebtDetail({ party, onClose, onPay, onDebt }: { party: Party; onClose: 
   const { state, can, navigate } = useCompany();
   const d = today();
   const debts = useMemo(() => partyDebts(state, party.id), [state, party.id]);
+  // تعديل حركة من الكشف: دين مباشر هون، سند بشاشة السندات، فاتورة بشاشتها
+  const [editingDebt, setEditingDebt] = useState<JournalEntry | null>(null);
+  const canEdit = can('vouchers.void') && can('vouchers.create');
+  const openMove = (m: DebtItem, inv?: Invoice) => {
+    if (inv) return navigate('invoice', inv.id);
+    if (!canEdit) return;
+    const e = state.entries.find((x) => x.id === m.entryId);
+    if (!e || state.voided[e.id] || e.voidOf) return;
+    if (e.source?.type === 'debt') return setEditingDebt(e);
+    if (e.source?.type === 'receipt' || e.source?.type === 'payment') return navigate('vouchers', `edit:${e.id}`);
+  };
   const invoices = useMemo(() => Object.fromEntries(state.invoices.map((i) => [i.id, i])), [state.invoices]);
   const [cur, setCur] = useState<string>(debts[0]?.currency ?? state.info!.baseCurrency);
   const sel: PartyDebts | undefined = debts.find((x) => x.currency === cur) ?? debts[0];
@@ -382,7 +393,7 @@ function DebtDetail({ party, onClose, onPay, onDebt }: { party: Party; onClose: 
                 {sel.open.map((m) => {
                   const doc = docLabel(m, invoices);
                   return (
-                    <tr key={m.entryId} className={doc.invoice ? 'clickable' : ''} onClick={() => doc.invoice && navigate('invoice', doc.invoice.id)}>
+                    <tr key={m.entryId} className={doc.invoice || (canEdit && ['debt', 'receipt', 'payment'].includes(m.source?.type ?? '')) ? 'clickable' : ''} title={doc.invoice ? 'فتح الفاتورة' : canEdit ? 'اكبس لتعدّل' : undefined} onClick={() => openMove(m, doc.invoice)}>
                       <td>{dateText(m.date)}</td>
                       <td>
                         {doc.label}
@@ -444,6 +455,7 @@ function DebtDetail({ party, onClose, onPay, onDebt }: { party: Party; onClose: 
           )}
         </div>
       </div>
+      {editingDebt && <DebtForm direction="owed" edit={editingDebt} onClose={() => setEditingDebt(null)} />}
     </Modal>
   );
 }
@@ -497,23 +509,27 @@ const REASONS: Record<'owed' | 'owe', { key: 'old' | 'cash' | 'goods'; title: st
   ],
 };
 
-function DebtForm({ direction: initial, partyId: presetParty, onClose }: { direction: 'owed' | 'owe'; partyId?: string; onClose: () => void }) {
+function DebtForm({ direction: initial, partyId: presetParty, onClose, edit }: { direction: 'owed' | 'owe'; partyId?: string; onClose: () => void; edit?: JournalEntry }) {
   const { state, call, notify, can } = useCompany();
   const base = state.info!.baseCurrency;
-  const [direction, setDirection] = useState(initial);
-  const [partyId, setPartyId] = useState<string | null>(presetParty ?? null);
+  // تعديل دين مسجّل: منعبّي من القيد (سطر الشخص وسطر المقابل)
+  const editParty = edit?.lines.find((l) => l.partyId);
+  const editCounter = edit?.lines.find((l) => !l.partyId);
+  const editReason: 'old' | 'cash' | 'goods' | undefined = edit ? (/— دين سابق/.test(edit.memo) ? 'old' : /— (سلفة نقدية|قرض نقدي)/.test(edit.memo) ? 'cash' : 'goods') : undefined;
+  const [direction, setDirection] = useState<'owed' | 'owe'>(editParty ? (editParty.debit > 0 ? 'owed' : 'owe') : initial);
+  const [partyId, setPartyId] = useState<string | null>(editParty?.partyId ?? presetParty ?? null);
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [adding, setAdding] = useState(false);
-  const [amount, setAmount] = useState('');
-  const [currency, setCurrency] = useState(base);
-  const [reason, setReason] = useState<'old' | 'cash' | 'goods'>('old');
-  const [date, setDate] = useState(today());
+  const [amount, setAmount] = useState(editParty ? toInput(state, editParty.debit || editParty.credit, editParty.currency) : '');
+  const [currency, setCurrency] = useState(editParty?.currency ?? base);
+  const [reason, setReason] = useState<'old' | 'cash' | 'goods'>(editReason ?? 'old');
+  const [date, setDate] = useState(edit?.date ?? today());
   const [due, setDue] = useState('');
-  const [memo, setMemo] = useState('');
+  const [memo, setMemo] = useState(edit ? (edit.memo.split(': ').slice(1).join(': ') ?? '') : '');
   const [busy, setBusy] = useState(false);
   const boxes = cashAccounts(state, currency);
-  const [box, setBox] = useState('');
+  const [box, setBox] = useState(editReason === 'cash' && editCounter ? editCounter.accountId : '');
   const cashId = boxes.some((b) => b.id === box) ? box : (boxes.find((b) => b.currency === currency) ?? boxes[0])?.id;
 
   const save = async () => {
@@ -542,7 +558,7 @@ function DebtForm({ direction: initial, partyId: presetParty, onClose }: { direc
           pid = p.id;
         }
       }
-      const res = await call<JournalEntry>('postDebt', {
+      const draft = {
         direction,
         partyId: pid,
         date,
@@ -551,8 +567,14 @@ function DebtForm({ direction: initial, partyId: presetParty, onClose }: { direc
         reason,
         ...(reason === 'cash' && cashId ? { cashAccountId: cashId } : {}),
         ...(memo.trim() ? { memo: memo.trim() } : {}),
-      });
+      };
+      const res = edit ? await call<JournalEntry>('editDebt', edit.id, draft) : await call<JournalEntry>('postDebt', draft);
       if (!res) return;
+      if (edit) {
+        notify('تم تعديل الدين');
+        onClose();
+        return;
+      }
       const existing = state.parties[pid!];
       if (due && existing && can('parties.manage')) await call('saveParty', { ...existing, debtDue: due });
       notify(direction === 'owed' ? 'تم تسجيل الدين لك' : 'تم تسجيل الدين عليك');
@@ -563,7 +585,7 @@ function DebtForm({ direction: initial, partyId: presetParty, onClose }: { direc
   };
 
   return (
-    <Modal title={direction === 'owed' ? 'تسجيل دين لنا' : 'تسجيل دين علينا'} onClose={onClose} width={640}>
+    <Modal title={edit ? 'تعديل الدين' : direction === 'owed' ? 'تسجيل دين لنا' : 'تسجيل دين علينا'} onClose={onClose} width={640}>
       <div className="segmented debt-dir">
         <button className={direction === 'owed' ? 'active' : ''} onClick={() => setDirection('owed')}>
           دين لنا على شخص
