@@ -1,3 +1,4 @@
+import { recurringPayments } from './recurring';
 import { applyCommerceEvent, buildInvoice, isMarketer, marketerTerms, convertOrder, orderTotals, piecesTotal, repairToInvoiceLines, rollRemaining, siteJobDeposits, siteJobToInvoiceLines, siteJobTotals, stoneBlockUsage, shipmentSummary, UNIT_NAMES, tailorDeposits, tailorToInvoiceLines, validateCommerceEvent, workOrderProgress, type InvoiceDraft, type InvoiceLineDraft } from './commerce';
 import { ACTIVITIES } from './activities';
 import { PARTNER_MOVE_NAMES, partnerSourceId, type PartnerMoveKind } from './partners';
@@ -54,6 +55,7 @@ import type {
   CompanyInfo,
   PriceBasis,
   PriceListDef,
+  RecurringExpense,
   CompanyState,
   DiningTable,
   ExchangeRate,
@@ -241,6 +243,16 @@ export function validateEvent(state: CompanyState, event: CompanyEvent): void {
           const n = l.name.trim();
           if (!l.archived && names.has(n)) fail(`في قائمة أسعار اسمها «${n}»`);
           if (!l.archived) names.add(n);
+        }
+      }
+      if (event.info.recurring) {
+        for (const r of event.info.recurring) {
+          if (!r.id || !r.name?.trim() || r.name.length > 80) fail('اكتب اسم المصروف');
+          if (!Number.isSafeInteger(r.amount) || r.amount <= 0) fail('مبلغ المصروف غير صالح');
+          if (!state.currencies[r.currency]) fail('العملة غير موجودة');
+          const acc = state.accounts[r.accountId];
+          if (!acc || acc.isGroup || acc.type !== 'expense') fail('اختار حساب مصروف');
+          if (!Number.isInteger(r.day) || r.day < 1 || r.day > 28) fail('يوم الاستحقاق بين 1 و28');
         }
       }
       if (event.info.customize) {
@@ -463,6 +475,8 @@ export interface VoucherDraft {
   cashAccountId?: string;
   memo: string;
   createdBy?: string;
+  /** داخلي: بادئة لمعرّف المصدر (مثلاً `rec:<id>:<YYYY-MM>` للمصاريف الثابتة) — بتضل مع التعديل */
+  tag?: string;
 }
 
 /** دين بدون فاتورة: إلي على حدا (owed) أو علي لحدا (owe). */
@@ -593,6 +607,46 @@ export class Ledger {
     else lists.push(list);
     this.emit({ type: 'company.updated', info: { priceLists: lists } });
     return list;
+  }
+
+  /** مصروف ثابت جديد أو تعديله. */
+  saveRecurring(def: { id?: string; name: string; amount: number; currency?: string; accountId: string; day: number }): RecurringExpense {
+    const list = [...(this.state.info!.recurring ?? [])];
+    const name = (def.name ?? '').trim();
+    if (list.some((r) => !r.archived && r.name.trim() === name && r.id !== def.id)) fail(`في مصروف ثابت اسمه «${name}»`);
+    const r: RecurringExpense = { id: def.id || `rec-${list.length + 1}-${Date.now().toString(36)}`, name, amount: def.amount, currency: def.currency ?? this.base.code, accountId: def.accountId, day: Math.round(Number(def.day) || 1) };
+    if (def.id && !list.some((x) => x.id === def.id)) fail('المصروف غير موجود');
+    const i = list.findIndex((x) => x.id === r.id);
+    if (i >= 0) list[i] = r;
+    else list.push(r);
+    this.emit({ type: 'company.updated', info: { recurring: list } });
+    return r;
+  }
+
+  /** حذف مصروف ثابت: بينخفى (السندات اللي انسجّلت بتضل). */
+  deleteRecurring(id: string): void {
+    const list = this.state.info!.recurring ?? [];
+    if (!list.some((r) => r.id === id && !r.archived)) fail('المصروف غير موجود');
+    this.emit({ type: 'company.updated', info: { recurring: list.map((r) => (r.id === id ? { ...r, archived: true } : r)) } });
+  }
+
+  /** دفع مصروف ثابت عن شهر: سند دفع عادي على حساب المصروف (بيطلع بالسندات والصندوق والتقارير). */
+  payRecurring(d: { id: string; month: string; date: string; amount?: number; cashAccountId?: string; memo?: string; createdBy?: string }): JournalEntry {
+    const r = (this.state.info!.recurring ?? []).find((x) => x.id === d.id && !x.archived) ?? fail('المصروف غير موجود');
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(d.month)) fail('الشهر غير صالح');
+    if (recurringPayments(this.state, r.id, d.month).length) fail(`«${r.name}» مدفوع عن هالشهر`);
+    const [y, m] = d.month.split('-');
+    return this.postVoucher({
+      kind: 'payment',
+      date: d.date,
+      amount: d.amount ?? r.amount,
+      currency: r.currency,
+      accountId: r.accountId,
+      ...(d.cashAccountId ? { cashAccountId: d.cashAccountId } : {}),
+      memo: `${r.name} عن شهر ${Number(m)}/${y}${d.memo?.trim() ? ` — ${d.memo.trim()}` : ''}`,
+      tag: `rec:${r.id}:${d.month}`,
+      ...(d.createdBy ? { createdBy: d.createdBy } : {}),
+    });
   }
 
   /** حذف قائمة أسعار: بتنخفى، والزباين اللي عليها بيرجعوا لشريحتهم (مفرق/جملة...). */
@@ -1378,7 +1432,9 @@ export class Ledger {
   editVoucher(entryId: string, v: VoucherDraft): JournalEntry {
     const e = this.editable(entryId, ['receipt', 'payment']);
     const num = Number(/رقم (\d+):/.exec(e.memo)?.[1]) || undefined;
-    const next: VoucherDraft = { ...v, ...(num && v.kind === e.source!.type ? { number: num } : {}) };
+    // سند مصروف ثابت: بيضل مربوط بشهره بعد التعديل
+    const tag = e.source!.id.includes(':') ? e.source!.id.slice(0, e.source!.id.lastIndexOf(':')) : undefined;
+    const next: VoucherDraft = { ...v, ...(num && v.kind === e.source!.type ? { number: num } : {}), ...(tag && !v.tag ? { tag } : {}) };
     const trial = this.trialCopy();
     trial.voidEntry(e.id, e.date);
     trial.postVoucher(next);
@@ -1454,7 +1510,7 @@ export class Ledger {
           ...(party ? { partyId: party.id } : {}),
         },
       ],
-      source: { type: v.kind, id: crypto.randomUUID() },
+      source: { type: v.kind, id: v.tag ? `${v.tag}:${crypto.randomUUID()}` : crypto.randomUUID() },
       ...(v.createdBy ? { createdBy: v.createdBy } : {}),
     });
   }

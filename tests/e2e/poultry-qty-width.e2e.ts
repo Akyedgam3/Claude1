@@ -82,13 +82,13 @@ test('نفس المادة بسعر مختلف بتنضاف بسطر تاني', a
     await pick(page, rows.nth(1).locator('.with-button input').first(), 'رز');
     await expect(rows.nth(0).locator('.qty-cell input')).toHaveValue('2');
     // سعر بالإيد على السطر الأول ← نفس المادة بسطر جديد
-    await rows.nth(0).locator('input.num-input').nth(1).fill('1500');
+    await rows.nth(0).locator('td[data-label="السعر"] input').fill('1500');
     await pick(page, rows.nth(1).locator('.with-button input').first(), 'رز');
     await expect(rows.nth(1).locator('.line-item, td').first()).toContainText('رز');
     await expect(rows.nth(0).locator('.qty-cell input')).toHaveValue('2');
     await expect(rows.nth(1).locator('.qty-cell input')).toHaveValue('1');
-    await rows.nth(1).locator('input.num-input').nth(1).fill('1700');
-    await expect(rows.nth(0).locator('input.num-input').nth(1)).toHaveValue('1500');
+    await rows.nth(1).locator('td[data-label="السعر"] input').fill('1700');
+    await expect(rows.nth(0).locator('td[data-label="السعر"] input')).toHaveValue('1500');
   } finally {
     await close();
   }

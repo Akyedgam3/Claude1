@@ -149,7 +149,7 @@ function executeChecked(store: CompanyStore, user: User, method: string, args: u
     for (const v of args[0] as { cashAccountId?: string }[]) if (v && typeof v === 'object' && (user.role !== 'owner' || !v.cashAccountId)) v.cashAccountId = box;
   }
   if (box) {
-    const draft = (method === 'postInvoice' || method === 'postVoucher' ? args[0] : method === 'replaceInvoice' || method === 'editVoucher' ? args[1] : undefined) as { cashAccountId?: string; kind?: string; accountId?: string } | undefined;
+    const draft = (method === 'postInvoice' || method === 'postVoucher' || method === 'payRecurring' ? args[0] : method === 'replaceInvoice' || method === 'editVoucher' ? args[1] : undefined) as { cashAccountId?: string; kind?: string; accountId?: string } | undefined;
     if (draft && typeof draft === 'object' && (draft.kind !== 'purchase' || user.role !== 'owner')) {
       if (user.role !== 'owner' || !draft.cashAccountId) draft.cashAccountId = box;
     }

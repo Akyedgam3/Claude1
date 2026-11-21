@@ -234,6 +234,22 @@ export interface CompanyInfo {
   listPricing?: { buyDiscount: number; masterDiscount: number; retailMarkup: number; brands?: Record<string, number> };
   /** قوائم أسعار المحل (من 1.2.94): «نص جملة» = سعر الشراء + 15%... بتنختار للزبون أو وقت الفاتورة. */
   priceLists?: PriceListDef[];
+  /** المصاريف الثابتة (2.0.1): إيجار، كهربا، رواتب... كل شهر، بتنسجّل بكبسة كسند دفع. */
+  recurring?: RecurringExpense[];
+}
+
+/** مصروف ثابت بيتكرر كل شهر. الدفع = سند دفع على حساب المصروف (مصدره `rec:<id>:<YYYY-MM>:…`). */
+export interface RecurringExpense {
+  id: string;
+  name: string;
+  /** المبلغ المعتاد بأصغر وحدة من العملة */
+  amount: number;
+  currency: string;
+  /** حساب المصروف (من دليل الحسابات) */
+  accountId: string;
+  /** يوم الاستحقاق بالشهر (1–28) */
+  day: number;
+  archived?: boolean;
 }
 
 /** أساس قائمة الأسعار: سعر الشراء (الكلفة) أو أحد أسعار المادة. */

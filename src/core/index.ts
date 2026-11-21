@@ -31,3 +31,5 @@ export * from './places';
 export * from './woodlots';
 export * from './health';
 export * from './analytics';
+export * from './recurring';
+export * from './alerts';

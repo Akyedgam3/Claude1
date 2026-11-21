@@ -8,6 +8,7 @@ import { TAILOR_STATUS } from './Tailor';
 import { Icon } from '../components/icons';
 import { DealerBoxCard } from '../components/DealerBox';
 import { StartBanner } from './Learn';
+import { useAlerts } from './Alerts';
 import { Modal } from '../components/ui';
 import { DASH_CARDS, useDashLayout, type DashLayout } from './dashboard-layout';
 import { NAV, navAllowed, type NavItem } from '../nav';
@@ -205,6 +206,7 @@ export function Dashboard() {
       </div>
 
       <StartBanner />
+      <AlertStrip />
       <DealerBoxCard />
 
       {feature('tailoring') && can('tailoring.manage') && (
@@ -605,5 +607,23 @@ function DailyProfitCard() {
         ))}
       </div>
     </section>
+  );
+}
+
+/** شريط صغير بالرئيسية: «عندك كذا تنبيه» (المهم بس) وبيفتح شاشة التنبيهات */
+function AlertStrip() {
+  const { navigate } = useCompany();
+  const list = useAlerts().filter((a) => a.level !== 'info');
+  if (!list.length) return null;
+  const bad = list.some((a) => a.level === 'bad');
+  return (
+    <button type="button" className={`alert-strip ${bad ? 'bad' : 'warn'}`} onClick={() => navigate('alerts')}>
+      <Icon name="bell" size={18} />
+      <span>
+        <b>عندك {list.length} {list.length === 1 ? 'تنبيه' : 'تنبيهات'}</b>
+        <small>{list.slice(0, 2).map((a) => a.title).join(' · ')}</small>
+      </span>
+      <Icon name="next" size={16} />
+    </button>
   );
 }

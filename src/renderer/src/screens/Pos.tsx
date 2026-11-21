@@ -335,7 +335,7 @@ export function Pos() {
                         'لا يوجد سعر صرف'
                       ) : (
                         <>
-                          <b>{money(state, p, cur)}</b> <i>/ {i.unit}</i>
+                          <b>{money(state, p, cur)}</b> <i>لكل {i.unit}</i>
                         </>
                       )
                     ) : hasPrice(i) ? (

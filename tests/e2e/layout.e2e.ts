@@ -25,6 +25,11 @@ const SCAN = () => {
       out.push(`${el.tagName.toLowerCase()}.${(el as HTMLElement).className} "${(el.textContent || (el as HTMLInputElement).placeholder || '').trim().slice(0, 30)}" in ${box.className.split(' ')[0]} by ${Math.round(Math.max(r.right - b.right, b.left - r.left))}px`);
     }
   }
+  // خلية جدول صارت flex أو block بتخرّب السطر (حدودها وخلفيتها بتطلع مزاحة)
+  for (const td of Array.from(document.querySelectorAll('.content table.table td, .content table.table th, .modal table.table td'))) {
+    const d = getComputedStyle(td).display;
+    if (d !== 'table-cell' && d !== 'none' && !document.body.classList.contains('mobile')) out.push(`cell display:${d} .${(td as HTMLElement).className}`);
+  }
   return [...new Set(out)].slice(0, 12);
 };
 

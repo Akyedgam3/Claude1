@@ -1202,3 +1202,15 @@ body.mobile .mgmt-kpi { padding: 10px 12px; }
 body.mobile .mgmt-kpi b { font-size: 16px; }
 body.mobile .mgmt-presets { overflow-x: auto; flex-wrap: nowrap; max-width: 100%; }
 body.mobile .mgmt-presets button { white-space: nowrap; }
+
+/* ───── تصحيحات توافق 2.0.1 ───── */
+/* اسم الحقل فوق القيمة بالبطاقات: بخط البرنامج (مش خط الأرقام المتباعد) */
+body.mobile table.m-cards td::before { font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif; letter-spacing: normal; }
+/* ترحيب الرئيسية: الأزرار تحت الاسم، مش جنبه */
+body.mobile .activity-hero { flex-wrap: wrap; }
+body.mobile .activity-hero > div:not(.dash-head-actions) { flex: 1 1 calc(100% - 80px); min-width: 0; }
+body.mobile .activity-hero .dash-head-actions { flex: 1 1 100%; margin: 4px 0 0; justify-content: flex-start; }
+/* السطر المختار بالبطاقة: البطاقة كلها ملوّنة، مش كل خانة لحالها */
+body.mobile table.m-cards tr.selected { background: var(--primary-soft); border-color: var(--primary); }
+body.mobile table.m-cards tr.selected td { background: transparent; }
+body.mobile table.m-cards td.row-actions:empty, body.mobile table.m-cards td.button-row:empty { display: none; }

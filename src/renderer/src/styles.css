@@ -813,6 +813,10 @@ fieldset.plain {
 .tree-row.group {
   font-weight: 700;
 }
+.tree-row > .mono {
+  text-align: right;
+  color: var(--muted);
+}
 .tree-name {
   cursor: pointer;
 }
@@ -3843,7 +3847,8 @@ button.danger-soft {
 .open-invoice.active button { color: #fff; }
 
 /* الشركاء والمساهمين */
-.partners .row-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.partners .row-actions { text-align: end; }
+.partners .row-actions > * { margin: 2px 0 2px 6px; }
 .partners .row-actions button { padding: 4px 10px; font-size: 13px; }
 .partner-kv { grid-template-columns: repeat(3, auto auto); margin-bottom: 12px; }
 
@@ -4004,20 +4009,9 @@ body.mobile .share-preview { max-height: 46vh; }
 .content {
   position: relative;
 }
-.money-toggle {
-  display: flex;
-  width: fit-content;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  padding: 4px 12px;
-  border-radius: 999px;
-  margin: -10px 0 8px;
-  margin-inline-start: auto;
-}
-.money-toggle.on {
-  background: var(--warn-bg, #fff4d6);
-  border-color: #e0b341;
+.sidebar .money-toggle.on {
+  background: rgba(233, 168, 76, 0.22);
+  color: #ffd98a;
 }
 
 /* التقويم: اليوم المحجوز بيتلوّن بس */
@@ -4324,7 +4318,8 @@ table.lines td[data-label="السعر"] .num-input { min-width: 96px; }
 /* فواتير المسودة */
 .save-draft { width: 100%; margin-top: 8px; justify-content: center; border-style: dashed; }
 .draft-banner { border-inline-start: 4px solid #b45309; }
-.drafts-table .row-actions { white-space: nowrap; display: flex; gap: 4px; justify-content: flex-end; }
+.drafts-table .row-actions { white-space: nowrap; text-align: end; }
+.drafts-table .row-actions > * + * { margin-inline-start: 4px; }
 /* فحص البيانات */
 .health-result { margin-top: 12px; padding: 12px; border-radius: 10px; border: 1px solid var(--border, #ddd); }
 .health-result.good { border-color: #16a34a; background: rgba(22, 163, 74, 0.06); }
@@ -4370,7 +4365,8 @@ table.lines td[data-label="السعر"] .num-input { min-width: 96px; }
 .price-list-pick select { width: auto; min-width: 140px; padding: 4px 8px; }
 .price-lists .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
 .price-lists .toolbar h3 { margin: 0; flex: 1; }
-.price-lists .row-actions { display: flex; gap: 6px; justify-content: flex-end; }
+.price-lists .row-actions { white-space: nowrap; text-align: end; }
+.price-lists .row-actions > * + * { margin-inline-start: 6px; }
 
 /* ───────── لوحة الإدارة (2.0) ───────── */
 .mgmt-bar { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: space-between; }
@@ -4817,3 +4813,74 @@ body.mobile .wizard-steps li:not(.on) > span { font-size: 13px; }
 body.mobile .wizard-steps li { flex: 1 1 auto; }
 body.mobile .act-choose { padding: 14px; gap: 12px; }
 body.mobile .act-choose .act-icon { width: 46px; height: 46px; min-width: 46px; flex: 0 0 46px; }
+/* نقطة البيع: السعر بسطر لحالو والوحدة صغيرة تحته (بدل ما يتكسّر «ل.س / قطعة» على كذا سطر) */
+.pos-item .pos-price { display: flex; flex-direction: column; line-height: 1.35; }
+.pos-item .pos-price b { white-space: nowrap; font-size: 15px; }
+.pos-item .pos-price i { font-style: normal; font-weight: 600; font-size: 12px; color: var(--muted); }
+/* تعلّم وزن: زر الخطوة بعرض ثابت */
+.learn-steps li > button { min-width: 64px; justify-content: center; text-align: center; }
+/* خلية جدول عليها button-row أو row-actions: بتضل خلية (flex عالـ td بيخرّب حدود السطر)، والأزرار جنب بعض */
+td.button-row, td.row-actions { display: table-cell; white-space: nowrap; }
+td.button-row > * + *, td.row-actions > * + * { margin-inline-start: 6px; }
+body.mobile td.button-row, body.mobile td.row-actions { white-space: normal; }
+
+/* ───────── الأقسام الجديدة (2.0.1): التنبيهات، المصاريف الثابتة، حاسبة التسعير ───────── */
+.nav-count { margin-inline-start: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: #e5484d; color: #fff; font-size: 11.5px; font-weight: 800; display: inline-grid; place-items: center; line-height: 1; }
+.sidebar nav button .nav-count + .nav-kbd { margin-inline-start: 6px; }
+.alert-strip { display: flex; align-items: center; gap: 12px; width: 100%; text-align: start; padding: 12px 16px; margin-bottom: 16px; border-radius: 14px; border: 1px solid; white-space: normal; font: inherit; cursor: pointer; }
+.alert-strip span { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.alert-strip small { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.alert-strip.bad { background: #fdecea; border-color: #f5c2bc; color: #a8322a; }
+.alert-strip.warn { background: #fff7e6; border-color: #f3d8a6; color: #8a5a12; }
+:root[data-theme='dark'] .alert-strip.bad { background: rgba(239, 107, 91, 0.12); border-color: rgba(239, 107, 91, 0.35); color: #ffb3a8; }
+:root[data-theme='dark'] .alert-strip.warn { background: rgba(227, 168, 74, 0.12); border-color: rgba(227, 168, 74, 0.35); color: #f3cf8e; }
+
+.alerts-group { margin-bottom: 20px; }
+.alerts-level { display: flex; align-items: center; gap: 8px; font-size: 15px; margin: 0 0 10px; }
+.alerts-level.bad { color: var(--danger); }
+.alerts-level.warn { color: var(--warn); }
+.alerts-level.info { color: var(--muted); }
+.alerts-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 12px; }
+.alert-card { margin: 0; display: flex; flex-direction: column; gap: 8px; border-inline-start: 4px solid var(--border); }
+.alert-card.bad { border-inline-start-color: var(--danger); }
+.alert-card.warn { border-inline-start-color: var(--warn); }
+.alert-card.info { border-inline-start-color: var(--primary); }
+.alert-card h4 { margin: 0; font-size: 15px; }
+.alert-card ul { margin: 0; padding-inline-start: 18px; line-height: 1.8; font-size: 13.5px; overflow-wrap: anywhere; }
+.alert-card > button { align-self: flex-start; margin-top: auto; display: inline-flex; align-items: center; gap: 4px; }
+.alerts-clear { text-align: center; padding: 36px 20px; }
+.alerts-clear-icon { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; margin: 0 auto 12px; background: var(--primary-soft); color: var(--primary); }
+
+.month-nav { display: flex; align-items: center; gap: 10px; margin: 0 0 16px; }
+.month-nav strong { min-width: 140px; text-align: center; font-size: 16px; }
+.recurring-list { display: grid; gap: 10px; }
+.recurring-card { margin: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 14px; align-items: center; border-inline-start: 4px solid var(--border); }
+.recurring-card.paid { border-inline-start-color: var(--good); }
+.recurring-card.overdue { border-inline-start-color: var(--danger); }
+.recurring-card.due-soon { border-inline-start-color: var(--warn); }
+.recurring-main h4 { margin: 0 0 2px; font-size: 15.5px; }
+.recurring-amount { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; white-space: nowrap; }
+.recurring-amount b { font-size: 16px; }
+.recurring-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.tag.bad { background: #fdecea; color: var(--danger); }
+.tag.warn { background: #fff4d6; color: #8a5a12; }
+
+.pricing-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.pricing-grid .card { margin: 0; }
+.pricing-grid h3 { margin-top: 4px; }
+.pricing-grid .form-grid + h3 { margin-top: 18px; }
+.pricing-mode { display: flex; flex-wrap: wrap; }
+.pricing-mode button { white-space: normal; }
+.pricing-big { display: flex; flex-direction: column; gap: 2px; padding: 16px; border-radius: 14px; background: var(--primary-soft); margin-bottom: 12px; }
+.pricing-big span { color: var(--muted); font-weight: 600; }
+.pricing-big strong { font-size: 30px; font-weight: 800; color: var(--primary); }
+.pricing-facts { display: grid; grid-template-columns: auto auto; justify-content: space-between; gap: 8px 16px; margin: 0 0 12px; }
+.pricing-facts dt { color: var(--muted); }
+.pricing-facts dd { margin: 0; font-weight: 700; text-align: end; }
+.pricing-item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border: 1px dashed var(--border); border-radius: 12px; margin-bottom: 12px; }
+.pricing-quick td:first-child { font-weight: 700; }
+@media (max-width: 1000px) { .pricing-grid { grid-template-columns: 1fr; } }
+body.mobile .pricing-grid { grid-template-columns: 1fr; }
+body.mobile .recurring-card { grid-template-columns: minmax(0, 1fr) auto; }
+body.mobile .recurring-actions { grid-column: 1 / -1; justify-content: flex-start; }
+body.mobile .pricing-big strong { font-size: 26px; }

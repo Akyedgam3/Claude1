@@ -61,6 +61,9 @@ import { CashJournal } from './screens/CashJournal';
 import { PriceLists } from './screens/PriceLists';
 import { Management } from './screens/Management';
 import { Learn } from './screens/Learn';
+import { Alerts, visibleAlerts } from './screens/Alerts';
+import { Recurring } from './screens/Recurring';
+import { Pricing } from './screens/Pricing';
 import { Welcome } from './screens/Welcome';
 import { useCloudHost } from './cloud/useCloudHost';
 import { WebConnect } from './cloud/WebConnect';
@@ -314,6 +317,7 @@ export function App() {
   // زر إخفاء الأرقام ما بيطبّق على شاشات الفاتورة نفسها
   setMaskHere(!UNMASKED_SCREENS.has(screen.key));
   const screens = visible.filter((n): n is NavItem => typeof n !== 'string');
+  const alertCount = visibleAlerts(ctx.state, ctx.can).filter((a) => a.level !== 'info').length;
   const allowed = new Set(screens.map((n) => n.key));
   const navKeys = new Set(NAV.filter((n): n is NavItem => typeof n !== 'string').map((n) => n.key));
   // الشاشات المخفية عن هالمستخدم (أو شاشة مربوطة فيها) ما بتنفتح حتى لو حدا وصلها من زر تاني
@@ -376,6 +380,7 @@ export function App() {
                 <button key={n.key} data-nav={n.key} className={screen.key === n.key ? 'active' : ''} onClick={() => navigate(n.key)}>
                   <Icon name={n.icon} className="nav-icon" />
                   {n.label}
+                  {n.key === 'alerts' && alertCount > 0 && <span className="nav-count" aria-label={`${alertCount} تنبيه`}>{alertCount}</span>}
                   {!IS_MOBILE && SHORTCUT_OF[n.key] && <kbd className="nav-kbd">{SHORTCUT_OF[n.key]}</kbd>}
                 </button>
               ),
@@ -388,6 +393,11 @@ export function App() {
             </div>
           )}
           {!IS_WEB && <UpdateNotice update={lic.update} current={info.version} notify={notify} />}
+          {!IS_MOBILE && (
+            <button className={`theme-toggle money-toggle ${moneyHidden ? 'on' : ''}`} title={moneyHidden ? 'إظهار الأرقام' : 'إخفاء الأرقام (المبالغ والمصاري)'} onClick={() => moneyMask.set(!moneyHidden)}>
+              <Icon name={moneyHidden ? 'eye-off' : 'eye'} size={16} /> {moneyHidden ? 'إظهار الأرقام' : 'إخفاء الأرقام'}
+            </button>
+          )}
           <button className="theme-toggle" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
             <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={16} /> {theme === 'dark' ? 'الوضع الفاتح' : 'الوضع الداكن'}
           </button>
@@ -424,11 +434,6 @@ export function App() {
         )}
         <Tour />
         <main className="content">
-          {!IS_MOBILE && (
-            <button className={`money-toggle ${moneyHidden ? 'on' : ''}`} title={moneyHidden ? 'إظهار الأرقام' : 'إخفاء الأرقام (المبالغ والمصاري)'} onClick={() => moneyMask.set(!moneyHidden)}>
-              <Icon name={moneyHidden ? 'eye-off' : 'eye'} size={16} /> {moneyHidden ? 'إظهار الأرقام' : 'إخفاء الأرقام'}
-            </button>
-          )}
           {lic.message && !lic.locked && <div className="banner">{lic.message}</div>}
           {ctx.session.cloud?.offline && (
             <div className="banner">
@@ -563,6 +568,12 @@ function Screen({ screen }: { screen: { key: string; param?: string } }) {
       return <Management />;
     case 'learn':
       return <Learn />;
+    case 'alerts':
+      return <Alerts />;
+    case 'recurring':
+      return <Recurring />;
+    case 'pricing':
+      return <Pricing />;
     case 'vouchers':
       return <Vouchers key={p ?? ''} {...(p === 'payment' || p === 'receipt' ? { initialKind: p } : p?.startsWith('edit:') ? { editId: p.slice(5) } : {})} />;
     case 'rates':

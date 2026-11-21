@@ -141,6 +141,9 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
   replaceInvoice: 'sales.void',
   postVoucher: 'vouchers.create',
   postVouchers: 'vouchers.create',
+  payRecurring: 'vouchers.create',
+  saveRecurring: 'accounts.manage',
+  deleteRecurring: 'accounts.manage',
   // التعديل = إلغاء + جديد: بدو صلاحية الإلغاء (والمنفّذ بيطلب صلاحية الإنشاء كمان)
   editVoucher: 'vouchers.void',
   editDebt: 'vouchers.void',
