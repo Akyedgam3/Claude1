@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { isMarketer, marketerTerms, attributesFor, ATTRIBUTE_SUGGESTIONS, isCashBox, computeTaxes, PRICE_TIER_NAMES, tierPrice, COST_LIST, isBuiltinList, partyPriceList, priceListPrice, type PriceTier, niceUnitCost, PRICE_SCALE, roundPrice, findRate, itemPlace, listPrices, withPlace, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
-import { convertPrice, dateText, fxRates, money, cleanNumber, qtyTotalText, qtyText, parseAmount, parseDiscount, parsePrice, rateInverted, toInput, today, uid, useCompany } from '../api';
+import { convertPrice, dateText, fxRates, money, cleanNumber, qtyTotalText, qtyText, parseAmount, parseDiscount, parsePrice, rateInverted, rateToInput, inputToRate, toInput, today, uid, useCompany } from '../api';
 import { askConfirm, CurrencySelect, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
 import { invoiceDrafts } from '../drafts';
 import { ItemForm } from './Items';
@@ -141,7 +141,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
   const [listKey, setListKey] = useState<string | null>(d?.priceList ?? null);
   const [date, setDate] = useState(editing?.date ?? d?.date ?? today());
   const [currency, setCurrency] = useState(editing?.currency ?? (d && state.currencies[d.currency] ? d.currency : base));
-  const [rateText, setRateText] = useState(() => (editing && editing.currency !== base ? String(rateInverted(state, editing.currency) ? Math.round(10000 / editing.rate) / 10000 : editing.rate) : (d?.rateText ?? '')));
+  const [rateText, setRateText] = useState(() => (editing && editing.currency !== base ? String(rateToInput(state, editing.currency, editing.rate)) : (d?.rateText ?? '')));
   const [placeEdits, setPlaceEdits] = useState<Record<string, string>>({});
   const [warehouseId, setWarehouseId] = useState(editing?.warehouseId ?? (d && state.warehouses[d.warehouseId] ? d.warehouseId : undefined) ?? Object.keys(state.warehouses)[0] ?? 'main');
   const [lines, setLines] = useState<LineState[]>(() =>
@@ -280,7 +280,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
   // بعض العملات سعرها بينكتب مقلوب (الشركة بالدولار والفاتورة بالليرة: «الدولار بكم ليرة»)
   const invertRate = rateInverted(state, currency);
   const typedRate = Number(rateText) || 0;
-  const rate = currency === base ? 1 : (typedRate ? (invertRate ? 1 / typedRate : typedRate) : storedRate || 0);
+  const rate = currency === base ? 1 : (typedRate ? inputToRate(state, currency, typedRate) : storedRate || 0);
   const items = useMemo(() => itemOptions(state, (i) => isSale || i.kind !== 'composite'), [state, isSale]);
   const boxes = cashAccounts(state, currency);
   const cashId = boxes.some((b) => b.id === cashAccountId) ? cashAccountId : (boxes.find((b) => b.currency === currency) ?? boxes[0])?.id ?? '1101';
@@ -290,7 +290,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
   const ratesFor = (cur: string, typed: string) => {
     const r = fxRates(state, date);
     const t = Number(typed) || 0;
-    if (cur !== base && t) r[cur] = rateInverted(state, cur) ? 1 / t : t;
+    if (cur !== base && t) r[cur] = inputToRate(state, cur, t);
     return r;
   };
   const priceFor = (item: Item, unit = '', p: Party | null | undefined = party, cur = currency, rates = ratesFor(currency, rateText), list: string | null = listKey) =>
@@ -793,7 +793,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
         </Field>
         {currency !== base && (
           <Field label={invertRate ? `سعر الصرف: 1 ${state.currencies[base]?.symbol} = ؟ ${state.currencies[currency]?.symbol}` : `سعر الصرف: 1 ${state.currencies[currency]?.symbol} = ؟ ${state.currencies[base]?.symbol}`}>
-            <input value={rateText} placeholder={storedRate ? String(invertRate ? Math.round(10000 / storedRate) / 10000 : storedRate) : 'أدخل السعر'} onChange={(e) => changeRate(e.target.value)} inputMode="decimal" />
+            <input value={rateText} placeholder={storedRate ? String(rateToInput(state, currency, storedRate)) : 'أدخل السعر'} onChange={(e) => changeRate(e.target.value)} inputMode="decimal" />
           </Field>
         )}
         {warehouses.length > 1 && (

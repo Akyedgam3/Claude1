@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { amountInWords, quoteTotals, type Invoice, type Quote, type QuoteStatus } from '../../../core';
+import { amountInWords, displayDecimals, quoteTotals, type Invoice, type Quote, type QuoteStatus } from '../../../core';
 import { addDays, dateText, money, cleanNumber, parseAmount, parseDiscount, parsePrice, qtyText, toInput, today, uid, useCompany } from '../api';
 import { CommercialDoc, type DocModel } from '../components/CommercialDoc';
 import { Icon } from '../components/icons';
@@ -411,7 +411,7 @@ export function QuoteDocument({ quote: q }: { quote: Quote }) {
     }),
     totals: [{ label: 'المجموع', value: m(t.subtotal) }, ...(t.discount ? [{ label: 'الخصم', value: m(t.discount) }] : []), ...t.taxes.map((x) => ({ label: x.tax.name, value: m(x.amount) }))],
     grand: { label: 'الإجمالي', value: m(t.total) },
-    words: amountInWords(t.total, q.currency, decimals),
+    words: amountInWords(t.total, q.currency, displayDecimals(state, q.currency)),
     ...(q.notes ? { notes: q.notes } : {}),
     stamp: 'quote',
     qrText: [state.info!.name, `عرض سعر رقم ${q.number}`, dateText(q.date), `الإجمالي: ${m(t.total)}`].join('\n'),

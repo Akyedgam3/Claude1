@@ -245,6 +245,32 @@ export class CloudClient {
   }
 
   /** فحص سريع إنو الجهاز الرئيسي شغّال ورمز الاتصال صح. */
+  /** الجهاز الرئيسي كتب إنه انطفى (سكّر البرنامج عادي)؟ */
+  async hostMarkedOff(): Promise<boolean> {
+    try {
+      const d = await this.t.get(this.room.room, 'meta', 'host');
+      if (!d?.ct) return false;
+      return !!(await unseal<{ off?: boolean }>(this.room.key, 'meta/host', d)).off;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * الجهاز الرئيسي شغّال؟ إذا هالجوال بيقدر يفتح بدونه (دخل قبل بهالحساب) ما منستنى كتير:
+   * 6 ثواني، وإذا ما ردّ منفتح النسخة المحفوظة، وبمجرد ما يرد منرجع متصلين لحالنا.
+   */
+  async hostOnline(canOpenOffline: boolean): Promise<boolean> {
+    if (canOpenOffline && (await this.hostMarkedOff())) return false;
+    try {
+      await this.ping(canOpenOffline ? 6_000 : 25_000);
+      return true;
+    } catch (e) {
+      if ((e as Error).message !== OFFLINE) throw e;
+      return false;
+    }
+  }
+
   ping(timeoutMs = 25_000): Promise<{ name: string }> {
     return this.request<{ name: string }>({ op: 'ping' }, timeoutMs);
   }

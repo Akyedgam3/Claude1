@@ -140,6 +140,7 @@ export function CloudConnectForm({ notify, onConnected }: { notify: (m: string, 
           {busy ? 'جاري الاتصال...' : 'اتصال'}
         </button>
       </div>
+      {busy && <p className="muted wide cloud-wait">عم نتصل بالجهاز الرئيسي… إذا كان مطفي بيفتح وزن آخر نسخة محفوظة خلال ثواني، والعمليات الجديدة بتوصله لما يرجع.</p>}
     </form>
   );
 }

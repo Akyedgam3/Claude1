@@ -4,7 +4,7 @@ import { Icon } from '../components/icons';
 import { ActivityPicker } from '../components/ActivityPicker';
 import { startTour } from '../components/Tour';
 import { CommercialDoc, QrImage, sampleModel } from '../components/CommercialDoc';
-import { api, dateText, IS_MOBILE, today, useCompany, type BackupLocation, type LanStatus } from '../api';
+import { api, currencyName, dateText, IS_MOBILE, today, useCompany, type BackupLocation, type LanStatus } from '../api';
 import { PAPER_NAMES } from '../components/print';
 import { sampleReceipt, ThermalReceipt } from '../components/ThermalReceipt';
 import { Field, Modal, PageHeader, Tabs } from '../components/ui';
@@ -66,8 +66,9 @@ function CompanyTab() {
   return (
     <section className="card">
       <p className="muted">
-        نوع النشاط: {profile.name} · العملة الأساسية: {state.currencies[c.baseCurrency]?.nameAr}
+        نوع النشاط: {profile.name} · العملة الأساسية: {currencyName(state, c.baseCurrency)}
       </p>
+      {state.currencies.SYP?.decimals === 2 && <LiraChoice />}
       <form
         className="form-grid"
         onSubmit={async (e) => {
@@ -95,6 +96,38 @@ function CompanyTab() {
         </div>
       </form>
     </section>
+  );
+}
+
+/** «بتشتغل بالليرة الجديدة ولا القديمة؟» — عرض بس: نفس المبالغ المخزّنة، بالقديمة بتطلع بالأصفار (×100) وبدون كسور. */
+function LiraChoice() {
+  const { state, call, notify } = useCompany();
+  const old = !!state.info!.oldLira;
+  const set = async (v: boolean) => {
+    if (v === old) return;
+    if ((await call('updateCompany', { oldLira: v })) !== null) notify(v ? 'صارت المبالغ بالليرة القديمة (بالأصفار)' : 'صارت المبالغ بالليرة الجديدة (بدون الصفرين)');
+  };
+  return (
+    <div className="lira-choice">
+      <b>بأي ليرة بتشتغل؟</b>
+      <div className="lira-options" role="radiogroup" aria-label="الليرة">
+        <label className={!old ? 'on' : ''}>
+          <input type="radio" name="lira" checked={!old} onChange={() => void set(false)} />
+          <span>
+            <strong>الليرة الجديدة</strong>
+            <small>بعد حذف الصفرين: 1,000 ل.س</small>
+          </span>
+        </label>
+        <label className={old ? 'on' : ''}>
+          <input type="radio" name="lira" checked={old} onChange={() => void set(true)} />
+          <span>
+            <strong>الليرة القديمة</strong>
+            <small>بالأصفار: 100,000 ل.س</small>
+          </span>
+        </label>
+      </div>
+      <small className="muted">التبديل بيغيّر طريقة عرض وكتابة المبالغ بس (الفواتير والتقارير والطباعة وسعر الصرف)، وما بيغيّر ولا قرش بحساباتك. فيك ترجع بأي وقت.</small>
+    </div>
   );
 }
 

@@ -236,6 +236,8 @@ export interface CompanyInfo {
   listPricing?: { buyDiscount: number; masterDiscount: number; retailMarkup: number; brands?: Record<string, number> };
   /** قوائم أسعار المحل (من 1.2.94): «نص جملة» = سعر الشراء + 15%... بتنختار للزبون أو وقت الفاتورة. */
   priceLists?: PriceListDef[];
+  /** عرض الليرة السورية بالعملة القديمة (بالأصفار): المبالغ نفسها، بس بتنعرض وبتنكتب ×100 وبدون كسور. الافتراضي: الجديدة. */
+  oldLira?: boolean;
   /** المصاريف الثابتة (2.0.1): إيجار، كهربا، رواتب... كل شهر، بتنسجّل بكبسة كسند دفع. */
   recurring?: RecurringExpense[];
 }

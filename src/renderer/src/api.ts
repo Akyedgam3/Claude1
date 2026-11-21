@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { createContext, useContext } from 'react';
-import { can as canDo, DEALER_BOX_ID, effectiveProfile, pharmacyValue, findRate, formatMinor, niceUnitCost, toMinor, toUnitPrice, type ActivityProfile, type CompanyState, type Currency, type Feature, type Permission, type User } from '../../core';
+import { can as canDo, DEALER_BOX_ID, effectiveProfile, pharmacyValue, displayDecimals, oldLiraOn, findRate, formatMinor, niceUnitCost, toMinor, toUnitPrice, type ActivityProfile, type CompanyState, type Currency, type Feature, type Permission, type User } from '../../core';
 import type { LicenseStatus } from '../../license/manager';
 
 /** نسخة الموبايل (أندرويد): مستقلة، بدون شبكة محلية ولا شاشة زبون. */
@@ -384,30 +384,28 @@ const masked = () => moneyHidden && maskHere && rendering();
 export function money(state: CompanyState, minor: number, currency?: string): string {
   const c = state.currencies[currency ?? state.info!.baseCurrency]!;
   if (masked()) return `•••• ${c.symbol}`;
-  return `${formatMinor(minor, c.decimals)} ${c.symbol}`;
+  return `${formatMinor(minor, displayDecimals(state, c.code))} ${c.symbol}`;
 }
 
 /** تكلفة وحدة (متوسط التكلفة): بتبيّن أجزاء السنت للقطع الرخيصة. */
 export function unitMoney(state: CompanyState, minor: number, currency?: string): string {
   const c = state.currencies[currency ?? state.info!.baseCurrency]!;
-  return money(state, niceUnitCost(minor, c.decimals), currency);
+  return money(state, niceUnitCost(minor, displayDecimals(state, c.code)), currency);
 }
 
 /** المبلغ بدون رمز العملة (أعمدة الإيصال الحراري الضيقة). */
 export function plainMoney(state: CompanyState, minor: number, currency?: string): string {
   if (masked()) return '••••';
-  return formatMinor(minor, state.currencies[currency ?? state.info!.baseCurrency]!.decimals);
+  return formatMinor(minor, displayDecimals(state, currency ?? state.info!.baseCurrency));
 }
 
 /** المبلغ كرقم عادي (للتصدير إلى Excel). */
 export function major(state: CompanyState, minor: number, currency?: string): number {
-  const c = state.currencies[currency ?? state.info!.baseCurrency]!;
-  return minor / 10 ** c.decimals;
+  return minor / 10 ** displayDecimals(state, currency ?? state.info!.baseCurrency);
 }
 
 export function toInput(state: CompanyState, minor: number, currency: string): string {
-  const c = state.currencies[currency]!;
-  return formatMinor(minor, c.decimals).replace(/,/g, '').replace(/\.0+$/, '');
+  return formatMinor(minor, displayDecimals(state, currency)).replace(/,/g, '').replace(/\.0+$/, '');
 }
 
 /** أرقام عربية/فارسية وفواصل الآلاف والفاصلة العربية ← رقم عادي («١٬٥٠٠٫٥» = 1500.5، «10.» = 10). */
@@ -424,14 +422,14 @@ export function cleanNumber(text: string): string {
 export function parseAmount(state: CompanyState, text: string, currency: string): number {
   const t = cleanNumber(text ?? '');
   if (!t) return 0;
-  return toMinor(t, state.currencies[currency]!.decimals);
+  return toMinor(t, displayDecimals(state, currency));
 }
 
 /** سعر الوحدة بسطر الفاتورة: بيقبل منازل زيادة (0.076$ للقطعة). */
 export function parsePrice(state: CompanyState, text: string, currency: string): number {
   const t = cleanNumber(text ?? '');
   if (!t) return 0;
-  return toUnitPrice(t, state.currencies[currency]!.decimals);
+  return toUnitPrice(t, displayDecimals(state, currency));
 }
 
 /**
@@ -501,14 +499,30 @@ export function rateInverted(state: CompanyState, code: string): boolean {
 
 const round4 = (n: number) => Math.round(n * 10000) / 10000;
 
+/** الليرة القديمة: الرقم المكتوب «كم ليرة بالوحدة» بالأصفار (×100) إذا الليرة هي الطرف اللي عم ينعدّ. */
+function liraRateFactor(state: CompanyState, code: string): number {
+  if (!oldLiraOn(state)) return 1;
+  const counted = rateInverted(state, code) ? code : state.info!.baseCurrency;
+  return counted === 'SYP' ? 100 : 1;
+}
+
 /** السعر المخزّن (كم عملة أساسية بالوحدة) ← الرقم اللي بيكتبه المستخدم. */
 export function rateToInput(state: CompanyState, code: string, rate: number): number {
-  return rateInverted(state, code) ? round4(1 / rate) : round4(rate);
+  return round4((rateInverted(state, code) ? 1 / rate : rate) * liraRateFactor(state, code));
 }
 
 /** الرقم اللي كتبه المستخدم ← السعر المخزّن. */
 export function inputToRate(state: CompanyState, code: string, typed: number): number {
-  return rateInverted(state, code) ? 1 / typed : typed;
+  const v = typed / liraRateFactor(state, code);
+  return rateInverted(state, code) ? 1 / v : v;
+}
+
+/** اسم العملة للعرض (الليرة القديمة/الجديدة حسب الإعداد) */
+export function currencyName(state: CompanyState, code: string): string {
+  const c = state.currencies[code];
+  if (!c) return code;
+  if (code === 'SYP' && c.decimals === 2) return oldLiraOn(state) ? 'ليرة سورية (قديمة)' : 'ليرة سورية جديدة';
+  return c.nameAr;
 }
 
 /** «1 $ = 120 ل.س» أو «1 $ = 34 TRY» حسب طريقة كتابة سعر هالعملة. */
@@ -527,5 +541,5 @@ export function rateQuestion(state: CompanyState, code: string): string {
   const base = state.currencies[state.info!.baseCurrency]!;
   const c = state.currencies[code];
   if (!c) return '';
-  return rateInverted(state, code) ? `كم ${c.nameAr} يساوي 1 ${base.nameAr}` : `كم ${base.nameAr} يساوي 1 ${c.nameAr}`;
+  return rateInverted(state, code) ? `كم ${currencyName(state, code)} يساوي 1 ${currencyName(state, base.code)}` : `كم ${currencyName(state, base.code)} يساوي 1 ${currencyName(state, code)}`;
 }

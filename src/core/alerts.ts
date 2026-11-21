@@ -1,6 +1,7 @@
 // «التنبيهات» (2.0.1): كل شي بدو انتباه اليوم بمكان واحد — نواقص، صلاحية، ديون وأقساط متأخرة، مصاريف ثابتة، بيع تحت الكلفة، سعر صرف قديم، مسودات.
 // قراءة بس من الحالة. كل تنبيه إلو الصلاحية اللي لازم تكون مع المستخدم حتى يشوفه، والشاشة اللي بتنفتح منه.
 import { installmentState } from './electronics';
+import { displayDecimals } from './money';
 import type { Permission } from './permissions';
 import { recurringStatus } from './recurring';
 import { partyBalance, stockReport } from './reports';
@@ -31,7 +32,7 @@ export function alertsFor(state: CompanyState, today: string): AppAlert[] {
   const out: AppAlert[] = [];
   const base = state.info?.baseCurrency ?? 'SYP';
   const fmt = (minor: number, cur = base) => {
-    const dec = state.currencies[cur]?.decimals ?? 2;
+    const dec = displayDecimals(state, cur);
     return `${(minor / 10 ** dec).toLocaleString('en', { minimumFractionDigits: 0, maximumFractionDigits: dec })} ${state.currencies[cur]?.symbol ?? cur}`;
   };
 

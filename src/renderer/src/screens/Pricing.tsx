@@ -1,8 +1,8 @@
 // «حاسبة التسعير»: من سعر الشراء (أو الكرتونة) + المصاريف + الربح اللي بدك ياه ← سعر البيع، والربح بالقطعة،
 // ونسبة الربح من الكلفة ومن سعر البيع، والمقابل بالعملة التانية، وجدول جاهز لنسب الربح المعتادة. فيك تعتمد السعر للمادة.
 import { useMemo, useState } from 'react';
-import { findRate, itemCost, roundPrice, type Item } from '../../../core';
-import { cleanNumber, money, today, useCompany } from '../api';
+import { displayDecimals, findRate, itemCost, roundPrice, type Item } from '../../../core';
+import { cleanNumber, convertPrice, fxRates, money, today, useCompany } from '../api';
 import { Icon } from '../components/icons';
 import { CurrencySelect, Field, PageHeader, Picker, itemOptions } from '../components/ui';
 
@@ -38,9 +38,9 @@ export function Pricing() {
   const [pct, setPct] = useState('25');
   const [target, setTarget] = useState('');
   const [step, setStep] = useState(0);
-  const dec = state.currencies[cur]?.decimals ?? 2;
+  const dec = displayDecimals(state, cur);
   const toMinor = (major: number) => Math.round(major * 10 ** dec);
-  const show = (major: number, c = cur) => money(state, Math.round(major * 10 ** (state.currencies[c]?.decimals ?? 2)), c);
+  const show = (major: number, c = cur) => money(state, Math.round(major * 10 ** displayDecimals(state, c)), c);
 
   const per = carton ? Math.max(1, num(pieces)) : 1;
   const unitBuy = num(buy) / per;
@@ -52,7 +52,8 @@ export function Pricing() {
 
   // المقابل بالعملة التانية (الدولار ↔ الأساسية) بسعر اليوم
   const other = cur === base ? (state.currencies.USD && findRate(state, 'USD', today()) ? 'USD' : null) : base;
-  const rateOther = other ? (cur === base ? 1 / (findRate(state, 'USD', today()) ?? 1) : (findRate(state, cur, today()) ?? 0)) : 0;
+  // المقابل: من أصغر وحدة لأصغر وحدة بسعر اليوم (بيمشي صح مع الليرة القديمة كمان)
+  const otherMinor = (major: number) => (other ? convertPrice(state, Math.round(major * 10 ** dec), cur, other, fxRates(state, today())) : null);
 
   const pick = (id: string | null) => {
     const it = id ? state.items[id] : null;
@@ -62,7 +63,7 @@ export function Pricing() {
     if (costs) {
       const c = itemCost(state, it.id);
       setCur(base);
-      setBuy(c > 0 ? String(Math.round((c / 10 ** (state.currencies[base]?.decimals ?? 2)) * 1000) / 1000) : '');
+      setBuy(c > 0 ? String(Math.round((c / 10 ** displayDecimals(state, base)) * 1000) / 1000) : '');
     }
   };
   const options = useMemo(() => itemOptions(state, (i) => i.kind !== 'service'), [state]);
@@ -144,7 +145,7 @@ export function Pricing() {
           <div className="pricing-big">
             <span>سعر البيع</span>
             <strong>{valid ? show(price) : '—'}</strong>
-            {valid && other && rateOther > 0 && <small className="muted">≈ {show(price * rateOther, other)}</small>}
+            {valid && other && (otherMinor(price) ?? 0) > 0 && <small className="muted">≈ {money(state, Math.round(otherMinor(price)!), other)}</small>}
           </div>
           <dl className="pricing-facts">
             <dt>كلفة القطعة</dt>

@@ -105,3 +105,18 @@ export function convertMinor(minor: number, from: Currency, base: Currency, rate
 export function percentOf(minor: number, percent: number): number {
   return assertSafe(Math.round((minor * percent) / 100));
 }
+
+/**
+ * الليرة القديمة (قبل حذف الصفرين): أصغر وحدة من الليرة الجديدة (قرش = 1/100) هي بالضبط ليرة قديمة.
+ * فإذا الشركة مختارة «الليرة القديمة» منعرض نفس المبالغ المخزّنة بدون كسور، وبتطلع بالأصفار. البيانات ما بتتغيّر.
+ */
+/** الليرة القديمة مفعّلة وفعلاً بتنطبّق (الليرة مخزّنة بقروش) */
+export function oldLiraOn(state: { info?: { oldLira?: boolean } | null; currencies: Record<string, { decimals: number }> }): boolean {
+  return !!state.info?.oldLira && state.currencies.SYP?.decimals === 2;
+}
+
+export function displayDecimals(state: { info?: { oldLira?: boolean } | null; currencies: Record<string, { decimals: number }> }, code: string): number {
+  const d = state.currencies[code]?.decimals ?? 2;
+  // بس إذا الليرة مخزّنة بقروش (2 خانات): وقتها القرش = ليرة قديمة بالضبط
+  return code === 'SYP' && d === 2 && state.info?.oldLira ? 0 : d;
+}

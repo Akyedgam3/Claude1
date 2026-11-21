@@ -216,6 +216,17 @@ export class CloudHost {
     await this.writeMeta();
   }
 
+  /**
+   * البرنامج عم يتسكّر عالجهاز الرئيسي: منكتب «مطفي» بالسحابة، فالجوال البعيد بيفتح النسخة المحفوظة فوراً
+   * بدل ما يستنى رد ما رح يجي. (إذا انقطع فجأة ما بتنكتب، والجوال بيعرف بعد ثواني قليلة)
+   */
+  markOff(): Promise<void> {
+    // العلامة جوّا المحتوى المشفّر (قواعد Firestore بتسمح بحقول محددة بس)
+    return seal(this.room.key, 'meta/host', { name: this.company.name(), off: true })
+      .then((sealed) => this.t.set(this.room.room, 'meta', 'host', { ...sealed, epoch: this.epoch, seen: 0 })) // seen=0: ما يفكّره الجوال رجع
+      .catch(() => undefined);
+  }
+
   private async writeMeta(): Promise<void> {
     const sealed = await seal(this.room.key, 'meta/host', { name: this.company.name() });
     await this.t.set(this.room.room, 'meta', 'host', { ...sealed, epoch: this.epoch, seen: Date.now() });

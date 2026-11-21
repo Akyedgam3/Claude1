@@ -242,7 +242,16 @@ describe('cloud host and client', () => {
     execute(store, store.user, 'postInvoice', [sale]); // فاتورة قبل ما ينطفي
     await wait(30);
     await host.flush();
+    // قبل ما ينطفي: «شغّال» بيرد فوراً
+    expect(await (await client()).hostOnline(true)).toBe(true);
+    await host.markOff(); // سكّر البرنامج عادي: كتب «مطفي»
     host.stop(); // انطفى الجهاز الرئيسي
+    // الجوال اللي بيقدر يفتح بدونه ما بيستنى أبداً
+    const quick = await client();
+    const t0 = Date.now();
+    expect(await quick.hostMarkedOff()).toBe(true);
+    expect(await quick.hostOnline(true)).toBe(false);
+    expect(Date.now() - t0).toBeLessThan(1000);
 
     // بدون البصمة أو بكلمة سر غلط ما بيفتح
     const stranger = await client('kasher', 'wrong', 'phone9');

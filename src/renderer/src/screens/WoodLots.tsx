@@ -13,7 +13,7 @@ const num = (s: string) => Number(s.replace(/[٠-٩]/g, (d) => String('٠١٢٣�
 function useMoneyInput() {
   const { state } = useCompany();
   const base = state.info!.baseCurrency;
-  const syp = base === 'SYP';
+  const syp = base === 'SYP' && !state.info?.oldLira; // الليرة القديمة مفعّلة للشركة كلها: الخانات أصلاً بالقديمة
   const [old, setOld] = useState(false);
   const parse = (text: string): number => {
     if (!text.trim()) return 0;

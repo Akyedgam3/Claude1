@@ -1,4 +1,4 @@
-import { PRICE_SCALE, roundPrice, type InvoiceLine, amountInWords, attributesText, partyBalance, partyDebts, findRate, INVOICE_KIND_NAMES, invoicePartyBalance, invoiceProfit, lineAmount, weighingText, type CompanyState, type Invoice } from '../../../core';
+import { PRICE_SCALE, roundPrice, type InvoiceLine, amountInWords, displayDecimals, attributesText, partyBalance, partyDebts, findRate, INVOICE_KIND_NAMES, invoicePartyBalance, invoiceProfit, lineAmount, weighingText, type CompanyState, type Invoice } from '../../../core';
 import { api, convertPrice, dateText, fxRates, IS_MOBILE, money, parsePrice, plainMoney, qtyText, qtyTotalText, rateLine, today, useCompany } from '../api';
 import { itemPrice } from './InvoiceEditor';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
@@ -534,7 +534,7 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
       ...(inv.currency !== company.baseCurrency ? [{ label: 'سعر الصرف', value: rateLine(state, inv.currency, inv.rate) }] : []),
       ...(showUsd ? [{ label: 'المقابل بالدولار', value: money(state, Math.round(((inv.total * inv.rate) / usdRate) * 10 ** (2 - decimals)), 'USD') }] : []),
     ],
-    ...(print.showAmountInWords !== false ? { words: amountInWords(inv.total, inv.currency, decimals) } : {}),
+    ...(print.showAmountInWords !== false ? { words: amountInWords(inv.total, inv.currency, displayDecimals(state, inv.currency)) } : {}),
     ...(inv.notes && !shipment ? { notes: inv.notes } : shipment?.notes ? { notes: shipment.notes } : {}),
     // الختم حسب الوضع هلق: إذا انقبض الباقي بعدين بيصير «مدفوعة»
     stamp: inv.voidEntryId ? 'void' : viaMarketer ? null : invoiceRemaining(state, inv) > 0 ? 'credit' : 'paid',

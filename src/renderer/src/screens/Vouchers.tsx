@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { amountInWords, type JournalEntry } from '../../../core';
-import { dateText, major, money, parseAmount, toInput, today, useCompany } from '../api';
+import { amountInWords, displayDecimals, type JournalEntry } from '../../../core';
+import { dateText, inputToRate, major, money, parseAmount, toInput, today, useCompany } from '../api';
 import { DocHeader, ExportButtons, PrintButtons } from '../components/print';
 import { ConfirmButton, CurrencySelect, Empty, Field, Modal, PageHeader, partyOptions, Picker } from '../components/ui';
 import { cashAccounts } from './InvoiceEditor';
@@ -81,7 +81,7 @@ export function Vouchers({ initialKind, editId }: { initialKind?: 'receipt' | 'p
       date,
       amount: minor,
       currency,
-      ...(currency !== base && rate ? { rate: Number(rate) } : {}),
+      ...(currency !== base && Number(rate) ? { rate: inputToRate(state, currency, Number(rate)) } : {}),
       ...(target === 'party' ? { partyId } : { accountId: counterId }),
       cashAccountId: cashId,
       memo: memo.trim() || (kind === 'receipt' ? 'قبض' : 'دفع'),
@@ -286,7 +286,7 @@ function VoucherPrint({ entry, onClose }: { entry: JournalEntry; onClose: () => 
             <p>
               مبلغاً وقدره: <strong className="grand">{money(state, amount, counter.currency)}</strong>
             </p>
-            <p className="doc-words">{amountInWords(amount, counter.currency, decimals)}</p>
+            <p className="doc-words">{amountInWords(amount, counter.currency, displayDecimals(state, counter.currency))}</p>
             <p>وذلك عن: {entry.memo.split(':').slice(1).join(':').trim() || '—'}</p>
           </div>
           <footer className="doc-footer signatures">

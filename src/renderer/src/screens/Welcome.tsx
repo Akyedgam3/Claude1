@@ -279,6 +279,8 @@ function NewCompany({ notify, onCreated }: { notify: (m: string, k?: 'ok' | 'err
   const [f, setF] = useState({ name: '', activity: '', baseCurrency: 'SYP', phone: '', address: '', ownerName: '', username: 'admin', password: '', confirm: '' });
   const [busy, setBusy] = useState(false);
   const [demo, setDemo] = useState(false);
+  // الليرة القديمة: نفس العملة، بس العرض بالأصفار (بيتغيّر من الإعدادات بأي وقت)
+  const [oldLira, setOldLira] = useState(false);
   // معالج بخطوات: 1 النشاط، 2 بيانات المحل، 3 حساب المالك
   const [step, setStep] = useState(1);
   const [picking, setPicking] = useState(false);
@@ -295,6 +297,13 @@ function NewCompany({ notify, onCreated }: { notify: (m: string, k?: 'ok' | 'err
       const { confirm: _c, ...data } = f;
       void _c;
       const res = await api.createCompany(data);
+      if (oldLira && data.baseCurrency === 'SYP') {
+        try {
+          await api.call('updateCompany', { oldLira: true });
+        } catch {
+          /* بيتغيّر من الإعدادات */
+        }
+      }
       if (demo) {
         try {
           await api.call('loadDemoData');
@@ -383,8 +392,16 @@ function NewCompany({ notify, onCreated }: { notify: (m: string, k?: 'ok' | 'err
             <input value={f.name} onChange={set('name')} autoFocus placeholder="مثلاً: ماركت الشام" />
           </Field>
           <Field label="العملة الأساسية للحسابات">
-            <select value={f.baseCurrency} onChange={set('baseCurrency')}>
-              <option value="SYP">ليرة سورية جديدة</option>
+            <select
+              value={f.baseCurrency === 'SYP' && oldLira ? 'SYP_OLD' : f.baseCurrency}
+              onChange={(e) => {
+                const v = e.target.value;
+                setOldLira(v === 'SYP_OLD');
+                setF({ ...f, baseCurrency: v === 'SYP_OLD' ? 'SYP' : v });
+              }}
+            >
+              <option value="SYP">ليرة سورية جديدة (بعد حذف الصفرين)</option>
+              <option value="SYP_OLD">ليرة سورية قديمة (بالأصفار)</option>
               <option value="USD">دولار أمريكي</option>
             </select>
           </Field>

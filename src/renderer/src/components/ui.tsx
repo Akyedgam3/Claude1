@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { itemColor, itemTitle, type CompanyState, type Item, type Party } from '../../../core';
-import { api, Company, IS_MOBILE, shownCurrencies, useCompany, type CompanyCtx } from '../api';
+import { api, Company, currencyName, IS_MOBILE, shownCurrencies, useCompany, type CompanyCtx } from '../api';
 import { createPortal } from 'react-dom';
 import { Icon } from './icons';
 
@@ -314,7 +314,7 @@ export function CurrencySelect({ value, onChange }: { value: string; onChange: (
     <select value={value} onChange={(e) => onChange(e.target.value)}>
       {shownCurrencies(state, value).map((c) => (
         <option key={c.code} value={c.code}>
-          {c.nameAr} ({c.symbol})
+          {currencyName(state, c.code)} ({c.symbol})
         </option>
       ))}
     </select>

@@ -1,6 +1,6 @@
 // فواتير المسودة: قائمة، فتح للتعديل والاعتماد، طباعة بختم «مسودة»، وحذف.
 import { useMemo, useState } from 'react';
-import { amountInWords, INVOICE_KIND_NAMES, type SavedDraft } from '../../../core';
+import { amountInWords, displayDecimals, INVOICE_KIND_NAMES, type SavedDraft } from '../../../core';
 import { dateText, money, qtyText, useCompany } from '../api';
 import { CommercialDoc, type DocModel } from './CommercialDoc';
 import { PrintButtons } from './print';
@@ -108,7 +108,7 @@ export function DraftDocument({ draft: d }: { draft: SavedDraft }) {
     })),
     totals: [{ label: 'المجموع', value: m(d.subtotal) }, ...(d.discount ? [{ label: 'الخصم', value: m(d.discount) }] : []), ...d.taxes.map((t) => ({ label: t.name, value: m(t.amount) }))],
     grand: { label: 'الإجمالي', value: m(d.total) },
-    words: amountInWords(d.total, d.currency, decimals),
+    words: amountInWords(d.total, d.currency, displayDecimals(state, d.currency)),
     notes: [d.notes, 'هذه مسودة وليست فاتورة نهائية'].filter(Boolean).join(' — '),
     stamp: 'draft',
     qrText: [state.info!.name, `مسودة رقم ${d.number}`, dateText(d.date), `الإجمالي: ${m(d.total)}`].join('\n'),

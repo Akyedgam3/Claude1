@@ -778,13 +778,8 @@ function registerIpc(): void {
     const client = new CloudClient(new FirestoreTransport(), room, { username, password: String(o.password ?? ''), deviceId: s.deviceId, deviceName: os.hostname() });
     const key = `${room.room}|${username.trim().toLowerCase()}`;
     const saved = s.cloudOffline?.[key];
-    let online = true;
-    try {
-      await client.ping();
-    } catch (e) {
-      if ((e as Error).message !== OFFLINE) throw e;
-      online = false;
-    }
+    // إذا هالجهاز دخل قبل بهالحساب (فيه بصمة كلمة السر) ما منستنى الرئيسي كتير
+    const online = await client.hostOnline(!!saved?.verifier);
     if (online) {
       await client.login();
       client.pending = saved?.pending ?? [];

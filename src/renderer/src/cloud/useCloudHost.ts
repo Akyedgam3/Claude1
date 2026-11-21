@@ -41,8 +41,14 @@ export function useCloudHost(active: boolean, companyName: string, notify: (m: s
         warned = true;
       };
       const offs = [api.on('company:events', (p) => host.push(p as EventItem[])), api.on('company:reset', () => void host.reset().catch((e: Error) => host.onError(e.message)))];
+      // سكّر البرنامج: منخبّر الأجهزة البعيدة إنو الرئيسي انطفى (بتفتح النسخة المحفوظة فوراً)
+      const bye = () => void host.markOff();
+      window.addEventListener('pagehide', bye);
+      window.addEventListener('beforeunload', bye);
       stop = () => {
         offs.forEach((o) => o());
+        window.removeEventListener('pagehide', bye);
+        window.removeEventListener('beforeunload', bye);
         host.stop();
       };
       await host.start().catch((e: Error) => host.onError(e.message));

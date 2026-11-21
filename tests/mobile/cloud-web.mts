@@ -93,9 +93,13 @@ if (after !== before + 1) errs.push(`counts wrong: ${before} ${after}`);
 // بعد إعادة فتح الصفحة: بيرجع لشاشة الاتصال والرمز واسم المستخدم محفوظين
 await B.goto(`${WEB}/index.html`);
 await B.locator('.web-connect').waitFor({ timeout: 20000 });
-await B.waitForFunction(() => (document.querySelector('.web-connect input.mono') as HTMLInputElement | null)?.value);
-const kept = await B.locator('.field', { hasText: 'اسم المستخدم' }).locator('input').inputValue();
-if (kept !== 'admin') errs.push(`username not remembered: ${kept}`);
+// الاتصال المحفوظ: بيطلع اسم المحل والمستخدم، وبيكفي كلمة السر
+await B.locator('.web-connect .saved-conn').waitFor({ timeout: 20000 });
+const kept = await B.locator('.web-connect .saved-conn').innerText();
+if (!kept.includes('admin')) errs.push(`username not remembered: ${kept}`);
+await B.locator('.web-connect input[type=password]').fill('secret123');
+await B.locator('.web-connect form button.primary').last().click();
+await B.locator('.bottom-nav').waitFor({ timeout: 30000 });
 console.log(JSON.stringify({ before, after, errs }, null, 1));
 await b.close();
 process.exit(errs.length ? 1 : 0);
