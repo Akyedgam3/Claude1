@@ -68,7 +68,7 @@ try {
   await btn(p, 'الاتصال بجهاز رئيسي').click();
   await snap(p, 'welcome_connect', { connect: btn(p, 'الاتصال بجهاز رئيسي'), form: p.locator('form, section.card').last() });
   await btn(p, 'شركة جديدة').click();
-  const act = (t: string) => p.locator('.activity', { hasText: t }).first();
+  const act = (t: string) => p.locator('.act-card', { hasText: t }).first();
   await snap(p, 'acts', { newco: btn(p, 'شركة جديدة'), a1: act('سوبرماركت'), a2: act('مطعم'), a3: act('ألبسة'), a4: act('موبايلات'), a5: act('صيدلية'), a6: act('قطع'), grid: p.locator('.activities, .activity-grid').first() });
   await act('موبايلات').click();
   await field(p, 'اسم الشركة').locator('input').fill('موبايلات النور');

@@ -9,7 +9,7 @@ async function snap(page: P, name: string) { await hide(page); await page.waitFo
 async function company(page: P, act: string, name: string, shotNew?: string) {
   await activate(page);
   await page.getByRole('button', { name: 'شركة جديدة' }).click();
-  await page.locator('.activity', { hasText: act }).first().click();
+  await page.locator('.act-card', { hasText: act }).first().click();
   await page.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill(name);
   await page.locator('.field', { hasText: 'اسمك' }).locator('input').fill('المالك');
   await page.locator('.field', { hasText: 'كلمة السر (6' }).locator('input').fill('secret123');

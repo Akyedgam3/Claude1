@@ -42,12 +42,12 @@ const states: Record<string, Record<string, Box>> = {};
   try {
     await activate(page);
     await page.getByRole('button', { name: 'شركة جديدة' }).click();
-    await page.locator('.activity', { hasText: 'مطعم' }).first().click();
+    await page.locator('.act-card', { hasText: 'مطعم' }).first().click();
     await page.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill('مطعم الشام');
     await page.locator('.field', { hasText: 'اسمك' }).locator('input').fill('المالك');
     await page.locator('.field', { hasText: 'كلمة السر (6' }).locator('input').fill('secret123');
     await page.locator('.field', { hasText: 'تأكيد كلمة السر' }).locator('input').fill('secret123');
-    await snap('new_company', { act: page.locator('.activity', { hasText: 'مطعم' }).first() });
+    await snap('new_company', { act: page.locator('.act-card', { hasText: 'مطعم' }).first() });
     await page.locator('.demo-check input').check();
     await btn('إنشاء الشركة').click();
     await btn('حفظته، تابع').click();

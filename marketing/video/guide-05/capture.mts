@@ -48,7 +48,7 @@ try {
   await p.locator('textarea').first().fill(issueLicense({ id: 'lic-g5', customer: 'ماركت النور', machineId, plan: 'annual' }, devKey));
   await btn(p, 'تفعيل', true).click();
   await btn(p, 'شركة جديدة').click();
-  await p.locator('.activity', { hasText: 'سوبرماركت' }).first().click();
+  await p.locator('.act-card', { hasText: 'سوبرماركت' }).first().click();
   await field(p, 'اسم الشركة').locator('input').fill('ماركت النور');
   await field(p, 'الهاتف').locator('input').fill('0944 123 456');
   await field(p, 'اسمك').locator('input').fill('أبو محمد');

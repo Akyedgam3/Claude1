@@ -60,7 +60,7 @@ const XL: (string | number)[][] = [
     fs.writeFileSync(path.join(OUT, 'excel.json'), JSON.stringify(XL));
     await activate(page);
     await page.getByRole('button', { name: 'شركة جديدة' }).click();
-    const act = page.locator('.activity', { hasText: 'سوبرماركت' }).first();
+    const act = page.locator('.act-card', { hasText: 'سوبرماركت' }).first();
     await act.click();
     await page.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill('سوبرماركت الخير');
     await page.locator('.field', { hasText: 'اسمك' }).locator('input').fill('المالك');

@@ -8,7 +8,7 @@ test('currency: sell in dollars at the POS and close a restaurant order in dolla
   try {
     await activate(page);
     await page.getByRole('button', { name: 'شركة جديدة' }).click();
-    await page.locator('.activity', { hasText: 'مطعم' }).click();
+    await page.locator('.act-card', { hasText: 'مطعم' }).click();
     await page.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill('مطعم العملات');
     await page.locator('.field', { hasText: 'اسمك' }).locator('input').fill('المالك');
     await page.locator('.field', { hasText: 'كلمة السر (6' }).locator('input').fill('secret123');
@@ -63,7 +63,7 @@ test('currency: add a custom currency with its own rate and sell with it', async
   try {
     await activate(page);
     await page.getByRole('button', { name: 'شركة جديدة' }).click();
-    await page.locator('.activity', { hasText: 'سوبرماركت' }).click();
+    await page.locator('.act-card', { hasText: 'سوبرماركت' }).click();
     await page.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill('ماركت الحدود');
     await page.locator('.field', { hasText: 'اسمك' }).locator('input').fill('المالك');
     await page.locator('.field', { hasText: 'كلمة السر (6' }).locator('input').fill('secret123');

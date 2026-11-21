@@ -210,7 +210,7 @@ test('back button: invoice opened from the log returns to the log', async () => 
   try {
     await activate(page);
     await page.getByRole('button', { name: 'شركة جديدة' }).click();
-    await page.locator('.activity', { hasText: 'سوبرماركت' }).click();
+    await page.locator('.act-card', { hasText: 'سوبرماركت' }).click();
     await page.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill('محل الرجوع');
     await page.locator('.field', { hasText: 'اسمك' }).locator('input').fill('المالك');
     await page.locator('.field', { hasText: 'كلمة السر (6' }).locator('input').fill('secret123');

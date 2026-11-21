@@ -19,7 +19,7 @@ async function setup(page: Page) {
   await page.locator('textarea').first().fill(issueLicense({ customer: 'ت', machineId, plan: 'annual' }, devKey));
   await page.getByRole('button', { name: 'تفعيل', exact: true }).click();
   await page.getByText('شركة جديدة').first().click();
-  await page.locator('.activity', { hasText: 'سوبرماركت' }).click();
+  await page.locator('.act-card', { hasText: 'سوبرماركت' }).click();
   await page.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill('سوبرماركت الخير');
   await page.locator('.field', { hasText: 'اسمك' }).locator('input').fill('أبو محمد');
   await page.locator('.field', { hasText: 'كلمة السر (6' }).locator('input').fill('secret123');

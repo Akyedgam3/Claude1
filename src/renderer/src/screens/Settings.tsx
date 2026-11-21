@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ACTIVITIES, ACTIVITY_LIST, ALL_FEATURES, DEFAULT_SCALE, FEATURE_INFO, healthCheck, type HealthReport, type Activity, type ActivityCustomization, type Feature, type Paper, type PrintSettings, type ReceiptSettings } from '../../../core';
 import { Icon } from '../components/icons';
+import { ActivityPicker } from '../components/ActivityPicker';
 import { startTour } from '../components/Tour';
 import { CommercialDoc, QrImage, sampleModel } from '../components/CommercialDoc';
 import { api, dateText, IS_MOBILE, today, useCompany, type BackupLocation, type LanStatus } from '../api';
@@ -140,16 +141,7 @@ function CustomizeTab() {
       <section className="card">
         <h3>نوع النشاط</h3>
         <p className="muted">تغيير النشاط لا يمس الحسابات أو الفواتير؛ يغيّر فقط الشاشات والاقتراحات.</p>
-        <div className="activity-grid compact">
-          {ACTIVITY_LIST.map((a) => (
-            <button key={a.id} type="button" className={`activity ${activity === a.id ? 'active' : ''}`} onClick={() => changeActivity(a.id)}>
-              <span className="activity-icon" style={{ background: a.color }}>
-                <Icon name={a.icon} size={20} />
-              </span>
-              <strong>{a.name}</strong>
-            </button>
-          ))}
-        </div>
+        <ActivityPicker value={activity} onChange={(id) => changeActivity(id)} preview={false} />
       </section>
       <section className="card">
         <h3>الميزات والشاشات</h3>

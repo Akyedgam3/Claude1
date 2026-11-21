@@ -8,7 +8,7 @@ test('phone shop: IMEI scan in POS, device history, installments and trade-in', 
   try {
     await activate(page);
     await page.getByRole('button', { name: 'شركة جديدة' }).click();
-    await page.locator('.activity', { hasText: 'موبايلات' }).click();
+    await page.locator('.act-card', { hasText: 'موبايلات' }).click();
     await page.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill('موبايلات النجمة');
     await page.locator('.field', { hasText: 'اسمك' }).locator('input').fill('المالك');
     await page.locator('.field', { hasText: 'كلمة السر (6' }).locator('input').fill('secret123');

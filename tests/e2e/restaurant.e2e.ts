@@ -8,7 +8,7 @@ test('restaurant: demo data, order with notes and service, kitchen screen, close
   try {
     await activate(page);
     await page.getByRole('button', { name: 'شركة جديدة' }).click();
-    await page.locator('.activity', { hasText: 'مطعم' }).click();
+    await page.locator('.act-card', { hasText: 'مطعم' }).click();
     await page.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill('مطعم الشام');
     await page.locator('.field', { hasText: 'اسمك' }).locator('input').fill('المالك');
     await page.locator('.field', { hasText: 'كلمة السر (6' }).locator('input').fill('secret123');

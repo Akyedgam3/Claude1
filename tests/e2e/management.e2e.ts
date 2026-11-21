@@ -8,7 +8,7 @@ test('management dashboard with demo data: kpis, chart, notes, period switch', a
   try {
     await activate(page);
     await page.getByRole('button', { name: 'شركة جديدة' }).click();
-    await page.locator('.activity', { hasText: 'سوبرماركت' }).click();
+    await page.locator('.act-card', { hasText: 'سوبرماركت' }).click();
     await page.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill('ماركت الإدارة');
     await page.locator('.field', { hasText: 'اسمك' }).locator('input').fill('المالك');
     await page.locator('.field', { hasText: 'اسم الدخول' }).locator('input').fill('admin');

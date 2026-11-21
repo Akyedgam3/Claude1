@@ -24,7 +24,7 @@ const snap = async (p: Page, name: string, wait = 900) => { await style(p); awai
 
 async function company(p: Page, activity: string, name: string) {
   await btn(p, 'شركة جديدة').click();
-  await p.locator('.activity', { hasText: activity }).first().click();
+  await p.locator('.act-card', { hasText: activity }).first().click();
   await field(p, 'اسم الشركة').locator('input').fill(name);
   await field(p, 'الهاتف').locator('input').fill('0944 123 456');
   await field(p, 'اسمك').locator('input').fill('أبو محمد');
@@ -46,7 +46,7 @@ try {
   await btn(p, 'تفعيل', true).click();
   // شاشة اختيار النشاط: كل المصالح
   await btn(p, 'شركة جديدة').click();
-  await p.locator('.activity').first().waitFor();
+  await p.locator('.act-card').first().waitFor();
   await snap(p, 'activities');
   await btn(p, /رجوع|إلغاء/).click().catch(() => p.keyboard.press('Escape'));
   await p.waitForTimeout(500);

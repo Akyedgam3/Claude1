@@ -25,7 +25,7 @@ test('big item list: import without quantities, then quantities from Excel, pick
 
     await activate(page);
     await page.getByRole('button', { name: 'شركة جديدة' }).click();
-    await page.locator('.activity', { hasText: 'موبايلات' }).click();
+    await page.locator('.act-card', { hasText: 'موبايلات' }).click();
     await page.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill('محل الإكسسوارات');
     await page.locator('.field', { hasText: 'اسمك' }).locator('input').fill('المالك');
     await page.locator('.field', { hasText: 'كلمة السر (6' }).locator('input').fill('secret123');

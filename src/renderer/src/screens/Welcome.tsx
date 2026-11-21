@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ACTIVITY_LIST } from '../../../core';
 import logo from '../assets/logo.png';
 import { Icon } from '../components/icons';
+import { ActivityPicker } from '../components/ActivityPicker';
 import { api, IS_MOBILE, IS_WEB, type AppInfo, type CompanyPeek, type DriveBackupFile } from '../api';
 import { Field, Modal } from '../components/ui';
 import { CloudConnectForm } from '../cloud/CloudConnect';
@@ -224,17 +225,8 @@ function NewCompany({ notify, onCreated }: { notify: (m: string, k?: 'ok' | 'err
   return (
     <section className="card">
       <h3>1. نوع النشاط</h3>
-      <div className="activity-grid">
-        {ACTIVITY_LIST.map((a) => (
-          <button key={a.id} type="button" className={`activity ${f.activity === a.id ? 'active' : ''}`} onClick={() => setF({ ...f, activity: a.id })}>
-            <span className="activity-icon" style={{ background: a.color }}>
-              <Icon name={a.icon} size={22} />
-            </span>
-            <strong>{a.name}</strong>
-            <small>{a.description}</small>
-          </button>
-        ))}
-      </div>
+      <p className="muted act-lead">اختار شغلك، ووزن بيجهّز الشاشات والميزات اللي بتلزمك.</p>
+      <ActivityPicker value={f.activity} onChange={(id) => setF({ ...f, activity: id })} />
       <form
         className="form-grid"
         onSubmit={async (e) => {

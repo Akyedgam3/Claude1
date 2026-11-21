@@ -86,16 +86,16 @@ try {
   await btn(p, 'تفعيل', true).click();
   await p.getByText('شركة جديدة').first().waitFor();
   await p.getByText('شركة جديدة').first().click();
-  await snap(p, 'welcome', { tab: p.getByText('شركة جديدة').first(), acts: p.locator('.activity').first() });
-  await p.locator('.activity').first().scrollIntoViewIfNeeded({ timeout: 2500 }).catch(() => undefined);
+  await snap(p, 'welcome', { tab: p.getByText('شركة جديدة').first(), acts: p.locator('.act-card').first() });
+  await p.locator('.act-card').first().scrollIntoViewIfNeeded({ timeout: 2500 }).catch(() => undefined);
   await snap(p, 'acts', {
-    a1: p.locator('.activity', { hasText: 'سوبرماركت' }),
-    a2: p.locator('.activity', { hasText: 'مطعم' }),
-    a3: p.locator('.activity', { hasText: 'ألبسة' }),
-    a4: p.locator('.activity', { hasText: 'موبايلات' }),
-    a5: p.locator('.activity', { hasText: 'صيدلية' }),
+    a1: p.locator('.act-card', { hasText: 'سوبرماركت' }),
+    a2: p.locator('.act-card', { hasText: 'مطعم' }),
+    a3: p.locator('.act-card', { hasText: 'ألبسة' }),
+    a4: p.locator('.act-card', { hasText: 'موبايلات' }),
+    a5: p.locator('.act-card', { hasText: 'صيدلية' }),
   });
-  await p.locator('.activity', { hasText: 'سوبرماركت' }).click();
+  await p.locator('.act-card', { hasText: 'سوبرماركت' }).click();
   await field(p, 'اسم الشركة').locator('input').fill('ماركت الخير');
   await field(p, 'اسمك').locator('input').fill('أبو محمد');
   await field(p, 'كلمة السر (6').locator('input').fill('secret123');

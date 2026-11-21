@@ -18,7 +18,7 @@ const machineId = (await p.locator('.big-code').first().innerText()).trim();
 await p.locator('textarea').first().fill(issueLicense({ customer: 'تجربة', machineId, plan: 'annual' }, devKey));
 await p.getByRole('button', { name: 'تفعيل', exact: true }).click();
 await p.getByText('شركة جديدة').first().click();
-await p.locator('.activity', { hasText: 'سوبرماركت' }).click();
+await p.locator('.act-card', { hasText: 'سوبرماركت' }).click();
 await p.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill('ماركت الموبايل');
 await p.locator('.field', { hasText: 'اسمك' }).locator('input').fill('المالك');
 await p.locator('.field', { hasText: 'كلمة السر (6' }).locator('input').fill('secret123');

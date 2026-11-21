@@ -31,7 +31,7 @@ const states: Record<string, Record<string, Box>> = {};
   try {
     await activate(page);
     await page.getByRole('button', { name: 'شركة جديدة' }).click();
-    const act = page.locator('.activity', { hasText: 'موبايلات' }).first();
+    const act = page.locator('.act-card', { hasText: 'موبايلات' }).first();
     await act.click();
     await page.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill('موبايلات النجمة');
     await page.locator('.field', { hasText: 'اسمك' }).locator('input').fill('المالك');

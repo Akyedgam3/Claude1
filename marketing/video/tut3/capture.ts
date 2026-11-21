@@ -70,7 +70,7 @@ const states: { name: string; file: string; targets: Record<string, Box> }[] = [
     const newTab = page.getByRole('button', { name: 'شركة جديدة' });
     await snap('welcome', { newTab });
     await newTab.click();
-    const tailorAct = page.locator('.activity', { hasText: 'خياطة وتفصيل' });
+    const tailorAct = page.locator('.act-card', { hasText: 'خياطة وتفصيل' });
     await snap('new0', { act: tailorAct, grid: page.locator('.activity-grid') });
     await tailorAct.click();
     await snap('new_act', { act: tailorAct });

@@ -116,7 +116,7 @@ try {
   await style(p);
   await snap(p, 'welcome', { newco: btn(p, 'شركة جديدة') });
   await btn(p, 'شركة جديدة').click();
-  const act = (t: string) => p.locator('.activity', { hasText: t }).first();
+  const act = (t: string) => p.locator('.act-card', { hasText: t }).first();
   await snap(p, 'acts', { grid: p.locator('.activity-grid'), a1: act('سوبرماركت'), a2: act('مطعم'), a3: act('موبايلات'), a4: act('صيدلية'), a5: act('ألبسة'), a6: act('خياطة'), a7: act('مواد بناء'), gen: act('تجارة عامة') });
   await act('سوبرماركت').click();
   await field(p, 'اسم الشركة').locator('input').fill('ماركت النور');

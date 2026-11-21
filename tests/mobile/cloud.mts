@@ -52,7 +52,7 @@ const machineId = (await A.locator('.big-code').first().innerText()).trim();
 await A.locator('textarea').first().fill(issueLicense({ id: 'lic-a', customer: 'تجربة', machineId, plan: 'annual' }, devKey));
 await A.getByRole('button', { name: 'تفعيل', exact: true }).click();
 await A.getByText('شركة جديدة').first().click();
-await A.locator('.activity', { hasText: 'سوبرماركت' }).click();
+await A.locator('.act-card', { hasText: 'سوبرماركت' }).click();
 await A.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill('ماركت عن بعد');
 await A.locator('.field', { hasText: 'اسمك' }).locator('input').fill('المالك');
 await A.locator('.field', { hasText: 'كلمة السر (6' }).locator('input').fill('secret123');

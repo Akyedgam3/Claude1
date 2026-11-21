@@ -31,7 +31,7 @@ const machineId = (await sp.locator('.big-code').first().innerText()).trim();
 await sp.locator('textarea').first().fill(issueLicense({ id: 'lic-rt', customer: 'ماركت النور', machineId, plan: 'annual', devices: 8 }, devKey));
 await btn(sp, 'تفعيل', true).click();
 await btn(sp, 'شركة جديدة').click();
-await sp.locator('.activity', { hasText: 'سوبرماركت' }).first().click();
+await sp.locator('.act-card', { hasText: 'سوبرماركت' }).first().click();
 await field(sp, 'اسم الشركة').locator('input').fill('ماركت النور');
 await field(sp, 'اسمك').locator('input').fill('أبو محمد');
 await field(sp, 'كلمة السر (6').locator('input').fill('secret123');

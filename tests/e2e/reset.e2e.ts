@@ -6,7 +6,7 @@ test('owner resets a trial company: sales gone, items kept, password required', 
   try {
     await activate(page);
     await page.getByRole('button', { name: 'شركة جديدة' }).click();
-    await page.locator('.activity', { hasText: 'سوبرماركت' }).click();
+    await page.locator('.act-card', { hasText: 'سوبرماركت' }).click();
     await page.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill('سوبرماركت التجربة');
     await page.locator('.field', { hasText: 'اسمك' }).locator('input').fill('المالك');
     await page.locator('.field', { hasText: 'كلمة السر (6' }).locator('input').fill('secret123');

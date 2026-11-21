@@ -22,7 +22,7 @@ console.log('toast:', await p.locator('.toast').allInnerTexts());
 try { await p.getByText('شركة جديدة').first().waitFor({ timeout: 20000 }); } catch (e) { await p.screenshot({ path: `${S}/m-fail.png` }); console.log(JSON.stringify(errs, null, 1)); console.log((await p.locator('body').innerText()).slice(0, 600)); throw e; }
 await p.screenshot({ path: `${S}/m2-welcome.png` });
 await p.getByRole('button', { name: 'شركة جديدة' }).click();
-await p.locator('.activity', { hasText: 'سوبرماركت' }).click();
+await p.locator('.act-card', { hasText: 'سوبرماركت' }).click();
 await p.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill('ماركت الموبايل');
 await p.locator('.field', { hasText: 'اسمك' }).locator('input').fill('المالك');
 await p.locator('.field', { hasText: 'كلمة السر (6' }).locator('input').fill('secret123');

@@ -58,7 +58,7 @@ async function open(p: Page) {
   await btn(p, 'شركة جديدة').waitFor();
 }
 async function fillCompany(p: Page) {
-  await p.locator('.activity', { hasText: 'فروج' }).first().click();
+  await p.locator('.act-card', { hasText: 'فروج' }).first().click();
   await field(p, 'اسم الشركة').locator('input').fill('فروج الريف');
   await field(p, 'الهاتف').locator('input').fill('0944 123 456');
   await field(p, 'اسمك').locator('input').fill('أبو أحمد');
@@ -74,9 +74,9 @@ try {
   await style(p);
   await snap(p, 'start', { new: btn(p, 'شركة جديدة') }, 600);
   await btn(p, 'شركة جديدة').click();
-  await p.locator('.activity').first().waitFor();
+  await p.locator('.act-card').first().waitFor();
   await style(p);
-  await snap(p, 'activities', { poultry: p.locator('.activity', { hasText: 'فروج' }) }, 500);
+  await snap(p, 'activities', { poultry: p.locator('.act-card', { hasText: 'فروج' }) }, 500);
   await fillCompany(p);
   await p.locator('.demo-check input').check();
   await bottom(p);

@@ -68,7 +68,10 @@ export async function activate(page: Page, extra: { id?: string } = {}): Promise
 /** إنشاء شركة جديدة من شاشة البداية حتى لوحة التحكم. */
 export async function createCompany(page: Page, o: { name: string; activity: string; username?: string; password?: string }): Promise<string> {
   await page.getByRole('button', { name: 'شركة جديدة' }).click();
-  await page.locator('.activity', { hasText: o.activity }).click();
+  // اختيار النشاط من البحث (بيدوّر بالاسم والوصف)
+  await page.locator('.act-search input').fill(o.activity);
+  await page.locator('.act-card').first().click();
+  await page.locator('.act-search input').fill('');
   await page.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill(o.name);
   await page.locator('.field', { hasText: 'اسمك' }).locator('input').fill('المالك');
   await page.locator('.field', { hasText: 'اسم الدخول' }).locator('input').fill(o.username ?? 'admin');

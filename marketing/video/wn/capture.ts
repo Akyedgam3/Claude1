@@ -40,7 +40,7 @@ const states: { name: string; file: string; targets: Record<string, Box> }[] = [
   const navBtn = (label: string) => page.locator('.sidebar nav button', { hasText: label }).first();
   async function create(name: string, activity: string, shotForm = false) {
     await page.getByRole('button', { name: 'شركة جديدة' }).click();
-    await page.locator('.activity', { hasText: activity }).first().click();
+    await page.locator('.act-card', { hasText: activity }).first().click();
     await page.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill(name);
     await page.locator('.field', { hasText: 'اسمك' }).locator('input').fill('المالك');
     await page.locator('.field', { hasText: 'كلمة السر (6' }).locator('input').fill('secret123');

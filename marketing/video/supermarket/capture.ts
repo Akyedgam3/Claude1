@@ -35,7 +35,7 @@ const states: Record<string, { file: string; targets: Record<string, Box> }> = {
     await activate(page);
     await dark();
     await page.getByRole('button', { name: 'شركة جديدة' }).click();
-    await page.locator('.activity', { hasText: 'سوبرماركت' }).first().click();
+    await page.locator('.act-card', { hasText: 'سوبرماركت' }).first().click();
     await page.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill('سوبرماركت الخير');
     await page.locator('.field', { hasText: 'اسمك' }).locator('input').fill('المالك');
     await page.locator('.field', { hasText: 'كلمة السر (6' }).locator('input').fill('secret123');
