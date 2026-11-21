@@ -13,6 +13,8 @@ export interface ReceiptLine {
   qty: string;
   price: string;
   total: string;
+  /** سعر المستهلك: سطر صغير تحت اسم الصنف */
+  consumer?: string;
 }
 
 export interface ReceiptData {
@@ -142,6 +144,7 @@ export function ThermalReceipt({ data, preview, always, logo }: { data: ReceiptD
                     {s}
                   </div>
                 ))}
+                {l.consumer && <div className="t-sub">سعر المستهلك: {l.consumer}</div>}
               </td>
               <td className="num">{l.qty}</td>
               {showPrice && <td className="num">{l.price}</td>}

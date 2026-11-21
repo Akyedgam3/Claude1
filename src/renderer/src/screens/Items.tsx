@@ -474,6 +474,7 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
     bulkPrice: item?.bulkPrice !== undefined ? toInput(state, item.bulkPrice, item.priceCurrency) : '',
     agentPrice: item?.agentPrice !== undefined ? toInput(state, item.agentPrice, item.priceCurrency) : '',
     dealerPrice: item?.dealerPrice !== undefined ? toInput(state, item.dealerPrice, item.priceCurrency) : '',
+    consumerPrice: item?.consumerPrice !== undefined ? toInput(state, item.consumerPrice, item.priceCurrency) : '',
     dealerId: item?.dealerId ?? '',
     hidden: !!item?.hidden,
     minStock: item?.minStock !== undefined ? String(item.minStock) : '',
@@ -549,7 +550,7 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
       }
       return toInput(state, v, to);
     };
-    const keys = ['price', 'wholesalePrice', 'listPrice', 'specialPrice', 'bulkPrice', 'agentPrice', 'dealerPrice'] as const;
+    const keys = ['price', 'wholesalePrice', 'listPrice', 'specialPrice', 'bulkPrice', 'agentPrice', 'dealerPrice', 'consumerPrice'] as const;
     const next = { ...f, priceCurrency: to };
     for (const k of keys) next[k] = conv(f[k]);
     const nextUnits = units.map((u) => ({ ...u, price: conv(u.price) }));
@@ -593,6 +594,7 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
         ...(f.bulkPrice ? { bulkPrice: parsePrice(state, f.bulkPrice, cur) } : {}),
         ...(f.agentPrice ? { agentPrice: parsePrice(state, f.agentPrice, cur) } : {}),
         ...(f.dealerPrice ? { dealerPrice: parsePrice(state, f.dealerPrice, cur) } : {}),
+        ...(f.consumerPrice ? { consumerPrice: parsePrice(state, f.consumerPrice, cur) } : {}),
         ...(f.dealerId ? { dealerId: f.dealerId } : {}),
         ...(f.hidden ? { hidden: true } : {}),
         ...(f.minStock ? { minStock: Number(f.minStock) } : {}),
@@ -882,6 +884,11 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
                   </label>
                 )}
               </div>
+            )}
+            {(state.info?.print?.showConsumerPrice || f.consumerPrice) && f.kind !== 'service' && (
+              <Field label="سعر المستهلك (اختياري)">
+                <input value={f.consumerPrice} onChange={set('consumerPrice')} inputMode="decimal" placeholder={f.price || 'نفس سعر المفرق'} />
+              </Field>
             )}
             {f.kind === 'stock' && (
               <Field label="الحد الأدنى للتنبيه">

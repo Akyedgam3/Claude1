@@ -17,6 +17,8 @@ export interface DocLine {
   price: string;
   total: string;
   discount?: string;
+  /** سعر المستهلك (عمود إضافي إذا موجود بأي سطر) */
+  consumer?: string;
 }
 
 export interface DocModel {
@@ -107,6 +109,7 @@ export function CommercialDoc({ model, className, preview }: { model: DocModel; 
   const qrText = qrLinkTarget(p.qrLink) ?? model.qrText;
   const showQr = p.showQr !== false && !!qrText;
   const showStamp = p.showStamp !== false && model.stamp;
+  const consumerCol = model.lines.some((l) => l.consumer);
   const signatures = model.signatures ?? (p.showSignatures ? (['توقيع المستلم', 'توقيع المحاسب'] as [string, string]) : undefined);
 
   return (
@@ -165,6 +168,7 @@ export function CommercialDoc({ model, className, preview }: { model: DocModel; 
             <th>البيان</th>
             <th>الكمية</th>
             <th>السعر</th>
+            {consumerCol && <th>سعر المستهلك</th>}
             <th>المجموع</th>
           </tr>
         </thead>
@@ -182,6 +186,7 @@ export function CommercialDoc({ model, className, preview }: { model: DocModel; 
               </td>
               <td className="nowrap">{l.qty}</td>
               <td className="nowrap">{l.price}</td>
+              {consumerCol && <td className="nowrap doc-consumer">{l.consumer ?? ''}</td>}
               <td className="nowrap">
                 {l.total}
                 {l.discount && <div className="doc-sub">خصم {l.discount}</div>}

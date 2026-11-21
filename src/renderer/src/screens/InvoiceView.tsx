@@ -1,5 +1,6 @@
-import { amountInWords, attributesText, partyBalance, partyDebts, findRate, INVOICE_KIND_NAMES, invoicePartyBalance, invoiceProfit, lineAmount, weighingText, type CompanyState, type Invoice } from '../../../core';
-import { api, dateText, IS_MOBILE, money, plainMoney, qtyText, qtyTotalText, rateLine, today, useCompany } from '../api';
+import { PRICE_SCALE, roundPrice, type InvoiceLine, amountInWords, attributesText, partyBalance, partyDebts, findRate, INVOICE_KIND_NAMES, invoicePartyBalance, invoiceProfit, lineAmount, weighingText, type CompanyState, type Invoice } from '../../../core';
+import { api, convertPrice, dateText, fxRates, IS_MOBILE, money, parsePrice, plainMoney, qtyText, qtyTotalText, rateLine, today, useCompany } from '../api';
+import { itemPrice } from './InvoiceEditor';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { CommercialDoc, type DocModel } from '../components/CommercialDoc';
 import { ThermalReceipt, type ReceiptData } from '../components/ThermalReceipt';
@@ -430,6 +431,8 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
   // فاتورة عن طريق مسوّق: الزبون بيشوف الإجمالي بس (بدون حساب سابق ولا مقبوض ولا باقي ولا ختم مدفوعة/دين)
   const viaMarketer = inv.kind === 'sale' && !!inv.marketerId;
   const account = viaMarketer ? null : partyAccountRows(state, inv);
+  // سعر المستهلك لكل سطر (فاتورة المبيع، إذا تفعّل من إعدادات الطباعة)
+  const consumer = print.showConsumerPrice && inv.kind === 'sale' ? inv.lines.map((l) => consumerPrice(state, inv, l)) : [];
 
   const refs: ReactNode[] = [];
   if (vehicle) {
@@ -480,7 +483,7 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
       ...((inv.vatNumber ?? party?.vatNumber) ? { vatNumber: inv.vatNumber ?? party!.vatNumber! } : {}),
     },
     refs,
-    lines: inv.lines.map((l) => {
+    lines: inv.lines.map((l, i) => {
       const item = l.itemId ? state.items[l.itemId] : null;
       const sub: ReactNode[] = [];
       if (item?.partNumber) sub.push(<span className="mono">{item.partNumber}</span>);
@@ -509,6 +512,7 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
         price: m(l.price),
         total: m(lineAmount(l)),
         ...(l.discount > 0 ? { discount: m(l.discount) } : {}),
+        ...(consumer[i] ? { consumer: m(consumer[i]!) } : {}),
       };
     }),
     totals: [
@@ -552,7 +556,7 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
     ...(state.users[inv.createdBy] ? { cashier: state.users[inv.createdBy]!.displayName } : {}),
     ...(party ? { customer: party.name } : {}),
     ...((inv.vatNumber ?? party?.vatNumber) ? { customerVat: inv.vatNumber ?? party!.vatNumber! } : {}),
-    lines: inv.lines.map((l, i) => ({ name: l.description, sub: model.lines[i]!.sub!, qty: qtyText(l.qty), price: plain(l.price), total: plain(lineAmount(l)) })),
+    lines: inv.lines.map((l, i) => ({ name: l.description, sub: model.lines[i]!.sub!, qty: qtyText(l.qty), price: plain(l.price), total: plain(lineAmount(l)), ...(consumer[i] ? { consumer: plain(consumer[i]!) } : {}) })),
     totals: model.totals,
     grand: { label: 'الصافي', value: m(inv.total) },
     after: model.after!.filter((a) => a.label !== 'المقبوض' || remaining > 0 || !!account),
@@ -565,6 +569,21 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
       <ThermalReceipt data={receipt} />
     </>
   );
+}
+
+/** سعر المستهلك لسطر (بعملة الفاتورة، لوحدة السطر): من بطاقة المادة، وإلا سعر المفرق. */
+export function consumerPrice(state: CompanyState, inv: Invoice, l: InvoiceLine): number | null {
+  const item = l.itemId ? state.items[l.itemId] : null;
+  if (!item || item.kind === 'service') return null;
+  const rates = fxRates(state, inv.date);
+  if (item.consumerPrice !== undefined) {
+    const factor = item.units?.find((u) => u.name === l.unit)?.factor ?? 1;
+    const v = convertPrice(state, Math.round(roundPrice(item.consumerPrice * factor) * PRICE_SCALE), item.priceCurrency, inv.currency, rates);
+    return v === null || v <= 0 ? null : Math.round(v / PRICE_SCALE);
+  }
+  const t = itemPrice(state, item, { ...(l.unit ? { unit: l.unit } : {}), currency: inv.currency, date: inv.date, list: 'retail', rates });
+  const v = t ? Math.round(parsePrice(state, t, inv.currency)) : 0;
+  return v > 0 ? v : null;
 }
 
 /**

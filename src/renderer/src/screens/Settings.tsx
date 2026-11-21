@@ -535,6 +535,10 @@ function PrintTab() {
           إظهار الحساب السابق للزبون على الفاتورة (والباقي بذمته بعدها)
         </label>
         <label className="check">
+          <input type="checkbox" checked={!!p.showConsumerPrice} onChange={(e) => setP({ ...p, showConsumerPrice: e.target.checked })} />
+          إظهار «سعر المستهلك» بفاتورة المبيع (للجملة: المحل بيعرف بقديش يبيع القطعة؛ من بطاقة المادة وإلا سعر المفرق)
+        </label>
+        <label className="check">
           <input type="checkbox" checked={p.fitOnePage !== false} onChange={(e) => setP({ ...p, fitOnePage: e.target.checked })} />
           الفاتورة بصفحة وحدة (إذا فاضت شوي بتتصغّر لتجي بورقة وحدة، والإيصال الحراري بينطبع على قد طوله بدون ورقة زيادة)
         </label>

@@ -73,7 +73,7 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       if (item.dealerId && !state.dealers?.[item.dealerId]) fail('المورّد غير موجود');
       if (item.listPrice !== undefined && (!Number.isSafeInteger(item.listPrice) || item.listPrice < 0)) fail('سعر النشرة غير صالح');
       if (item.buyDiscount !== undefined && !(item.buyDiscount >= 0 && item.buyDiscount <= 100)) fail('حسم الشراء بين 0 و100');
-      for (const p of [item.price, item.wholesalePrice, item.bulkPrice, item.agentPrice, item.specialPrice, item.dealerPrice, ...(item.units ?? []).map((u) => u.price)]) {
+      for (const p of [item.price, item.wholesalePrice, item.bulkPrice, item.agentPrice, item.specialPrice, item.dealerPrice, item.consumerPrice, ...(item.units ?? []).map((u) => u.price)]) {
         if (p !== undefined && !isUnitPrice(p)) fail('سعر غير صالح');
       }
       for (const u of item.units ?? []) {
