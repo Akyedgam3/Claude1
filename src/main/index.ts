@@ -467,6 +467,12 @@ function registerIpc(): void {
   }, { allowLocked: true });
 
   // واتساب: بس روابط wa.me لرقم ورسالة، الواجهة ما بتفتح أي رابط تاني
+  // صفحة فيديوهات الشرح بالموقع (رابط ثابت)
+  handle('app:openVideos', async () => {
+    await shell.openExternal('https://waznsy.com/#videos');
+    return true;
+  });
+
   handle('app:whatsapp', async (phone: unknown, text: unknown) => {
     await shell.openExternal(whatsappUrl(String(phone ?? ''), String(text ?? '')));
     return true;

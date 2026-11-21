@@ -1,7 +1,7 @@
 // «لوحة الإدارة» (2.0): صورة كاملة عن الشغل لأي فترة، مع مقارنة بالفترة اللي قبلها، وملاحظات مكتوبة لحالها،
 // واتجاه المبيعات والربح، ساعات وأيام الذروة، الأفضل والأضعف، المصاريف، الصناديق والديون.
 // قراءة بس: ما في ولا عملية بتتغيّر من هون، وكل رقم بيفتح تقريره.
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   agingTotals,
   balancesByCurrency,
@@ -28,6 +28,7 @@ import { dateText, money, qtyText, today, useCompany } from '../api';
 import { Icon } from '../components/icons';
 import { DocHeader, PrintButtons } from '../components/print';
 import { PageHeader } from '../components/ui';
+import { markSeen } from './Learn';
 
 type Preset = 'today' | 'yesterday' | 'week' | 'month' | 'lastMonth' | 'quarter' | 'year' | 'custom';
 const PRESETS: { id: Preset; label: string }[] = [
@@ -56,6 +57,7 @@ export function Management() {
   const { state, can, navigate, profile } = useCompany();
   const d = today();
   const [preset, setPreset] = useState<Preset>(loadPreset);
+  useEffect(() => markSeen('management'), []);
   const [custom, setCustom] = useState<Range>(() => presetRange('month', d));
   const [compare, setCompare] = useState(true);
   const [itemsBy, setItemsBy] = useState<'revenue' | 'profit' | 'qty'>('revenue');

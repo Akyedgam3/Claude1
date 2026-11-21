@@ -157,7 +157,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
             serials: (l.serials ?? []).join(' '),
             manualPrice: true,
             src: { amount: l.price, currency: editing.currency },
-            ...(l.note ? { note: l.note } : {}),
+            ...(l.note?.trim() ? { note: l.note.trim() } : {}),
             ...(l.attributes ? { attrs: { ...l.attributes } } : {}),
             ...(l.weighing ? { weighing: l.weighing } : {}),
             ...(l.costParts ? { parts: { factory: editInput(l.costParts.factory), shipping: editInput(l.costParts.shipping), tax: editInput(l.costParts.tax), customs: editInput(l.costParts.customs), other: l.costParts.other ? editInput(l.costParts.other) : '' } } : {}),
@@ -596,7 +596,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
           ...(l.batch.trim() ? { batch: l.batch.trim() } : {}),
           ...(l.expiry ? { expiry: l.expiry } : {}),
           ...(l.serials.trim() ? { serials: l.serials.split(/[\s,،]+/).map((s) => s.trim()).filter(Boolean) } : {}),
-          ...(l.note ? { note: l.note } : {}),
+          ...(l.note?.trim() ? { note: l.note.trim() } : {}),
           ...(l.attrs ? { attributes: l.attrs } : {}),
           ...(l.weighing ? { weighing: l.weighing } : {}),
           ...(kind === 'purchase' && breakdown && l.parts && Object.values(l.parts).some((v) => v.trim())
@@ -688,7 +688,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
         const qty = Number(cleanNumber(l.qty || '0'));
         const gross = Math.round(qty * price);
         const disc = parseDiscount(state, l.discount, currency, gross);
-        return { description: l.description || (item ? itemTitle(item) : ''), qty, ...(l.unit || item?.unit ? { unit: l.unit || item!.unit } : {}), price, ...(disc ? { discount: disc } : {}) };
+        return { description: l.description || (item ? itemTitle(item) : ''), qty, ...(l.unit || item?.unit ? { unit: l.unit || item!.unit } : {}), price, ...(disc ? { discount: disc } : {}), ...(l.note?.trim() ? { note: l.note.trim() } : {}) };
       });
       const res = await call<{ id: string; number: number }>('saveDraft', {
         id: savedDraft?.id ?? uid(),
@@ -1004,6 +1004,21 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
                             value={l.serials}
                             onChange={(e) => setLine(l.key, { serials: e.target.value })}
                           />
+                        )}
+                        {/* ملاحظة على السطر: رقم اشتراك، لون، مقاس... بتنطبع تحت اسم المادة */}
+                        {l.note !== undefined ? (
+                          <input
+                            className="line-extra line-note"
+                            placeholder="ملاحظة على هالسطر (رقم اشتراك، لون، تفاصيل…) بتنطبع تحت المادة"
+                            value={l.note}
+                            autoFocus={!l.note}
+                            onChange={(e) => setLine(l.key, { note: e.target.value })}
+                            onBlur={(e) => !e.target.value.trim() && setLine(l.key, { note: undefined })}
+                          />
+                        ) : (
+                          <button type="button" className="link line-note-add" onClick={() => setLine(l.key, { note: '' })}>
+                            + ملاحظة
+                          </button>
                         )}
                       </div>
                     ) : (

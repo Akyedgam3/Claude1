@@ -7,6 +7,7 @@ import { STATUS_NAMES } from './Repairs';
 import { TAILOR_STATUS } from './Tailor';
 import { Icon } from '../components/icons';
 import { DealerBoxCard } from '../components/DealerBox';
+import { StartBanner } from './Learn';
 import { Modal } from '../components/ui';
 import { DASH_CARDS, useDashLayout, type DashLayout } from './dashboard-layout';
 import { NAV, navAllowed, type NavItem } from '../nav';
@@ -203,6 +204,7 @@ export function Dashboard() {
         ))}
       </div>
 
+      <StartBanner />
       <DealerBoxCard />
 
       {feature('tailoring') && can('tailoring.manage') && (

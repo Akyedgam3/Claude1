@@ -4450,3 +4450,64 @@ table.lines td[data-label="السعر"] .num-input { min-width: 96px; }
   .mgmt-kpi { box-shadow: none; }
   .mgmt-grid { grid-template-columns: 1fr 1fr; }
 }
+
+/* ───────── تعلّم وزن (2.0.1) ───────── */
+.learn-top { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; margin-bottom: 16px; }
+.learn-top > .card, .learn-side > .card { margin: 0; }
+.learn-side { display: grid; gap: 16px; align-content: start; }
+.learn-start-head { display: flex; gap: 16px; align-items: center; margin-bottom: 12px; }
+.learn-start-head h3 { margin: 0; }
+.learn-start-head p { margin: 2px 0 0; }
+.learn-ring { --p: 0; flex: none; width: 72px; height: 72px; border-radius: 50%; display: grid; place-content: center; text-align: center; line-height: 1.1; background: radial-gradient(closest-side, var(--surface) 76%, transparent 78% 100%), conic-gradient(var(--primary) calc(var(--p) * 1%), var(--primary-soft) 0); }
+.learn-ring b { font-size: 22px; color: var(--primary); }
+.learn-ring small { font-size: 11px; color: var(--muted); }
+.learn-ring.sm { width: 52px; height: 52px; }
+.learn-ring.sm b { font-size: 17px; }
+.learn-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.learn-steps li { display: grid; grid-template-columns: 26px 1fr auto; gap: 10px; align-items: center; padding: 9px 6px; border-radius: 8px; }
+.learn-steps li:hover { background: var(--bg); }
+.learn-steps li div { display: grid; line-height: 1.5; }
+.learn-steps li.ok b { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--border); }
+.learn-check { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border); display: grid; place-items: center; }
+.learn-steps li.ok .learn-check { background: var(--good); border-color: var(--good); color: #fff; }
+.learn-tip { background: var(--primary-soft); border-color: transparent; }
+.learn-tip h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; color: var(--primary); }
+.learn-tip p { margin: 0; font-size: 15px; line-height: 1.8; }
+.learn-keys { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.learn-keys li { display: grid; grid-template-columns: 72px 1fr; gap: 10px; align-items: center; }
+.learn-keys kbd { text-align: center; direction: ltr; }
+.learn-guide-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.learn-guide-head h3 { margin: 0; }
+.learn-search { max-width: 360px; }
+.learn-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.learn-chips button { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 99px; border: 1px solid var(--border); background: var(--surface); font-weight: 700; color: var(--muted); cursor: pointer; }
+.learn-chips button.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.learn-group { margin-top: 18px; }
+.learn-group h4 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; color: var(--primary); }
+.learn-topics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-items: start; }
+.learn-topics details { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.learn-topics details[open] { border-color: var(--primary); grid-column: 1 / -1; }
+.learn-topics summary { cursor: pointer; padding: 10px 14px; font-weight: 700; list-style: none; display: flex; justify-content: space-between; gap: 10px; }
+.learn-topics summary::-webkit-details-marker { display: none; }
+.learn-topics summary::after { content: '+'; color: var(--primary); font-size: 18px; line-height: 1; }
+.learn-topics details[open] summary::after { content: '−'; }
+.learn-answer { padding: 0 14px 12px; }
+.learn-answer p { margin: 4px 0; line-height: 1.9; }
+.learn-flow { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; counter-reset: f; }
+.learn-flow li { counter-increment: f; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 12px; border-radius: 8px; background: var(--bg); border: 1px solid var(--border); line-height: 1.6; }
+.learn-flow li::before { content: counter(f); width: 20px; height: 20px; border-radius: 50%; background: var(--primary); color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; flex: none; }
+.learn-go { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.learn-banner { display: grid; grid-template-columns: auto 1fr auto auto; gap: 14px; align-items: center; border-inline-start: 4px solid var(--primary); }
+.learn-banner > div { display: grid; line-height: 1.5; }
+@media (max-width: 900px) {
+  .learn-top, .learn-topics { grid-template-columns: 1fr; }
+}
+body.mobile .learn-banner { grid-template-columns: auto 1fr auto; }
+body.mobile .learn-banner .icon { grid-column: 3; grid-row: 1; }
+body.mobile .learn-banner .primary { grid-column: 1 / -1; }
+
+/* ملاحظة على سطر الفاتورة */
+.line-note-add { font-size: 12px; padding: 0; margin-top: 2px; }
+.line-note { margin-top: 4px; font-size: 13px; }
+.dash-head-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-inline-start: auto; align-self: center; }
+.activity-hero .dash-head-actions .dash-customize { margin-inline-start: 0; }

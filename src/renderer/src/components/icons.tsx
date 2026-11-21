@@ -33,6 +33,7 @@ import {
   CalendarDays,
   Car,
   ChartColumn,
+  GraduationCap,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -146,6 +147,7 @@ const ICONS: Record<string, LucideIcon> = {
   message: MessageCircle,
   trend: TrendingUp,
   chart: ChartColumn,
+  learn: GraduationCap,
 };
 
 export type IconName = keyof typeof ICONS;

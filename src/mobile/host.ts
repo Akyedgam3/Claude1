@@ -344,6 +344,11 @@ function registerHandlers(): void {
     return r.needPermission ? 'permission' : 'installing';
   }, { allowLocked: true });
 
+  handle('app:openVideos', async () => {
+    await native.openUrl('https://waznsy.com/#videos');
+    return true;
+  });
+
   handle('app:whatsapp', async (phone: unknown, text: unknown) => {
     await native.openUrl(whatsappUrl(String(phone ?? ''), String(text ?? '')));
     return true;

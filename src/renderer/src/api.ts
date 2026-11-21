@@ -121,6 +121,7 @@ export const api = {
   /** بالجوال: 'installing' أو 'permission' (لازم يسمح بالتنصيب ويرجع يضغط) أو 'browser'. */
   openUpdate: () => inv<boolean | 'installing' | 'permission' | 'browser'>('app:openUpdate'),
   openUpdatePage: () => inv<boolean>('app:openUpdatePage'),
+  openVideos: () => inv<boolean>('app:openVideos'),
   whatsapp: (phone: string, text: string) => inv<boolean>('app:whatsapp', phone, text),
   /** صورة للواتساب: بالكمبيوتر بتنتسخ وبتنفتح المحادثة ('clipboard')، وبالجوال قائمة المشاركة ('shared'). */
   whatsappImage: (phone: string, png: Uint8Array, name: string, caption = '') => inv<'clipboard' | 'shared' | null>('app:whatsappImage', phone, png, name, caption),
