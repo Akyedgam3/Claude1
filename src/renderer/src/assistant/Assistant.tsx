@@ -66,6 +66,7 @@ export function Assistant({ screens }: { screens: { key: string }[] }) {
     screens: new Set(screens.map((s) => s.key)),
     today: today(),
     fmt: (v, c) => money(state, v, c),
+    userName: user.displayName,
   });
   // المحادثة المحفوظة بتنعرض مع أجوبة محدّثة أول ما تنفتح النافذة
   const [msgs, setMsgs] = useState<Msg[]>([WELCOME]);
@@ -151,7 +152,11 @@ export function Assistant({ screens }: { screens: { key: string }[] }) {
           <div className="assistant-msgs" ref={list}>
             {msgs.map((m, i) => (
               <div key={i} className={`assistant-msg ${m.me ? 'me' : 'bot'}`}>
-                {m.text && <div className={`bubble ${m.text.startsWith('— ') ? 'divider' : ''}`}>{m.text}</div>}
+                {m.text && (
+                  <div className={`bubble ${m.text.startsWith('— ') ? 'divider' : ''}`}>
+                    {m.me || m.text.startsWith('— ') ? m.text : <BotText text={m.text} />}
+                  </div>
+                )}
                 {m.reply && m.reply.links.length > 0 && (
                   <div className="assistant-links">
                     {m.reply.links.map((l) => (
@@ -193,6 +198,25 @@ export function Assistant({ screens }: { screens: { key: string }[] }) {
             </button>
           </form>
         </div>
+      )}
+    </>
+  );
+}
+
+/** نص جواب المساعد: الخطوات («أ ← ب ← ج») بتطلع نقاط مرقّمة، والباقي أسطر عادية */
+function BotText({ text }: { text: string }) {
+  return (
+    <>
+      {text.split('\n').map((line, i) =>
+        line.includes('←') && line.split('←').length > 2 ? (
+          <ol key={i} className="assistant-flow">
+            {line.split('←').map((p, j) => (p.trim() ? <li key={j}>{p.trim()}</li> : null))}
+          </ol>
+        ) : (
+          <span key={i} className="assistant-line">
+            {line}
+          </span>
+        ),
       )}
     </>
   );

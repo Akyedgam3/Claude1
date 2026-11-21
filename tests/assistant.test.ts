@@ -215,3 +215,47 @@ describe('assistant: answers from the company data', () => {
     expect(c.text).toContain('صافي الربح هالشهر');
   });
 });
+
+describe('assistant 2.0: warm answers and new questions about the shop', () => {
+  const l = new Ledger(() => {});
+  l.createCompany({ name: 'ماركت الحارة', activity: 'general', baseCurrency: 'USD', fiscalYearStart: '01-01' }, DEFAULT_CURRENCIES, chartFor('general'), defaultTaxes());
+  l.saveParty({ id: 'm', kind: 'customer', name: 'محمد الأحمد' });
+  l.saveParty({ id: 'k', kind: 'customer', name: 'خالد' });
+  l.saveItem({ id: 'rice', code: 'R1', name: 'رز مصري', unit: 'كيس', price: 500, priceCurrency: 'USD', kind: 'stock', minStock: 9 } as never);
+  l.saveItem({ id: 'oil', code: 'O1', name: 'زيت', unit: 'قطعة', price: 300, priceCurrency: 'USD', kind: 'stock' } as never);
+  l.postInvoice({ kind: 'purchase', date: '2026-11-01', currency: 'USD', lines: [{ itemId: 'rice', qty: 10, price: 300 }, { itemId: 'oil', qty: 20, price: 200 }], paid: 7000 });
+  l.postInvoice({ kind: 'sale', date: '2026-11-04', partyId: 'k', currency: 'USD', lines: [{ itemId: 'oil', qty: 1, price: 300 }], paid: 0 });
+  l.postInvoice({ kind: 'sale', date: '2026-11-05', partyId: 'm', currency: 'USD', lines: [{ itemId: 'rice', qty: 2, price: 500 }, { itemId: 'oil', qty: 5, price: 300 }], paid: 1000 });
+  const ctx = {
+    state: l.state,
+    can: () => true,
+    screens: new Set(['sale', 'debts', 'parties', 'items', 'reports', 'invoices', 'management', 'dashboard', 'stock', 'learn', 'vouchers']),
+    today: '2026-11-05',
+    fmt: (v: number) => (v / 100).toFixed(2),
+    userName: 'أبو سامر',
+  };
+  it('a quick summary of the shop', () => {
+    const r = ask('كيف الشغل اليوم؟', ctx);
+    expect(r.text).toContain('ماركت الحارة');
+    expect(r.text).toContain('25.00'); // مبيعات اليوم
+    expect(r.links.some((x) => x.screen === 'management')).toBe(true);
+  });
+  it('what is running low, who owes the most, what sells most, compare', () => {
+    expect(ask('شو ناقص عندي؟', ctx).text).toContain('رز مصري');
+    const d = ask('مين اكتر واحد عليه دين؟', ctx).text;
+    expect(d.indexOf('محمد الأحمد')).toBeLessThan(d.indexOf('خالد'));
+    expect(ask('شو اكتر شي بينباع؟', ctx).text).toMatch(/1\. زيت/);
+    expect(ask('قارن هالشهر بالشهر الماضي', ctx).text).toContain('مقارنة');
+  });
+  it('sales and profit come with a comparison', () => {
+    expect(ask('شقد بعت اليوم؟', ctx).text).toMatch(/مبارح/);
+    expect(ask('قديش ربحت هالشهر', ctx).text).toContain('هامش');
+  });
+  it('warm how-to answers, name in the greeting, a helpful fallback', () => {
+    expect(ask('كيف بعمل فاتورة مبيع', ctx).text.split('\n')[0]).toMatch(/أكيد|سهلة|تكرم|ولا يهمك/);
+    expect(ask('مرحبا', ctx).text).toContain('أبو سامر');
+    const miss = ask('قثصيبلا', ctx);
+    expect(miss.text).toContain('ما فهمت');
+    expect(miss.links.some((x) => x.screen === 'learn')).toBe(true);
+  });
+});

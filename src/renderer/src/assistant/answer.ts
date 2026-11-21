@@ -1,4 +1,4 @@
-import { accountBalance, balanceSheet, cashMovement, employeeBalance, incomeStatement, itemsSummary, partyBalance, type CompanyState } from '../../../core';
+import { accountBalance, balanceSheet, cashMovement, change, employeeBalance, incomeStatement, itemsSummary, kpis, partyBalance, positions, previousRange, stockReport, topItems, type CompanyState } from '../../../core';
 import { Brain, normalizeText, tokens, type Link, type Topic } from './engine';
 import { TOPICS } from './knowledge';
 
@@ -20,7 +20,28 @@ export interface AskContext {
   screens: Set<string>;
   today: string;
   fmt: (minor: number, currency?: string) => string;
+  /** اسم المستخدم (للترحيب) */
+  userName?: string;
 }
+
+/** اختيار ثابت من قائمة حسب النص (نفس السؤال = نفس الصياغة، فالمحادثة المحفوظة ما بتتغيّر) */
+function pickBy<T>(seed: string, list: T[]): T {
+  let h = 7;
+  for (const c of seed) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return list[h % list.length]!;
+}
+
+/** جملة مقارنة ودّية: «📈 أحسن من مبارح بـ 12%» */
+function versus(now: number, before: number, prevLabel: string, higherIsGood = true): string {
+  const ch = change(now, before);
+  if (ch === null) return now ? `(${prevLabel} ما كان في شي)` : '';
+  if (Math.abs(ch) < 3) return `تقريباً متل ${prevLabel} 👌`;
+  const up = ch > 0;
+  const good = up === higherIsGood;
+  return `${up ? '📈' : '📉'} ${up ? 'أكتر' : 'أقل'} من ${prevLabel} بـ ${Math.abs(ch)}%${good ? (Math.abs(ch) >= 15 ? ' 👏' : '') : ''}`;
+}
+
+const PREV_LABEL: Record<string, string> = { اليوم: 'مبارح', مبارح: 'اليوم اللي قبله', 'آخر 7 أيام': 'الأسبوع اللي قبله', هالشهر: 'نفس المدة قبلها', هالسنة: 'نفس المدة قبلها' };
 
 let brain: Brain | null = null;
 const getBrain = () => (brain ??= new Brain(TOPICS));
@@ -88,6 +109,16 @@ function looseItems<T extends { name: string }>(norm: string, list: T[]): T[] {
   }
   const top = Math.max(0, ...scored.map((s) => s.n));
   return scored.filter((s) => s.n === top).map((s) => s.x);
+}
+
+/** أكتر الزباين عليهم دين (بالعملة الأساسية) */
+function topDebtors(state: CompanyState, n: number): { name: string; amount: number }[] {
+  return Object.values(state.parties)
+    .filter((p) => !p.archived && p.kind !== 'supplier')
+    .map((p) => ({ name: p.name, amount: partyBalance(state, p.id).base }))
+    .filter((x) => x.amount > 0)
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, n);
 }
 
 const allowedLinks = (links: Link[] | undefined, ctx: AskContext) => (links ?? []).filter((l) => ctx.screens.has(l.screen));
@@ -184,12 +215,71 @@ function fromData(question: string, ctx: AskContext, focus?: string): Reply | nu
     return reply(lines.join('\n'), [{ label: 'الميزانية', screen: 'reports', param: 'balance' }]);
   }
 
+  // «كيف الشغل؟ / طمّني على المحل»: ملخص سريع
+  if (/(كيف الشغل|شو الوضع|طمني|كيف المحل|وضع المحل|كيف السوق|ملخص الشغل|شو صار اليوم|شو اخبار المحل|كيف ماشي الشغل)/.test(norm)) {
+    const lines: string[] = [];
+    const today = kpis(state, { from: ctx.today, to: ctx.today });
+    if (fin || can('sales.create')) lines.push(`🧾 اليوم: ${today.invoices} فاتورة بـ ${fmt(today.netSales)}`);
+    const m = kpis(state, { from: `${ctx.today.slice(0, 8)}01`, to: ctx.today });
+    if (fin) lines.push(`📅 هالشهر: مبيعات ${fmt(m.netSales)}${can('profits.view') ? `، ربح ${fmt(m.net)}` : ''}`);
+    if (fin && can('balances.view')) {
+      const pos = positions(state, ctx.today);
+      lines.push(`💵 بالصناديق: ${fmt(pos.cash)}`, `🧾 لنا عند الناس: ${fmt(pos.receivables)}، وعلينا: ${fmt(pos.payables)}`);
+    }
+    if (can('reports.stock')) {
+      const low = stockReport(state).filter((r) => r.low).length;
+      if (low) lines.push(`📦 ${low} مادة قربت تخلص`);
+    }
+    if (!lines.length) return reply('هالأرقام بتطلع بس لمين إله صلاحية التقارير.');
+    return reply(`هاد وضع ${state.info?.name ?? 'المحل'} هلق:\n${lines.join('\n')}`, [{ label: 'لوحة الإدارة', screen: 'management' }, { label: 'الرئيسية', screen: 'dashboard' }]);
+  }
+
+  // «شو ناقص؟ / شو لازم اطلب؟»: النواقص
+  if (/(شو ناقص|شو ناقصني|شو خلص|النواقص|نواقص|شو لازم اطلب|شو بدي اطلب|قرب يخلص|قربت تخلص|شو خالص)/.test(norm) && can('reports.stock')) {
+    const low = stockReport(state).filter((r) => r.low);
+    if (!low.length) return reply('ما في شي ناقص هلق 👍 كل المواد فوق الحد الأدنى.', [{ label: 'المواد', screen: 'items' }]);
+    const rows = low.slice(0, 8).map((r) => `• ${r.item.name}: باقي ${r.qty.toLocaleString('en')} ${r.item.unit}`);
+    return reply(`في ${low.length} مادة لازم تطلبها:\n${rows.join('\n')}${low.length > 8 ? '\n…' : ''}`, [{ label: 'الجرد والنواقص', screen: 'stock' }]);
+  }
+
+  // «مين أكتر واحد عليه دين؟»
+  if (/(مين اكتر|مين اكثر|اكبر|اعلى).*(دين|ديون|عليه|مديون)|(مين عليه اكتر|المديونين)/.test(norm) && (fin || can('balances.view'))) {
+    const top = topDebtors(state, 5);
+    if (!top.length) return reply('ما في حدا عليه دين 👌', [{ label: 'الديون', screen: 'debts' }]);
+    return reply(`أكتر الزباين عليهم:\n${top.map((x, i) => `${i + 1}. ${x.name}: ${fmt(x.amount)}`).join('\n')}`, [{ label: 'الديون', screen: 'debts' }]);
+  }
+
+  // «شو أكتر مادة بتنباع؟»
+  if (/(اكتر|اكثر|احسن|افضل).*(بينباع|انباع|مبيع|بيع|ماشي|طلب)/.test(norm) && !t.has('ربح') && (fin || can('reports.stock'))) {
+    const r = /(اليوم|امبارح|مبارح|الاسبوع|السنه|الشهر)/.test(norm) ? p : { from: `${ctx.today.slice(0, 8)}01`, to: ctx.today, label: 'هالشهر' };
+    const top = topItems(state, r, 'qty', 6);
+    if (!top.length) return reply(`ما انباع شي ${r.label}.`);
+    return reply(`أكتر المواد مبيعاً ${r.label}:\n${top.map((x, i) => `${i + 1}. ${x.name}: ${x.qty.toLocaleString('en')}`).join('\n')}`, [{ label: 'لوحة الإدارة', screen: 'management' }]);
+  }
+
+  // «قارن هالشهر بالشهر الماضي»
+  if (/(قارن|مقارنه|بالمقارنه)/.test(norm) && fin) {
+    const r = /(اليوم|امبارح|مبارح|الاسبوع|السنه)/.test(norm) ? p : { from: `${ctx.today.slice(0, 8)}01`, to: ctx.today, label: 'هالشهر' };
+    const now = kpis(state, r);
+    const pr = previousRange(r);
+    const before = kpis(state, pr);
+    const prev = PREV_LABEL[r.label] ?? 'قبل';
+    const lines = [`${r.label} مقارنة مع ${prev}:`, `المبيعات: ${fmt(now.netSales)} ${versus(now.netSales, before.netSales, prev)}`, `الفواتير: ${now.invoices} ${versus(now.invoices, before.invoices, prev)}`];
+    if (can('profits.view')) lines.push(`صافي الربح: ${fmt(now.net)} ${versus(now.net, before.net, prev)}`);
+    return reply(lines.join('\n'), [{ label: 'لوحة الإدارة', screen: 'management' }]);
+  }
+
   if (!asks) return null;
 
   if (t.has('ربح') || t.has('خساره')) {
     if (!fin || !can('profits.view')) return reply('الأرباح بتطلع بس لمين إله صلاحية التقارير المالية والتكاليف.');
     const inc = incomeStatement(state, { from: p.from, to: p.to });
-    return reply(`صافي الربح ${p.label}: ${fmt(inc.netProfit)}\n(الإيرادات ${fmt(inc.revenue)} − المصاريف والتكلفة ${fmt(inc.expenses)})`, [
+    const pr = previousRange(p);
+    const before = incomeStatement(state, pr).netProfit;
+    const margin = inc.revenue ? Math.round((inc.netProfit / inc.revenue) * 1000) / 10 : 0;
+    const cmp = versus(inc.netProfit, before, PREV_LABEL[p.label] ?? 'قبل');
+    const mood = inc.netProfit < 0 ? '\n⚠ في خسارة: شوف المصاريف وأسعار المواد اللي عم تخسر فيها.' : '';
+    return reply(`صافي الربح ${p.label}: ${fmt(inc.netProfit)}${inc.revenue ? ` (هامش ${margin}%)` : ''}\n(الإيرادات ${fmt(inc.revenue)} − المصاريف والتكلفة ${fmt(inc.expenses)})${cmp ? `\n${cmp}` : ''}${mood}`, [
       { label: 'الأرباح والخسائر', screen: 'reports', param: 'income' },
       { label: 'أرباح المواد', screen: 'reports', param: 'items' },
     ]);
@@ -207,7 +297,10 @@ function fromData(question: string, ctx: AskContext, focus?: string): Reply | nu
     const sales = -accountBalance(state, '4101', { from: p.from, to: p.to }).balance;
     const returns = state.accounts['4102'] ? accountBalance(state, '4102', { from: p.from, to: p.to }).balance : 0;
     const count = state.invoices.filter((i) => i.kind === 'sale' && !i.voidEntryId && i.date >= p.from && i.date <= p.to).length;
-    return reply(`المبيعات ${p.label}: ${fmt(sales)} (${count} فاتورة)${returns ? `\nالمرتجعات: ${fmt(returns)}` : ''}`, [
+    const pr = previousRange(p);
+    const prevSales = -accountBalance(state, '4101', { from: pr.from, to: pr.to }).balance;
+    const cmp = versus(sales, prevSales, PREV_LABEL[p.label] ?? 'قبل');
+    return reply(`المبيعات ${p.label}: ${fmt(sales)} (${count} فاتورة)${returns ? `\nالمرتجعات: ${fmt(returns)}` : ''}${count ? `\nمتوسط الفاتورة: ${fmt(Math.round(sales / count))}` : ''}${cmp ? `\n${cmp}` : ''}`, [
       { label: 'إغلاق اليوم', screen: 'reports', param: 'daily' },
       { label: 'سجل الفواتير', screen: 'invoices' },
     ]);
@@ -235,7 +328,8 @@ function fromData(question: string, ctx: AskContext, focus?: string): Reply | nu
     if (!fin && !can('vouchers.create')) return null;
     const owed = state.accounts['1103'] ? accountBalance(state, '1103').balance : 0;
     const owe = state.accounts['2101'] ? -accountBalance(state, '2101').balance : 0;
-    return reply(`لنا عند الزباين: ${fmt(owed)}\nعلينا للموردين: ${fmt(owe)}`, [{ label: 'الديون', screen: 'debts' }]);
+    const top = topDebtors(state, 3);
+    return reply(`لنا عند الزباين: ${fmt(owed)}\nعلينا للموردين: ${fmt(owe)}${top.length ? `\nأكتر ناس عليهم: ${top.map((x) => `${x.name} (${fmt(x.amount)})`).join('، ')}` : ''}`, [{ label: 'الديون', screen: 'debts' }]);
   }
 
   if (t.has('موظف') || t.has('راتب')) {
@@ -288,8 +382,9 @@ export function ask(question: string, ctx: AskContext, focus?: string): Reply {
   const q = question.trim();
   const norm = normalizeText(q);
   if (!norm) return { text: 'اكتبلي سؤالك 🙂', links: [], suggest: STARTERS };
-  if (GREET.test(norm) && norm.split(' ').length <= 3) return { text: 'أهلين! أنا مساعد وزن. اسألني عن أي شي بالبرنامج: كيف بتعمل شي، وين بتلاقي شي، أو أرقامك (مبيعات، ربح، صندوق، دين زبون، كمية مادة).', links: [], suggest: STARTERS };
-  if (/^(شكرا|مشكور|يسلمو|تسلم|يعطيك العافيه|ممتاز|تمام)/.test(norm)) return { text: 'تكرم 🌷 أي سؤال تاني أنا هون.', links: [], suggest: [] };
+  if (GREET.test(norm) && norm.split(' ').length <= 3)
+    return { text: `أهلين${ctx.userName ? ` ${ctx.userName}` : ''} 👋 أنا مساعد وزن. اسألني عن أي شي: كيف بتعمل شي، وين بتلاقي شي، أو أرقامك («كيف الشغل؟»، «شقد بعت اليوم؟»، «شو ناقص؟»، «مين عليه دين؟»).`, links: [], suggest: STARTERS };
+  if (/^(شكرا|مشكور|يسلمو|تسلم|يعطيك العافيه|ممتاز|تمام|حلو|كتير منيح)/.test(norm)) return { text: pickBy(norm, ['تكرم 🌷 أي سؤال تاني أنا هون.', 'العفو! بالتوفيق بالشغل 🙌', 'ولو، هاد واجبي 🌷 إذا علقت بشي اسألني.']), links: [], suggest: [] };
 
   const data = fromData(q, ctx, focus);
   const found = getBrain().search(q, 4);
@@ -302,16 +397,18 @@ export function ask(question: string, ctx: AskContext, focus?: string): Reply {
   }
   if (!top || top.score < 1.2) {
     return {
-      text: 'ما فهمت عليك منيح 😅 جرّب تكتبها بكلمات تانية (مثلاً «كيف بسجل مصروف» أو «وين الديون»)، أو اختار من هدول:',
-      links: [],
+      text: 'ما فهمت عليك منيح 🤔 يمكن قصدك وحدة من هدول؟ وإذا لأ، اكتبها بكلمات تانية (مثلاً «كيف بسجل مصروف» أو «وين الديون»)، أو دوّر بدليل «تعلّم وزن».',
+      links: allowedLinks([{ label: 'تعلّم وزن', screen: 'learn' }], ctx),
       suggest: found.length ? found.map((f) => f.topic.q) : STARTERS,
     };
   }
   const best = top.topic;
   const links = allowedLinks(best.go, ctx);
   const hidden = (best.go ?? []).length > 0 && links.length === 0;
+  // مقدمة ودّية للشرح (ثابتة لنفس السؤال)، و«مش متأكد» إذا في موضوع تاني قريب
+  const opener = sure ? pickBy(q, ['أكيد 👌 هيك بتعملها:', 'سهلة! خطوة بخطوة:', 'تكرم، هي الطريقة:', 'ولا يهمك، هيك:']) : 'إذا قصدك هيك:';
   return {
-    text: best.a + (hidden ? '\n\n(هالقسم مش ظاهر عندك: يا إما مش مفعّل من الإعدادات ← تخصيص النشاط، يا إما ما عندك صلاحية عليه.)' : ''),
+    text: `${opener}\n${best.a}` + (hidden ? '\n\n(هالقسم مش ظاهر عندك: يا إما مش مفعّل من الإعدادات ← تخصيص النشاط، يا إما ما عندك صلاحية عليه.)' : '') + (!sure ? '\n\nوإذا قصدك شي تاني، اختار من تحت 👇' : ''),
     links,
     suggest: (sure ? found.slice(1, 3) : found.slice(1, 4)).map((f) => f.topic.q),
   };

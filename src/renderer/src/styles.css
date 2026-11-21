@@ -4519,3 +4519,11 @@ body.mobile .learn-banner .primary { grid-column: 1 / -1; }
 .extra-row:first-of-type { border-top: 0; }
 .extra-note { align-self: end; padding-bottom: 10px; font-size: 13px; }
 .extra-sum { margin: 8px 0 0; padding: 10px 12px; background: var(--primary-soft); border-radius: 8px; }
+
+/* المساعد: الخطوات نقاط مرقّمة */
+.assistant-line { display: block; min-height: 0.6em; }
+.assistant-flow { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 4px; counter-reset: af; }
+.assistant-flow li { counter-increment: af; display: grid; grid-template-columns: 20px 1fr; gap: 6px; align-items: start; line-height: 1.6; }
+.assistant-flow li::before { content: counter(af); width: 20px; height: 20px; border-radius: 50%; background: var(--primary); color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; margin-top: 2px; }
+.assistant-msgs { overflow-x: hidden; }
+.assistant-msg .bubble { overflow-wrap: anywhere; }
