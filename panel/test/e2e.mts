@@ -147,6 +147,28 @@ const up = await p.evaluate(async () => {
   return { status: r.status, plan: (await r.json()).plan };
 });
 check(up.status === 200 && up.plan === 'lifetime', `owner switched an agent customer to lifetime (${JSON.stringify(up)})`);
+// «امسح وفعّل بكود جديد» من الواجهة: نفس البصمة، كود جديد، والقديم ما عاد يفعّل
+{
+  const st0 = await p.evaluate(async () => (await fetch('/api/state')).json());
+  const target = st0.customers.find((x: { phoneOf?: string; status: string; replacedBy?: string; trial?: boolean }) => !x.phoneOf && x.status === 'active' && !x.replacedBy && !x.trial);
+  await p.reload();
+  await p.locator('nav.tabs button', { hasText: 'الزباين' }).first().click().catch(() => undefined);
+  const row = p.locator('.item', { hasText: target.name }).filter({ has: p.locator('[data-c="reissue"]') }).first();
+  await row.locator('[data-c="reissue"]').click();
+  await p.locator('.modal button.primary', { hasText: 'امسح وفعّل بكود جديد' }).click();
+  await p.locator('.modal .code').waitFor({ timeout: 8000 });
+  const newCode = (await p.locator('.modal .code').innerText()).trim();
+  await p.screenshot({ path: `${OUT}/panel-reissue.png` });
+  check(newCode.length >= 16 && newCode !== target.code, `reissue shows a new code (${target.code} -> ${newCode})`);
+  const oldR = await fetch(`${BASE}/api/redeem`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: target.code, machineIds: [target.machineId] }) });
+  const newR = (await (await fetch(`${BASE}/api/redeem`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: newCode, machineIds: [target.machineId] }) })).json()) as { key?: string };
+  const nk = newR.key ? parseLicense(newR.key, PUB) : null;
+  check(oldR.status !== 200 && nk?.machineId === target.machineId, `old code refused (${oldR.status}), new code activates the same fingerprint`);
+  await p.locator('.modal button', { hasText: 'سكّر' }).click();
+  check((await p.locator('.item', { hasText: target.name }).count()) >= 1, 'customer still listed once with the new license');
+  await p.locator('nav.tabs button', { hasText: 'الوكلاء' }).first().click();
+  await p.waitForTimeout(500);
+}
 // سحب الوكالة بيطلع الوكيل
 await p.getByRole('button', { name: 'سحب الوكالة' }).click();
 await p.waitForTimeout(800);

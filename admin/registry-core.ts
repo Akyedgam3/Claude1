@@ -30,6 +30,8 @@ export interface Customer {
   code?: string;
   /** مدة تجريبية (1–7 أيام) ببلاش: ما بتنخصم من رصيد الوكيل، ومرة وحدة لكل جهاز. */
   trial?: boolean;
+  /** «امسح وفعّل من جديد»: هالرخصة انلغت وحلّت محلها رخصة جديدة (نفس البصمة، كود تاني). */
+  replacedBy?: string;
 }
 
 export const TRIAL_MAX_DAYS = 7;
@@ -482,6 +484,54 @@ export class RegistryCore {
       ph.history.push({ at: new Date().toISOString(), action: `تمديد مع رخصة الكمبيوتر حتى ${c.expiresAt?.slice(0, 10) ?? 'دائم'}` });
     }
     this.note(`${plan === 'lifetime' ? 'تحويل لدائم' : 'تمديد'}: ${c.name} ${PLANS[plan].nameAr} حتى ${c.expiresAt?.slice(0, 10) ?? 'دائم'}${agent && !charge ? ' (بدون خصم من الوكيل)' : ''}`, { customerId: c.id, ...(agent ? { agentId: agent.id } : {}) });
+    this.save();
+    return c;
+  }
+
+  /**
+   * «امسح وفعّل من جديد»: الرخصة القديمة بتنلغى (مفتاحها وكودها ما عاد يمشوا)، وبتنعمل رخصة جديدة لنفس البصمة
+   * بنفس الاشتراك وتاريخ الانتهاء والخدمات، بكود تفعيل جديد. ما بتنخصم من رصيد حدا. مفتاح الجوال التابع
+   * بينلغى كمان، والكود الجديد بيفعّل الجوال من جديد (إذا الرخصة «+ جوال»).
+   */
+  reissue(id: string, machineId?: string): Customer {
+    const old = this.find(id);
+    if (old.phoneOf) throw new Error('هاد مفتاح جوال. اعمل «امسح وفعّل من جديد» على رخصة الكمبيوتر تبعه');
+    if (old.replacedBy) throw new Error('هالرخصة انعمل بدالها رخصة جديدة من قبل');
+    const machine = (machineId?.trim() || old.machineId).toUpperCase();
+    if (!/^[0-9A-F]{4}(-[0-9A-F]{4}){3}$/.test(machine)) throw new Error('بصمة الجهاز غير صحيحة (مثال: 1A2B-3C4D-5E6F-7A8B)');
+    const other = this.data.customers.find((x) => x.id !== old.id && x.phoneOf !== old.id && x.machineId.toUpperCase() === machine && x.status !== 'revoked');
+    if (other) throw new Error(`هالبصمة مسجّلة للزبون «${other.name}»`);
+    const now = new Date().toISOString();
+    const c: Customer = {
+      id: crypto.randomUUID(),
+      name: old.name,
+      ...(old.phone ? { phone: old.phone } : {}),
+      ...(old.notes ? { notes: old.notes } : {}),
+      machineId: machine,
+      plan: old.plan,
+      devices: old.devices,
+      offlineDays: old.offlineDays,
+      issuedAt: now,
+      expiresAt: old.expiresAt,
+      status: old.status === 'suspended' ? 'suspended' : 'active',
+      ...(old.message && old.status === 'suspended' ? { message: old.message } : {}),
+      key: '',
+      history: [{ at: now, action: `تفعيل من جديد بكود جديد (بدل الرخصة ${old.id.slice(0, 8)})` }],
+      ...(old.agentId ? { agentId: old.agentId } : {}),
+      ...(old.cloud ? { cloud: true } : {}),
+      ...(old.mobile ? { mobile: true } : {}),
+      ...(old.trial ? { trial: true } : {}),
+      code: this.newCode(),
+    };
+    c.key = this.sign(c);
+    for (const x of [old, ...this.data.customers.filter((p) => p.phoneOf === old.id && p.status !== 'revoked')]) {
+      x.status = 'revoked';
+      delete x.message;
+      x.history.push({ at: now, action: 'انمسح وانعمل بداله ترخيص جديد بكود جديد' });
+    }
+    old.replacedBy = c.id;
+    this.data.customers.push(c);
+    this.note(`امسح وفعّل من جديد: ${c.name} (كود جديد)`, { customerId: c.id, ...(c.agentId ? { agentId: c.agentId } : {}) });
     this.save();
     return c;
   }

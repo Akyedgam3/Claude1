@@ -716,7 +716,7 @@ export class RegistryDO extends DurableObject<Env> {
         }),
       );
     }
-    const mc = /^\/api\/customers\/([^/]+)\/(extend|status|update|cloud|phone)$/.exec(path);
+    const mc = /^\/api\/customers\/([^/]+)\/(extend|status|update|cloud|phone|reissue)$/.exec(path);
     if (mc && req.method === 'POST') {
       const [, id, action] = mc;
       if (action !== 'status' && action !== 'cloud') needKey();
@@ -730,6 +730,8 @@ export class RegistryDO extends DurableObject<Env> {
       }
       if (action === 'cloud') return touch(reg.setCloud(id!, body['on'] === true));
       if (action === 'phone') return touch(reg.addPhone(id!, str('machineId')));
+      // امسح وفعّل من جديد: نفس البصمة (أو بصمة جديدة إذا انبعتت)، كود تفعيل جديد
+      if (action === 'reissue') return touch(reg.reissue(id!, str('machineId') || undefined));
       return touch(
         reg.update(id!, {
           ...(body['name'] !== undefined ? { name: str('name') } : {}),
