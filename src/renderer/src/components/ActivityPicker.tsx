@@ -5,16 +5,18 @@ import { ACTIVITIES, ACTIVITY_LIST, FEATURE_INFO, type Activity } from '../../..
 import { Icon } from './icons';
 import { normalize } from './ui';
 
-const GROUPS: { id: string; title: string; ids: Activity[] }[] = [
-  { id: 'retail', title: 'بيع بالتجزئة', ids: ['general', 'supermarket', 'clothing', 'perfumes', 'printshop'] },
-  { id: 'food', title: 'أغذية ومطاعم', ids: ['restaurant', 'bakery', 'sweets', 'butcher', 'foodstuff', 'poultry'] },
-  { id: 'tech', title: 'تقنية وكهرباء', ids: ['mobile', 'electrical', 'solar', 'auto'] },
-  { id: 'health', title: 'صحة وخدمات', ids: ['pharmacy', 'pharmacydealers', 'clinic', 'tailor', 'weddinghall'] },
-  { id: 'build', title: 'بناء وصناعة', ids: ['building', 'gypsum', 'stone', 'woodmill'] },
+export const GROUPS: { id: string; title: string; ids: Activity[] }[] = [
+  { id: 'retail', title: 'بيع بالتجزئة', ids: ['general', 'supermarket', 'clothing', 'perfumes', 'cosmetics', 'printshop', 'books', 'toys', 'baby', 'hardware', 'tobacco', 'gold', 'watches', 'optics', 'pets', 'flowers'] },
+  { id: 'food', title: 'أغذية ومطاعم', ids: ['restaurant', 'cafe', 'catering', 'bakery', 'sweets', 'butcher', 'fish', 'dairy', 'grains', 'roastery', 'foodstuff', 'poultry', 'water'] },
+  { id: 'tech', title: 'تقنية وكهرباء', ids: ['mobile', 'mobile-accessories', 'appliances', 'electrical', 'solar'] },
+  { id: 'auto', title: 'سيارات ومحروقات', ids: ['auto', 'bikes', 'carwash', 'rental', 'fuel'] },
+  { id: 'health', title: 'صحة وجمال', ids: ['pharmacy', 'pharmacydealers', 'clinic', 'gym'] },
+  { id: 'build', title: 'بناء وصناعة', ids: ['building', 'paints', 'furniture', 'gypsum', 'stone', 'woodmill', 'contractor', 'agri'] },
+  { id: 'services', title: 'خدمات ومكاتب', ids: ['tailor', 'weddinghall', 'hotel', 'travel', 'realestate', 'school'] },
   { id: 'trade', title: 'جملة ونقل', ids: ['wholesale', 'customs'] },
 ];
 /** الأكثر استعمالاً أول شي */
-const POPULAR: Activity[] = ['general', 'supermarket', 'restaurant', 'mobile', 'clothing', 'pharmacy', 'foodstuff', 'electrical'];
+export const POPULAR: Activity[] = ['general', 'supermarket', 'restaurant', 'mobile', 'clothing', 'pharmacy', 'cafe', 'foodstuff', 'hardware', 'electrical'];
 /** كلمات بحث إضافية (شو بيكتب الناس) */
 const ALIASES: Partial<Record<Activity, string>> = {
   general: 'محل دكان بقالية شركة خدمات',
@@ -35,6 +37,39 @@ const ALIASES: Partial<Record<Activity, string>> = {
   tailor: 'خياط تفصيل ورشه خياطه',
   clinic: 'دكتور عياده صالون حلاقه تجميل',
   printshop: 'مكتبه قرطاسيه مطبعه فلكس تصوير',
+  cafe: 'قهوه مقهى اركيله نرجيله كافتيريا عصير',
+  roastery: 'محمصه قهوه مكسرات بزر',
+  gold: 'ذهب صياغه مجوهرات فضه',
+  optics: 'نظارات عدسات بصريات',
+  books: 'كتب مكتبه روايات',
+  toys: 'العاب هدايا',
+  baby: 'اطفال حفاضات حليب اطفال',
+  gym: 'نادي جيم رياضه حديد',
+  furniture: 'موبيليا مفروشات غرف نوم صالونات',
+  appliances: 'برادات غسالات شاشات ادوات كهربائيه',
+  fuel: 'بنزين مازوت غاز كازيه محطه',
+  fish: 'سمك اسماك سماك',
+  flowers: 'ورد زهور تزيين',
+  hardware: 'خردوات عده ادوات منزليه نوفوتيه',
+  paints: 'دهان بويه الوان',
+  travel: 'سفر سياحه طيران حجوزات',
+  realestate: 'عقارات بيوت ايجار مكتب عقاري',
+  rental: 'تاجير سيارات ايجار سيارات معدات',
+  bikes: 'موتور موتورات دراجات بسكليت',
+  pets: 'حيوانات قطط كلاب طيور',
+  agri: 'زراعه اسمده بذار مبيدات',
+  grains: 'بزوريه عطاره حبوب بهارات',
+  dairy: 'البان اجبان حليب لبن',
+  catering: 'ولائم طبخ مطبخ بوفيه',
+  hotel: 'فندق شقق مفروشه',
+  carwash: 'مغسل غسيل سيارات',
+  tobacco: 'دخان سجاير معسل',
+  watches: 'ساعات اكسسوارات',
+  cosmetics: 'مكياج تجميل',
+  water: 'مي مياه غالونات ثلج',
+  school: 'معهد مدرسه دورات دروس',
+  contractor: 'مقاولات مهندس مقاول',
+  'mobile-accessories': 'كفرات شواحن سماعات اكسسوار جوال',
 };
 
 export function ActivityPicker({ value, onChange, preview = true }: { value: string; onChange: (id: Activity) => void; preview?: boolean }) {
