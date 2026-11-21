@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
-import { activate, launch, nav, toast } from './helpers';
+import { activate, launch, nav, toast, companyWizard } from './helpers';
 
 const shot = (page: import('@playwright/test').Page, name: string) => page.screenshot({ path: `test-results/screens/${name}.png` });
 
@@ -8,14 +8,7 @@ test('restaurant: receipt designer, thermal receipt, customer display and live b
   const { app, page, close } = await launch();
   try {
     await activate(page);
-    await page.getByRole('button', { name: 'شركة جديدة' }).click();
-    await page.locator('.act-card', { hasText: 'مطعم' }).click();
-    await page.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill('مطعم وينغز');
-    await page.locator('.field', { hasText: 'اسمك' }).locator('input').fill('المالك');
-    await page.locator('.field', { hasText: 'كلمة السر (6' }).locator('input').fill('secret123');
-    await page.locator('.field', { hasText: 'تأكيد كلمة السر' }).locator('input').fill('secret123');
-    await page.locator('.demo-check input').check();
-    await page.getByRole('button', { name: 'إنشاء الشركة' }).click();
+    await companyWizard(page, { activity: 'مطعم', name: 'مطعم وينغز', owner: 'المالك', demo: true });
     await page.getByRole('button', { name: 'حفظته، تابع' }).click();
 
     // تصميم الإيصال: شعار كبير، جدول بخطوط، رقم للاستفسار ورسالة شكر — والمعاينة بتتغير مباشرة

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { activate, createCompany, launch, nav, pick, toast } from './helpers';
+import { activate, createCompany, launch, nav, pick, toast, companyWizard } from './helpers';
 
 const shot = (page: import('@playwright/test').Page, name: string) => page.screenshot({ path: `test-results/screens/${name}.png` });
 
@@ -209,14 +209,7 @@ test('back button: invoice opened from the log returns to the log', async () => 
   const { page, close } = await launch();
   try {
     await activate(page);
-    await page.getByRole('button', { name: 'شركة جديدة' }).click();
-    await page.locator('.act-card', { hasText: 'سوبرماركت' }).click();
-    await page.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill('محل الرجوع');
-    await page.locator('.field', { hasText: 'اسمك' }).locator('input').fill('المالك');
-    await page.locator('.field', { hasText: 'كلمة السر (6' }).locator('input').fill('secret123');
-    await page.locator('.field', { hasText: 'تأكيد كلمة السر' }).locator('input').fill('secret123');
-    await page.locator('.demo-check input').check();
-    await page.getByRole('button', { name: 'إنشاء الشركة' }).click();
+    await companyWizard(page, { activity: 'سوبرماركت', name: 'محل الرجوع', owner: 'المالك', demo: true });
     await page.getByRole('button', { name: 'حفظته، تابع' }).click();
     await nav(page, 'نقطة البيع');
     await page.locator('.pos-item').first().click();

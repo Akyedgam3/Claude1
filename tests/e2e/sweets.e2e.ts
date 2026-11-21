@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { activate, launch, nav, toast } from './helpers';
+import { activate, launch, nav, toast, companyWizard } from './helpers';
 
 const shot = (page: import('@playwright/test').Page, name: string) => page.screenshot({ path: `test-results/screens/${name}.png` });
 
@@ -7,14 +7,7 @@ test('sweets and ice cream shop: cup sizes, flavours, weights, sell by amount, h
   const { page, close } = await launch();
   try {
     await activate(page);
-    await page.getByRole('button', { name: 'شركة جديدة' }).click();
-    await page.locator('.act-card', { hasText: 'حلويات وبوظة' }).click();
-    await page.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill('حلويات الشام');
-    await page.locator('.field', { hasText: 'اسمك' }).locator('input').fill('المالك');
-    await page.locator('.field', { hasText: 'كلمة السر (6' }).locator('input').fill('secret123');
-    await page.locator('.field', { hasText: 'تأكيد كلمة السر' }).locator('input').fill('secret123');
-    await page.locator('.demo-check input').check();
-    await page.getByRole('button', { name: 'إنشاء الشركة' }).click();
+    await companyWizard(page, { activity: 'حلويات وبوظة', name: 'حلويات الشام', owner: 'المالك', demo: true });
     await page.getByRole('button', { name: 'حفظته، تابع' }).click();
 
     await nav(page, 'نقطة البيع');

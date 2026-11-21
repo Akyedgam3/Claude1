@@ -65,19 +65,26 @@ export async function activate(page: Page, extra: { id?: string } = {}): Promise
   await expect(page.getByText('شركة جديدة')).toBeVisible();
 }
 
-/** إنشاء شركة جديدة من شاشة البداية حتى لوحة التحكم. */
-export async function createCompany(page: Page, o: { name: string; activity: string; username?: string; password?: string }): Promise<string> {
-  await page.getByRole('button', { name: 'شركة جديدة' }).click();
-  // اختيار النشاط من البحث (بيدوّر بالاسم والوصف)
+/** معالج إنشاء شركة (النشاط ← بيانات المحل ← الحساب) لحد ما يطلع رمز الاسترجاع (ما بيكبس «حفظته»). */
+export async function companyWizard(page: Page, o: { activity: string; name: string; owner?: string; username?: string; password?: string; demo?: boolean }): Promise<void> {
+  await page.getByRole('button', { name: 'شركة جديدة', exact: true }).click();
+  await page.locator('.act-choose').click();
   await page.locator('.act-search input').fill(o.activity);
   await page.locator('.act-card').first().click();
-  await page.locator('.act-search input').fill('');
+  await page.locator('.act-modal-foot .primary').click();
   await page.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill(o.name);
-  await page.locator('.field', { hasText: 'اسمك' }).locator('input').fill('المالك');
+  await page.getByRole('button', { name: 'التالي' }).click();
+  await page.locator('.field', { hasText: 'اسمك' }).locator('input').fill(o.owner ?? 'المالك');
   await page.locator('.field', { hasText: 'اسم الدخول' }).locator('input').fill(o.username ?? 'admin');
   await page.locator('.field', { hasText: 'كلمة السر (6' }).locator('input').fill(o.password ?? 'secret123');
   await page.locator('.field', { hasText: 'تأكيد كلمة السر' }).locator('input').fill(o.password ?? 'secret123');
+  if (o.demo) await page.locator('.demo-check input').check();
   await page.getByRole('button', { name: 'إنشاء الشركة' }).click();
+}
+
+/** إنشاء شركة جديدة من شاشة البداية حتى لوحة التحكم. */
+export async function createCompany(page: Page, o: { name: string; activity: string; username?: string; password?: string; demo?: boolean }): Promise<string> {
+  await companyWizard(page, o);
   const code = (await page.locator('.modal .big-code').innerText()).trim();
   await page.getByRole('button', { name: 'حفظته، تابع' }).click();
   await expect(page.locator('.sidebar')).toBeVisible();

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ACTIVITY_LIST } from '../../../core';
+import { ACTIVITIES, type Activity } from '../../../core';
 import logo from '../assets/logo.png';
 import { Icon } from '../components/icons';
 import { ActivityPicker } from '../components/ActivityPicker';
@@ -217,85 +217,195 @@ function DriveRestore({ notify, onClose, onRestored }: { notify: (m: string, k?:
 }
 
 function NewCompany({ notify, onCreated }: { notify: (m: string, k?: 'ok' | 'error') => void; onCreated: (recovery: string) => void }) {
-  const [f, setF] = useState({ name: '', activity: 'general', baseCurrency: 'SYP', phone: '', address: '', ownerName: '', username: 'admin', password: '', confirm: '' });
+  const [f, setF] = useState({ name: '', activity: '', baseCurrency: 'SYP', phone: '', address: '', ownerName: '', username: 'admin', password: '', confirm: '' });
   const [busy, setBusy] = useState(false);
   const [demo, setDemo] = useState(false);
+  // معالج بخطوات: 1 النشاط، 2 بيانات المحل، 3 حساب المالك
+  const [step, setStep] = useState(1);
+  const [picking, setPicking] = useState(false);
+  const [draftAct, setDraftAct] = useState('general');
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
+  const act = f.activity ? ACTIVITIES[f.activity as Activity] : null;
+  const STEPS = ['نشاطك', 'بيانات المحل', 'حسابك'];
+
+  const create = async () => {
+    if (f.password.length < 6) return notify('كلمة السر 6 أحرف على الأقل', 'error');
+    if (f.password !== f.confirm) return notify('كلمتا السر غير متطابقتين', 'error');
+    setBusy(true);
+    try {
+      const { confirm: _c, ...data } = f;
+      void _c;
+      const res = await api.createCompany(data);
+      if (demo) {
+        try {
+          await api.call('loadDemoData');
+        } catch (err) {
+          notify(`ما انضافت البيانات التجريبية: ${(err as Error).message}`, 'error');
+        }
+      }
+      onCreated(res.recoveryCode);
+    } catch (err) {
+      notify((err as Error).message, 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
-    <section className="card">
-      <h3>1. نوع النشاط</h3>
-      <p className="muted act-lead">اختار شغلك، ووزن بيجهّز الشاشات والميزات اللي بتلزمك.</p>
-      <ActivityPicker value={f.activity} onChange={(id) => setF({ ...f, activity: id })} />
-      <form
-        className="form-grid"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          if (!f.name.trim()) return notify('اكتب اسم الشركة أو المحل', 'error');
-          if (f.password.length < 6) return notify('كلمة السر 6 أحرف على الأقل', 'error');
-          if (f.password !== f.confirm) return notify('كلمتا السر غير متطابقتين', 'error');
-          setBusy(true);
-          try {
-            const { confirm: _c, ...data } = f;
-            void _c;
-            const res = await api.createCompany(data);
-            if (demo) {
-              try {
-                await api.call('loadDemoData');
-              } catch (err) {
-                notify(`ما انضافت البيانات التجريبية: ${(err as Error).message}`, 'error');
-              }
-            }
-            onCreated(res.recoveryCode);
-          } catch (err) {
-            notify((err as Error).message, 'error');
-          } finally {
-            setBusy(false);
-          }
-        }}
-      >
-        <h3 className="wide">2. بيانات الشركة</h3>
-        <Field label="اسم الشركة / المحل" wide>
-          <input value={f.name} onChange={set('name')} />
-        </Field>
-        <Field label="العملة الأساسية للحسابات">
-          <select value={f.baseCurrency} onChange={set('baseCurrency')}>
-            <option value="SYP">ليرة سورية جديدة</option>
-            <option value="USD">دولار أمريكي</option>
-          </select>
-        </Field>
-        <Field label="الهاتف">
-          <input value={f.phone} onChange={set('phone')} dir="ltr" />
-        </Field>
-        <Field label="العنوان" wide>
-          <input value={f.address} onChange={set('address')} />
-        </Field>
-        <h3 className="wide">3. حساب المالك</h3>
-        <Field label="اسمك">
-          <input value={f.ownerName} onChange={set('ownerName')} />
-        </Field>
-        <Field label="اسم الدخول">
-          <input value={f.username} onChange={set('username')} dir="ltr" />
-        </Field>
-        <Field label="كلمة السر (6 أحرف على الأقل)">
-          <input type="password" value={f.password} onChange={set('password')} />
-        </Field>
-        <Field label="تأكيد كلمة السر">
-          <input type="password" value={f.confirm} onChange={set('confirm')} />
-        </Field>
-        <label className="check wide demo-check">
-          <input type="checkbox" checked={demo} onChange={(e) => setDemo(e.target.checked)} />
-          <span>
-            <strong>عبّي بيانات تجريبية للعرض</strong>
-            <small className="muted"> — منيو وطاولات وطلبات للمطعم، أو زبائن وأتواب وطلبيات للخياطة... (لشركة تجريبية، مو لشركتك الحقيقية)</small>
-          </span>
-        </label>
-        <div className="form-actions wide">
-          <button className="primary big" disabled={busy}>
-            إنشاء الشركة
+    <section className="card wizard">
+      <ol className="wizard-steps" aria-label="الخطوات">
+        {STEPS.map((t, i) => (
+          <li key={t} className={step === i + 1 ? 'on' : step > i + 1 ? 'done' : ''}>
+            <span>{step > i + 1 ? <Icon name="check" size={14} /> : i + 1}</span>
+            {t}
+          </li>
+        ))}
+      </ol>
+
+      {step === 1 && (
+        <div className="wizard-body">
+          <h3>شو نوع شغلك؟</h3>
+          <p className="muted">اختار نشاطك، ووزن بيجهّزلك الشاشات والتصنيفات والميزات اللي بتلزمك.</p>
+          <button
+            type="button"
+            className={`act-choose ${act ? 'picked' : ''}`}
+            onClick={() => {
+              setDraftAct(f.activity || 'general');
+              setPicking(true);
+            }}
+          >
+            {act ? (
+              <>
+                <span className="act-icon" style={{ background: act.color }}>
+                  <Icon name={act.icon} size={22} />
+                </span>
+                <span className="act-text">
+                  <b>{act.name}</b>
+                  <small>{act.description}</small>
+                </span>
+                <span className="act-change">تغيير</span>
+              </>
+            ) : (
+              <>
+                <span className="act-icon empty">
+                  <Icon name="search" size={20} />
+                </span>
+                <span className="act-text">
+                  <b>اختار النشاط…</b>
+                  <small>أكتر من 50 نشاط: سوبرماركت، مطعم، صيدلية، موبايلات، ألبسة…</small>
+                </span>
+              </>
+            )}
           </button>
+          <div className="wizard-actions">
+            <button type="button" className="primary big" disabled={!act} onClick={() => setStep(2)}>
+              التالي
+            </button>
+          </div>
         </div>
-      </form>
+      )}
+
+      {step === 2 && (
+        <form
+          className="wizard-body form-grid"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!f.name.trim()) return notify('اكتب اسم الشركة أو المحل', 'error');
+            setStep(3);
+          }}
+        >
+          <h3 className="wide">بيانات المحل</h3>
+          {act && (
+            <p className="muted wide wizard-act">
+              <Icon name={act.icon} size={16} /> {act.name}
+            </p>
+          )}
+          <Field label="اسم الشركة / المحل" wide>
+            <input value={f.name} onChange={set('name')} autoFocus placeholder="مثلاً: ماركت الشام" />
+          </Field>
+          <Field label="العملة الأساسية للحسابات">
+            <select value={f.baseCurrency} onChange={set('baseCurrency')}>
+              <option value="SYP">ليرة سورية جديدة</option>
+              <option value="USD">دولار أمريكي</option>
+            </select>
+          </Field>
+          <Field label="الهاتف">
+            <input value={f.phone} onChange={set('phone')} dir="ltr" />
+          </Field>
+          <Field label="العنوان" wide>
+            <input value={f.address} onChange={set('address')} />
+          </Field>
+          <div className="wizard-actions wide">
+            <button type="button" onClick={() => setStep(1)}>
+              رجوع
+            </button>
+            <button className="primary big">التالي</button>
+          </div>
+        </form>
+      )}
+
+      {step === 3 && (
+        <form
+          className="wizard-body form-grid"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void create();
+          }}
+        >
+          <h3 className="wide">حسابك (المالك)</h3>
+          <Field label="اسمك">
+            <input value={f.ownerName} onChange={set('ownerName')} autoFocus />
+          </Field>
+          <Field label="اسم الدخول">
+            <input value={f.username} onChange={set('username')} dir="ltr" />
+          </Field>
+          <Field label="كلمة السر (6 أحرف على الأقل)">
+            <input type="password" value={f.password} onChange={set('password')} />
+          </Field>
+          <Field label="تأكيد كلمة السر">
+            <input type="password" value={f.confirm} onChange={set('confirm')} />
+          </Field>
+          <label className="check wide demo-check">
+            <input type="checkbox" checked={demo} onChange={(e) => setDemo(e.target.checked)} />
+            <span>
+              <strong>عبّي بيانات تجريبية للعرض</strong>
+              <small className="muted"> — منيو وطاولات وطلبات للمطعم، أو زبائن وأتواب وطلبيات للخياطة... (لشركة تجريبية، مو لشركتك الحقيقية)</small>
+            </span>
+          </label>
+          <div className="wizard-actions wide">
+            <button type="button" onClick={() => setStep(2)}>
+              رجوع
+            </button>
+            <button className="primary big" disabled={busy}>
+              إنشاء الشركة
+            </button>
+          </div>
+        </form>
+      )}
+
+      {picking && (
+        <Modal title="اختار نوع نشاطك" onClose={() => setPicking(false)} width={1000}>
+          <div className="act-modal">
+            <ActivityPicker value={draftAct} onChange={setDraftAct} />
+            <div className="act-modal-foot">
+              <button type="button" onClick={() => setPicking(false)}>
+                إلغاء
+              </button>
+              <button
+                type="button"
+                className="primary big"
+                onClick={() => {
+                  setF({ ...f, activity: draftAct });
+                  setPicking(false);
+                  setStep(2);
+                }}
+              >
+                كمّل بـ «{ACTIVITIES[draftAct as Activity]?.name}»
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </section>
   );
 }

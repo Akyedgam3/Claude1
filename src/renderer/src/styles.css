@@ -4569,3 +4569,33 @@ body.mobile .act-groups { flex-wrap: nowrap; overflow-x: auto; }
 body.mobile .act-groups button { white-space: nowrap; }
 .act-card { white-space: normal; }
 .act-text b { overflow-wrap: anywhere; }
+
+/* ───────── معالج إنشاء الشركة ───────── */
+.wizard { padding-top: 22px; }
+.wizard-steps { list-style: none; margin: 0 0 22px; padding: 0; display: flex; gap: 8px; align-items: center; }
+.wizard-steps li { display: flex; align-items: center; gap: 8px; color: var(--muted); font-weight: 700; font-size: 14px; flex: 1; }
+.wizard-steps li:not(:last-child)::after { content: ''; flex: 1; height: 2px; background: var(--border); border-radius: 2px; }
+.wizard-steps li.done:not(:last-child)::after { background: var(--primary); }
+.wizard-steps li > span { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--border); display: grid; place-items: center; font-size: 13px; flex: none; background: var(--surface); }
+.wizard-steps li.on { color: var(--text); }
+.wizard-steps li.on > span { border-color: var(--primary); background: var(--primary); color: #fff; }
+.wizard-steps li.done > span { border-color: var(--primary); color: var(--primary); }
+.wizard-body h3 { margin: 0 0 4px; font-size: 20px; }
+.wizard-body > .muted { margin: 0 0 16px; }
+.wizard-act { display: flex; align-items: center; gap: 6px; margin: -6px 0 6px; }
+.wizard-actions { display: flex; gap: 10px; justify-content: space-between; margin-top: 18px; }
+.wizard-actions .primary { margin-inline-start: auto; }
+.act-choose { width: 100%; display: flex; align-items: center; gap: 14px; text-align: start; padding: 16px 18px; border: 2px dashed var(--border); border-radius: 14px; background: var(--bg); cursor: pointer; font: inherit; color: inherit; white-space: normal; transition: border-color 0.15s, background 0.15s; }
+.act-choose:hover { border-color: var(--primary); background: var(--primary-soft); }
+.act-choose.picked { border-style: solid; border-color: var(--primary); background: var(--primary-soft); }
+.act-choose .act-icon { width: 48px; height: 48px; border-radius: 13px; flex: none; display: grid; place-items: center; }
+.act-choose .act-text { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.act-choose .act-icon.empty { background: var(--surface); color: var(--primary); border: 1px solid var(--border); }
+.act-choose .act-text b { font-size: 17px; }
+.act-choose .act-text small { color: var(--muted); font-size: 13px; }
+.act-change { margin-inline-start: auto; color: var(--primary); font-weight: 700; font-size: 14px; flex: none; }
+.act-modal .act-picker { margin-bottom: 0; }
+.act-modal .act-grid { max-height: min(58vh, 560px); overflow-y: auto; padding: 8px 8px 8px 4px; }
+.act-modal-foot { display: flex; justify-content: space-between; gap: 10px; padding-top: 14px; margin-top: 12px; border-top: 1px solid var(--border); position: sticky; bottom: 0; background: var(--surface); }
+body.mobile .wizard-steps li { font-size: 12px; }
+body.mobile .act-modal .act-grid { max-height: none; }

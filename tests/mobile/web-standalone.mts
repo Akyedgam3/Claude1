@@ -19,8 +19,12 @@ if (!/^[0-9A-F]{4}(-[0-9A-F]{4}){3}$/.test(machineId)) throw new Error('بصمة
 await p.locator('textarea').first().fill(issueLicense({ customer: 'آيفون', machineId, plan: 'annual' }, devKey));
 await p.getByRole('button', { name: 'تفعيل', exact: true }).click();
 await p.getByText('شركة جديدة').first().click();
-await p.locator('.act-card', { hasText: 'سوبرماركت' }).click();
+await p.locator('.act-choose').click();
+await p.locator('.act-search input').fill('سوبرماركت');
+await p.locator('.act-card').first().click();
+await p.locator('.act-modal-foot .primary').click();
 await p.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill('محل الآيفون');
+await p.getByRole('button', { name: 'التالي' }).click();
 await p.locator('.field', { hasText: 'اسمك' }).locator('input').fill('المالك');
 await p.locator('.field', { hasText: 'كلمة السر (6' }).locator('input').fill('secret123');
 await p.locator('.field', { hasText: 'تأكيد كلمة السر' }).locator('input').fill('secret123');

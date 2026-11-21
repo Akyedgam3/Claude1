@@ -6,7 +6,10 @@ test('activity picker: search, groups and the preview panel', async () => {
   const { page, close } = await launch();
   try {
     await activate(page);
-    await page.getByRole('button', { name: 'شركة جديدة' }).click();
+    // المعالج: أول خطوة النشاط، والتالي ممنوع قبل ما يختار
+    await page.getByRole('button', { name: 'شركة جديدة', exact: true }).click();
+    await expect(page.locator('.wizard-steps li.on')).toContainText('نشاطك');
+    await page.locator('.act-choose').click();
     await page.locator('.act-search input').fill('فروج');
     await expect(page.locator('.act-card')).toHaveCount(1);
     await page.locator('.act-card').first().click();
@@ -21,12 +24,18 @@ test('activity picker: search, groups and the preview panel', async () => {
     await page.locator('.act-search input').fill('');
     await page.locator('.act-groups button', { hasText: 'الكل' }).click();
     expect(await page.locator('.act-card').count()).toBeGreaterThan(50);
-    if (process.env.SHOT) await page.locator('.act-picker').screenshot({ path: process.env.SHOT });
+    if (process.env.SHOT) await page.locator('.modal').screenshot({ path: process.env.SHOT });
     // نشاط جديد (كافيه) مع بيانات تجريبية
     await page.locator('.act-search input').fill('اركيله');
     await page.locator('.act-card').first().click();
     await expect(page.locator('.act-preview h4')).toContainText('كافيه');
+    await page.locator('.act-modal-foot .primary').click();
+    await expect(page.locator('.wizard-steps li.on')).toContainText('بيانات المحل');
+    await page.getByRole('button', { name: 'التالي' }).click(); // بدون اسم: بيضل
+    await expect(page.locator('.wizard-steps li.on')).toContainText('بيانات المحل');
     await page.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill('كافيه الشام');
+    await page.getByRole('button', { name: 'التالي' }).click();
+    await expect(page.locator('.wizard-steps li.on')).toContainText('حسابك');
     await page.locator('.field', { hasText: 'اسمك' }).locator('input').fill('المالك');
     await page.locator('.field', { hasText: 'اسم الدخول' }).locator('input').fill('admin');
     await page.locator('.field', { hasText: 'كلمة السر (6' }).locator('input').fill('secret123');

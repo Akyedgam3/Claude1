@@ -1,7 +1,7 @@
 import path from 'node:path';
 import ExcelJS from 'exceljs';
 import { expect, test } from '@playwright/test';
-import { activate, launch, nav, toast } from './helpers';
+import { activate, launch, nav, toast, companyWizard } from './helpers';
 
 async function sheet(file: string, rows: (string | number)[][]) {
   const wb = new ExcelJS.Workbook();
@@ -24,13 +24,7 @@ test('big item list: import without quantities, then quantities from Excel, pick
     }, file);
 
     await activate(page);
-    await page.getByRole('button', { name: 'شركة جديدة' }).click();
-    await page.locator('.act-card', { hasText: 'موبايلات' }).click();
-    await page.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill('محل الإكسسوارات');
-    await page.locator('.field', { hasText: 'اسمك' }).locator('input').fill('المالك');
-    await page.locator('.field', { hasText: 'كلمة السر (6' }).locator('input').fill('secret123');
-    await page.locator('.field', { hasText: 'تأكيد كلمة السر' }).locator('input').fill('secret123');
-    await page.getByRole('button', { name: 'إنشاء الشركة' }).click();
+    await companyWizard(page, { activity: 'موبايلات', name: 'محل الإكسسوارات', owner: 'المالك' });
     await page.getByRole('button', { name: 'حفظته، تابع' }).click();
 
     await nav(page, 'المواد');
