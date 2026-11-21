@@ -397,6 +397,21 @@ export interface InvoiceLine {
   weighing?: Weighing;
   /** تفصيل تكلفة القطعة بفاتورة الشراء (المعمل + الشحن + الضريبة + الجمارك = السعر). */
   costParts?: CostParts;
+  /** حصة السطر من التكاليف الإضافية بفاتورة الشراء (بالعملة الأساسية)، وهي ضمن cost */
+  extra?: number;
+}
+
+/**
+ * تكلفة إضافية على فاتورة شراء (نقل، شحن، جمركة...): بتنوزّع على المواد حسب القيمة أو الكمية
+ * وبتدخل بتكلفتها، وبتندفع من صندوق، أو بتصير على المورد نفسه، أو على جهة تانية (شركة شحن، مخلّص).
+ */
+export interface ExtraCost {
+  amount: number; // بأصغر وحدة من عملة الفاتورة
+  split: 'value' | 'qty';
+  pay: 'cash' | 'supplier' | 'party';
+  cashAccountId?: string;
+  partyId?: string;
+  memo?: string;
 }
 
 export interface CostParts {
@@ -449,6 +464,8 @@ export interface Invoice {
   /** المسوّق اللي جاب الزبون (ما بيطلع بالفاتورة المطبوعة). */
   marketerId?: string;
   notes?: string;
+  /** تكاليف إضافية (فواتير الشراء) */
+  extras?: ExtraCost[];
   source?: { type: string; id: string };
   /** فاتورة معدّلة: رقم (id) الفاتورة الملغاة اللي حلّت محلها (بنفس الرقم). */
   replaces?: string;

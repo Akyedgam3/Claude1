@@ -16,7 +16,7 @@ import {
   type CompanyEvent,
   type Invoice,
 } from '../src/core';
-import { partyDebts } from '../src/core/reports';
+import { isCashBox, partyDebts } from '../src/core/reports';
 import { costPlan } from '../src/core/recost';
 import { healthCheck } from '../src/core/health';
 
@@ -82,8 +82,12 @@ function run(seed: number, steps: number) {
         case 2:
         case 3: {
           const partyId = pick(['s1', 's2']);
-          l.postInvoice({ kind: 'purchase', date, currency: cur, partyId, paid: r() < 0.5 ? 0 : undefined, lines: lines(false).map((x) => ({ ...x, price: conv(x.price) })) });
-          ops.push(`purchase ${date}`);
+          // تكاليف إضافية (نقل، شحن، جمركة) على بعض فواتير الشراء
+          const pay = pick(['cash', 'supplier', 'party'] as const);
+          const box = Object.values(l.state.accounts).find((a) => isCashBox(a) && (!a.currency || a.currency === cur));
+          const extras = op === 3 && (pay !== 'cash' || box) ? [{ amount: conv(int(50, 400)), split: pick(['value', 'qty'] as const), pay, ...(pay === 'cash' ? { cashAccountId: box!.id } : {}), ...(pay === 'party' ? { partyId: partyId === 's1' ? 's2' : 's1' } : {}) }] : undefined;
+          l.postInvoice({ kind: 'purchase', date, currency: cur, partyId, paid: r() < 0.5 ? 0 : undefined, lines: lines(false).map((x) => ({ ...x, price: conv(x.price) })), ...(extras ? { extras } : {}) });
+          ops.push(`purchase ${date}${extras ? ' +extra ' + pay : ''}`);
           break;
         }
         case 4: {

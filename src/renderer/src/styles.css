@@ -4511,3 +4511,11 @@ body.mobile .learn-banner .primary { grid-column: 1 / -1; }
 .line-note { margin-top: 4px; font-size: 13px; }
 .dash-head-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-inline-start: auto; align-self: center; }
 .activity-hero .dash-head-actions .dash-customize { margin-inline-start: 0; }
+
+/* التكاليف الإضافية بفاتورة الشراء */
+.extra-costs .extra-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.extra-costs h3 { margin: 0; color: var(--accent); }
+.extra-row { padding: 10px 0; border-top: 1px dashed var(--border); }
+.extra-row:first-of-type { border-top: 0; }
+.extra-note { align-self: end; padding-bottom: 10px; font-size: 13px; }
+.extra-sum { margin: 8px 0 0; padding: 10px 12px; background: var(--primary-soft); border-radius: 8px; }

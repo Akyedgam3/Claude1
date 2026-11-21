@@ -7,6 +7,7 @@ import { ItemForm } from './Items';
 import { PartyForm } from './Parties';
 import { Icon } from '../components/icons';
 import { PriceListSelect } from '../components/PriceLists';
+import { ExtraCostsEditor, extraCostsOf, extraRowsFrom, type ExtraRow } from '../components/ExtraCosts';
 import { WeighingModal, weightsFromQty } from '../components/Weighing';
 import { PlaceInput } from '../components/PlaceInput';
 
@@ -50,6 +51,8 @@ interface DraftData {
   notes: string;
   /** قائمة الأسعار المختارة بالفاتورة (فاضي = قائمة الزبون) */
   priceList?: string | null;
+  /** التكاليف الإضافية (فاتورة الشراء) */
+  extras?: ExtraRow[];
 }
 
 const emptyLine = (): LineState => ({ key: uid(), itemId: null, description: '', unit: '', qty: '1', price: '', discount: '', batch: '', expiry: '', serials: '' });
@@ -199,6 +202,8 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
   const [marketerId, setMarketerId] = useState(editing?.marketerId ?? d?.marketerId ?? '');
   const marketers = useMemo(() => Object.values(state.parties).filter((p) => isMarketer(p) && !p.archived), [state.parties]);
   const [notes, setNotes] = useState(editing?.notes ?? d?.notes ?? '');
+  // التكاليف الإضافية (شراء بس): نقل، شحن، جمركة
+  const [extraRows, setExtraRows] = useState<ExtraRow[]>(() => (editing ? extraRowsFrom(state, editing.extras, editing.currency, lockedBox ?? editing.cashAccountId) : (d?.extras ?? [])));
   const [newItem, setNewItem] = useState<string | null>(null);
   const [weighLine, setWeighLine] = useState<string | null>(null);
   // صيدلية مع موردين: بفاتورة الشراء منحط سعر الصيدلية وسعر المورّد لكل مادة
@@ -493,9 +498,9 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
   useEffect(() => {
     if (editing || savedRef.current) return;
     if (!used.length && !partyId && !notes.trim()) return invoiceDrafts.remove(company, draftId);
-    const data: DraftData = { partyId, date, currency, rateText, warehouseId, lines, discount, taxIds, paidText, payMode, cashAccountId, salesman, vatNumber, marketerId, notes, priceList: listKey };
+    const data: DraftData = { partyId, date, currency, rateText, warehouseId, lines, discount, taxIds, paidText, payMode, cashAccountId, salesman, vatNumber, marketerId, notes, priceList: listKey, extras: extraRows };
     invoiceDrafts.save(company, { id: draftId, kind, title: (partyId && state.parties[partyId]?.name) || (isSale ? 'زبون نقدي' : 'مورد نقدي'), count: used.length, updated: Date.now(), data });
-  }, [editing, company, draftId, kind, isSale, state.parties, used, partyId, date, currency, rateText, warehouseId, lines, discount, taxIds, paidText, payMode, cashAccountId, salesman, vatNumber, marketerId, notes, listKey]);
+  }, [editing, company, draftId, kind, isSale, state.parties, used, partyId, date, currency, rateText, warehouseId, lines, discount, taxIds, paidText, payMode, cashAccountId, salesman, vatNumber, marketerId, notes, listKey, extraRows]);
   const preview = useMemo(() => {
     try {
       const amounts = used.map((l) => {
@@ -575,6 +580,16 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
     if (preview.error) return notify(preview.error, 'error');
     if (currency !== base && !rate) return notify('أدخل سعر الصرف', 'error');
     if (payMode !== 'cash' && !partyId) return notify(isSale ? 'اختر العميل ليُسجَّل الدين عليه' : 'اختر المورد ليُسجَّل الدين له', 'error');
+    let extraCosts: ReturnType<typeof extraCostsOf> = [];
+    if (kind === 'purchase') {
+      try {
+        extraCosts = extraCostsOf(state, extraRows, currency);
+      } catch (e) {
+        return notify((e as Error).message, 'error');
+      }
+      if (extraCosts.some((x) => x.pay === 'supplier') && !partyId) return notify('التكلفة الإضافية «على حساب المورد»: اختار المورد بالفاتورة', 'error');
+      if (extraCosts.some((x) => x.pay === 'party' && !x.partyId)) return notify('اختار الجهة اللي إلها التكلفة الإضافية (شركة الشحن أو المخلّص)', 'error');
+    }
     if (extra > 0 && !(await askConfirm(`المدفوع أكتر من الفاتورة بـ ${money(state, extra, currency)}. بتنسجّل الزيادة ${isSale ? 'مقبوضة من' : 'مدفوعة لـ'} ${state.parties[partyId!]?.name ?? ''} على حسابه الجاري؟`))) return;
     savingRef.current = true;
     setSaving(true);
@@ -610,6 +625,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
         ...(salesman.trim() ? { salesman: salesman.trim() } : {}),
         ...(kind === 'sale' && marketerId && isMarketer(state.parties[marketerId]) ? { marketerId } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
+        ...(kind === 'purchase' && extraCosts.length ? { extras: extraCosts } : {}),
       };
       const res = editing ? await call<Invoice>('replaceInvoice', editing.id, draft) : await call<Invoice>('postInvoice', draft);
       if (res && extra > 0) {
@@ -681,7 +697,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
     savingRef.current = true;
     setSaving(true);
     try {
-      const data: DraftData = { partyId, date, currency, rateText, warehouseId, lines, discount, taxIds, paidText, payMode, cashAccountId, salesman, vatNumber, marketerId, notes, priceList: listKey };
+      const data: DraftData = { partyId, date, currency, rateText, warehouseId, lines, discount, taxIds, paidText, payMode, cashAccountId, salesman, vatNumber, marketerId, notes, priceList: listKey, extras: extraRows };
       const snapshot = used.map((l) => {
         const item = l.itemId ? state.items[l.itemId] : null;
         const price = parsePrice(state, l.price || '0', currency);
@@ -1137,6 +1153,8 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
           </tbody>
         </table>
       </section>
+
+      {kind === 'purchase' && <ExtraCostsEditor state={state} rows={extraRows} onChange={setExtraRows} currency={currency} boxes={boxes} lockedBox={lockedBox} goodsTotal={preview.subtotal - preview.disc} />}
 
       <div className="invoice-bottom">
         <section className="card form-grid">

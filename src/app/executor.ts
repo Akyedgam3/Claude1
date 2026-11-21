@@ -153,12 +153,16 @@ function executeChecked(store: CompanyStore, user: User, method: string, args: u
     if (draft && typeof draft === 'object' && (draft.kind !== 'purchase' || user.role !== 'owner')) {
       if (user.role !== 'owner' || !draft.cashAccountId) draft.cashAccountId = box;
     }
+    // التكاليف الإضافية المدفوعة من صندوق: لغير المالك من صندوقه هو
+    const extras = (draft as { extras?: { pay?: string; cashAccountId?: string }[] } | undefined)?.extras;
+    if (Array.isArray(extras) && user.role !== 'owner') for (const x of extras) if (x && x.pay === 'cash') x.cashAccountId = box;
   }
   // الصناديق المخفية (صندوق المورد): اللي ما معه الصلاحية ما بيلمسها
   if (!can(user, 'items.hidden')) {
     const st = store.ledger.state;
     const touches = (x: unknown) => x && typeof x === 'object' && ['cashAccountId', 'from', 'to', 'accountId'].some((k) => { const v = (x as Record<string, unknown>)[k]; return typeof v === 'string' && !!st.accounts[v]?.hidden; });
     if (args.some(touches) || args.some((a) => Array.isArray(a) && a.some(touches))) fail('الصندوق غير موجود');
+    if (args.some((a) => a && typeof a === 'object' && Array.isArray((a as { extras?: unknown[] }).extras) && (a as { extras: unknown[] }).extras.some(touches))) fail('الصندوق غير موجود');
     if (method === 'voidEntry' && st.entries.find((e) => e.id === args[0])?.lines.some((l) => st.accounts[l.accountId]?.hidden)) fail('القيد غير موجود');
   }
   // الاستبدال فيه شراء كمان

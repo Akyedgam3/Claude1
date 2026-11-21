@@ -6,7 +6,7 @@ import { adjustmentMoves, applyMove, assertMovesPossible, invoiceMoves, negate, 
 import { bookingConflicts } from './halls';
 import { cleanWeighing, weighingNet } from './poultry';
 import { computeTaxes } from './tax';
-import type { CompanyEvent, CostParts, CompanyState, FabricRoll, Invoice, InvoiceKind, InvoiceLine, JournalEntry, LengthUnit, Order, Quote, RepairOrder, Shipment, ShipmentStatus, SiteJob, SiteJobLine, StoneBlock, TailorOrder, Weighing, WorkOrder, WorkStage , Party } from './types';
+import type { CompanyEvent, CostParts, CompanyState, ExtraCost, FabricRoll, Invoice, InvoiceKind, InvoiceLine, JournalEntry, LengthUnit, Order, Quote, RepairOrder, Shipment, ShipmentStatus, SiteJob, SiteJobLine, StoneBlock, TailorOrder, Weighing, WorkOrder, WorkStage , Party } from './types';
 
 function fail(message: string): never {
   throw new Error(message);
@@ -874,6 +874,8 @@ export interface InvoiceDraft {
   vatNumber?: string;
   marketerId?: string;
   notes?: string;
+  /** تكاليف إضافية على فاتورة الشراء (نقل، شحن، جمركة) */
+  extras?: ExtraCost[];
   source?: { type: string; id: string };
   createdBy?: string;
 }
@@ -985,6 +987,28 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft, opts: { n
     if (after > party.creditLimit) fail(`تجاوز حد الائتمان للعميل ${party.name}`);
   }
 
+  // التكاليف الإضافية (شراء بس): بتنوزّع على المواد اللي إلها مخزون حسب القيمة أو الكمية
+  const extras = (draft.extras ?? []).filter((x) => x && x.amount);
+  if (extras.length && kind !== 'purchase') fail('التكاليف الإضافية لفواتير الشراء بس');
+  const stockIdx = lines.map((l, i) => (l.itemId && state.items[l.itemId]?.kind === 'stock' ? i : -1)).filter((i) => i >= 0);
+  const extraFx = lines.map(() => 0);
+  for (const x of extras) {
+    if (!Number.isSafeInteger(x.amount) || x.amount <= 0) fail('مبلغ التكلفة الإضافية غير صالح');
+    if (x.split !== 'value' && x.split !== 'qty') fail('طريقة توزيع التكلفة الإضافية غير معروفة');
+    if (!stockIdx.length) fail('التكاليف الإضافية بتنوزّع على المواد: ضيف مادة إلها مخزون للفاتورة');
+    if (x.pay === 'cash') {
+      const box = state.accounts[x.cashAccountId ?? ''] ?? fail('اختار الصندوق اللي دفعت منه التكلفة الإضافية');
+      if (box.currency && box.currency !== currency) fail(`الصندوق "${box.name}" يقبل ${box.currency} فقط`);
+    } else if (x.pay === 'supplier') {
+      if (!partyId) fail('التكلفة الإضافية على حساب المورد: اختار المورد بالفاتورة');
+    } else if (x.pay === 'party') {
+      if (!x.partyId || !state.parties[x.partyId]) fail('اختار الجهة اللي إلها التكلفة الإضافية (شركة الشحن أو المخلّص)');
+    } else fail('طريقة دفع التكلفة الإضافية غير معروفة');
+    const w = stockIdx.map((i) => (x.split === 'qty' ? roundQty(lines[i]!.qty * (lines[i]!.factor ?? 1)) : Math.max(0, amounts[i]!)));
+    const parts = allocate(x.amount, w.some((v) => v > 0) ? w : stockIdx.map(() => 1));
+    stockIdx.forEach((i, k) => (extraFx[i]! += parts[k]!));
+  }
+
   // التكلفة والدفعات والأرقام لكل سطر
   const planner = new StockPlanner(state);
   const shares = allocate(total, amounts);
@@ -1006,9 +1030,10 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft, opts: { n
         const cost = Math.round(planner.unitCost(item.id) * baseQty);
         Object.assign(l, { cost }, planner.in(item.id, warehouseId, baseQty, cost, opts));
       } else if (kind === 'purchase') {
-        // تكلفة الشراء = حصة السطر من صافي الفاتورة شامل الخصم والضرائب
-        const cost = toBase(shares[i]!);
-        Object.assign(l, { cost }, planner.in(item.id, warehouseId, baseQty, cost, { ...opts, fillShortage: !repricing }));
+        // تكلفة الشراء = حصة السطر من صافي الفاتورة شامل الخصم والضرائب، + حصته من التكاليف الإضافية
+        const cost = toBase(shares[i]! + extraFx[i]!);
+        const extra = extraFx[i] ? cost - toBase(shares[i]!) : 0;
+        Object.assign(l, { cost, ...(extra ? { extra } : {}) }, planner.in(item.id, warehouseId, baseQty, cost, { ...opts, fillShortage: !repricing }));
       } else {
         // مرتجع الشراء يخرج من المخزون بمتوسط التكلفة؛ فرق سعر الإرجاع يذهب لحساب الفروقات
         const out = planner.out(item.id, warehouseId, baseQty, opts);
@@ -1056,6 +1081,11 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft, opts: { n
   };
   push({ accountId: cashAccountId, ...money(paid), ...fx });
   if (partyId) push({ accountId: partySide, ...money(total - paid), ...fx, partyId });
+  // التكاليف الإضافية: من الصندوق، أو على المورد، أو على جهة تانية (والمخزون مدين فيها ضمن التكلفة)
+  for (const x of extras) {
+    if (x.pay === 'cash') push({ accountId: x.cashAccountId!, credit: x.amount, ...fx });
+    else push({ accountId: SYSTEM_ACCOUNTS.suppliers, credit: x.amount, ...fx, partyId: x.pay === 'supplier' ? partyId! : x.partyId! });
+  }
 
   const cost = lines.reduce((s, l) => s + (l.cost ?? 0), 0);
   if (isSaleSide) {
@@ -1118,6 +1148,7 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft, opts: { n
     ...(draft.vatNumber?.trim() ? { vatNumber: draft.vatNumber.trim() } : {}),
     ...(draft.marketerId ? { marketerId: draft.marketerId } : {}),
     ...(draft.notes ? { notes: draft.notes } : {}),
+    ...(extras.length ? { extras: extras.map((x) => ({ amount: x.amount, split: x.split, pay: x.pay, ...(x.pay === 'cash' ? { cashAccountId: x.cashAccountId! } : {}), ...(x.pay === 'party' ? { partyId: x.partyId! } : {}), ...(x.memo?.trim() ? { memo: x.memo.trim().slice(0, 120) } : {}) })) } : {}),
     ...(draft.source ? { source: draft.source } : {}),
     ...(opts.replaces ? { replaces: opts.replaces } : {}),
     entryId: entry.id,

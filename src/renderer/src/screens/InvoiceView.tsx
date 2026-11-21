@@ -340,6 +340,14 @@ function MobileInvoiceView({ inv }: { inv: Invoice }) {
           </div>
         )}
         {inv.notes && <p className="muted">{inv.notes}</p>}
+        {inv.extras && inv.extras.length > 0 && (
+          <div className="extra-sum">
+            <b>تكاليف إضافية دخلت بتكلفة المواد:</b>{' '}
+            {inv.extras
+              .map((x) => `${money(state, x.amount, inv.currency)}${x.memo ? ` (${x.memo})` : ''} — ${x.pay === 'cash' ? `من ${state.accounts[x.cashAccountId ?? '']?.name ?? 'الصندوق'}` : x.pay === 'supplier' ? 'على المورد' : `على ${state.parties[x.partyId ?? '']?.name ?? 'جهة تانية'}`}`)
+              .join('، ')}
+          </div>
+        )}
       </section>
 
       {/* الورقة الحقيقية: مخفية عالشاشة (بتطلع بالمعاينة) وبتنطبع متل ما هي */}
