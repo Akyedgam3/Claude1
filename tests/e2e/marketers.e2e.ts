@@ -55,6 +55,11 @@ test('المسوّقين: فواتير كل مسوّق وعمولته ودفعه
     for (const hidden of ['أحمد', 'مسوّق', 'عمولة', '2,000']) await expect(page.locator('.page')).not.toContainText(hidden);
     const doc = page.locator('.commercial-doc, .print-doc, .invoice-doc').first();
     if (await doc.count()) for (const hidden of ['أحمد', 'عمولة']) await expect(doc).not.toContainText(hidden);
+    // وفاتورة المسوّق بتنطبع بالإجمالي بس: لا مقبوض ولا باقي ولا حساب سابق ولا ختم
+    const printed = page.locator('.invoice-doc');
+    await expect(printed).toContainText('الإجمالي');
+    for (const hidden of ['المقبوض', 'الباقي', 'حساب سابق']) await expect(printed).not.toContainText(hidden);
+    await expect(printed.locator('.doc-stamp')).toHaveCount(0);
     await nav(page, 'المسوّقين');
 
     // دفع عمولة أحمد كاملة

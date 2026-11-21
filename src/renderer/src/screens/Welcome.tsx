@@ -37,20 +37,20 @@ export function Welcome({
     }
   };
 
-  return (
-    <div className="welcome">
-      <div className="welcome-hero">
-        <img src={logo} alt="" className="hero-logo" />
-        <div className="logo big">وزن</div>
-        <p>نظام محاسبة لكل المصالح والتجارات — يعمل بدون إنترنت وبياناتك مشفّرة على جهازك.</p>
-        {info.license.customer && (
-          <p className="muted">
-            مرخّص لـ {info.license.customer} · {info.license.planName}
-            {info.license.daysLeft ? ` · متبقٍ ${info.license.daysLeft} يوم` : ''}
-          </p>
-        )}
-      </div>
+  if (login)
+    return (
+      <AuthShell info={info}>
+        <LoginPanel peek={login} onClose={() => setLogin(null)} notify={notify} onOpened={onOpened} />
+      </AuthShell>
+    );
 
+  return (
+    <AuthShell info={info}>
+      <div className="welcome">
+      <div className="auth-head">
+        <h2>{tab === 'open' ? 'أهلاً فيك من جديد' : tab === 'new' ? 'لنجهّز شركتك' : tab === 'connect' ? 'اتصل بجهاز المحل' : 'اتصال عن بعد'}</h2>
+        <p className="muted">{tab === 'open' ? 'اختار الشركة وادخل بكلمة السر.' : tab === 'new' ? 'تلات خطوات وبتبلّش شغلك.' : tab === 'connect' ? 'جهاز فرعي على نفس الشبكة (واي فاي).' : 'اشتغل على بيانات المحل من أي مكان.'}</p>
+      </div>
       <div className="segmented center welcome-tabs">
         <button className={tab === 'open' ? 'active' : ''} onClick={() => setTab('open')}>
           فتح شركة
@@ -70,18 +70,30 @@ export function Welcome({
 
       {tab === 'open' && (
         <section className="card">
-          {info.recent.length === 0 && <p className="muted">لا توجد شركات سابقة على هذا الجهاز.</p>}
+          {info.recent.length === 0 && (
+            <div className="recent-empty">
+              <Icon name="building" size={28} />
+              <p>ما في شركات على هالجهاز لسا.</p>
+              <button className="primary" onClick={() => setTab('new')}>
+                <Icon name="plus" size={16} /> أنشئ شركتك الأولى
+              </button>
+            </div>
+          )}
           <ul className="recent">
             {info.recent.map((r) => (
               <li key={r.dir}>
                 <button onClick={() => peek(r.dir)}>
-                  <strong>{r.name}</strong>
-                  {!IS_MOBILE && <small dir="ltr">{r.dir}</small>}
+                  <span className="co-avatar">{initial(r.name)}</span>
+                  <span className="co-text">
+                    <strong>{r.name}</strong>
+                    {!IS_MOBILE && <small dir="ltr">{r.dir}</small>}
+                  </span>
+                  <Icon name="next" size={18} />
                 </button>
               </li>
             ))}
           </ul>
-          <div className="button-row">
+          <div className="button-row recent-more">
             {!IS_MOBILE && <button onClick={() => peek()}>فتح من مجلد...</button>}
             <button
               onClick={async () => {
@@ -127,7 +139,6 @@ export function Welcome({
           }}
         />
       )}
-      {login && <LoginDialog peek={login} onClose={() => setLogin(null)} notify={notify} onOpened={onOpened} />}
       {recovery && (
         <Modal title="احفظ رمز الاسترداد" onClose={() => undefined}>
           <p>بيانات الشركة مشفّرة بكلمة السر. إن نسيت كلمة السر فهذا الرمز هو الطريقة الوحيدة لفتح الشركة.</p>
@@ -149,7 +160,55 @@ export function Welcome({
           </div>
         </Modal>
       )}
-      <footer className="muted">الإصدار {info.version}</footer>
+      </div>
+    </AuthShell>
+  );
+}
+
+const initial = (name: string) => (name.trim().replace(/^(شركة|محل|مؤسسة|ال)\s*/, '')[0] ?? 'و').toUpperCase();
+
+/** إطار شاشات البداية: لوحة الهوية على جنب والمحتوى على الجنب التاني (وعالجوال فوق بعض). */
+export function AuthShell({ info, children }: { info: AppInfo; children: React.ReactNode }) {
+  const lic = info.license;
+  return (
+    <div className="auth">
+      <aside className="auth-brand">
+        <div className="auth-mark">
+          <img src={logo} alt="" />
+          <span>وزن</span>
+        </div>
+        <div className="auth-pitch">
+          <h1>
+            حساباتك مرتّبة،{' '}
+            <br />
+            وشغلك أسهل.
+          </h1>
+          <p>نظام محاسبة لكل المصالح والتجارات، بيشتغل بدون إنترنت وبياناتك مشفّرة على جهازك.</p>
+          <ul>
+            <li>
+              <Icon name="receipt" size={18} /> فواتير ومخزون وديون وصناديق
+            </li>
+            <li>
+              <Icon name="chart" size={18} /> تقارير ولوحة إدارة بلحظتها
+            </li>
+            <li>
+              <Icon name="key" size={18} /> بيانات مشفّرة ونسخ احتياطي
+            </li>
+          </ul>
+        </div>
+        <div className="auth-meta">
+          {lic.customer && (
+            <span>
+              مرخّص لـ {lic.customer} · {lic.planName}
+              {lic.daysLeft ? ` · باقي ${lic.daysLeft} يوم` : ''}
+            </span>
+          )}
+          <span>الإصدار {info.version}</span>
+        </div>
+      </aside>
+      <main className="auth-main">
+        <div className="auth-inner">{children}</div>
+      </main>
     </div>
   );
 }
@@ -287,7 +346,7 @@ function NewCompany({ notify, onCreated }: { notify: (m: string, k?: 'ok' | 'err
               </>
             ) : (
               <>
-                <span className="act-icon empty">
+                <span className="act-icon act-blank">
                   <Icon name="search" size={20} />
                 </span>
                 <span className="act-text">
@@ -410,15 +469,24 @@ function NewCompany({ notify, onCreated }: { notify: (m: string, k?: 'ok' | 'err
   );
 }
 
-function LoginDialog({ peek, onClose, notify, onOpened }: { peek: CompanyPeek; onClose: () => void; notify: (m: string, k?: 'ok' | 'error') => void; onOpened: () => Promise<void> }) {
+function LoginPanel({ peek, onClose, notify, onOpened }: { peek: CompanyPeek; onClose: () => void; notify: (m: string, k?: 'ok' | 'error') => void; onOpened: () => Promise<void> }) {
   const [username, setUsername] = useState(peek.usernames[0] ?? '');
   const [password, setPassword] = useState('');
+  const [show, setShow] = useState(false);
   const [recovery, setRecovery] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [shake, setShake] = useState(0);
   return (
-    <Modal title={`الدخول إلى: ${peek.name}`} onClose={onClose}>
+    <section className="login-panel" key={shake} data-shake={shake > 0 || undefined}>
+      <button type="button" className="ghost login-back" onClick={onClose}>
+        <Icon name="prev" size={16} /> كل الشركات
+      </button>
+      <div className="login-co">
+        <span className="co-avatar lg">{initial(peek.name)}</span>
+        <h2>{peek.name}</h2>
+        <p className="muted">{recovery === null ? 'سجّل دخولك لتكمّل شغلك' : 'الدخول برمز الاسترداد'}</p>
+      </div>
       <form
-        className="form-grid"
         onSubmit={async (e) => {
           e.preventDefault();
           setBusy(true);
@@ -428,6 +496,7 @@ function LoginDialog({ peek, onClose, notify, onOpened }: { peek: CompanyPeek; o
             await onOpened();
           } catch (err) {
             notify((err as Error).message, 'error');
+            setShake((n) => n + 1);
           } finally {
             setBusy(false);
           }
@@ -435,37 +504,43 @@ function LoginDialog({ peek, onClose, notify, onOpened }: { peek: CompanyPeek; o
       >
         {recovery === null ? (
           <>
-            <Field label="المستخدم" wide>
-              <select value={username} onChange={(e) => setUsername(e.target.value)}>
+            {peek.usernames.length > 1 && (
+              <div className="login-users" role="radiogroup" aria-label="المستخدم">
                 {peek.usernames.map((u) => (
-                  <option key={u} value={u}>
+                  <button key={u} type="button" role="radio" aria-checked={username === u} data-user={u} className={username === u ? 'on' : ''} onClick={() => setUsername(u)}>
+                    <span className="co-avatar sm">{initial(u)}</span>
                     {u}
-                  </option>
+                  </button>
                 ))}
-              </select>
-            </Field>
+              </div>
+            )}
+            {peek.usernames.length === 1 && (
+              <p className="login-user-one">
+                <Icon name="users" size={16} /> {username}
+              </p>
+            )}
             <Field label="كلمة السر" wide>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus />
+              <span className="pass-wrap">
+                <input type={show ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} autoFocus autoComplete="current-password" />
+                <button type="button" className="icon pass-eye" title={show ? 'إخفاء' : 'إظهار'} aria-label={show ? 'إخفاء كلمة السر' : 'إظهار كلمة السر'} onClick={() => setShow(!show)}>
+                  <Icon name={show ? 'eye-off' : 'eye'} size={18} />
+                </button>
+              </span>
             </Field>
-            <button type="button" className="link wide" onClick={() => setRecovery('')}>
-              نسيت كلمة السر؟ الدخول برمز الاسترداد
-            </button>
           </>
         ) : (
           <Field label="رمز الاسترداد" wide>
             <input dir="ltr" className="mono" value={recovery} onChange={(e) => setRecovery(e.target.value)} autoFocus placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX" />
           </Field>
         )}
-        <div className="form-actions wide">
-          <button type="button" onClick={onClose}>
-            إلغاء
-          </button>
-          <button className="primary" disabled={busy}>
-            دخول
-          </button>
-        </div>
+        <button className="primary big login-go" disabled={busy}>
+          {busy ? 'لحظة…' : 'دخول'}
+        </button>
+        <button type="button" className="link login-forgot" onClick={() => setRecovery(recovery === null ? '' : null)}>
+          {recovery === null ? 'نسيت كلمة السر؟ الدخول برمز الاسترداد' : 'رجوع للدخول بكلمة السر'}
+        </button>
       </form>
-    </Modal>
+    </section>
   );
 }
 

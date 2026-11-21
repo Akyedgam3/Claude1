@@ -90,9 +90,10 @@ test('owner hides sections and blocks credit sales / price edits for a cashier',
 
     await page.getByRole('button', { name: 'تسجيل الخروج' }).click();
     await page.locator('.recent button').first().click();
-    await m.locator('select').selectOption('samer');
-    await m.locator('input[type=password]').fill('samer123');
-    await m.getByRole('button', { name: 'دخول', exact: true }).click();
+    const lg = page.locator('.login-panel');
+    await lg.locator('[data-user="samer"]').click();
+    await lg.locator('input[type=password]').fill('samer123');
+    await lg.getByRole('button', { name: 'دخول', exact: true }).click();
     await expect(page.locator('.user-chip')).toContainText('سامر');
     const sidebar = page.locator('.sidebar nav');
     await expect(sidebar).toContainText('فاتورة مبيع');
@@ -424,9 +425,10 @@ test('a cashier from the preset sees no purchase prices, profits or purchase inv
 
     await page.getByRole('button', { name: 'تسجيل الخروج' }).click();
     await page.locator('.recent button').first().click();
-    await m.locator('select').selectOption('khaled');
-    await m.locator('input[type=password]').fill('khaled123');
-    await m.getByRole('button', { name: 'دخول', exact: true }).click();
+    const lg = page.locator('.login-panel');
+    await lg.locator('[data-user="khaled"]').click();
+    await lg.locator('input[type=password]').fill('khaled123');
+    await lg.getByRole('button', { name: 'دخول', exact: true }).click();
     await expect(page.locator('.user-chip')).toContainText('خالد');
 
     await nav(page, 'سجل الفواتير');

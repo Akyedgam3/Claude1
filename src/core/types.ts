@@ -217,6 +217,8 @@ export interface CompanyInfo {
   allowNegativeStock?: boolean;
   /** عمولات المسوّقين القديمة انصحّحت لتصير من ربح الفاتورة (fixCommissionsOnce) */
   commissionsFromProfit?: boolean;
+  /** عمولات «من الربح» انصحّحت لتلحق تصحيح التكاليف (syncCommissionsOnce) */
+  commissionsCostSynced?: boolean;
   print?: PrintSettings;
   scale?: ScaleSettings;
   customize?: ActivityCustomization;

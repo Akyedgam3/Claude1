@@ -427,7 +427,9 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
   const decimals = state.currencies[inv.currency]?.decimals ?? 2;
   const saleSide = inv.kind === 'sale' || inv.kind === 'sale_return';
   const moneyIn = inv.kind === 'sale' || inv.kind === 'purchase_return';
-  const account = partyAccountRows(state, inv);
+  // فاتورة عن طريق مسوّق: الزبون بيشوف الإجمالي بس (بدون حساب سابق ولا مقبوض ولا باقي ولا ختم مدفوعة/دين)
+  const viaMarketer = inv.kind === 'sale' && !!inv.marketerId;
+  const account = viaMarketer ? null : partyAccountRows(state, inv);
 
   const refs: ReactNode[] = [];
   if (vehicle) {
@@ -517,17 +519,21 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
     ],
     grand: { label: 'الإجمالي', value: m(inv.total) },
     after: [
-      ...(account?.before ?? []),
-      // المدفوع كله مع الفاتورة: إذا دفع أكتر من قيمتها، الزيادة نزلت من حسابه القديم وبتبيّن هون
-      { label: moneyIn ? 'المقبوض' : 'المدفوع', value: m(inv.paid + (invoicePartyBalance(state, inv)?.extraPaid ?? 0)) },
-      ...(account ? account.after : remaining > 0 ? [{ label: 'الباقي', value: m(remaining) }] : []),
+      ...(viaMarketer
+        ? []
+        : [
+            ...(account?.before ?? []),
+            // المدفوع كله مع الفاتورة: إذا دفع أكتر من قيمتها، الزيادة نزلت من حسابه القديم وبتبيّن هون
+            { label: moneyIn ? 'المقبوض' : 'المدفوع', value: m(inv.paid + (invoicePartyBalance(state, inv)?.extraPaid ?? 0)) },
+            ...(account ? account.after : remaining > 0 ? [{ label: 'الباقي', value: m(remaining) }] : []),
+          ]),
       ...(inv.currency !== company.baseCurrency ? [{ label: 'سعر الصرف', value: rateLine(state, inv.currency, inv.rate) }] : []),
       ...(showUsd ? [{ label: 'المقابل بالدولار', value: money(state, Math.round(((inv.total * inv.rate) / usdRate) * 10 ** (2 - decimals)), 'USD') }] : []),
     ],
     ...(print.showAmountInWords !== false ? { words: amountInWords(inv.total, inv.currency, decimals) } : {}),
     ...(inv.notes && !shipment ? { notes: inv.notes } : shipment?.notes ? { notes: shipment.notes } : {}),
     // الختم حسب الوضع هلق: إذا انقبض الباقي بعدين بيصير «مدفوعة»
-    stamp: inv.voidEntryId ? 'void' : invoiceRemaining(state, inv) > 0 ? 'credit' : 'paid',
+    stamp: inv.voidEntryId ? 'void' : viaMarketer ? null : invoiceRemaining(state, inv) > 0 ? 'credit' : 'paid',
     qrText: [company.name, `${INVOICE_KIND_NAMES[inv.kind]} رقم ${inv.number}`, dateText(inv.date), `الإجمالي: ${m(inv.total)}`, party ? party.name : ''].filter(Boolean).join('\n'),
   };
   // نسخة الطابعة الحرارية: أرقام بدون رمز العملة حتى تساع الأعمدة، وتفاصيل الطلب (طاولة، كابتن...) إذا الفاتورة من مطعم
@@ -605,8 +611,12 @@ export function invoiceText(state: CompanyState, inv: Invoice): string {
     '',
     inv.discount ? `الخصم: ${m(inv.discount)}` : '',
     `*الإجمالي: ${m(inv.total)}*`,
-    inv.total - inv.paid > 0 ? `المدفوع: ${m(inv.paid)} — الباقي: ${m(inv.total - inv.paid)}` : 'مدفوعة بالكامل',
-    ...((acc) => (acc ? [...acc.before, ...acc.after].map((r) => `${r.label}: ${r.value}`) : []))(partyAccountRows(state, inv)),
+    ...(inv.kind === 'sale' && inv.marketerId
+      ? [] // فاتورة مسوّق: الإجمالي بس
+      : [
+          inv.total - inv.paid > 0 ? `المدفوع: ${m(inv.paid)} — الباقي: ${m(inv.total - inv.paid)}` : 'مدفوعة بالكامل',
+          ...((acc) => (acc ? [...acc.before, ...acc.after].map((r) => `${r.label}: ${r.value}`) : []))(partyAccountRows(state, inv)),
+        ]),
     '',
     state.info!.print?.footer || 'شكراً لتعاملكم معنا',
   ]

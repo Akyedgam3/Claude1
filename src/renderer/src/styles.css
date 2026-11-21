@@ -3549,6 +3549,9 @@ button.danger-soft {
 }
 .pay-switch button {
   padding: 8px 6px;
+  white-space: normal;
+  min-width: 0;
+  line-height: 1.35;
   font-weight: 700;
   font-size: 13px;
   border-radius: var(--radius);
@@ -4590,7 +4593,7 @@ body.mobile .act-groups button { white-space: nowrap; }
 .act-choose.picked { border-style: solid; border-color: var(--primary); background: var(--primary-soft); }
 .act-choose .act-icon { width: 48px; height: 48px; border-radius: 13px; flex: none; display: grid; place-items: center; }
 .act-choose .act-text { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
-.act-choose .act-icon.empty { background: var(--surface); color: var(--primary); border: 1px solid var(--border); }
+.act-choose .act-icon.act-blank { background: var(--surface); color: var(--primary); border: 1px solid var(--border); }
 .act-choose .act-text b { font-size: 17px; }
 .act-choose .act-text small { color: var(--muted); font-size: 13px; }
 .act-change { margin-inline-start: auto; color: var(--primary); font-weight: 700; font-size: 14px; flex: none; }
@@ -4599,3 +4602,218 @@ body.mobile .act-groups button { white-space: nowrap; }
 .act-modal-foot { display: flex; justify-content: space-between; gap: 10px; padding-top: 14px; margin-top: 12px; border-top: 1px solid var(--border); position: sticky; bottom: 0; background: var(--surface); }
 body.mobile .wizard-steps li { font-size: 12px; }
 body.mobile .act-modal .act-grid { max-height: none; }
+
+/* ───────── شاشات البداية (الإطار الجديد) ───────── */
+.auth { display: grid; grid-template-columns: minmax(340px, 38%) 1fr; min-height: 100vh; background: var(--bg); }
+.auth-brand {
+  position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; justify-content: space-between; gap: 24px;
+  padding: 40px 44px; color: #fff; overflow: hidden;
+  background:
+    radial-gradient(120% 70% at 100% 0%, rgba(255, 255, 255, 0.09), transparent 60%),
+    radial-gradient(90% 60% at 0% 100%, rgba(233, 168, 76, 0.16), transparent 60%),
+    linear-gradient(160deg, #0f6e5c 0%, #0c4f43 55%, #0a3a32 100%);
+}
+.auth-brand::after { content: ''; position: absolute; inset: auto -120px -160px auto; width: 420px; height: 420px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 0 0 60px rgba(255, 255, 255, 0.025), 0 0 0 130px rgba(255, 255, 255, 0.02); pointer-events: none; }
+.auth-mark { display: flex; align-items: center; gap: 12px; font-size: 26px; font-weight: 800; }
+.auth-mark img { width: 52px; height: 52px; border-radius: 14px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25); }
+.auth-pitch h1 { font-size: clamp(28px, 2.6vw, 40px); line-height: 1.35; margin: 0 0 14px; font-weight: 800; }
+.auth-pitch p { color: rgba(255, 255, 255, 0.82); font-size: 15.5px; line-height: 1.8; margin: 0 0 26px; max-width: 420px; }
+.auth-pitch ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.auth-pitch li { display: flex; align-items: center; gap: 12px; font-size: 15px; font-weight: 600; }
+.auth-pitch li svg { flex: none; width: 34px; height: 34px; padding: 8px; border-radius: 10px; background: rgba(255, 255, 255, 0.12); }
+.auth-meta { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: rgba(255, 255, 255, 0.7); position: relative; z-index: 1; }
+.auth-main { display: flex; justify-content: center; align-items: flex-start; padding: 48px 32px; min-width: 0; }
+.auth-inner { width: 100%; max-width: 720px; }
+.auth .welcome { max-width: none; padding: 0; margin: 0; }
+.auth-head { margin: 8px 0 22px; }
+.auth-head h2 { font-size: 28px; font-weight: 800; margin: 0 0 4px; }
+.auth-head p { margin: 0; font-size: 15px; }
+.auth .welcome-tabs { justify-content: flex-start; margin: 0 0 18px; }
+.auth .card { border-radius: 16px; padding: 22px; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 28px rgba(16, 24, 40, 0.06); }
+
+/* قائمة الشركات */
+.auth .recent { display: grid; gap: 10px; margin-bottom: 16px; }
+.auth .recent button { flex-direction: row; align-items: center; gap: 14px; margin: 0; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s; }
+.auth .recent button:hover { border-color: var(--primary); box-shadow: 0 6px 20px rgba(15, 110, 92, 0.12); transform: translateY(-1px); }
+.auth .recent button > svg { margin-inline-start: auto; color: var(--muted); flex: none; }
+.auth .recent button:hover > svg { color: var(--primary); }
+.co-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.co-text strong { font-size: 16px; }
+.co-text small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.co-avatar { flex: none; width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font-weight: 800; font-size: 19px; color: #fff; background: linear-gradient(140deg, #13866f, #0c4f43); }
+.co-avatar.lg { width: 76px; height: 76px; border-radius: 22px; font-size: 32px; box-shadow: 0 10px 26px rgba(15, 110, 92, 0.28); }
+.co-avatar.sm { width: 26px; height: 26px; border-radius: 8px; font-size: 13px; }
+.recent-empty { text-align: center; padding: 26px 10px 18px; color: var(--muted); }
+.recent-empty svg { color: var(--primary); }
+.recent-empty p { margin: 8px 0 14px; font-size: 15px; }
+.recent-more { border-top: 1px dashed var(--border); padding-top: 14px; }
+
+/* الدخول */
+.login-panel { max-width: 440px; margin: 24px auto 0; }
+.login-back { margin-bottom: 18px; display: inline-flex; align-items: center; gap: 6px; }
+.login-co { text-align: center; margin-bottom: 22px; }
+.login-co .co-avatar { margin: 0 auto 14px; }
+.login-co h2 { font-size: 26px; font-weight: 800; margin: 0 0 2px; }
+.login-co p { margin: 0; }
+.login-panel form { display: flex; flex-direction: column; gap: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 24px; box-shadow: 0 10px 34px rgba(16, 24, 40, 0.07); }
+.login-panel[data-shake] form { animation: login-shake 0.4s; }
+@keyframes login-shake { 20%, 60% { transform: translateX(-7px); } 40%, 80% { transform: translateX(7px); } }
+.login-users { display: flex; flex-wrap: wrap; gap: 8px; }
+.login-users button { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; padding: 5px 14px 5px 6px; }
+.login-users button.on { border-color: var(--primary); background: var(--primary-soft); color: var(--primary); font-weight: 700; }
+.login-user-one { display: flex; align-items: center; gap: 8px; margin: 0; font-weight: 700; color: var(--muted); }
+.pass-wrap { position: relative; display: block; }
+.pass-wrap input { padding-inline-end: 44px; height: 46px; font-size: 16px; border-radius: 10px; }
+.pass-eye { position: absolute; inset-inline-end: 4px; top: 50%; transform: translateY(-50%); border: none; background: none; color: var(--muted); }
+.login-go { width: 100%; height: 48px; font-size: 16px; border-radius: 12px; }
+.login-forgot { align-self: center; }
+
+@media (max-width: 900px) {
+  .auth { grid-template-columns: 1fr; }
+  .auth-brand { position: relative; height: auto; padding: 22px 20px 26px; gap: 10px; }
+  .auth-pitch h1 { font-size: 22px; margin-bottom: 6px; }
+  .auth-pitch p { font-size: 13.5px; margin: 0; }
+  .auth-pitch ul, .auth-meta span:first-child { display: none; }
+  .auth-meta { flex-direction: row; }
+  .auth-main { padding: 22px 16px 40px; }
+}
+body.mobile .auth { grid-template-columns: 1fr; }
+body.mobile .auth-brand { position: relative; height: auto; padding: calc(env(safe-area-inset-top) + 18px) 18px 22px; gap: 8px; border-radius: 0 0 26px 26px; }
+body.mobile .auth-mark { font-size: 22px; }
+body.mobile .auth-mark img { width: 42px; height: 42px; }
+body.mobile .auth-pitch h1 { font-size: 19px; margin: 0; }
+body.mobile .auth-pitch h1 br { display: none; }
+body.mobile .auth-pitch p { display: none; }
+body.mobile .auth-pitch ul, body.mobile .auth-meta { display: none; }
+body.mobile .auth-main { padding: 18px 14px 40px; }
+body.mobile .auth-head h2 { font-size: 22px; }
+body.mobile .login-panel { margin-top: 0; }
+:root[data-theme='dark'] .auth .recent button, :root[data-theme='dark'] .login-panel form { background: var(--surface); }
+
+/* ═════════ الشكل الجديد للشاشات الداخلية (2.0.1) — كمبيوتر بس، الجوال إلو تصميمه ═════════ */
+:root {
+  --radius: 12px;
+  --bg: #f2f5f4;
+  --border: #e2e7e5;
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 2px 10px rgba(16, 24, 40, 0.05);
+  --shadow-lg: 0 18px 50px rgba(16, 24, 40, 0.18);
+  --row: #f7faf9;
+}
+:root[data-theme='dark'] { --row: rgba(255, 255, 255, 0.03); --shadow-lg: 0 18px 50px rgba(0, 0, 0, 0.55); }
+
+/* القائمة الجانبية */
+:where(body:not(.mobile)) .shell { grid-template-columns: 248px 1fr; }
+:where(body:not(.mobile)) .sidebar {
+  padding: 18px 12px 14px;
+  background:
+    radial-gradient(140% 50% at 100% 0%, rgba(255, 255, 255, 0.07), transparent 60%),
+    linear-gradient(180deg, #11433a 0%, #0d2f29 60%, #0b2723 100%);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+:root[data-theme='dark'] :where(body:not(.mobile)) .sidebar { background: linear-gradient(180deg, #0f1a17, #0a110f); border-inline-end: 1px solid var(--border); }
+:where(body:not(.mobile)) .brand { padding: 2px 8px 16px; margin-bottom: 10px; border-bottom-color: rgba(255, 255, 255, 0.08); }
+:where(body:not(.mobile)) .brand .logo { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
+:where(body:not(.mobile)) .company-name { font-size: 13.5px; font-weight: 700; color: #fff; margin-top: 8px; }
+:where(body:not(.mobile)) .company-name .icon-svg { width: 26px; height: 26px; padding: 4px; border-radius: 8px; }
+:where(body:not(.mobile)) .nav-group { font-size: 11px; font-weight: 700; letter-spacing: 0.3px; opacity: 0.45; padding: 14px 12px 6px; }
+:where(body:not(.mobile)) .sidebar nav { gap: 3px; }
+:where(body:not(.mobile)) .sidebar nav button { padding: 9px 12px; border-radius: 10px; font-size: 14px; color: rgba(232, 242, 239, 0.86); transition: background 0.15s, color 0.15s; }
+:where(body:not(.mobile)) .sidebar nav button:hover { background: rgba(255, 255, 255, 0.07); color: #fff; }
+:where(body:not(.mobile)) .sidebar nav button.active { background: #fff; color: #0f4d41; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18); font-weight: 700; }
+:where(body:not(.mobile)) .sidebar nav button.active .nav-icon { color: var(--activity, var(--primary)); opacity: 1; }
+:root[data-theme='dark'] :where(body:not(.mobile)) .sidebar nav button.active { background: var(--primary-soft); color: #fff; box-shadow: inset -3px 0 0 var(--primary); }
+:root[data-theme='dark'] :where(body:not(.mobile)) .sidebar nav button.active .nav-icon { color: #fff; }
+:where(body:not(.mobile)) .license-badge { border-radius: 10px; padding: 8px 12px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.08); }
+:where(body:not(.mobile)) .close-company { border-radius: 10px; }
+
+/* المحتوى */
+:where(body:not(.mobile)) .content { padding: 26px 34px 48px; }
+:where(body:not(.mobile)) .page-header { margin-bottom: 20px; }
+:where(body:not(.mobile)) .page-header h2 { font-size: 25px; font-weight: 800; letter-spacing: -0.3px; }
+:where(body:not(.mobile)) .card { border-radius: 14px; padding: 18px 20px; border-color: var(--border); box-shadow: var(--shadow); }
+:where(body:not(.mobile)) .card > h3:first-child { font-size: 16.5px; font-weight: 800; }
+
+/* الأزرار والحقول */
+:where(body:not(.mobile)) button { border-radius: 9px; padding: 7px 15px; transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.1s; }
+:where(body:not(.mobile)) button:hover:not(:disabled) { border-color: #c9d3cf; }
+:where(body:not(.mobile)) button:active:not(:disabled) { transform: translateY(1px); }
+:where(body:not(.mobile)) button.primary { background: linear-gradient(180deg, #13806b, var(--primary)); border-color: #0d6352; box-shadow: 0 1px 0 rgba(255, 255, 255, 0.15) inset, 0 2px 6px rgba(15, 110, 92, 0.25); }
+:where(body:not(.mobile)) button.primary:hover:not(:disabled) { background: linear-gradient(180deg, #0f725f, #0b5a4b); }
+:where(body:not(.mobile)) button.primary.accent { background: linear-gradient(180deg, #d27a30, var(--accent)); border-color: #a8561a; box-shadow: 0 2px 6px rgba(194, 103, 28, 0.25); }
+:where(body:not(.mobile)) button.ghost { box-shadow: none; }
+:where(body:not(.mobile)) button.ghost:hover:not(:disabled) { border-color: transparent; background: var(--primary-soft); }
+:where(body:not(.mobile)) button.link, :where(body:not(.mobile)) .sidebar nav button { transform: none !important; }
+:where(body:not(.mobile)) button.big { padding: 11px 22px; border-radius: 11px; }
+:where(body:not(.mobile)) button.small { border-radius: 7px; }
+:where(body:not(.mobile)) input, :where(body:not(.mobile)) select, :where(body:not(.mobile)) textarea { border-radius: 9px; padding: 8px 11px; }
+:where(body:not(.mobile)) input:hover:not(:focus):not(:disabled), :where(body:not(.mobile)) select:hover:not(:focus):not(:disabled) { border-color: #c9d3cf; }
+:where(body:not(.mobile)) input[type='checkbox'], :where(body:not(.mobile)) input[type='radio'] { padding: 0; accent-color: var(--primary); }
+:where(body:not(.mobile)) .field > span { font-size: 12.5px; color: #5d6676; font-weight: 700; }
+:root[data-theme='dark'] :where(body:not(.mobile)) .field > span { color: var(--muted); }
+:root[data-theme='dark'] :where(body:not(.mobile)) button:hover:not(:disabled), :root[data-theme='dark'] :where(body:not(.mobile)) input:hover:not(:focus):not(:disabled) { border-color: #3a4a46; }
+
+/* التبويبات */
+:where(body:not(.mobile)) .segmented { border-radius: 11px; padding: 3px; gap: 2px; background: #e8edeb; border-color: transparent; }
+:where(body:not(.mobile)) .segmented button { border: none; border-radius: 8px; padding: 6px 14px; background: transparent; color: #4a5563; font-weight: 600; }
+:where(body:not(.mobile)) .segmented button:hover:not(:disabled) { background: rgba(255, 255, 255, 0.6); }
+:where(body:not(.mobile)) .segmented button.active { background: #fff; color: var(--primary); box-shadow: 0 1px 3px rgba(16, 24, 40, 0.12); }
+:root[data-theme='dark'] :where(body:not(.mobile)) .segmented { background: #0f1715; }
+:root[data-theme='dark'] :where(body:not(.mobile)) .segmented button { color: var(--muted); }
+:root[data-theme='dark'] :where(body:not(.mobile)) .segmented button.active { background: var(--surface); color: #fff; }
+
+/* الجداول */
+:where(body:not(.mobile)) .page > .table, :where(body:not(.mobile)) .card > .table { border-radius: 14px; }
+:where(body:not(.mobile)) .table th { font-size: 12px; font-weight: 700; color: #6a7484; background: #f6f8f7; padding: 11px 12px; border-bottom-color: var(--border); }
+:where(body:not(.mobile)) .table td { padding: 10px 12px; border-bottom-color: #edf1ef; }
+:where(body:not(.mobile)) .table tbody tr:last-child td { border-bottom: none; }
+:where(body:not(.mobile)) .table tbody tr:hover td { background: var(--row); }
+:where(body:not(.mobile)) .table tr.clickable:hover td { background: #eef6f3; }
+:where(body:not(.mobile)) .table tfoot td { background: #f6f8f7; border-top: 1px solid var(--border); }
+:root[data-theme='dark'] :where(body:not(.mobile)) .table th, :root[data-theme='dark'] :where(body:not(.mobile)) .table tfoot td { background: #1c2725; color: var(--muted); }
+:root[data-theme='dark'] :where(body:not(.mobile)) .table td { border-bottom-color: var(--border); }
+:root[data-theme='dark'] :where(body:not(.mobile)) .table tr.clickable:hover td { background: rgba(26, 154, 128, 0.1); }
+
+/* بطاقات الأرقام */
+:where(body:not(.mobile)) .stats { gap: 14px; }
+:where(body:not(.mobile)) .stat { border-radius: 14px; padding: 16px 18px; position: relative; overflow: hidden; }
+:where(body:not(.mobile)) .stat::before { content: ''; position: absolute; inset-inline-start: 0; top: 14px; bottom: 14px; width: 3px; border-radius: 3px; background: var(--primary); opacity: 0.55; }
+:where(body:not(.mobile)) .stat.good::before { background: var(--good); opacity: 0.8; }
+:where(body:not(.mobile)) .stat.bad::before { background: var(--danger); opacity: 0.8; }
+:where(body:not(.mobile)) .stat.warn::before { background: var(--warn); opacity: 0.8; }
+:where(body:not(.mobile)) .stat span { font-size: 12.5px; font-weight: 600; }
+:where(body:not(.mobile)) .stat strong { font-size: 21px; font-weight: 800; letter-spacing: -0.3px; }
+
+/* النوافذ */
+:where(body:not(.mobile)) .modal-backdrop { background: rgba(12, 22, 20, 0.42); backdrop-filter: blur(3px); animation: wz-fade 0.15s ease-out; }
+:where(body:not(.mobile)) .modal { border-radius: 18px; box-shadow: var(--shadow-lg); animation: wz-pop 0.18s ease-out; }
+:where(body:not(.mobile)) .modal header { padding: 16px 22px; }
+:where(body:not(.mobile)) .modal header h3 { font-size: 17px; font-weight: 800; }
+:where(body:not(.mobile)) .modal-body { padding: 20px 22px; }
+@keyframes wz-fade { from { opacity: 0; } }
+@keyframes wz-pop { from { opacity: 0; transform: translateY(8px) scale(0.985); } }
+
+/* دخول ناعم للشاشة */
+:where(body:not(.mobile)) .content > .page { animation: wz-page 0.22s ease-out; }
+@keyframes wz-page { from { opacity: 0; transform: translateY(6px); } }
+
+/* متفرقات */
+:where(body:not(.mobile)) .banner { border-radius: 12px; }
+:where(body:not(.mobile)) .empty { border-radius: 14px; }
+:where(body:not(.mobile)) .toast { border-radius: 12px; box-shadow: var(--shadow-lg); }
+:where(body:not(.mobile)) ::-webkit-scrollbar { width: 10px; height: 10px; }
+:where(body:not(.mobile)) ::-webkit-scrollbar-thumb { background: rgba(100, 116, 112, 0.28); border-radius: 10px; border: 2px solid transparent; background-clip: padding-box; }
+:where(body:not(.mobile)) ::-webkit-scrollbar-thumb:hover { background-color: rgba(100, 116, 112, 0.45); }
+@media (prefers-reduced-motion: reduce) {
+  :where(body:not(.mobile)) .content > .page, :where(body:not(.mobile)) .modal, :where(body:not(.mobile)) .modal-backdrop { animation: none; }
+}
+body.mobile .auth .welcome .segmented.welcome-tabs { display: grid; grid-template-columns: 1fr 1fr; width: 100%; gap: 0; }
+body.mobile .auth .welcome-tabs button { white-space: normal; }
+body.mobile .wizard-steps { gap: 6px; }
+body.mobile .wizard-steps li { white-space: nowrap; gap: 6px; flex: 0 1 auto; }
+body.mobile .wizard-steps li:not(:last-child)::after { min-width: 10px; }
+body.mobile .wizard-steps li:not(.on) { font-size: 0; gap: 0; }
+body.mobile .wizard-steps li:not(.on) > span { font-size: 13px; }
+body.mobile .wizard-steps li { flex: 1 1 auto; }
+body.mobile .act-choose { padding: 14px; gap: 12px; }
+body.mobile .act-choose .act-icon { width: 46px; height: 46px; min-width: 46px; flex: 0 0 46px; }

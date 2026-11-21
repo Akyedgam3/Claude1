@@ -1025,6 +1025,14 @@ export class Ledger {
     return changed;
   }
 
+  /** تصحيح لمرة وحدة (2.0.1): العمولات القديمة اللي ما لحقت تصحيح التكلفة بتنحسب من الربح الصح. */
+  syncCommissionsOnce(): number {
+    if (!this.state.info || this.state.info.commissionsCostSynced) return 0;
+    const n = this.syncCommissions();
+    this.updateCompany({ commissionsCostSynced: true });
+    return n;
+  }
+
   /**
    * «صفّر الزيادة»: المسوّق أخد أكتر من عمولته (مثلاً انعطى حسب الحساب القديم من قيمة الفاتورة).
    * بدل ما تضل دين عليه، بتنسجّل مصروف عمولة إضافية فبيرجع حسابه صفر. كل عملة لحالها.
@@ -1063,6 +1071,30 @@ export class Ledger {
     if (!list.length) fail('ما في تصفير زيادة لهالمسوّق');
     for (const e of list) this.emit({ type: 'entry.posted', entry: this.reversal(e, date) });
     return list.length;
+  }
+
+  /**
+   * عمولات فواتير المسوّقين (نظام «من الربح») بتتبع تكلفة الفاتورة: إذا التكلفة تصحّحت بعد الحفظ (بيع قبل إدخال الشراء،
+   * تعديل سعر الشراء، إلغاء أو تعديل فاتورة شراء) القيد القديم بينعكس بتاريخ الفاتورة وبتنسجّل العمولة الصح. الفترات المقفلة ما بتتغيّر.
+   */
+  syncCommissions(ids?: Set<string>): number {
+    if (ids && !ids.size) return 0;
+    const locked = this.state.info?.lockedUntil;
+    let n = 0;
+    for (const inv of [...this.state.invoices]) {
+      if ((ids && !ids.has(inv.id)) || !inv.marketerId || inv.kind !== 'sale' || inv.voidEntryId) continue;
+      if (locked && inv.date <= locked) continue;
+      const m = this.state.parties[inv.marketerId];
+      if (!isMarketer(m) || (m.commissionMode && m.commissionMode !== 'profit')) continue;
+      const olds = this.state.entries.filter((e) => e.source?.type === 'commission' && e.source.id === inv.id && !this.state.voided[e.id] && !e.voidOf);
+      const old = olds.reduce((t, e) => t + e.lines.filter((l) => l.partyId === m.id).reduce((x, l) => x + l.credit - l.debit, 0), 0);
+      const next = this.commissionAmount(inv, m);
+      if (old === next) continue;
+      for (const e of olds) this.emit({ type: 'entry.posted', entry: this.reversal(e, inv.date) });
+      this.postCommission(inv);
+      n++;
+    }
+    return n;
   }
 
   /** عمولة المسوّق عن فاتورة: مصروف «عمولات المسوّقين» ودين إلو (بيتصفّى بسند دفع). */
@@ -1646,6 +1678,8 @@ export class Ledger {
       number: this.state.entries.length + 1 + k,
     }));
     this.emit({ type: 'costs.corrected', lines: plan.lines, entries, stock: plan.stock });
+    // عمولة المسوّق (من الربح) بتلحق التكلفة المصحّحة، وإلا بتضل محسوبة على تكلفة غلط (أو صفر)
+    this.syncCommissions(new Set(plan.lines.filter((l) => l.doc === 'invoice').map((l) => l.id)));
     return new Set(plan.docs.map((d) => d.id)).size;
   }
 

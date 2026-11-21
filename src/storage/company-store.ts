@@ -269,6 +269,7 @@ export class CompanyStore {
       try {
         const d = new Date();
         store.ledger.fixCommissionsOnce(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+        store.ledger.syncCommissionsOnce();
       } catch {
         // التصحيح مش ضروري لفتح الشركة: بيتجرّب بالمرة الجاية، وفي زر بقسم المسوّقين
       }

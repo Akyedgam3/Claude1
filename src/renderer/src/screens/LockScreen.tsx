@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import logo from '../assets/logo.png';
 import { api, IS_MOBILE, IS_WEB, type AppInfo } from '../api';
-import { ConnectForm } from './Welcome';
+import { AuthShell, ConnectForm } from './Welcome';
 import { CloudConnectForm } from '../cloud/CloudConnect';
 
 /** يظهر عند عدم وجود ترخيص صالح: لا يمكن فتح أي شركة على هذا الجهاز. */
@@ -26,14 +25,14 @@ export function LockScreen({ info, onChanged, notify }: { info: AppInfo; onChang
   };
 
   return (
+    <AuthShell info={info}>
     <div className="welcome lock">
-      <div className="welcome-hero">
-        <img src={logo} alt="" className="hero-logo" />
-        <div className="logo big">وزن</div>
-        <p>نظام محاسبة لكل المصالح والتجارات</p>
+      <div className="auth-head">
+        <h2>{lic.reason === 'none' ? 'تفعيل البرنامج' : 'البرنامج متوقف'}</h2>
+        <p className="muted">{lic.reason === 'none' ? 'خطوة وحدة وبتبلّش: اكتب كود التفعيل اللي وصلك.' : 'جدّد الترخيص أو تحقّق من جديد لترجع تشتغل.'}</p>
       </div>
       <section className="card lock-card">
-        <h3>{lic.reason === 'none' ? 'تفعيل البرنامج' : 'البرنامج متوقف'}</h3>
+        <h3>{lic.reason === 'none' ? 'كود التفعيل' : 'تجديد الترخيص'}</h3>
         {lic.message && <div className={`banner ${lic.reason === 'none' ? '' : 'bad'}`}>{lic.message}</div>}
         <div className="kv">
           <span>بصمة الجهاز</span>
@@ -101,7 +100,7 @@ export function LockScreen({ info, onChanged, notify }: { info: AppInfo; onChang
           </div>
         )}
       </section>
-      <footer className="muted">الإصدار {info.version}</footer>
     </div>
+    </AuthShell>
   );
 }

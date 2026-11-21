@@ -189,12 +189,13 @@ test('users: a cashier sees only what the role allows', async () => {
 
     await page.getByRole('button', { name: 'تسجيل الخروج' }).click();
     await page.locator('.recent button').first().click();
-    await m.locator('select').selectOption('samer');
-    await m.locator('input[type=password]').fill('wrongpass');
-    await m.getByRole('button', { name: 'دخول', exact: true }).click();
+    const lg = page.locator('.login-panel');
+    await lg.locator('[data-user="samer"]').click();
+    await lg.locator('input[type=password]').fill('wrongpass');
+    await lg.getByRole('button', { name: 'دخول', exact: true }).click();
     await expect(page.locator('.toast.error')).toContainText('غير صحيحة');
-    await m.locator('input[type=password]').fill('samer123');
-    await m.getByRole('button', { name: 'دخول', exact: true }).click();
+    await lg.locator('input[type=password]').fill('samer123');
+    await lg.getByRole('button', { name: 'دخول', exact: true }).click();
     await expect(page.locator('.user-chip')).toContainText('سامر');
     await expect(page.locator('.sidebar nav')).toContainText('فاتورة مبيع');
     await expect(page.locator('.sidebar nav')).not.toContainText('فاتورة شراء');
