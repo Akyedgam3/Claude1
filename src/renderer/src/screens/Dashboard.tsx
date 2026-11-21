@@ -183,9 +183,16 @@ export function Dashboard() {
             {state.info?.name} · {profile.name} · {dateText(d)}
           </div>
         </div>
-        <button className="ghost dash-customize" onClick={() => setCustomizing(true)} title="اختار الأزرار والإحصائيات اللي بدك ياها بالشاشة الرئيسية">
-          <Icon name="customize" size={18} /> تخصيص الشاشة
-        </button>
+        <div className="dash-head-actions">
+          {can('reports.financial') && (
+            <button className="primary dash-mgmt" onClick={() => navigate('management')} title="تحليل كامل للشغل: الفترة، المقارنة، الأفضل، الذروة، المصاريف والديون">
+              <Icon name="chart" size={18} /> لوحة الإدارة
+            </button>
+          )}
+          <button className="ghost dash-customize" onClick={() => setCustomizing(true)} title="اختار الأزرار والإحصائيات اللي بدك ياها بالشاشة الرئيسية">
+            <Icon name="customize" size={18} /> تخصيص الشاشة
+          </button>
+        </div>
       </div>
 
       <div className="quick-actions">

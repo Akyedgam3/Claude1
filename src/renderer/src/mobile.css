@@ -1195,3 +1195,10 @@ body.mobile .welcome-tabs button:nth-child(even) { border-inline-start: 1px soli
   body.mobile .content table.cj-lines td:first-child { grid-column: auto; padding-inline-end: 0; }
   body.mobile .content table.cj-lines td:nth-child(4) { grid-column: 1 / -1; }
 }
+
+/* لوحة الإدارة عالجوال: مؤشرين بكل سطر */
+body.mobile .mgmt-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+body.mobile .mgmt-kpi { padding: 10px 12px; }
+body.mobile .mgmt-kpi b { font-size: 16px; }
+body.mobile .mgmt-presets { overflow-x: auto; flex-wrap: nowrap; max-width: 100%; }
+body.mobile .mgmt-presets button { white-space: nowrap; }

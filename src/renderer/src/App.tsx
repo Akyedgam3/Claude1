@@ -59,6 +59,7 @@ import { Tour } from './components/Tour';
 import { Vouchers } from './screens/Vouchers';
 import { CashJournal } from './screens/CashJournal';
 import { PriceLists } from './screens/PriceLists';
+import { Management } from './screens/Management';
 import { Welcome } from './screens/Welcome';
 import { useCloudHost } from './cloud/useCloudHost';
 import { WebConnect } from './cloud/WebConnect';
@@ -557,6 +558,8 @@ function Screen({ screen }: { screen: { key: string; param?: string } }) {
       return <CashJournal />;
     case 'pricelists':
       return <PriceLists />;
+    case 'management':
+      return <Management />;
     case 'vouchers':
       return <Vouchers key={p ?? ''} {...(p === 'payment' || p === 'receipt' ? { initialKind: p } : p?.startsWith('edit:') ? { editId: p.slice(5) } : {})} />;
     case 'rates':

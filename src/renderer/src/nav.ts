@@ -17,6 +17,7 @@ export interface NavItem {
 
 export const NAV: (NavItem | string)[] = [
   { key: 'dashboard', label: 'الرئيسية', icon: 'home' },
+  { key: 'management', label: 'لوحة الإدارة', icon: 'chart', perm: 'reports.financial' },
   // الصندوق فوق كل شي حتى يلتقى بسرعة (F10)
   { key: 'cashbox', label: 'الصندوق', icon: 'wallet', perms: ['reports.financial', 'vouchers.create'] },
   'الأجهزة والإلكترونيات',
