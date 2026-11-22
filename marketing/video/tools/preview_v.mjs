@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module';
-const require = createRequire('/home/user/Claude1/package.json');
+const require = createRequire(import.meta.url);
 const { chromium } = require('@playwright/test');
 const [dir, out, ...times] = process.argv.slice(2);
 const b = await chromium.launch();
