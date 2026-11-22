@@ -735,7 +735,7 @@ export class RegistryDO extends DurableObject<Env> {
         }, str('agentId') && !(body['charge'] === true || body['charge'] === 'on') ? { free: true } : {}),
       );
     }
-    const mc = /^\/api\/customers\/([^/]+)\/(extend|status|update|cloud|phone|reissue)$/.exec(path);
+    const mc = /^\/api\/customers\/([^/]+)\/(extend|status|update|cloud|phone|reissue|transfer)$/.exec(path);
     if (mc && req.method === 'POST') {
       const [, id, action] = mc;
       if (action !== 'status' && action !== 'cloud') needKey();
@@ -754,6 +754,8 @@ export class RegistryDO extends DurableObject<Env> {
       if (action === 'phone') return touch(reg.addPhone(id!, str('machineId')));
       // امسح وفعّل من جديد: نفس البصمة (أو بصمة جديدة إذا انبعتت)، كود تفعيل جديد
       if (action === 'reissue') return touch(reg.reissue(id!, str('machineId') || undefined));
+      // نقل الرخصة لوكيل (أو رجّعها مباشر)، مع خصم من رصيده أو بدون
+      if (action === 'transfer') return touch(reg.transfer(id!, str('agentId') || null, { charge: body['charge'] === true || body['charge'] === 'on' }));
       return touch(
         reg.update(id!, {
           ...(body['name'] !== undefined ? { name: str('name') } : {}),

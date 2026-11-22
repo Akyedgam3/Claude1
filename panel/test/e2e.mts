@@ -191,6 +191,26 @@ check(up.status === 200 && up.plan === 'lifetime', `owner switched an agent cust
   await p.locator('nav.tabs button', { hasText: 'الوكلاء' }).first().click();
   await p.waitForTimeout(500);
 }
+// نقل رخصة مباشرة لوكيل من الواجهة (بدون خصم)، والمفتاح ما بيتغيّر
+{
+  const st0 = await p.evaluate(async () => (await fetch('/api/state')).json());
+  const target = st0.customers.find((x: { phoneOf?: string; status: string; replacedBy?: string; agentId?: string }) => !x.phoneOf && x.status === 'active' && !x.replacedBy && !x.agentId);
+  const ag = st0.agents.find((a: { active: boolean }) => a.active);
+  await p.reload();
+  await p.locator('nav.tabs button', { hasText: 'الزباين' }).first().click();
+  const row = p.locator('.item', { hasText: target.name }).filter({ has: p.locator('[data-c="transfer"]') }).first();
+  await row.locator('[data-c="transfer"]').click();
+  await p.locator('.modal select[name="agentId"]').selectOption(ag.id);
+  await p.screenshot({ path: `${OUT}/panel-transfer.png` });
+  await p.locator('.modal button.primary', { hasText: 'نقل' }).click();
+  const ok = await sawToast(p, 'تم النقل');
+  const st1 = await p.evaluate(async () => (await fetch('/api/state')).json());
+  const moved = st1.customers.find((x: { id: string }) => x.id === target.id);
+  const used = (id: string, st: { agents: { id: string; uses: unknown[] }[] }) => st.agents.find((a) => a.id === id)!.uses.length;
+  check(ok && moved.agentId === ag.id && moved.key === target.key && used(ag.id, st1) === used(ag.id, st0), `owner moves a direct license to an agent without charge (${ok}, ${moved.agentId === ag.id})`);
+  await p.locator('nav.tabs button', { hasText: 'الوكلاء' }).first().click();
+  await p.waitForTimeout(500);
+}
 // الاتصال عن بعد كاشتراك: المدير بيفعّل سنوي لزبون، والوكيل بياخد رصيد عن بعد بمدة وبيفعّل منه
 {
   const res = (await p.evaluate(`(async () => {

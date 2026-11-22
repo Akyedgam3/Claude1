@@ -552,6 +552,36 @@ export class RegistryCore {
     return c;
   }
 
+  /**
+   * نقل رخصة لوكيل (أو رجّعها زبون مباشر بـ agentId فاضي): الوكيل بيصير يتحكم فيها من لوحته (تجديد، عن بعد...).
+   * المفتاح والكود ما بيتغيّروا، والزبون ما بيحس بشي. charge: بتنخصم رخصة من رصيد الوكيل متل كأنه هو فعّلها.
+   * مفاتيح الجوال التابعة بتنتقل معها.
+   */
+  transfer(id: string, agentId: string | null, opts: { charge?: boolean } = {}): Customer {
+    const c = this.find(id);
+    if (c.phoneOf) throw new Error('هاد مفتاح جوال. انقل رخصة الكمبيوتر تبعه وبينتقل معها');
+    const agent = agentId ? this.agent(agentId) : null;
+    if ((c.agentId ?? null) === (agent?.id ?? null)) throw new Error(agent ? `الزبون أصلاً تابع لـ ${agent.name}` : 'الزبون أصلاً مباشر');
+    if (agent && !agent.active) throw new Error('هذا الوكيل موقوف');
+    const from = c.agentId ? this.agents.find((a) => a.id === c.agentId) : undefined;
+    let charged: { kind: AgentKind; mobile?: boolean } | null = null;
+    if (agent && opts.charge) {
+      if (c.trial) throw new Error('ما فيك تخصم على نسخة تجربة');
+      charged = agentCharge(agent, c.plan === 'lifetime' ? 'lifetime' : c.plan === 'monthly' ? 'monthly' : 'annual', c.mobile);
+    }
+    const now = new Date().toISOString();
+    const action = agent ? `انتقل للوكيل ${agent.name}${opts.charge ? '' : ' (بدون خصم من رصيده)'}${from ? ` من الوكيل ${from.name}` : ''}` : `صار زبون مباشر${from ? ` (كان عند الوكيل ${from.name})` : ''}`;
+    for (const x of [c, ...this.data.customers.filter((p) => p.phoneOf === c.id)]) {
+      if (agent) x.agentId = agent.id;
+      else delete x.agentId;
+      x.history.push({ at: now, action });
+    }
+    if (agent && charged) agent.uses.push({ at: now, customerId: c.id, action: 'issue', ...charged });
+    this.note(`نقل ${c.name}: ${action}`, { customerId: c.id, ...(agent ? { agentId: agent.id } : from ? { agentId: from.id } : {}) });
+    this.save();
+    return c;
+  }
+
   setStatus(id: string, status: FeedStatus, message?: string): Customer {
     const c = this.find(id);
     c.status = status;

@@ -104,3 +104,30 @@ describe('registry: remote connection as a subscription', () => {
     expect(reg.find(c.id)).toMatchObject({ cloud: true, cloudPlan: 'annual' });
   });
 });
+
+describe('registry: move a license to an agent', () => {
+  it('moves with its phone key, optionally charging, and back to direct', () => {
+    const reg = new RegistryCore({ customers: [], agents: [] }, key);
+    const a = reg.addAgent({ name: 'وكيل حمص' });
+    const b = reg.addAgent({ name: 'وكيل حماة' });
+    reg.addPackage(a.id, { kind: 'annual', count: 1, mobile: true });
+    const c = reg.add({ name: 'محل', machineId: M, plan: 'annual', mobile: true });
+    const ph = reg.addPhone(c.id, '9F9F-9F9F-9F9F-9F9F');
+    const keyBefore = c.key;
+    const used = () => reg.agent(a.id).uses.length;
+    reg.transfer(c.id, a.id);
+    expect(reg.find(c.id).agentId).toBe(a.id);
+    expect(reg.find(ph.id).agentId).toBe(a.id);
+    expect(used()).toBe(0);
+    expect(reg.find(c.id).key).toBe(keyBefore);
+    expect(() => reg.transfer(c.id, a.id)).toThrow(/أصلاً/);
+    expect(() => reg.transfer(ph.id, b.id)).toThrow(/جوال/);
+    reg.transfer(c.id, null);
+    expect(reg.find(c.id).agentId).toBeUndefined();
+    reg.transfer(c.id, a.id, { charge: true });
+    expect(used()).toBe(1);
+    expect(() => reg.transfer(c.id, b.id, { charge: true })).toThrow(/خلص/);
+    reg.transfer(c.id, b.id);
+    expect(reg.find(c.id).agentId).toBe(b.id);
+  });
+});
