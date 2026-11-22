@@ -152,6 +152,8 @@ export function CommercialDoc({ model, className, preview }: { model: DocModel; 
             <strong>{m.value}</strong>
           </div>
         ))}
+        {/* الختم بالخانة الفاضية جنب التاريخ (مكانه ثابت مهما كان طول الترويسة، وما بيغطّي الجدول) */}
+        {showStamp && model.stamp !== 'void' && <div className={`doc-stamp in-info ${model.stamp}`}>{STAMP_TEXT[model.stamp!]}</div>}
       </section>
       {model.refs && model.refs.length > 0 && (
         <div className="doc-refs">
@@ -235,7 +237,7 @@ export function CommercialDoc({ model, className, preview }: { model: DocModel; 
         </div>
       </section>
 
-      {showStamp && <div className={`doc-stamp ${model.stamp}`}>{STAMP_TEXT[model.stamp!]}</div>}
+      {showStamp && model.stamp === 'void' && <div className={`doc-stamp ${model.stamp}`}>{STAMP_TEXT[model.stamp!]}</div>}
       {p.terms && <div className="doc-terms">{p.terms}</div>}
       {signatures && (
         <div className="doc-signatures">

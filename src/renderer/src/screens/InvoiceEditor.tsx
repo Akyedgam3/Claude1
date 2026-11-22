@@ -475,11 +475,25 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
   };
 
   /** بعد اختيار المادة: المؤشر على الكمية؛ Enter بالكمية أو السعر بينقل لسطر المادة الجاية. */
-  const focusQty = (key: string) => setTimeout(() => document.querySelector<HTMLInputElement>(`tr[data-line="${key}"] .qty-cell input`)?.select(), 30);
+  // بالشاشات الصغيرة الأسطر بتنزّل خانة «أضف مادة» لتحت: منجيبها لنص الشاشة لحالها (مع مطرح لقائمة الاقتراحات) بدل ما يعمل سكرول
+  const bringUp = (el: HTMLElement | null | undefined) => {
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    if (r.top < 80 || r.bottom > window.innerHeight * 0.6) el.scrollIntoView({ block: 'center' });
+  };
+  const focusQty = (key: string) =>
+    setTimeout(() => {
+      const input = document.querySelector<HTMLInputElement>(`tr[data-line="${key}"] .qty-cell input`);
+      // السطر الفاضي اللي بعده (لإضافة المادة الجاية) لازم يضل باين
+      bringUp(input?.closest('tr')?.nextElementSibling as HTMLElement | null);
+      input?.select();
+    }, 30);
   const focusNextItem = () =>
     setTimeout(() => {
       const rows = document.querySelectorAll<HTMLElement>('table.lines tbody tr');
-      rows[rows.length - 1]?.querySelector<HTMLInputElement>('.with-button input')?.focus();
+      const input = rows[rows.length - 1]?.querySelector<HTMLInputElement>('.with-button input');
+      input?.focus({ preventScroll: true });
+      bringUp(input);
     }, 30);
   const enterNext = (e: { key: string; ctrlKey: boolean; preventDefault: () => void }) => {
     if (e.key === 'Enter' && !e.ctrlKey) {
@@ -1039,7 +1053,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
                       </div>
                     ) : (
                       <>
-                        <div className="with-button">
+                        <div className="with-button" onFocus={(e) => bringUp(e.currentTarget)}>
                           <Picker options={items} value={null} onChange={(id) => chooseItem(l.key, id)} placeholder="ابحث عن مادة..." filter={(o, q) => itemMatches((o as (typeof items)[number]).item, q)} />
                           {can('items.manage') && (
                             <button type="button" className="icon" title="مادة جديدة" onClick={() => setNewItem(l.key)}>

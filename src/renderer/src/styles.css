@@ -1972,6 +1972,18 @@ strong.good {
   opacity: 0.55;
   pointer-events: none;
 }
+.invoice-doc .doc-stamp.in-info {
+  position: relative;
+  top: auto;
+  left: auto;
+  grid-column: -2 / -1;
+  justify-self: center;
+  align-self: center;
+  transform: rotate(-10deg);
+  font-size: 24px;
+  padding: 2px 16px;
+  white-space: nowrap;
+}
 .invoice-doc .doc-stamp.paid {
   color: #1e8a4c;
 }
@@ -4075,6 +4087,13 @@ body.mobile .share-preview { max-height: 46vh; }
   body[data-paper='label'] .label:last-child { break-after: auto; page-break-after: auto; }
   body[data-paper='label'] .modal-body > :not(.labels) { display: none !important; }
   body[data-paper='label'] .modal, body[data-paper='label'] .modal-body { padding: 0 !important; margin: 0 !important; border: none !important; border-radius: 0 !important; overflow: visible !important; }
+  /* الملصق بالملي: الصفحة = الملصق بالضبط. كانت النافذة (flex بالنص وعرضها صفر) تزيح الملصق كم ملي لجنب */
+  html:has(body[data-paper='label']), body[data-paper='label'], body[data-paper='label'] .modal-backdrop, body[data-paper='label'] .modal, body[data-paper='label'] .modal-body {
+    display: block !important; position: static !important; width: 100% !important; min-width: 0 !important; max-width: none !important; height: auto !important; margin: 0 !important; padding: 0 !important; transform: none !important; animation: none !important; overflow: visible !important; background: #fff !important;
+  }
+  body[data-paper='label'] .labels { width: var(--lw); margin: 0 !important; padding: 0 !important; }
+  body[data-paper='label'] .label { margin: 0 !important; }
+  body[data-paper='label'] .label .barcode { width: 100%; margin: 0 auto; }
 }
 
 /* كشف الحساب مع تفاصيل المواد */
