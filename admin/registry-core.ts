@@ -35,6 +35,8 @@ export interface Customer {
   trial?: boolean;
   /** «امسح وفعّل من جديد»: هالرخصة انلغت وحلّت محلها رخصة جديدة (نفس البصمة، كود تاني). */
   replacedBy?: string;
+  /** «حذف نهائي» لرخصة ملغاة: بتختفي من اللوحة، بس بتضل بالقائمة «ملغاة» (إذا انشالت من القائمة مفتاحها بيرجع يمشي). */
+  removed?: boolean;
 }
 
 export const TRIAL_MAX_DAYS = 7;
@@ -548,6 +550,22 @@ export class RegistryCore {
     old.replacedBy = c.id;
     this.data.customers.push(c);
     this.note(`امسح وفعّل من جديد: ${c.name} (كود جديد)`, { customerId: c.id, ...(c.agentId ? { agentId: c.agentId } : {}) });
+    this.save();
+    return c;
+  }
+
+  /** حذف رخصة ملغاة من اللوحة (ومفاتيح جوالها). بتضل بقائمة الحالة «ملغاة» حتى ما يرجع يمشي مفتاحها. */
+  removeCustomer(id: string): Customer {
+    const c = this.find(id);
+    if (c.status !== 'revoked') throw new Error('بس الرخصة الملغاة بتنحذف. ألغيها أول.');
+    for (const x of [c, ...this.data.customers.filter((p) => p.phoneOf === c.id)]) {
+      if (x.status !== 'revoked') {
+        x.status = 'revoked';
+        delete x.message;
+      }
+      x.removed = true;
+    }
+    this.note(`حذف ${c.name} نهائياً (رخصة ملغاة)`, { customerId: c.id, ...(c.agentId ? { agentId: c.agentId } : {}) });
     this.save();
     return c;
   }

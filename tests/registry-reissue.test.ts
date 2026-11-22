@@ -156,3 +156,18 @@ describe('registry: delete an agent permanently', () => {
     expect(feed.entries[c.id]!.status).toBe('active');
   });
 });
+
+describe('registry: remove a revoked customer from the panel', () => {
+  it('only revoked ones, and they stay revoked in the feed', () => {
+    const reg = new RegistryCore({ customers: [], agents: [] }, key);
+    const c = reg.add({ name: 'ملغى', machineId: M, plan: 'lifetime' });
+    expect(() => reg.removeCustomer(c.id)).toThrow(/ألغيها/);
+    reg.setStatus(c.id, 'revoked');
+    reg.removeCustomer(c.id);
+    expect(reg.find(c.id).removed).toBe(true);
+    const feed = parseFeed(reg.buildFeed().text, publicKeyFromPrivate(key))!;
+    expect(feed.entries[c.id]!.status).toBe('revoked');
+    // نفس البصمة بتتفعّل من جديد عادي
+    expect(reg.add({ name: 'جديد', machineId: M, plan: 'annual' }).status).toBe('active');
+  });
+});

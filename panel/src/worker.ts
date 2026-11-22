@@ -590,7 +590,7 @@ export class RegistryDO extends DurableObject<Env> {
     if (s.role === 'agent') {
       const agent = reg.agent(s.agentId!);
       reg.actor = agent.name;
-      const mine = () => reg.customers.filter((c) => c.agentId === agent.id);
+      const mine = () => reg.customers.filter((c) => c.agentId === agent.id && !c.removed);
       const own = (id: string) => {
         const c = reg.find(id);
         if (c.agentId !== agent.id) throw new HttpError(403, 'هالزبون مش من زباينك');
@@ -735,7 +735,7 @@ export class RegistryDO extends DurableObject<Env> {
         }, str('agentId') && !(body['charge'] === true || body['charge'] === 'on') ? { free: true } : {}),
       );
     }
-    const mc = /^\/api\/customers\/([^/]+)\/(extend|status|update|cloud|phone|reissue|transfer)$/.exec(path);
+    const mc = /^\/api\/customers\/([^/]+)\/(extend|status|update|cloud|phone|reissue|transfer|remove)$/.exec(path);
     if (mc && req.method === 'POST') {
       const [, id, action] = mc;
       if (action !== 'status' && action !== 'cloud') needKey();
@@ -755,6 +755,7 @@ export class RegistryDO extends DurableObject<Env> {
       // امسح وفعّل من جديد: نفس البصمة (أو بصمة جديدة إذا انبعتت)، كود تفعيل جديد
       if (action === 'reissue') return touch(reg.reissue(id!, str('machineId') || undefined));
       // نقل الرخصة لوكيل (أو رجّعها مباشر)، مع خصم من رصيده أو بدون
+      if (action === 'remove') return touch(reg.removeCustomer(id!));
       if (action === 'transfer') return touch(reg.transfer(id!, str('agentId') || null, { charge: body['charge'] === true || body['charge'] === 'on' }));
       return touch(
         reg.update(id!, {

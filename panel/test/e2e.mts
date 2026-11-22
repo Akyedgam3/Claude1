@@ -231,6 +231,24 @@ check(up.status === 200 && up.plan === 'lifetime', `owner switched an agent cust
   const login = await fetch(`${BASE}/api/login`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Wazn': '1' }, body: JSON.stringify({ username: 'todelete', password: created.password }) });
   check(ok && !st.agents.some((a: { id: string }) => a.id === created.id) && cust.status === 'active' && !cust.agentId && login.status !== 200, `delete agent permanently (${ok}, login ${login.status})`);
 }
+// حذف زبون ملغى نهائياً: بيختفي من اللوحة وبيضل «ملغى» بالقائمة
+{
+  const cid = (await p.evaluate(`(async () => {
+    const post = (u, b) => fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Wazn': '1' }, body: JSON.stringify(b) }).then((r) => r.json());
+    const c = await post('/api/customers', { name: 'زبون للحذف', machineId: '8181-8282-8383-8484', plan: 'annual', devices: 2 });
+    await post('/api/customers/' + c.id + '/status', { status: 'revoked', message: '' });
+    return c.id;
+  })()`)) as string;
+  await p.reload();
+  await p.locator('nav.tabs button', { hasText: 'الزباين' }).first().click();
+  await p.locator(`[data-c="remove"][data-id="${cid}"]`).click();
+  const ok = await sawToast(p, 'انحذف');
+  const st = await p.evaluate(async () => (await fetch('/api/state')).json());
+  const gone = (await p.locator('.item', { hasText: 'زبون للحذف' }).count()) === 0;
+  const row = st.customers.find((x: { id: string }) => x.id === cid);
+  check(ok && gone && row?.removed && row.status === 'revoked', `remove a revoked customer (${ok}, ${gone}, ${row?.removed}, ${row?.status})`);
+  await p.locator('nav.tabs button', { hasText: 'الوكلاء' }).first().click();
+}
 // الاتصال عن بعد كاشتراك: المدير بيفعّل سنوي لزبون، والوكيل بياخد رصيد عن بعد بمدة وبيفعّل منه
 {
   const res = (await p.evaluate(`(async () => {

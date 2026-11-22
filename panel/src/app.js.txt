@@ -367,7 +367,7 @@ function ownerAgents(el) {
 }
 function agentCard(a) {
   const b = a.balance;
-  const n = S.customers.filter((c) => c.agentId === a.id && !c.phoneOf).length;
+  const n = S.customers.filter((c) => c.agentId === a.id && !c.phoneOf && !c.removed).length;
   return `<div class="item"><div class="top"><div><b class="name">${esc(a.name)}</b> ${a.active ? '' : '<span class="tag off">موقوف</span>'}<div class="muted">${esc(a.city)} ${a.phone ? '· <span class="mono">' + esc(a.phone) + '</span>' : ''} · دخول: <span class="mono">${esc(a.username ?? 'ما في')}</span> · زباين: ${n}</div></div></div>
     <div class="bal ${b.left <= 0 ? 'zero' : ''}">${BUCKETS.filter(([k]) => b[k].total).map(([k, nm]) => `<div><span class="muted">${nm}</span><b>${b[k].left} <small class="muted">/ ${b[k].total}</small></b></div>`).join('') || '<div><span class="muted">الرصيد</span><b>0</b></div>'}${CLOUD_PLANS.filter(([k]) => a.cloudBalance?.plans?.[k]?.total).map(([k, n]) => `<div><span class="muted">عن بعد ${n}</span><b>${a.cloudBalance.plans[k].left} <small class="muted">/ ${a.cloudBalance.plans[k].total}</small></b></div>`).join('')}</div>
     <div class="row">
@@ -486,7 +486,7 @@ function customerRow(c, owner) {
         <button class="small" data-c="edit" data-id="${c.id}">تعديل</button>
         ${!c.phoneOf ? `<button class="small" data-c="reissue" data-id="${c.id}">امسح وفعّل بكود جديد</button>` : ''}
         ${!c.phoneOf && (S.agents ?? []).length ? `<button class="small" data-c="transfer" data-id="${c.id}">نقل لوكيل</button>` : ''}
-        ${c.status !== 'revoked' ? `<button class="small danger" data-c="revoke" data-id="${c.id}">إلغاء</button>` : ''}`
+        ${c.status !== 'revoked' ? `<button class="small danger" data-c="revoke" data-id="${c.id}">إلغاء</button>` : `<button class="small danger" data-c="remove" data-id="${c.id}">حذف نهائي</button>`}`
       : c.trial ? '<span class="muted">لما يشتري: فعّله عادي بنفس البصمة</span>' : `${!c.phoneOf && c.plan !== 'lifetime' ? `<button class="small" data-c="renew" data-id="${c.id}">تجديد سنة</button> ${S.balance?.flex?.left > 0 ? `<button class="small" data-c="renewm" data-id="${c.id}">تجديد شهر</button> ` : ''}<button class="small" data-c="lifetime" data-id="${c.id}">تحويل لدائم</button>` : ''}
         ${!c.phoneOf && (c.cloud || S.cloud?.left > 0) ? `<button class="small" data-c="acloud" data-id="${c.id}">عن بعد</button>` : ''}`}
     </div></div>`;
@@ -494,7 +494,7 @@ function customerRow(c, owner) {
 function filterCustomers(list) {
   const s = q.trim().toLowerCase();
   // الرخص اللي انعمل بدالها رخصة جديدة («امسح وفعّل من جديد») ومفاتيح جوالها ما بتطلع
-  const gone = new Set(list.filter((c) => c.replacedBy).map((c) => c.id));
+  const gone = new Set(list.filter((c) => c.replacedBy || c.removed).map((c) => c.id));
   list = list.filter((c) => !gone.has(c.id) && !(c.phoneOf && gone.has(c.phoneOf)));
   return !s ? list : list.filter((c) => [c.name, c.phone, c.machineId, c.notes].some((f) => String(f ?? '').toLowerCase().includes(s)));
 }
@@ -611,6 +611,9 @@ async function customerAction(act, id, owner) {
       const r = await run(() => api(`/api/customers/${id}/reissue`, machineId ? { machineId } : {}), 'انعمل ترخيص جديد بكود جديد، وبينتشر لحالو');
       if (r) { m.close(); showKey(r); }
     };
+  } else if (act === 'remove') {
+    if (!confirm(`حذف ${c.name} نهائياً من اللوحة؟ رخصته الملغاة بتضل ملغاة وما بترجع تمشي.`)) return;
+    await run(() => api(`/api/customers/${id}/remove`, {}), 'انحذف');
   } else if (act === 'transfer') {
     const ag = c.agentId ? S.agents?.find((a) => a.id === c.agentId) : null;
     const opts = S.agents.filter((a) => a.active && a.id !== c.agentId).map((a) => `<option value="${a.id}">${esc(a.name)}</option>`).join('');
