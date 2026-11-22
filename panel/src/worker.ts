@@ -713,7 +713,10 @@ export class RegistryDO extends DurableObject<Env> {
           ...(num('devices') ? { devices: num('devices')! } : {}),
           ...(num('offlineDays') ? { offlineDays: num('offlineDays')! } : {}),
           ...(body['force'] ? { force: true } : {}),
-        }),
+          // زبون للوكيل (هو بيتحكم فيه من لوحته)، والمدير بيختار يخصم من رصيده أو لأ
+          ...(str('agentId') ? { agentId: str('agentId') } : {}),
+          ...(body['mobile'] === true || body['mobile'] === 'on' ? { mobile: true } : {}),
+        }, str('agentId') && !(body['charge'] === true || body['charge'] === 'on') ? { free: true } : {}),
       );
     }
     const mc = /^\/api\/customers\/([^/]+)\/(extend|status|update|cloud|phone|reissue)$/.exec(path);

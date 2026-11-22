@@ -169,6 +169,28 @@ check(up.status === 200 && up.plan === 'lifetime', `owner switched an agent cust
   await p.locator('nav.tabs button', { hasText: 'الوكلاء' }).first().click();
   await p.waitForTimeout(500);
 }
+// المدير بيسجّل زبون للوكيل: مع خصم من رصيده أو بدون
+{
+  const res = (await p.evaluate(`(async () => {
+    const st = await (await fetch('/api/state')).json();
+    const ag = st.agents.find((a) => a.active);
+    const post = (b) => fetch('/api/customers', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Wazn': '1' }, body: JSON.stringify(b) }).then((r) => r.json());
+    const uses = async () => (await (await fetch('/api/state')).json()).agents.find((a) => a.id === ag.id).uses.length;
+    const u0 = await uses();
+    const free = await post({ name: 'للوكيل ببلاش', machineId: '1212-3434-5656-7878', plan: 'annual', devices: 2, agentId: ag.id });
+    const u1 = await uses();
+    const paid = await post({ name: 'للوكيل بخصم', machineId: '2121-4343-6565-8787', plan: 'annual', devices: 2, agentId: ag.id, charge: 'on', mobile: 'on' });
+    const u2 = await uses();
+    return { free: free.agentId === ag.id, paid: paid.agentId === ag.id, u0, u1, u2, err: free.error || paid.error };
+  })()`)) as { free: boolean; paid: boolean; u0: number; u1: number; u2: number };
+  check(res.free && res.paid && res.u1 === res.u0 && res.u2 === res.u0 + 1, `owner adds customers for an agent, free and charged (${JSON.stringify(res)})`);
+  await p.reload();
+  await p.locator('nav.tabs button', { hasText: 'الزباين' }).first().click();
+  await p.locator('#nca').selectOption({ index: 1 });
+  check(await p.locator('#ncc').isVisible(), 'charge checkbox appears when an agent is chosen');
+  await p.locator('nav.tabs button', { hasText: 'الوكلاء' }).first().click();
+  await p.waitForTimeout(500);
+}
 // سحب الوكالة بيطلع الوكيل
 await p.getByRole('button', { name: 'سحب الوكالة' }).click();
 await p.waitForTimeout(800);

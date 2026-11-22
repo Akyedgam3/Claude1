@@ -47,3 +47,22 @@ describe('registry: delete and reactivate with a new code', () => {
     expect(c).toMatchObject({ machineId: '3333-3333-3333-3333', plan: 'lifetime', expiresAt: null });
   });
 });
+
+describe('registry: owner adds a customer for an agent', () => {
+  it('with or without taking from the agent balance', () => {
+    const reg = new RegistryCore({ customers: [], agents: [] }, key);
+    const a = reg.addAgent({ name: 'وكيل حلب' });
+    reg.addPackage(a.id, { tier: 'p25' });
+    const before = agentLeft();
+    function agentLeft() {
+      return reg.agent(a.id).uses.length;
+    }
+    const free = reg.add({ name: 'زبون ببلاش', machineId: '4444-4444-4444-4444', plan: 'annual', agentId: a.id, devices: 2 }, { free: true });
+    expect(free.agentId).toBe(a.id);
+    expect(agentLeft()).toBe(before); // ما انخصم شي
+    expect(free.history[0]!.action).toMatch(/بدون خصم/);
+    const paid = reg.add({ name: 'زبون عادي', machineId: '5555-5555-5555-5555', plan: 'annual', agentId: a.id, devices: 2 });
+    expect(paid.agentId).toBe(a.id);
+    expect(agentLeft()).toBe(before + 1); // انخصمت رخصة
+  });
+});

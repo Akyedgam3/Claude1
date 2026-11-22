@@ -304,7 +304,7 @@ export class RegistryCore {
     );
   }
 
-  add(input: { name: string; phone?: string; notes?: string; machineId: string; plan: Plan; devices?: number; offlineDays?: number; agentId?: string; force?: boolean; mobile?: boolean; flex?: boolean }, opts: { prepaid?: boolean } = {}): Customer {
+  add(input: { name: string; phone?: string; notes?: string; machineId: string; plan: Plan; devices?: number; offlineDays?: number; agentId?: string; force?: boolean; mobile?: boolean; flex?: boolean }, opts: { prepaid?: boolean; free?: boolean } = {}): Customer {
     if (!input.name?.trim()) throw new Error('اسم العميل مطلوب');
     // التجربة بتنتهي لما يشتري: منلغي رخصة التجربة على نفس الجهاز ومنكمّل التفعيل عادي
     const machine = input.machineId?.trim().toUpperCase();
@@ -322,8 +322,8 @@ export class RegistryCore {
       if (!agent.active && !opts.prepaid) throw new Error('هذا الوكيل موقوف');
       // الوكيل بيفعّل شهري (من المرن) أو سنوي أو دائم، كل واحد من رصيده
       const plan: Plan = input.plan === 'lifetime' ? 'lifetime' : input.plan === 'monthly' ? 'monthly' : 'annual';
-      // كرت مدفوع سلف: الرصيد انخصم لما انعمل الكرت
-      if (!opts.prepaid) charged = agentCharge(agent, plan, input.mobile, input.flex);
+      // كرت مدفوع سلف: الرصيد انخصم لما انعمل الكرت. free: المدير بيسجّل الزبون للوكيل بدون خصم من رصيده
+      if (!opts.prepaid && !opts.free) charged = agentCharge(agent, plan, input.mobile, input.flex);
       input = { ...input, plan, devices: input.devices ?? AGENT_DEFAULT_DEVICES };
     }
     if (!/^[0-9A-F]{4}(-[0-9A-F]{4}){3}$/i.test(input.machineId?.trim() ?? '')) throw new Error('بصمة الجهاز غير صحيحة (مثال: 1A2B-3C4D-5E6F-7A8B)');
@@ -348,7 +348,7 @@ export class RegistryCore {
       expiresAt: payload.expiresAt,
       status: 'active',
       key: '',
-      history: [{ at: payload.issuedAt, action: `إصدار ${PLANS[payload.plan].nameAr}` + (agent ? ` عن طريق الوكيل ${agent.name}` : '') }],
+      history: [{ at: payload.issuedAt, action: `إصدار ${PLANS[payload.plan].nameAr}` + (agent ? ` عن طريق الوكيل ${agent.name}${opts.free ? ' (بدون خصم من رصيده)' : ''}` : '') }],
       ...(agent ? { agentId: agent.id } : {}),
       ...(input.mobile ? { mobile: true } : {}),
       code: this.newCode(),
@@ -359,7 +359,7 @@ export class RegistryCore {
     c.key = this.sign(c);
     this.data.customers.push(c);
     if (agent && charged) agent.uses.push({ at: c.issuedAt, customerId: c.id, action: 'issue', ...charged });
-    this.note(`تفعيل ${c.name} (${PLANS[c.plan].nameAr}${c.mobile ? ' + جوال' : ''})`, { customerId: c.id, ...(agent ? { agentId: agent.id } : {}) });
+    this.note(`تفعيل ${c.name} (${PLANS[c.plan].nameAr}${c.mobile ? ' + جوال' : ''})${agent && opts.free ? ` للوكيل ${agent.name} بدون خصم من رصيده` : ''}`, { customerId: c.id, ...(agent ? { agentId: agent.id } : {}) });
     this.save();
     return c;
   }

@@ -488,6 +488,9 @@ function ownerCustomers(el) {
       <label>بصمة الجهاز<input name="machineId" required class="mono" placeholder="XXXX-XXXX-XXXX-XXXX" /></label>
       <label>الاشتراك<select name="plan">${Object.entries(S.plans).map(([k, p]) => `<option value="${k}" ${k === 'annual' ? 'selected' : ''}>${esc(p.nameAr)}</option>`).join('')}</select></label>
       <label>الأجهزة<input name="devices" type="number" min="1" max="50" value="2" /></label>
+      <label style="flex-direction:row;display:flex;gap:6px;align-items:center"><input type="checkbox" name="mobile" style="width:auto" /> مع تطبيق الجوال</label>
+      ${(S.agents ?? []).length ? `<label>تابع لوكيل (هو بيتحكم فيه من لوحته)<select name="agentId" id="nca"><option value="">لا، زبون مباشر</option>${S.agents.filter((a) => a.active).map((a) => `<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select></label>
+      <label id="ncc" class="hidden" style="flex-direction:row;display:flex;gap:6px;align-items:center"><input type="checkbox" name="charge" style="width:auto" /> خصم رخصة من رصيد الوكيل</label>` : ''}
       <button class="primary">إصدار المفتاح</button></form></div>
     <div class="card"><h2>كود تفعيل بدون بصمة</h2><p class="muted">بتبعت الكود للزبون، وأول جهاز بيكتبه بياخد الترخيص.</p><form id="nk" class="grid">
       <label>اسم الزبون (اختياري)<input name="name" /></label><label>الموبايل<input name="phone" dir="ltr" /></label>
@@ -501,6 +504,7 @@ function ownerCustomers(el) {
     <div class="list" id="cl">${filterCustomers(S.customers).slice().reverse().slice(0, 200).map((c) => customerRow(c, true)).join('') || '<p class="muted">لا يوجد</p>'}</div>`;
   $('#cq').oninput = (e) => { q = e.target.value; $('#cl').innerHTML = filterCustomers(S.customers).slice().reverse().slice(0, 200).map((c) => customerRow(c, true)).join(''); bindCustomers(el, true); };
   bindTrial(el, '/api/trial');
+  if ($('#nca')) $('#nca').onchange = (e) => $('#ncc').classList.toggle('hidden', !e.target.value);
   $('#nc').onsubmit = async (e) => {
     e.preventDefault();
     const body = Object.fromEntries(new FormData(e.target));
