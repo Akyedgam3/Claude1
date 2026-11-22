@@ -103,7 +103,7 @@ export function Parties({ focus }: { focus?: string }) {
                     <td dir="ltr" className="mono">
                       {party.phone}
                     </td>
-                    <td className="num">{can('balances.view') ? <BalanceText value={balance.base} /> : '—'}</td>
+                    <td className="num">{can('balances.view') ? <PartyBalanceText balance={balance} /> : '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -116,6 +116,22 @@ export function Parties({ focus }: { focus?: string }) {
       </div>
       {editing && <PartyForm party={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onSaved={(p) => setSelected(p.id)} />}
     </div>
+  );
+}
+
+/** رصيد الشخص بعملته: مورد حسابه بالدولار بيبيّن بالدولار (مش محوّل لليرة)، وإذا إلو بأكتر من عملة كل وحدة لحالها. */
+export function PartyBalanceText({ balance }: { balance: { base: number; byCurrency: Record<string, number> } }) {
+  const parts = Object.entries(balance.byCurrency).filter(([, v]) => v !== 0);
+  if (!parts.length) return <BalanceText value={0} />;
+  return (
+    <>
+      {parts.map(([c, v], i) => (
+        <span key={c}>
+          {i > 0 && <br />}
+          <BalanceText value={v} currency={c} />
+        </span>
+      ))}
+    </>
   );
 }
 
