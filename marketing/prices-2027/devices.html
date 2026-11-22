@@ -1,0 +1,76 @@
+<!doctype html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="common.css">
+<style>
+html, body { width: 1080px; height: 1350px; overflow: hidden; }
+body { background: radial-gradient(900px 700px at 100% -5%, rgba(95,224,191,.35), transparent 60%), radial-gradient(800px 600px at -10% 105%, rgba(233,168,76,.22), transparent 60%), linear-gradient(165deg, #fbfdfc, #eef5f1 60%, #e4f0ea); }
+.wrap { padding: 46px 64px 0; height: 100%; display: flex; flex-direction: column; }
+.wrap > * { flex-shrink: 0; }
+.top { display: flex; justify-content: space-between; align-items: center; }
+.brand img { width: 84px; height: 84px; }
+.brand b { font-size: 46px; }
+.brand small { font-size: 21px; }
+.badge { font-size: 24px; font-weight: 800; color: var(--g); background: #fff; border: 2px solid #bfe3d8; border-radius: 999px; padding: 8px 24px; }
+h1 { font-size: 50px; font-weight: 900; line-height: 1.15; margin-top: 22px; }
+h1 span { color: var(--g2); }
+.lead { font-size: 26px; font-weight: 600; color: var(--muted); margin-top: 8px; }
+.tbl { margin-top: 20px; background: #fff; border-radius: 34px; box-shadow: 0 30px 60px -34px rgba(6,50,40,.45); overflow: hidden; }
+.hd, .r { display: grid; grid-template-columns: 1.15fr 1fr 1fr; align-items: center; }
+.hd { background: linear-gradient(150deg, #16a283, #0f6e5c 70%); color: #fff; padding: 22px 34px; }
+.hd div { font-size: 30px; font-weight: 900; display: flex; align-items: center; gap: 12px; justify-content: center; }
+.hd div:first-child { justify-content: flex-start; }
+.hd svg { width: 38px; height: 38px; }
+.r { padding: 12px 34px; border-bottom: 2px solid var(--line); }
+.r:last-child { border-bottom: 0; }
+.r b { font-size: 36px; font-weight: 900; }
+.r small { display: block; font-size: 20px; color: var(--muted); font-weight: 600; }
+.r .p { text-align: center; font-size: 42px; font-weight: 900; color: var(--g); direction: ltr; }
+.r .p.m { color: #b26a12; }
+.r.best { background: #fff8ea; }
+.r.best b::after { content: 'الأوفر'; font-size: 18px; font-weight: 800; color: #a8661a; background: #fff3dd; border: 1.5px solid #f0d39d; border-radius: 999px; padding: 2px 12px; margin-inline-start: 10px; vertical-align: middle; }
+.incl { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px; margin-top: 18px; }
+.incl div { font-size: 23px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.incl i { width: 32px; height: 32px; border-radius: 50%; background: var(--soft); display: grid; place-items: center; flex: none; font-style: normal; color: var(--g); font-weight: 900; font-size: 19px; }
+.foot { margin-top: auto; padding: 14px 0 22px; display: flex; justify-content: space-between; align-items: center; border-top: 2px dashed #c9ddd6; }
+.foot .site { font-size: 32px; font-weight: 900; color: var(--g); direction: ltr; }
+.foot .wa { text-align: left; font-size: 22px; font-weight: 700; color: var(--muted); }
+.foot .wa b { display: block; font-size: 27px; color: var(--ink); direction: ltr; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand"><img src="logo.png" alt=""><div><b>وزن</b><small>برنامج المحاسبة وإدارة المحلات</small></div></div>
+    <div class="badge">الأسعار الرسمية</div>
+  </div>
+  <h1>كمبيوتر ولا جوال؟ <span>اختار اللي بيناسبك</span></h1>
+  <p class="lead">نفس البرنامج كامل بكل الاشتراكات، الفرق بالجهاز والمدة بس.</p>
+  <div class="tbl">
+    <div class="hd">
+      <div>المدة</div>
+      <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>كمبيوتر</div>
+      <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>جوال</div>
+    </div>
+    <div class="r"><div><b>شهري</b><small>للتجربة والبداية</small></div><div class="p">$14.99</div><div class="p m">$8.99</div></div>
+    <div class="r"><div><b>3 أشهر</b></div><div class="p">$34.99</div><div class="p m">$22.99</div></div>
+    <div class="r"><div><b>6 أشهر</b></div><div class="p">$54.99</div><div class="p m">$39.99</div></div>
+    <div class="r best"><div><b>سنوي</b><small>كمبيوتر 6.25$ بالشهر · جوال 5$</small></div><div class="p">$75</div><div class="p m">$59.99</div></div>
+    <div class="r"><div><b>شراء دائم</b><small>ادفع مرة وحدة للأبد</small></div><div class="p">$115</div><div class="p m">$89.99</div></div>
+  </div>
+  <div class="incl">
+    <div><i>✓</i>رخصة الكمبيوتر على جهازين</div>
+    <div><i>✓</i>الجوال: أندرويد أو آيفون</div>
+    <div><i>✓</i>بيشتغل بدون إنترنت</div>
+    <div><i>✓</i>التحديثات مجانية</div>
+    <div><i>✓</i>أكتر من 50 نوع نشاط</div>
+    <div><i>✓</i>دعم فني عالواتساب</div>
+  </div>
+  <div class="foot">
+    <div class="site">waznsy.com</div>
+    <div class="wa">للاشتراك والتفعيل (واتساب)<b>+963 968 037 609</b><b>+963 980 072 891</b></div>
+  </div>
+</div>
+</body>
+</html>
