@@ -211,6 +211,26 @@ check(up.status === 200 && up.plan === 'lifetime', `owner switched an agent cust
   await p.locator('nav.tabs button', { hasText: 'الوكلاء' }).first().click();
   await p.waitForTimeout(500);
 }
+// حذف وكيل نهائياً من الواجهة: بيختفي، حسابه ما عاد يفوت، وزباينه بيصيروا مباشرين
+{
+  const created = (await p.evaluate(`(async () => {
+    const post = (u, b) => fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Wazn': '1' }, body: JSON.stringify(b) }).then((r) => r.json());
+    const r = await post('/api/agents', { name: 'وكيل للحذف', username: 'todelete' });
+    const c = await post('/api/customers', { name: 'زبون وكيل للحذف', machineId: '7171-7272-7373-7474', plan: 'annual', devices: 2, agentId: r.agent.id });
+    return { id: r.agent.id, password: r.password, cid: c.id };
+  })()`)) as { id: string; password: string; cid: string };
+  await p.reload();
+  await p.locator('nav.tabs button', { hasText: 'الوكلاء' }).first().click();
+  await p.locator(`[data-act="delete"][data-id="${created.id}"]`).click();
+  await p.locator('.modal input[name="confirm"]').fill('وكيل للحذف');
+  await p.screenshot({ path: `${OUT}/panel-delete-agent.png` });
+  await p.locator('.modal button.danger', { hasText: 'حذف نهائي' }).click();
+  const ok = await sawToast(p, 'انحذف الوكيل');
+  const st = await p.evaluate(async () => (await fetch('/api/state')).json());
+  const cust = st.customers.find((x: { id: string }) => x.id === created.cid);
+  const login = await fetch(`${BASE}/api/login`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Wazn': '1' }, body: JSON.stringify({ username: 'todelete', password: created.password }) });
+  check(ok && !st.agents.some((a: { id: string }) => a.id === created.id) && cust.status === 'active' && !cust.agentId && login.status !== 200, `delete agent permanently (${ok}, login ${login.status})`);
+}
 // الاتصال عن بعد كاشتراك: المدير بيفعّل سنوي لزبون، والوكيل بياخد رصيد عن بعد بمدة وبيفعّل منه
 {
   const res = (await p.evaluate(`(async () => {

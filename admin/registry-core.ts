@@ -553,6 +553,41 @@ export class RegistryCore {
   }
 
   /**
+   * حذف وكيل نهائياً: بينشال من قائمة الوكلاء، وأكواده (الكروت) اللي ما انستعملت بتنلغى.
+   * زباينه: revokeCustomers = تراخيصهم بتنلغى (البرنامج بيوقف عندهم)، وإلا بيصيروا زباين مباشرين عند المدير وبيضلوا شغالين.
+   */
+  deleteAgent(id: string, opts: { revokeCustomers?: boolean } = {}): { cards: number; customers: number; revoked: number } {
+    const a = this.agent(id);
+    const now = new Date().toISOString();
+    let cards = 0;
+    for (const card of this.cards.filter((c) => c.agentId === a.id)) {
+      if (!card.used.length && !card.void) {
+        card.void = true;
+        cards++;
+      }
+      delete card.agentId;
+    }
+    let customers = 0;
+    let revoked = 0;
+    for (const c of this.data.customers.filter((x) => x.agentId === a.id)) {
+      delete c.agentId;
+      if (!c.phoneOf) customers++;
+      if (opts.revokeCustomers && c.status !== 'revoked') {
+        c.status = 'revoked';
+        delete c.message;
+        if (!c.phoneOf) revoked++;
+        c.history.push({ at: now, action: `انلغى مع حذف الوكيل ${a.name}` });
+      } else {
+        c.history.push({ at: now, action: `صار زبون مباشر (انحذف الوكيل ${a.name})` });
+      }
+    }
+    this.data.agents = this.agents.filter((x) => x.id !== a.id);
+    this.note(`حذف الوكيل ${a.name} نهائياً: ${cards} كود انلغى، ${customers} زبون ${opts.revokeCustomers ? `(انلغى منهم ${revoked})` : 'صاروا مباشرين'}`);
+    this.save();
+    return { cards, customers, revoked };
+  }
+
+  /**
    * نقل رخصة لوكيل (أو رجّعها زبون مباشر بـ agentId فاضي): الوكيل بيصير يتحكم فيها من لوحته (تجديد، عن بعد...).
    * المفتاح والكود ما بيتغيّروا، والزبون ما بيحس بشي. charge: بتنخصم رخصة من رصيد الوكيل متل كأنه هو فعّلها.
    * مفاتيح الجوال التابعة بتنتقل معها.

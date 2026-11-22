@@ -379,6 +379,7 @@ function agentCard(a) {
       ${a.username ? `<button class="small" data-act="reset" data-id="${a.id}">كلمة سر جديدة</button>` : `<button class="small" data-act="login" data-id="${a.id}">إنشاء حساب دخول</button>`}
       <button class="small" data-act="edit" data-id="${a.id}">تعديل</button>
       <button class="small ${a.active ? 'danger' : ''}" data-act="${a.active ? 'stop' : 'start'}" data-id="${a.id}">${a.active ? 'سحب الوكالة' : 'إعادة تفعيل'}</button>
+      <button class="small danger" data-act="delete" data-id="${a.id}">حذف نهائي</button>
     </div></div>`;
 }
 function sendCreds(a, username, password, isNew) {
@@ -447,6 +448,25 @@ async function agentAction(act, id) {
     $('#f', m).onsubmit = async (e) => { e.preventDefault(); const r = await run(() => api(`/api/agents/${id}/update`, Object.fromEntries(new FormData(e.target))), 'تم الحفظ'); if (r) m.close(); };
   } else if (act === 'stop') {
     if (confirm(`سحب الوكالة من ${a.name}؟ ما عاد بيقدر يدخل ولا يفعّل، وزباينه بيضلوا شغالين.`)) await run(() => api(`/api/agents/${id}/update`, { active: false }), 'انسحبت الوكالة');
+  } else if (act === 'delete') {
+    const mine = S.customers.filter((c) => c.agentId === a.id && !c.phoneOf && c.status !== 'revoked').length;
+    const cards = (S.cards ?? []).filter((c) => c.agentId === a.id && !c.used?.length && !c.void).length;
+    const m = modal(`<h2>حذف ${esc(a.name)} نهائياً</h2>
+      <p class="muted">الوكيل بينشال من اللوحة وحسابه بينمسح وما عاد يقدر يدخل. <b>${cards}</b> كود ما انستعمل بينلغى. هالشي ما بيرجع.</p>
+      <form class="list" id="f">
+      <p>زباينه (<b>${mine}</b>):</p>
+      <label class="row" style="gap:6px;color:var(--ink)"><input type="radio" name="cust" value="keep" checked style="width:auto" /> بيصيروا زباين مباشرين عندي وبيضلوا شغالين</label>
+      <label class="row" style="gap:6px;color:var(--bad)"><input type="radio" name="cust" value="revoke" style="width:auto" /> بتنلغى تراخيصهم كمان (البرنامج بيوقف عندهم)</label>
+      <label>للتأكيد اكتب اسم الوكيل: <b>${esc(a.name)}</b><input name="confirm" autocomplete="off" /></label>
+      <div class="row"><button class="danger">حذف نهائي</button><button type="button" id="x">إلغاء</button></div></form>`);
+    $('#x', m).onclick = m.close;
+    $('#f', m).onsubmit = async (e) => {
+      e.preventDefault();
+      const f = Object.fromEntries(new FormData(e.target));
+      if (f.confirm.trim() !== a.name) return toast('اكتب اسم الوكيل بالضبط', true);
+      const r = await run(() => api(`/api/agents/${id}/delete`, { confirm: f.confirm.trim(), revokeCustomers: f.cust === 'revoke' }), 'انحذف الوكيل');
+      if (r) m.close();
+    };
   } else if (act === 'start') {
     await run(() => api(`/api/agents/${id}/update`, { active: true }), 'رجع الوكيل فعّال');
   }

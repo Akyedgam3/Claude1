@@ -782,7 +782,7 @@ export class RegistryDO extends DurableObject<Env> {
       if (str('tier')) reg.addPackage(a.id, { tier: str('tier') });
       return json({ agent: a, username, password });
     }
-    const ma = /^\/api\/agents\/([^/]+)\/(package|deduct|update|reset|login|cloud)$/.exec(path);
+    const ma = /^\/api\/agents\/([^/]+)\/(package|deduct|update|reset|login|cloud|delete)$/.exec(path);
     if (ma && req.method === 'POST') {
       const [, id, action] = ma;
       const a = reg.agent(id!);
@@ -809,6 +809,14 @@ export class RegistryDO extends DurableObject<Env> {
             ...(str('note') ? { note: str('note') } : {}),
           }),
         );
+      }
+      if (action === 'delete') {
+        // حذف نهائي: حسابه وجلساته بينمسحوا، والسجل بيتعدّل وبينتشر
+        if (str('confirm') !== a.name) throw new HttpError(400, 'اكتب اسم الوكيل بالضبط للتأكيد');
+        const out = reg.deleteAgent(a.id, { revokeCustomers: body['revokeCustomers'] === true });
+        for (const u of this.sql.exec<UserRow>(`SELECT username FROM users WHERE agent_id = ?`, a.id).toArray()) this.sql.exec(`DELETE FROM sessions WHERE username = ?`, u.username);
+        this.sql.exec(`DELETE FROM users WHERE agent_id = ?`, a.id);
+        return touch(out);
       }
       if (action === 'reset') {
         const u = this.sql.exec<UserRow>(`SELECT * FROM users WHERE agent_id = ?`, a.id).toArray()[0];

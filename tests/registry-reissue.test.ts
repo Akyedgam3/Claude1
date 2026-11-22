@@ -131,3 +131,28 @@ describe('registry: move a license to an agent', () => {
     expect(reg.find(c.id).agentId).toBe(b.id);
   });
 });
+
+describe('registry: delete an agent permanently', () => {
+  it('voids unused codes; customers become direct, or get revoked', () => {
+    const reg = new RegistryCore({ customers: [], agents: [] }, key);
+    const a = reg.addAgent({ name: 'وكيل محذوف' });
+    reg.addPackage(a.id, { kind: 'annual', count: 5 });
+    const c = reg.add({ name: 'زبونه', machineId: M, plan: 'annual', agentId: a.id });
+    const card = reg.createCard({ name: 'كرت', plan: 'annual', agentId: a.id });
+    const out = reg.deleteAgent(a.id);
+    expect(out).toMatchObject({ cards: 1, customers: 1, revoked: 0 });
+    expect(reg.agents.find((x) => x.id === a.id)).toBeUndefined();
+    expect(reg.find(c.id)).toMatchObject({ status: 'active' });
+    expect(reg.find(c.id).agentId).toBeUndefined();
+    expect(() => reg.redeem(card.code, ['2222-2222-2222-2222'])).toThrow();
+
+    const b = reg.addAgent({ name: 'وكيل تاني' });
+    reg.addPackage(b.id, { kind: 'annual', count: 5 });
+    const d = reg.add({ name: 'زبون تاني', machineId: '3333-3333-3333-3333', plan: 'annual', agentId: b.id });
+    expect(reg.deleteAgent(b.id, { revokeCustomers: true })).toMatchObject({ customers: 1, revoked: 1 });
+    expect(reg.find(d.id).status).toBe('revoked');
+    const feed = parseFeed(reg.buildFeed().text, publicKeyFromPrivate(key))!;
+    expect(feed.entries[d.id]!.status).toBe('revoked');
+    expect(feed.entries[c.id]!.status).toBe('active');
+  });
+});
