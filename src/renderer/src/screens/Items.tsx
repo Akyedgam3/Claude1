@@ -141,7 +141,8 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
             id,
             code,
             name,
-            kind: 'stock',
+            // عمود «النوع»: «خدمة» = بدون مخزون (اشتراكات، أجور، صيانة)
+            kind: /خدم|service/i.test(String(r['النوع'] ?? '')) ? 'service' : 'stock',
             unit: String(r['الوحدة'] ?? profile.units[0] ?? 'قطعة'),
             priceCurrency: currency,
             price: parsePrice(state, String(r['سعر المبيع'] ?? r['سعر المفرق'] ?? '0'), currency),
