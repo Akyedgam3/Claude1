@@ -1,3 +1,4 @@
+import { newId } from './ids';
 import { recurringPayments } from './recurring';
 import { applyCommerceEvent, buildInvoice, isMarketer, marketerTerms, convertOrder, orderTotals, piecesTotal, repairToInvoiceLines, rollRemaining, siteJobDeposits, siteJobToInvoiceLines, siteJobTotals, stoneBlockUsage, shipmentSummary, UNIT_NAMES, tailorDeposits, tailorToInvoiceLines, validateCommerceEvent, workOrderProgress, type InvoiceDraft, type InvoiceLineDraft } from './commerce';
 import { ACTIVITIES } from './activities';
@@ -722,7 +723,7 @@ export class Ledger {
         { accountId: t.to, debit: t.amount, ...cur },
         { accountId: t.from, credit: t.amount, ...cur },
       ],
-      source: { type: 'boxtransfer', id: t.sourceId ?? crypto.randomUUID() },
+      source: { type: 'boxtransfer', id: t.sourceId ?? newId() },
       createdBy: this.actor,
     });
   }
@@ -743,7 +744,7 @@ export class Ledger {
         { accountId: owner, debit: d.amount, ...cur },
         { accountId: d.from, credit: d.amount, ...cur },
       ],
-      source: { type: 'boxtransfer', id: crypto.randomUUID() },
+      source: { type: 'boxtransfer', id: newId() },
       createdBy: this.actor,
     });
   }
@@ -764,7 +765,7 @@ export class Ledger {
         { accountId: d.to, debit: d.amount, ...cur },
         { accountId: owner, credit: d.amount, ...cur },
       ],
-      source: { type: 'boxtransfer', id: crypto.randomUUID() },
+      source: { type: 'boxtransfer', id: newId() },
       createdBy: this.actor,
     });
   }
@@ -824,7 +825,7 @@ export class Ledger {
     if (inexact) absorbRounding(lines);
 
     return {
-      id: crypto.randomUUID(),
+      id: newId(),
       number: this.state.entries.length + 1,
       date: draft.date,
       memo: draft.memo,
@@ -849,7 +850,7 @@ export class Ledger {
 
   private reversal(original: JournalEntry, date: string): JournalEntry {
     return {
-      id: crypto.randomUUID(),
+      id: newId(),
       number: this.state.entries.length + 1,
       date,
       memo: `إلغاء: ${original.memo}`,
@@ -1111,7 +1112,7 @@ export class Ledger {
           { accountId: COMMISSION_ACCOUNT, debit: over, ...cur },
           { accountId: SYSTEM_ACCOUNTS.suppliers, credit: over, partyId: m.id, ...cur },
         ],
-        source: { type: 'commission', id: `over:${crypto.randomUUID()}` },
+        source: { type: 'commission', id: `over:${newId()}` },
       });
       n++;
     }
@@ -1455,7 +1456,7 @@ export class Ledger {
   /** تعديل قيد يدوي. */
   editEntry(entryId: string, draft: EntryDraft): JournalEntry {
     const e = this.editable(entryId, ['manual']);
-    const next: EntryDraft = { ...draft, source: { type: 'manual', id: crypto.randomUUID() } };
+    const next: EntryDraft = { ...draft, source: { type: 'manual', id: newId() } };
     const trial = this.trialCopy();
     trial.voidEntry(e.id, e.date);
     trial.postEntry(next);
@@ -1510,7 +1511,7 @@ export class Ledger {
           ...(party ? { partyId: party.id } : {}),
         },
       ],
-      source: { type: v.kind, id: v.tag ? `${v.tag}:${crypto.randomUUID()}` : crypto.randomUUID() },
+      source: { type: v.kind, id: v.tag ? `${v.tag}:${newId()}` : newId() },
       ...(v.createdBy ? { createdBy: v.createdBy } : {}),
     });
   }
@@ -1537,7 +1538,7 @@ export class Ledger {
         { accountId: partyAccount, ...(owed ? { debit: d.amount } : { credit: d.amount }), ...fx, partyId: party.id },
         { accountId: counter, ...(owed ? { credit: d.amount } : { debit: d.amount }), ...fx },
       ],
-      source: { type: 'debt', id: crypto.randomUUID() },
+      source: { type: 'debt', id: newId() },
       ...(d.createdBy ? { createdBy: d.createdBy } : {}),
     });
   }
@@ -1603,7 +1604,7 @@ export class Ledger {
       const draft = this.buildEntry({ date: d.date, memo: 'أرصدة افتتاحية', lines });
       const diff = draft.lines.reduce((s, l) => s + l.baseDebit - l.baseCredit, 0);
       if (diff !== 0) lines.push({ accountId: SYSTEM_ACCOUNTS.openingBalances, ...(diff > 0 ? { credit: diff } : { debit: -diff }) });
-      entry = this.postEntry({ date: d.date, memo: 'أرصدة افتتاحية', lines, source: { type: 'opening', id: crypto.randomUUID() } });
+      entry = this.postEntry({ date: d.date, memo: 'أرصدة افتتاحية', lines, source: { type: 'opening', id: newId() } });
     }
     let adjustment: StockAdjustment | undefined;
     if (d.stock?.length) {
@@ -1659,7 +1660,7 @@ export class Ledger {
     const orig = a.entryId ? this.state.entries.find((e) => e.id === a.entryId) : undefined;
     const entry = orig && !this.state.voided[orig.id] ? this.reversal(orig, date) : undefined;
     const adjustment: StockAdjustment = {
-      id: crypto.randomUUID(),
+      id: newId(),
       number: (this.state.counters['adjustment'] ?? 0) + 1,
       kind: a.kind,
       date,
@@ -2037,7 +2038,7 @@ export class Ledger {
   savePartner(p: Omit<Partner, 'createdAt' | 'active'> & { active?: boolean }): Partner {
     const prev = this.state.partners?.[p.id];
     const partner: Partner = {
-      id: p.id || crypto.randomUUID(),
+      id: p.id || newId(),
       name: String(p.name ?? '').trim(),
       ...(p.phone?.trim() ? { phone: p.phone.trim() } : {}),
       ...(p.notes?.trim() ? { notes: p.notes.trim() } : {}),
@@ -2091,7 +2092,7 @@ export class Ledger {
     const prev = this.state.employees?.[e.id];
     const t = (v?: string) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
     const employee: Employee = {
-      id: e.id || crypto.randomUUID(),
+      id: e.id || newId(),
       name: String(e.name ?? '').trim(),
       ...(t(e.phone) ? { phone: t(e.phone)! } : {}),
       ...(t(e.jobTitle) ? { jobTitle: t(e.jobTitle)! } : {}),
@@ -2436,7 +2437,7 @@ export class Ledger {
     const dealer = this.state.dealers?.[d.dealerId] ?? fail('المورّد غير موجود');
     if (!dealer.active) fail('المورّد موقوف');
     if (!d.lines.length) fail('الفاتورة فاضية');
-    const id = d.id ?? crypto.randomUUID();
+    const id = d.id ?? newId();
     const own = dealerStock(this.state, dealer.id);
     const need = new Map<string, number>();
     const lines: DealerSaleLine[] = d.lines.map((l) => {
@@ -2510,7 +2511,7 @@ export class Ledger {
       entryId = entry.id;
     }
     const move: DealerMove = {
-      id: crypto.randomUUID(),
+      id: newId(),
       dealerId: dealer.id,
       date: d.date,
       kind: d.kind,
@@ -2701,7 +2702,7 @@ export class Ledger {
     if (!(volume > 0)) fail('اكتب أبعاد الكتلة أو حجمها');
     if (!Number.isSafeInteger(d.pricePerM3) || d.pricePerM3 <= 0) fail('اكتب سعر المتر المكعب');
     const itemId = this.stoneBlockItem();
-    const id = crypto.randomUUID();
+    const id = newId();
     const number = (this.state.counters['stoneblock'] ?? 0) + 1;
     const total = Math.round(volume * d.pricePerM3);
     const invoice = this.postInvoice({
@@ -2826,13 +2827,13 @@ export class Ledger {
           { accountId: SYSTEM_ACCOUNTS.customers, debit: markup, currency, partyId: party.id },
           { accountId: SYSTEM_ACCOUNTS.serviceRevenue, credit: markup, currency },
         ],
-        source: { type: 'installment', id: crypto.randomUUID() },
+        source: { type: 'installment', id: newId() },
         createdBy: this.actor,
       });
       markupEntryId = entry.id;
     }
     const plan: InstallmentPlan = {
-      id: d.id ?? crypto.randomUUID(),
+      id: d.id ?? newId(),
       number,
       partyId: party.id,
       date: d.date,
@@ -2925,7 +2926,7 @@ export class Ledger {
       unit: r.unit ?? input.unit ?? 'm',
       code: r.code.trim(),
       fabric: r.fabric.trim(),
-      id: crypto.randomUUID(),
+      id: newId(),
       partyId: input.partyId,
       date: input.date,
       receiptNo,
@@ -2985,7 +2986,7 @@ export class Ledger {
     const o = this.workOrder(orderId);
     if (piecesTotal(cut.pieces) <= 0) fail('اكتب عدد القطع المقصوصة');
     if (cut.rolls.length === 0) fail('اختار التوب اللي انمدّ');
-    const order: WorkOrder = { ...o, cuts: [...o.cuts, { ...cut, id: crypto.randomUUID() }] };
+    const order: WorkOrder = { ...o, cuts: [...o.cuts, { ...cut, id: newId() }] };
     this.emit({ type: 'workorder.saved', order });
     return order;
   }
@@ -3001,7 +3002,7 @@ export class Ledger {
   addStage(orderId: string, stage: Omit<WorkStage, 'id'>): WorkOrder {
     const o = this.workOrder(orderId);
     if (piecesTotal(stage.pieces) <= 0) fail('اكتب عدد القطع');
-    const order: WorkOrder = { ...o, stages: [...o.stages, { ...stage, id: crypto.randomUUID() }] };
+    const order: WorkOrder = { ...o, stages: [...o.stages, { ...stage, id: newId() }] };
     this.emit({ type: 'workorder.saved', order });
     return order;
   }
@@ -3030,7 +3031,7 @@ export class Ledger {
     const fresh = this.state.workOrders[orderId]!;
     const order: WorkOrder = {
       ...fresh,
-      expenses: [...fresh.expenses, { id: crypto.randomUUID(), date: e.date, kind: e.kind.trim(), ...(e.description ? { description: e.description } : {}), amount: e.amount, billTo: e.billTo, entryId: entry.id }],
+      expenses: [...fresh.expenses, { id: newId(), date: e.date, kind: e.kind.trim(), ...(e.description ? { description: e.description } : {}), amount: e.amount, billTo: e.billTo, entryId: entry.id }],
     };
     this.emit({ type: 'workorder.saved', order });
     return order;
@@ -3052,7 +3053,7 @@ export class Ledger {
     const number = (this.state.counters['woodlot'] ?? 0) + 1;
     const supplier = d.supplierId ? (this.state.parties[d.supplierId] ?? fail('المورد غير موجود')) : null;
     const memo = `حمولة حطب رقم ${number}: ${d.title.trim()}${supplier ? ` — ${supplier.name}` : ''}`;
-    const id = crypto.randomUUID();
+    const id = newId();
     const purchase = this.postEntry({
       date: d.date,
       memo,
@@ -3119,7 +3120,7 @@ export class Ledger {
       ...(d.cashAccountId ? { cashAccountId: d.cashAccountId } : {}),
       createdBy: this.actor,
     });
-    const expense: WoodExpense = { id: crypto.randomUUID(), date: d.date, kind: d.kind.trim(), ...(d.description?.trim() ? { description: d.description.trim() } : {}), amount: d.amount, ...(lot ? { lotId: lot.id } : {}), entryId: entry.id };
+    const expense: WoodExpense = { id: newId(), date: d.date, kind: d.kind.trim(), ...(d.description?.trim() ? { description: d.description.trim() } : {}), amount: d.amount, ...(lot ? { lotId: lot.id } : {}), entryId: entry.id };
     this.emit({ type: 'woodexpense.saved', expense });
     return expense;
   }
@@ -3200,7 +3201,7 @@ export class Ledger {
         { accountId: SYSTEM_ACCOUNTS.customers, ...(add ? { debit: a.amount } : { credit: a.amount }), ...fx, partyId: party.id },
         { accountId: SYSTEM_ACCOUNTS.serviceRevenue, ...(add ? { credit: a.amount } : { debit: a.amount }), ...fx },
       ],
-      source: { type: 'work-adjust', id: crypto.randomUUID() },
+      source: { type: 'work-adjust', id: newId() },
       createdBy: this.actor,
     });
   }
@@ -3231,7 +3232,7 @@ export class Ledger {
     const fresh = this.state.workOrders[orderId]!;
     const order: WorkOrder = {
       ...fresh,
-      deliveries: [...fresh.deliveries, { id: crypto.randomUUID(), number, date: opts.date, pieces: opts.pieces, ...(invoice ? { invoiceId: invoice.id } : {}), ...(opts.notes ? { notes: opts.notes } : {}) }],
+      deliveries: [...fresh.deliveries, { id: newId(), number, date: opts.date, pieces: opts.pieces, ...(invoice ? { invoiceId: invoice.id } : {}), ...(opts.notes ? { notes: opts.notes } : {}) }],
     };
     const p = workOrderProgress(this.state, order);
     if (opts.close || (p.planned > 0 && p.delivered >= p.planned)) order.status = 'done';

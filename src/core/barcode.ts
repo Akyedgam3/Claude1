@@ -1,3 +1,4 @@
+import { newId } from './ids';
 import type { CompanyState, Item, ScaleSettings } from './types';
 
 export const DEFAULT_SCALE: ScaleSettings = { prefix: '21', itemDigits: 5, valueDigits: 5, valueType: 'weight', valueDecimals: 3 };
@@ -107,7 +108,7 @@ export function generateVariants(base: Omit<Item, 'id' | 'code' | 'attributes'>,
       if (color) attrs['اللون'] = color;
       out.push({
         ...base,
-        id: crypto.randomUUID(),
+        id: newId(),
         code: `${codePrefix}-${String(n++).padStart(2, '0')}`,
         name: [base.name, color, size].filter(Boolean).join(' '),
         group: base.group ?? base.name,

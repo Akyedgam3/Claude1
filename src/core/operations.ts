@@ -1,3 +1,4 @@
+import { newId } from './ids';
 import { allocate } from './commerce';
 import { SYSTEM_ACCOUNTS } from './chart-templates';
 import type { EntryDraft, LineDraft } from './ledger';
@@ -157,7 +158,7 @@ function finishAdjustment(
   memo?: string,
   counter?: string,
 ): { adjustment: StockAdjustment; entry?: JournalEntry } {
-  const id = crypto.randomUUID();
+  const id = newId();
   const number = nextNumber(ctx.state, 'adjustment');
   const text = memo?.trim() || `${ADJUSTMENT_NAMES[kind]} رقم ${number}`;
   const value = lines.reduce((s, l) => s + l.cost, 0);
@@ -262,7 +263,7 @@ export function buildTransfer(ctx: OpsContext, d: TransferDraft): StockTransfer 
   });
   const number = nextNumber(state, 'transfer');
   return {
-    id: crypto.randomUUID(),
+    id: newId(),
     number,
     date: d.date,
     from: d.from,
@@ -322,7 +323,7 @@ export function buildProduction(ctx: OpsContext, d: ProductionDraft): Production
   });
   const number = nextNumber(state, 'production');
   return {
-    id: crypto.randomUUID(),
+    id: newId(),
     number,
     date: d.date,
     warehouseId,

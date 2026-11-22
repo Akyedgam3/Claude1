@@ -1,3 +1,4 @@
+import { newId } from './ids';
 // الموظفين والرواتب: بطاقة لكل موظف (اسمه، رقمه، عمله، راتبه) وكل حركة عليه قيد محاسبي
 // (مصدره employee) فبتطلع بدفتر اليومية والصندوق والتقارير متل أي حركة:
 //   استحقاق راتب / مكافأة:   رواتب وأجور  ← رواتب مستحقة
@@ -41,7 +42,7 @@ export interface EmployeeMove {
 }
 
 /** معرّف مصدر القيد: employeeId|kind|uuid|period */
-export const employeeSourceId = (employeeId: string, kind: EmployeeMoveKind, period?: string) => `${employeeId}|${kind}|${crypto.randomUUID()}${period ? `|${period}` : ''}`;
+export const employeeSourceId = (employeeId: string, kind: EmployeeMoveKind, period?: string) => `${employeeId}|${kind}|${newId()}${period ? `|${period}` : ''}`;
 
 /** حركات الموظفين (من القيود)، الأقدم أولاً. */
 export function employeeMoves(state: CompanyState, employeeId?: string): EmployeeMove[] {

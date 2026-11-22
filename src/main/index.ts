@@ -871,9 +871,9 @@ function registerIpc(): void {
     requireCloud();
     return cloudSessions.fullState();
   });
-  handle('cloud:hostQueued', (username: string, password: string, method: string, args: unknown[]) => {
+  handle('cloud:hostQueued', (username: string, password: string, method: string, args: unknown[], ids?: string[]) => {
     requireCloud();
-    return cloudSessions.runQueued(String(username), String(password), String(method), Array.isArray(args) ? args : []);
+    return cloudSessions.runQueued(String(username), String(password), String(method), Array.isArray(args) ? args : [], Array.isArray(ids) ? ids.map(String) : undefined);
   });
 
   // ── الطباعة والتصدير ──

@@ -159,7 +159,7 @@ export const api = {
   cloudHostLogout: (token: string) => inv<void>('cloud:hostLogout', token),
   cloudHostBackup: (token: string) => inv<string>('cloud:hostBackup', token),
   cloudHostState: () => inv<{ state: CompanyState; seq: number }>('cloud:hostState'),
-  cloudHostQueued: (username: string, password: string, method: string, args: unknown[]) => inv<{ value: unknown; seq: number }>('cloud:hostQueued', username, password, method, args),
+  cloudHostQueued: (username: string, password: string, method: string, args: unknown[], ids?: string[]) => inv<{ value: unknown; seq: number }>('cloud:hostQueued', username, password, method, args, ids),
   /** الاتصال بجهاز رئيسي عن بعد (saved = آخر اتصال محفوظ، بيكفي كلمة السر). */
   cloudConnect: (o: { code?: string; username?: string; password: string; saved?: boolean }) => inv<SessionInfo>('cloud:connect', o),
   /** ضاع الجهاز الرئيسي: آخر نسخة من السحابة ← ملف .wazn بكلمة سر جديدة للمالك. بيرجّع مكان الملف (أو null). */

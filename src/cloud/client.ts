@@ -1,5 +1,6 @@
 // الجهاز البعيد (جوال بالبيت مثلاً): بيبعت طلبات للجهاز الرئيسي عبر السحابة وبيستقبل العمليات الجديدة أول بأول.
 import { applyEvent, Ledger } from '../core/ledger';
+import { recordIds, replayIds } from '../core/ids';
 import type { CompanyEvent, CompanyState, User } from '../core/types';
 import type { EventItem } from '../app/lan';
 import { execute, isSpecialMethod } from '../app/executor';
@@ -195,16 +196,18 @@ export class CloudClient {
       const ledger = new Ledger(sink, state);
       return execute({ ledger, lastSeq: this.seq } as unknown as CompanyStore, this.user!, method, structuredClone(args));
     };
-    run(structuredClone(this.state), () => undefined); // تجربة: إذا في خطأ (رصيد، صلاحية...) ما منسجّل شي
+    // تجربة على نسخة: إذا في خطأ (رصيد، صلاحية...) ما منسجّل شي. ومنسجّل المعرّفات اللي طلعت،
+    // والتنفيذ الحقيقي هون وعالجهاز الرئيسي بيستعملها نفسها
+    const trial = recordIds(() => run(structuredClone(this.state!), () => undefined));
     const id = `${QUEUE_PREFIX}${Date.now().toString(36).padStart(9, '0')}${[...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, '0')).join('')}`;
-    const op: QueuedOp = { op: 'queued', username: this.creds.username, password: this.creds.password, method, args, at: Date.now(), ...(orig ? { orig } : {}) };
+    const op: QueuedOp = { op: 'queued', username: this.creds.username, password: this.creds.password, method, args, at: Date.now(), ...(orig ? { orig } : {}), ...(trial.ids.length ? { ids: trial.ids } : {}) };
     try {
       await this.t.set(this.room.room, 'req', id, { ...(await seal(this.room.key, `req/${id}`, op)), at: op.at });
     } catch {
       throw new Error('ما في إنترنت على الجوال. العملية ما انحفظت، جرّب لما يرجع النت.');
     }
     const events: EventItem[] = [];
-    const { value } = run(this.state, (event) => events.push({ event, seq: this.seq + events.length + 1 }));
+    const { value } = replayIds(trial.ids, () => run(this.state!, (event) => events.push({ event, seq: this.seq + events.length + 1 })));
     if (events.length) this.seq = events[events.length - 1]!.seq;
     this.pending.push({ id, method, at: op.at });
     if (events.length) this.onEvents?.(events);

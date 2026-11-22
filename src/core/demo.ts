@@ -1,3 +1,4 @@
+import { newId } from './ids';
 import type { Ledger } from './ledger';
 import type { Item, PrintJobLine } from './types';
 
@@ -68,14 +69,14 @@ function restaurant(l: Ledger): void {
 
   // طلبين انسكّروا اليوم (مبيعات)، وطلبات مفتوحة بحالات مختلفة
   const at = (min: number) => new Date(Date.now() - min * 60_000).toISOString();
-  const line = (itemId: string, qty: number, price: number, extra: object = {}) => ({ id: crypto.randomUUID(), itemId, qty, price: P(price), ...extra });
-  const done1 = l.saveOrder({ id: crypto.randomUUID(), type: 'dine_in', tableId: 't-الصالة-5', status: 'open', guests: 2, lines: [line('m-taouk', 2, 650, { sent: true, ready: true }), line('m-hummus', 1, 200, { sent: true, ready: true }), line('m-cola', 2, 80, { sent: true, ready: true })] });
+  const line = (itemId: string, qty: number, price: number, extra: object = {}) => ({ id: newId(), itemId, qty, price: P(price), ...extra });
+  const done1 = l.saveOrder({ id: newId(), type: 'dine_in', tableId: 't-الصالة-5', status: 'open', guests: 2, lines: [line('m-taouk', 2, 650, { sent: true, ready: true }), line('m-hummus', 1, 200, { sent: true, ready: true }), line('m-cola', 2, 80, { sent: true, ready: true })] });
   l.closeOrder(done1.id, { date: day() });
-  const done2 = l.saveOrder({ id: crypto.randomUUID(), type: 'takeaway', tableId: null, status: 'open', lines: [line('m-shawarma', 4, 250, { sent: true, ready: true }), line('m-fries', 2, 180, { sent: true, ready: true })] });
+  const done2 = l.saveOrder({ id: newId(), type: 'takeaway', tableId: null, status: 'open', lines: [line('m-shawarma', 4, 250, { sent: true, ready: true }), line('m-fries', 2, 180, { sent: true, ready: true })] });
   l.closeOrder(done2.id, { date: day() });
 
   l.saveOrder({
-    id: crypto.randomUUID(),
+    id: newId(),
     type: 'dine_in',
     tableId: 't-الصالة-2',
     status: 'open',
@@ -86,7 +87,7 @@ function restaurant(l: Ledger): void {
     lines: [line('m-mix', 1, 1200, { sent: true, sentAt: at(30), ready: true }), line('m-fattoush', 2, 220, { sent: true, sentAt: at(30), ready: true }), line('m-lemonade', 4, 150, { sent: true, sentAt: at(30), ready: true })],
   });
   l.saveOrder({
-    id: crypto.randomUUID(),
+    id: newId(),
     type: 'dine_in',
     tableId: 't-التراس-1',
     status: 'open',
@@ -96,7 +97,7 @@ function restaurant(l: Ledger): void {
     lines: [line('m-kabab', 2, 750, { sent: true, sentAt: at(12), note: 'بدون بصل' }), line('m-mutabal', 1, 200, { sent: true, sentAt: at(12), ready: true }), line('m-cola', 3, 80, { sent: true, sentAt: at(12), ready: true })],
   });
   l.saveOrder({
-    id: crypto.randomUUID(),
+    id: newId(),
     type: 'dine_in',
     tableId: 't-عائلي-1',
     status: 'open',
@@ -105,7 +106,7 @@ function restaurant(l: Ledger): void {
     lines: [line('m-taouk', 3, 650), line('m-hummus', 2, 200), line('m-water', 6, 40)],
   });
   l.saveOrder({
-    id: crypto.randomUUID(),
+    id: newId(),
     type: 'delivery',
     tableId: null,
     status: 'open',

@@ -17,7 +17,8 @@ export interface CloudCompany {
   /** حالة الشركة كاملة (للنسخة المحفوظة بالسحابة اللي بيفتحها الجوال لما الجهاز الرئيسي يكون مطفي). */
   fullState(): Promise<{ state: CompanyState; seq: number }>;
   /** عملية انعملت عالجوال والجهاز الرئيسي مطفي: كلمة السر بتتحقق هون وبتتنفّذ بصلاحيات صاحبها. */
-  runQueued(username: string, password: string, method: string, args: unknown[]): Promise<{ value: unknown; seq: number }>;
+  /** ids: المعرّفات اللي طلعت عالجوال لما نفّذها (حتى تطلع نفسها هون). */
+  runQueued(username: string, password: string, method: string, args: unknown[], ids?: string[]): Promise<{ value: unknown; seq: number }>;
   /** ملف نسخة احتياطية (.wazn) بالـ base64، للجوال البعيد (بصلاحية النسخ الاحتياطي). */
   backup(token: string): Promise<string>;
 }
@@ -35,6 +36,8 @@ export interface QueuedOp {
    * ما منعيده (وإلا الفاتورة بتنسجّل مرتين بنفس التاريخ).
    */
   orig?: string;
+  /** المعرّفات الجديدة اللي طلعت عالجوال (فاتورة، قيد...) بالترتيب: الجهاز الرئيسي بيستعملها نفسها. */
+  ids?: string[];
 }
 
 /** وصف آخر نسخة كاملة محفوظة بالسحابة (meta/latest). */
@@ -93,6 +96,8 @@ export class CloudHost {
   private latestTimer: ReturnType<typeof setInterval> | null = null;
   private latestChain: Promise<void> = Promise.resolve();
   onError: (message: string) => void = () => undefined;
+  /** عملية انعملت عالجوال والجهاز مطفي وما زبطت هون: منبلّغ صاحب الجهاز كمان (الجوال ممكن يكون مسكّر). */
+  onQueuedFailed: (info: { username: string; method: string; error: string; at: number }) => void = () => undefined;
 
   constructor(
     private readonly t: CloudTransport,
@@ -249,6 +254,7 @@ export class CloudHost {
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       res = { ok: false, error: message, ...(message === SESSION_EXPIRED ? { expired: true } : {}) };
+      if (req.op === 'queued') this.onQueuedFailed({ username: String(req.username ?? ''), method: String(req.method ?? ''), error: message, at: Number(req.at) || Date.now() });
     }
     await this.t.set(this.room.room, 'res', id, { ...(await seal(this.room.key, `res/${id}`, res)), at: Date.now() });
   }
@@ -286,7 +292,7 @@ export class CloudHost {
           // نفس العملية تنفّذت قبل (الرد بس تأخّر عالجوال): ما منعيدها
           return { value: null, seq: 0, duplicate: true };
         }
-        const { value, seq } = await this.company.runQueued(String(req.username ?? ''), String(req.password ?? ''), String(req.method), Array.isArray(req.args) ? req.args : []);
+        const { value, seq } = await this.company.runQueued(String(req.username ?? ''), String(req.password ?? ''), String(req.method), Array.isArray(req.args) ? req.args : [], Array.isArray(req.ids) ? req.ids.map(String) : undefined);
         await this.flush();
         return { value: value ?? null, seq };
       }

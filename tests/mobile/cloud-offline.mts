@@ -11,8 +11,10 @@ fs.writeFileSync('www/test-feed.txt', signFeed({ v: 1, issuedAt: new Date().toIS
 
 const b = await chromium.launch();
 const errs: string[] = [];
-async function phone(tag: string): Promise<Page> {
-  const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, bypassCSP: true });
+const aDir = fs.mkdtempSync('/tmp/wazn-host-a-');
+async function phone(tag: string, persistent = false): Promise<Page> {
+  const opts = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, bypassCSP: true };
+  const ctx = persistent ? await chromium.launchPersistentContext(aDir, opts) : await b.newContext(opts);
   const p = await ctx.newPage();
   p.on('pageerror', (e) => errs.push(`${tag} pageerror: ${e.message}`));
   p.on('console', (m) => m.type() === 'error' && errs.push(`${tag} console: ${m.text().slice(0, 300)}`));
@@ -22,7 +24,7 @@ async function phone(tag: string): Promise<Page> {
     localStorage.setItem('wazn.cloudEmulator', '127.0.0.1:8085');
   }, URL);
   await p.goto(`${URL}/index.html`);
-  await p.getByText('بصمة الجهاز', { exact: true }).waitFor({ timeout: 20000 });
+  if (tag !== 'A2') await p.getByText('بصمة الجهاز', { exact: true }).waitFor({ timeout: 20000 });
   return p;
 }
 const shot = async (p: Page, n: string) => {
@@ -47,7 +49,7 @@ const invoiceCount = async (p: Page) => {
 };
 
 // ── A: الجهاز الرئيسي بالمحل، ترخيص فيه خدمة الاتصال عن بعد ──
-const A = await phone('A');
+const A = await phone('A', true);
 const machineId = (await A.locator('.big-code').first().innerText()).trim();
 await A.locator('textarea').first().fill(issueLicense({ id: 'lic-a', customer: 'تجربة', machineId, plan: 'annual' }, devKey));
 await A.getByRole('button', { name: 'تفعيل', exact: true }).click();
@@ -127,9 +129,38 @@ await shot(B, 'off-2-opened');
 const n = await invoiceCount(B);
 console.log('invoices on B offline:', n, 'expected', before + 1);
 if (n !== before + 1) errs.push(`offline count ${n} != ${before + 1}`);
-// بيع والرئيسي مطفي: بيستنى
+// بيع والرئيسي مطفي: بيستنى. وبعدين فاتورة تانية منلغيها (عملية بتعتمد على فاتورة انعملت والرئيسي مطفي)
 await sell(B);
 await shot(B, 'off-3-sold');
+const bCall = (m: string, a: unknown[]) => B.evaluate(([mm, aa]) => (window as any).mizan.invoke('company:call', mm, aa), [m, a] as const);
+const bState = async () => (await B.evaluate(() => (window as any).mizan.invoke('company:state'))) as { state: { invoices: { id: string; number: number; voidedBy?: string; voided?: boolean }[] } };
+await sell(B);
+const offInv = (await bState()).state.invoices.at(-1)!;
+await bCall('voidInvoice', [offInv.id, new Date().toISOString().slice(0, 10)]);
+await B.waitForTimeout(800);
+
+// ── رجع الجهاز الرئيسي: لازم يوصله كل شي انعمل عالجوال ──
+const A2 = await phone('A2', true);
+await A2.waitForTimeout(4000);
+await shot(A2, 'off-4a-host-reopen');
+await A2.getByText('ماركت عن بعد').first().click();
+await A2.locator('input[type=password]').first().waitFor({ timeout: 30000 });
+await A2.locator('input[type=password]').first().fill('secret123');
+await A2.locator('input[type=password]').first().press('Enter');
+await A2.locator('.bottom-nav').waitFor({ timeout: 30000 });
+const aState = async () => (await A2.evaluate(() => (window as any).mizan.invoke('company:state'))) as { state: { invoices: { id: string; voidedBy?: string; voided?: boolean; status?: string }[] } };
+let ok = false;
+for (let i = 0; i < 60 && !ok; i++) {
+  await A2.waitForTimeout(1000);
+  const st = (await aState()).state;
+  const mine = st.invoices.find((x) => x.id === offInv.id);
+  ok = st.invoices.length >= before + 3 && !!mine && JSON.stringify(mine).includes('void');
+}
+const stA = (await aState()).state;
+console.log('host invoices after return:', stA.invoices.length, 'expected >=', before + 3, 'offline invoice voided on host:', JSON.stringify(stA.invoices.find((x) => x.id === offInv.id) ?? null).includes('void'));
+await shot(A2, 'off-4-host-back');
+if (!ok) errs.push('host did not receive the offline operations');
+await A2.context().close();
 console.log(JSON.stringify(errs, null, 1));
 await b.close();
 process.exit(errs.filter((e) => !/console:/.test(e) && !/A pageerror: Failed to read the 'localStorage'/.test(e)).length ? 1 : 0);

@@ -1,3 +1,4 @@
+import { newId } from './ids';
 import { itemTitle } from './activities';
 import { cashAccountFor, SYSTEM_ACCOUNTS } from './chart-templates';
 import type { EntryDraft, LineDraft } from './ledger';
@@ -1056,7 +1057,7 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft, opts: { n
     }
   });
 
-  const id = crypto.randomUUID();
+  const id = newId();
   const number = opts.number ?? (state.counters[kind] ?? 0) + 1;
   const partySide = isSaleSide ? SYSTEM_ACCOUNTS.customers : SYSTEM_ACCOUNTS.suppliers;
   // الجهة التي يدخل فيها المال للشركة (مدين في المبيع)

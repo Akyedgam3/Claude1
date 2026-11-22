@@ -32,13 +32,18 @@ export function useCloudHost(active: boolean, companyName: string, notify: (m: s
         logout: (t) => api.cloudHostLogout(t),
         fullState: () => api.cloudHostState(),
         backup: (t) => api.cloudHostBackup(t),
-        runQueued: (u, p, m, a) => api.cloudHostQueued(u, p, m, a),
+        runQueued: (u, p, m, a, ids) => api.cloudHostQueued(u, p, m, a, ids),
       });
       let warned = false;
       host.onError = (m) => {
         console.error('cloud host', m);
         if (!warned) notify(`الاتصال عن بعد: ${m}`, 'error');
         warned = true;
+      };
+      const WHAT: Record<string, string> = { postInvoice: 'فاتورة', replaceInvoice: 'تعديل فاتورة', voidInvoice: 'إلغاء فاتورة', postVoucher: 'سند', postVouchers: 'سندات', recordDebt: 'دين', saveParty: 'زبون', saveItem: 'مادة' };
+      host.onQueuedFailed = (f) => {
+        const when = new Date(f.at).toLocaleString('ar-SY', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'numeric' });
+        notify(`${WHAT[f.method] ?? 'عملية'} من الجوال البعيد (${f.username}، ${when}) انعملت وهالجهاز مطفي وما انسجّلت: ${f.error}`, 'error');
       };
       const offs = [api.on('company:events', (p) => host.push(p as EventItem[])), api.on('company:reset', () => void host.reset().catch((e: Error) => host.onError(e.message)))];
       // سكّر البرنامج: منخبّر الأجهزة البعيدة إنو الرئيسي انطفى (بتفتح النسخة المحفوظة فوراً)

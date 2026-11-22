@@ -1,4 +1,5 @@
 import type { User } from '../core/types';
+import { replayIds } from '../core/ids';
 import type { CompanyStore } from '../storage/company-store';
 import { SESSION_EXPIRED } from '../cloud/host';
 import { execute } from './executor';
@@ -69,13 +70,26 @@ export class CloudSessions {
   }
 
   /** عملية مأجّلة من جوال كان شغّال والجهاز الرئيسي مطفي: منتحقق من كلمة السر وبتتنفّذ بصلاحيات صاحبها. */
-  runQueued(username: string, password: string, method: string, args: unknown[]) {
+  runQueued(username: string, password: string, method: string, args: unknown[], ids?: string[]) {
     const store = this.store();
     const user = store.verify(username, password);
     if (!user) throw new Error('اسم المستخدم أو كلمة السر غير صحيحة');
     const local = store.ledger.actor;
     try {
-      return execute(store, user, method, args);
+      // نفس معرّفات الجوال: العمليات اللي بعدها (إلغاء، دفعة...) بتلاقي الفاتورة.
+      // والبضاعة طلعت فعلاً من المحل: إذا الرصيد هون نقص بالنص ما منرفض الفاتورة (بيصير سالب وبيطلع بالتنبيهات)
+      const info = store.ledger.state.info;
+      const neg = info?.allowNegativeStock;
+      if (info) info.allowNegativeStock = true;
+      try {
+        return replayIds(ids, () => execute(store, user, method, args));
+      } finally {
+        const now = store.ledger.state.info;
+        if (now) {
+          if (neg) now.allowNegativeStock = neg;
+          else delete now.allowNegativeStock;
+        }
+      }
     } finally {
       store.ledger.actor = local;
     }

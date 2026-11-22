@@ -304,6 +304,55 @@ describe('cloud host and client', () => {
     expect(resets).toBeGreaterThan(0);
   });
 
+  it('operations that build on each other while the main device is off all land on it (same ids)', async () => {
+    const c1 = await client('admin', 'secret123');
+    await c1.login();
+    const verifier = await c1.verifier();
+    await c1.close();
+    await host.markOff();
+    host.stop();
+
+    const c = await client('admin', 'secret123');
+    await c.openOffline(verifier);
+    const reports: { done: number; failed: unknown[] }[] = [];
+    c.onQueueReport = (r) => reports.push(r);
+    c.listen(() => undefined, () => undefined, () => undefined);
+    // زبون جديد، فاتورة إلو، وبعدين فاتورة تانية منلغيها: كلها والجهاز مطفي
+    await c.call('saveParty', [{ id: 'p-new', name: 'زبون جديد', type: 'customer' }]);
+    const inv = (await c.call('postInvoice', [{ ...sale, partyId: 'p-new' }])).value as { id: string };
+    const inv2 = (await c.call('postInvoice', [sale])).value as { id: string };
+    await c.call('voidInvoice', [inv2.id, '2026-01-02']);
+    // بيع 9 من أصل 10 عالجوال، وبالنص المحل باع 5 (الرصيد ما بقى بيكفي): الفاتورة ما بتضيع
+    await c.call('postInvoice', [{ ...sale, lines: [{ itemId: 'i', qty: 8, price: 1000 }] }]);
+    execute(store, store.user, 'postInvoice', [{ ...sale, lines: [{ itemId: 'i', qty: 5, price: 1000 }] }]);
+    expect(c.pending).toHaveLength(5);
+
+    sessions.clear();
+    off();
+    host = new CloudHost(t, await cloudRoom(code), {
+      name: () => 'محل السحابة',
+      login: async (u, p, d, n) => sessions.login(u, p, d, n),
+      snapshot: async (tok) => sessions.snapshot(tok),
+      call: async (tok, m, a) => sessions.call(tok, m, a),
+      logout: async (tok) => sessions.logout(tok),
+      fullState: async () => sessions.fullState(),
+      runQueued: async (u, pw, m, a, ids) => sessions.runQueued(u, pw, m, a, ids),
+      backup: async (tok) => sessions.backup(tok, readCompanyFile),
+    });
+    off = store.onEvent((event, seq) => host.push([{ event, seq }]));
+    await host.start();
+    await until(() => reports.length === 1, 5000);
+    expect(reports[0]).toEqual({ done: 5, failed: [] });
+    expect(store.ledger.state.stock['i']!.totalQty).toBe(10 - 1 - 8 - 5);
+    expect(store.ledger.state.info!.allowNegativeStock).toBeUndefined();
+    // نفس المعرّفات اللي شافها الجوال
+    const invs = store.ledger.state.invoices as unknown as Record<string, { id: string; partyId?: string }>;
+    const byId = (id: string) => Object.values(invs).find((x) => x.id === id);
+    expect(byId(inv.id)?.partyId).toBe('p-new');
+    expect(byId(inv2.id)).toBeTruthy();
+    expect(JSON.stringify(byId(inv2.id))).toMatch(/void/i);
+  });
+
   it('a single slow request does not leave the phone stuck on "main device off" while it is on', async () => {
     const c = await client();
     await c.login();

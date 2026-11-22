@@ -1,3 +1,4 @@
+import { newId } from './ids';
 // الشركاء والمساهمين: رأس مال كل شريك ونسبته، ونصيبه من الأرباح، والسحوبات.
 // كل حركة قيد محاسبي (مصدره partner) فبتطلع بدفتر اليومية والصندوق والميزانية متل أي حركة.
 import { incomeStatement } from './reports';
@@ -24,7 +25,7 @@ export interface PartnerMove {
 }
 
 /** معرّف مصدر القيد: partnerId|kind|uuid */
-export const partnerSourceId = (partnerId: string, kind: PartnerMoveKind) => `${partnerId}|${kind}|${crypto.randomUUID()}`;
+export const partnerSourceId = (partnerId: string, kind: PartnerMoveKind) => `${partnerId}|${kind}|${newId()}`;
 
 /** حركات الشركاء (من القيود)، الأقدم أولاً. */
 export function partnerMoves(state: CompanyState, partnerId?: string): PartnerMove[] {
