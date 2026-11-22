@@ -64,11 +64,15 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       if (!item.name.trim()) fail('اسم المادة مطلوب');
       if (!item.code.trim()) fail('رمز المادة مطلوب');
       // المواد المحذوفة (المؤرشفة) ما بتحجز رمزها ولا باركودها
-      const others = Object.values(state.items).filter((i) => i.id !== item.id && !i.archived);
-      if (others.some((i) => i.code === item.code)) fail(`الرمز ${item.code} مستخدم لمادة أخرى`);
-      const barcodes = [item.barcode, ...(item.units ?? []).map((u) => u.barcode)].filter(Boolean);
-      for (const b of barcodes) {
-        if (others.some((i) => i.barcode === b || i.units?.some((u) => u.barcode === b))) fail(`الباركود ${b} مستخدم لمادة أخرى`);
+      // لفّة وحدة بدون نسخ؛ وبالدفعات (saveItems) انفحص الرمز والباركود للكل مرة وحدة
+      const barcodes = new Set([item.barcode, ...(item.units ?? []).map((u) => u.barcode)].filter(Boolean) as string[]);
+      for (const id in event.checked ? {} : state.items) {
+        const i = state.items[id]!;
+        if (i.id === item.id || i.archived) continue;
+        if (i.code === item.code) fail(`الرمز ${item.code} مستخدم لمادة أخرى`);
+        if (!barcodes.size) continue;
+        if (i.barcode && barcodes.has(i.barcode)) fail(`الباركود ${i.barcode} مستخدم لمادة أخرى`);
+        for (const u of i.units ?? []) if (u.barcode && barcodes.has(u.barcode)) fail(`الباركود ${u.barcode} مستخدم لمادة أخرى`);
       }
       if (!state.currencies[item.priceCurrency]) fail('عملة السعر غير معرّفة');
       if (item.dealerId && !state.dealers?.[item.dealerId]) fail('المورّد غير موجود');

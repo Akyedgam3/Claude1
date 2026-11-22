@@ -317,12 +317,28 @@ async function fitForPrint(contents: WebContents, paper: string, fit: boolean): 
   }
   const size = PAGE_SIZES[paper];
   if (!fit || !size) return none;
+  // التصغير بـ zoom على المحتوى نفسه: خيار scale تبع الطباعة بيزيح الصفحة العربية (من اليمين لليسار) لبرّا الورقة
+  // من جهة اليسار (كانت فواتير الـA5 تطلع مقصوصة)
+  const setZoom = (z: number | null) =>
+    contents.executeJavaScript(`(() => {
+      let st = document.getElementById('wazn-print-zoom');
+      if (${z === null}) { st && st.remove(); return; }
+      if (!st) { st = document.createElement('style'); st.id = 'wazn-print-zoom'; document.head.appendChild(st); }
+      st.textContent = '@media print { .print-area { zoom: ${z ?? 1}; } }';
+    })()`);
+  const restore = async () => {
+    await setZoom(null).catch(() => undefined);
+  };
   try {
-    const pages = async (scale?: number) => pdfPages(await contents.printToPDF({ printBackground: true, preferCSSPageSize: true, pageSize: size, ...(scale ? { scale } : {}) }));
+    const pages = async () => pdfPages(await contents.printToPDF({ printBackground: true, preferCSSPageSize: true, pageSize: size }));
     if ((await pages()) !== 2) return none;
-    for (const scale of [0.94, 0.88, 0.82, 0.76, 0.7]) if ((await pages(scale)) === 1) return { scale, restore: none.restore };
+    for (const z of [0.94, 0.88, 0.82, 0.76, 0.7]) {
+      await setZoom(z);
+      if ((await pages()) === 1) return { restore };
+    }
+    await restore();
   } catch {
-    /* منطبع عادي */
+    await restore();
   }
   return none;
 }

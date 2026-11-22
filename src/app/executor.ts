@@ -195,7 +195,9 @@ function executeChecked(store: CompanyStore, user: User, method: string, args: u
   });
   const fn = (store.ledger as unknown as Record<string, (...a: unknown[]) => unknown>)[method];
   if (typeof fn !== 'function') fail(`عملية غير معروفة: ${method}`);
-  const value = fn.apply(store.ledger, args);
+  // كتير أحداث بعملية وحدة: مزامنة وحدة مع القرص بالآخر (الجوال البعيد بيمرّر نسخة بدون batch)
+  const run = () => fn.apply(store.ledger, args);
+  const value = typeof store.batch === 'function' ? store.batch(run) : run();
   // فواتير المورد: إلغاء القديمة بيلغي تحويلها، والجديدة بيتحوّل المقبوض عن أدوية الصيدلية لصندوقها
   if ((method === 'voidInvoice' || method === 'replaceInvoice' || method === 'deleteInvoice') && typeof args[0] === 'string') {
     const d = typeof args[1] === 'string' ? args[1] : ((args[1] as { date?: string } | undefined)?.date ?? new Date().toISOString().slice(0, 10));

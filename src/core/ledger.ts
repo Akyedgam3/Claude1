@@ -976,7 +976,28 @@ export class Ledger {
 
   /** حفظ مجموعة مواد دفعة واحدة (استيراد من Excel أو توليد مقاسات وألوان). */
   saveItems(items: Item[]): number {
-    for (const item of items) this.saveItem(item);
+    // فحص الرمز والباركود للدفعة كلها مرة وحدة (استيراد عشرات آلاف المواد كان ياخد دقايق)
+    const batch = new Set(items.map((i) => i.id));
+    const codes = new Map<string, string>();
+    const barcodes = new Map<string, string>();
+    for (const i of Object.values(this.state.items)) {
+      if (i.archived || batch.has(i.id)) continue;
+      codes.set(i.code, i.id);
+      for (const b of [i.barcode, ...(i.units ?? []).map((u) => u.barcode)]) if (b) barcodes.set(b, i.id);
+    }
+    for (const item of items) {
+      if (item.archived) continue;
+      const c = codes.get(item.code);
+      if (c !== undefined && c !== item.id) fail(`الرمز ${item.code} مستخدم لمادة أخرى`);
+      codes.set(item.code, item.id);
+      for (const b of [item.barcode, ...(item.units ?? []).map((u) => u.barcode)]) {
+        if (!b) continue;
+        const o = barcodes.get(b);
+        if (o !== undefined && o !== item.id) fail(`الباركود ${b} مستخدم لمادة أخرى`);
+        barcodes.set(b, item.id);
+      }
+    }
+    for (const item of items) this.emit({ type: 'item.saved', item, checked: true });
     return items.length;
   }
 

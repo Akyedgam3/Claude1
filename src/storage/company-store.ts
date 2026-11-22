@@ -358,7 +358,8 @@ export class CompanyStore {
     const size = fs.fstatSync(this.fd).size;
     try {
       fs.writeSync(this.fd, JSON.stringify(record) + '\n');
-      fs.fsyncSync(this.fd); // لا نعتبر العملية محفوظة قبل وصولها للقرص
+      // لا نعتبر العملية محفوظة قبل وصولها للقرص (بالدفعة: مرة وحدة بالآخر، بـ batch)
+      if (!this.batching) fs.fsyncSync(this.fd);
     } catch (e) {
       // كتابة ناقصة (القرص ممتلئ مثلاً): نعيد الملف كما كان حتى لا تلتصق بها العملية التالية
       // على ويندوز ملف الإضافة لا يقبل القص، فنغلقه ونقصّه بالمسار ثم نعيد فتحه
@@ -378,12 +379,47 @@ export class CompanyStore {
     }
     this.seq = seq;
     this.lastHash = record.hash;
+    if (this.batching) {
+      this.batchDirty = true;
+      return this.notify(event, seq);
+    }
+    this.writeHead();
+    this.notify(event, seq);
+  }
+
+  private batching = false;
+  private batchDirty = false;
+
+  /**
+   * عملية فيها كتير أحداث (استيراد آلاف المواد): منكتبهن كلهن وبالآخر مزامنة وحدة مع القرص
+   * بدل مزامنة لكل حدث. العملية ما بترجع قبل ما توصل للقرص متل العادة.
+   */
+  batch<T>(fn: () => T): T {
+    if (this.batching) return fn();
+    this.batching = true;
+    try {
+      return fn();
+    } finally {
+      this.batching = false;
+      if (this.batchDirty) {
+        this.batchDirty = false;
+        if (this.fd >= 0) fs.fsyncSync(this.fd);
+        this.writeHead();
+      }
+    }
+  }
+
+  private writeHead(): void {
+    const seq = this.seq;
     try {
       // الرأس الموقّع لكشف حذف عمليات من آخر السجل؛ السجل نفسه هو الأصل، ففشل حفظ الرأس لا يلغي العملية
-      writeAtomic(path.join(this.dir, HEAD), JSON.stringify({ seq, hash: record.hash, mac: hmac(this.key, `${seq}|${record.hash}`) }));
+      writeAtomic(path.join(this.dir, HEAD), JSON.stringify({ seq, hash: this.lastHash, mac: hmac(this.key, `${seq}|${this.lastHash}`) }));
     } catch {
       // يُعاد حفظه مع العملية التالية
     }
+  }
+
+  private notify(event: CompanyEvent, seq: number): void {
     // التطبيق على الحالة يحدث بعد العودة من هنا؛ نؤجل الإشعار واللقطة حتى ينتهي،
     // ونثبّت قائمة المشتركين الآن حتى لا يصل الحدث لمن اشترك بعده
     const listeners = [...this.listeners];

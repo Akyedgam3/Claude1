@@ -42,7 +42,22 @@ export class LocalBackend implements Backend {
 
   listen(onEvents: (items: EventItem[]) => void): void {
     this.unsubscribe?.();
-    this.unsubscribe = this.store.onEvent((event, seq) => onEvents([{ event, seq }]));
+    // الأحداث بتنبعت للواجهة دفعة وحدة لكل عملية (استيراد 20 ألف مادة كان يعمل 20 ألف رسالة وإعادة رسم)
+    let pending: EventItem[] = [];
+    let timer: ReturnType<typeof setImmediate> | null = null;
+    const off = this.store.onEvent((event, seq) => {
+      pending.push({ event, seq });
+      timer ??= setImmediate(() => {
+        timer = null;
+        const items = pending;
+        pending = [];
+        onEvents(items);
+      });
+    });
+    this.unsubscribe = () => {
+      off();
+      if (timer) clearImmediate(timer);
+    };
   }
 
   async close(): Promise<void> {

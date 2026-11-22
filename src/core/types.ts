@@ -1285,7 +1285,7 @@ export type CompanyEvent =
   | { type: 'period.locked'; until: string; entry?: JournalEntry }
   | { type: 'user.saved'; user: User }
   | { type: 'party.saved'; party: Party }
-  | { type: 'item.saved'; item: Item }
+  | { type: 'item.saved'; item: Item; /** الرمز والباركود انفحصوا مرة وحدة للدفعة كلها (saveItems) */ checked?: boolean }
   | { type: 'warehouse.saved'; warehouse: Warehouse }
   | { type: 'invoice.posted'; invoice: Invoice; entry: JournalEntry }
   | { type: 'invoice.voided'; invoiceId: string; entry: JournalEntry; deleted?: boolean }

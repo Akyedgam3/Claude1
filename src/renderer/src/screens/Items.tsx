@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { applyListPricing, attributesFor, ATTRIBUTE_SUGGESTIONS, niceUnitCost, buyDiscountOf, generateVariants, itemPlace, itemPlacesText, listPrices, withPlace, type Item, type ItemKind, type ItemUnit, type RecipeLine } from '../../../core';
 import { api, convertPrice, fxRates, major, money, unitMoney, parseAmount, parsePrice, qtyText, toInput, today, uid, useCompany } from '../api';
 import { Barcode, ExportButtons, usePrinter } from '../components/print';
@@ -40,6 +40,10 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
   const canEdit = can('items.manage');
 
   const categories = useMemo(() => [...new Set([...profile.categories, ...Object.values(state.items).map((i) => i.category).filter(Boolean)])] as string[], [state.items, profile]);
+  // آلاف المواد (ملف منتجات كامل): منرسم أول 300 بس، والباقي بـ«عرض المزيد» أو بالبحث
+  const PAGE = 300;
+  const [shown, setShown] = useState(PAGE);
+  useEffect(() => setShown(PAGE), [query, category, showDeleted]);
   const items = useMemo(
     () =>
       Object.values(state.items)
@@ -75,6 +79,7 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
       const stock: { itemId: string; qty: number; unitCost: number }[] = [];
       let skippedStock = 0;
       const seen = new Set<string>();
+      let maxCode: number | undefined;
       const num = (v: unknown) => Number(String(v ?? '').replace(/[,،\s]/g, '').replace('٫', '.')) || 0;
       const has = (r: Record<string, unknown>, k: string) => String(r[k] ?? '').trim() !== '';
       const currencyOf = (r: Record<string, unknown>, fallback: string) => {
@@ -95,7 +100,10 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
         const codeText = String(r['الرمز'] ?? '').trim();
         const barcodeText = String(r['الباركود'] ?? '').trim();
         // المادة موجودة؟ بالرمز، وإلا بالباركود، وإلا بنفس الاسم
-        const old = (codeText && byCode.get(codeText)) || (barcodeText && byBarcode.get(barcodeText)) || (!codeText ? byName.get(norm(name)) : undefined) || undefined;
+        // بالاسم بس إذا ما في تضارب بالباركود: نفس الاسم بباركود تاني = مادة تانية (حجم أو تغليف تاني)
+        const sameName = !codeText ? byName.get(norm(name)) : undefined;
+        const nameMatch = sameName && (!barcodeText || !sameName.barcode || sameName.barcode === barcodeText) ? sameName : undefined;
+        const old = (codeText && byCode.get(codeText)) || (barcodeText && byBarcode.get(barcodeText)) || nameMatch || undefined;
         if (old) {
           if (seen.has(old.id)) continue;
           seen.add(old.id);
@@ -122,7 +130,13 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
           }
           continue;
         }
-        const code = codeText && !existingCodes.has(codeText) ? codeText : nextCode([...existingCodes]);
+        // الرمز الجاي محسوب مرة وحدة (كان بيمرّ على كل الرموز لكل سطر: آلاف المواد كانت تاخد دقايق)
+        let code = codeText && !existingCodes.has(codeText) ? codeText : '';
+        if (!code) {
+          maxCode ??= [...existingCodes].map(Number).filter(Number.isFinite).reduce((m, n) => Math.max(m, n), 0);
+          do code = String(++maxCode).padStart(4, '0');
+          while (existingCodes.has(code));
+        }
         existingCodes.add(code); // يمنع تكرار الرمز داخل نفس الملف
         const currency = currencyOf(r, base);
         const id = uid();
@@ -315,7 +329,7 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
             </tr>
           </thead>
           <tbody>
-            {items.map((i) => {
+            {items.slice(0, shown).map((i) => {
               const s = state.stock[i.id];
               const qty = s?.totalQty ?? 0;
               const low = i.kind === 'stock' && i.minStock !== undefined && qty <= i.minStock;
@@ -378,6 +392,14 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
             })}
           </tbody>
         </table>
+      )}
+      {items.length > shown && (
+        <div className="button-row" style={{ justifyContent: 'center', margin: '12px 0' }}>
+          <button type="button" onClick={() => setShown((n) => n + PAGE)}>
+            عرض المزيد ({items.length - shown} مادة كمان)
+          </button>
+          <span className="muted">أو ابحث بالاسم أو الباركود</span>
+        </div>
       )}
       {editing && <ItemForm item={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
       {variants && <VariantsForm onClose={() => setVariants(false)} />}

@@ -151,7 +151,22 @@ function requirePermission(p: Permission): void {
 
 function attach(s: CompanyStore): void {
   store = s;
-  unsubscribe = s.onEvent((event: CompanyEvent, seq: number) => send('company:events', structuredClone([{ event, seq }])));
+  // دفعة وحدة لكل عملية (متل الكمبيوتر): استيراد آلاف المواد ما بيعمل آلاف إعادة رسم
+  let pending: { event: CompanyEvent; seq: number }[] = [];
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const off = s.onEvent((event: CompanyEvent, seq: number) => {
+    pending.push({ event, seq });
+    timer ??= setTimeout(() => {
+      timer = null;
+      const items = pending;
+      pending = [];
+      send('company:events', structuredClone(items));
+    }, 0);
+  });
+  unsubscribe = () => {
+    off();
+    if (timer) clearTimeout(timer);
+  };
   syncFeedRates();
   autoState = null;
   void mobileAutoBackup(); // بيبلّش العدّاد من لحظة فتح الشركة
