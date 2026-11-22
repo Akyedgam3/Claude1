@@ -7,6 +7,8 @@ cd "$(dirname "$0")/.."
 REPO=$(pwd)
 VERSION=$(node -p "require('./package.json').version")
 NOTES=${1:-}
+# مسار مطلق: السكربت بيفوت على مستودع التحديثات قبل ما ينسخ الملاحظات
+[ -n "$NOTES" ] && NOTES=$(realpath "$NOTES")
 UPDATES=${UPDATES_DIR:-/home/user/mizan-updates}
 
 # ما في داعي لـ wine: scripts/eb-nowine.cjs بيستخرج برنامج إزالة التنصيب بـ JavaScript (wine بيوقع ببعض البيئات)
