@@ -48,6 +48,15 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
     [state.items, query, category, showDeleted],
   );
 
+  // التكلفة بعملة سعر المادة (مادة بالدولار بتبيّن تكلفتها بالدولار بسعر الصرف اليوم)، متل بطاقة المادة
+  const rateNow = useMemo(() => fxRates(state, today()), [state]);
+  const costText = (baseMinor: number, cur: string) => {
+    const b = state.info!.baseCurrency;
+    if (cur === b) return unitMoney(state, baseMinor);
+    const v = convertPrice(state, baseMinor, b, cur, rateNow);
+    return v === null ? unitMoney(state, baseMinor) : unitMoney(state, v, cur);
+  };
+
   const importExcel = async () => {
     try {
       const rows = await api.importExcel();
@@ -359,8 +368,8 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
                     )}
                   </td>
                   {showCost && (
-                    <td className="num" title={s ? `المتوسط: ${qty > 0 ? unitMoney(state, s.value / qty) : '—'} · آخر سعر شراء: ${s.lastCost ? unitMoney(state, s.lastCost) : '—'}` : undefined}>
-                      {lastCostView ? (s?.lastCost ? unitMoney(state, s.lastCost) : '—') : s && qty > 0 ? unitMoney(state, s.value / qty) : '—'}
+                    <td className="num" title={s ? `المتوسط: ${qty > 0 ? costText(s.value / qty, i.priceCurrency) : '—'} · آخر سعر شراء: ${s.lastCost ? costText(s.lastCost, i.priceCurrency) : '—'}` : undefined}>
+                      {lastCostView ? (s?.lastCost ? costText(s.lastCost, i.priceCurrency) : '—') : s && qty > 0 ? costText(s.value / qty, i.priceCurrency) : '—'}
                     </td>
                   )}
                   <td className="num">{money(state, i.price, i.priceCurrency)}</td>
