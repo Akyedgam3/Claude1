@@ -181,6 +181,7 @@ const MAX_USER_FAILS = 20;
 const RATE_PER_MIN = 240;
 const LOCK_MINUTES = 15;
 const PUBLISH_DELAY_MS = 4000;
+const DAILY_MS = 24 * 60 * 60_000;
 const USERNAME_RE = /^[a-z0-9._-]{3,32}$/;
 
 export class RegistryDO extends DurableObject<Env> {
@@ -256,6 +257,7 @@ export class RegistryDO extends DurableObject<Env> {
     this.regKey = key;
     // الزباين القدام بياخدوا كود قصير كمان (مفيد لإعادة التنصيب)
     this.reg.ensureCodes();
+    void this.ensureDaily();
     return this.reg;
   }
 
@@ -350,8 +352,20 @@ export class RegistryDO extends DurableObject<Env> {
   }
 
   override async alarm(): Promise<void> {
-    if (this.kvGet('dirty') !== '1') return;
-    await this.publish();
+    // كل يوم منعيد النشر: اشتراكات «عن بعد» اللي خلصت مدتها بتوقف لحالها بالقائمة
+    const daily = Number(this.kvGet('nextDaily') ?? 0);
+    const due = Date.now() >= daily;
+    if (this.kvGet('dirty') === '1' || due) await this.publish();
+    if (due) this.kvSet('nextDaily', String(Date.now() + DAILY_MS));
+    await this.ensureDaily();
+  }
+
+  /** في منبّه دايماً (للنشر اليومي)، ما بيمسح منبّه نشر أقرب. */
+  private async ensureDaily(): Promise<void> {
+    const next = Number(this.kvGet('nextDaily') ?? 0) || Date.now() + DAILY_MS;
+    if (!this.kvGet('nextDaily')) this.kvSet('nextDaily', String(next));
+    const cur = await this.ctx.storage.getAlarm();
+    if (cur === null || cur > next) await this.ctx.storage.setAlarm(next);
   }
 
   /** بيوقّع القائمة وبيرفعها على GitHub (والبرامج بتقراها من هناك). */
@@ -616,7 +630,9 @@ export class RegistryDO extends DurableObject<Env> {
       if (m && req.method === 'POST') {
         const c = own(m[1]!);
         if (m[2] === 'cloud') {
-          const out = reg.agentSetCloud(agent.id, c.id, body['on'] === true);
+          // plan: شهري/3/6/سنوي/دائم من رصيده، أو off (القديم on=false)
+          const plan = str('plan') || (body['on'] === false ? 'off' : 'lifetime');
+          const out = reg.agentSetCloud(agent.id, c.id, plan as Plan | 'off');
           this.schedulePublish();
           return json(out);
         }
@@ -731,7 +747,10 @@ export class RegistryDO extends DurableObject<Env> {
         if (!['active', 'suspended', 'revoked'].includes(str('status'))) throw new HttpError(400, 'حالة غير معروفة');
         return touch(reg.setStatus(id!, str('status') as FeedStatus, str('message') || undefined));
       }
-      if (action === 'cloud') return touch(reg.setCloud(id!, body['on'] === true));
+      if (action === 'cloud') {
+        const plan = str('plan');
+        return touch(plan ? reg.setCloudPlan(id!, plan as Plan | 'off') : reg.setCloud(id!, body['on'] === true));
+      }
       if (action === 'phone') return touch(reg.addPhone(id!, str('machineId')));
       // امسح وفعّل من جديد: نفس البصمة (أو بصمة جديدة إذا انبعتت)، كود تفعيل جديد
       if (action === 'reissue') return touch(reg.reissue(id!, str('machineId') || undefined));
@@ -777,7 +796,7 @@ export class RegistryDO extends DurableObject<Env> {
           }),
         );
       }
-      if (action === 'cloud') return json(reg.addCloud(a.id, num('count') ?? 0, str('note') || undefined));
+      if (action === 'cloud') return json(reg.addCloud(a.id, num('count') ?? 0, str('note') || undefined, (str('plan') || 'lifetime') as Plan));
       if (action === 'deduct') {
         return json(
           reg.deductPackage(a.id, {

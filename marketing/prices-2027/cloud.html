@@ -1,0 +1,92 @@
+<!doctype html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="common.css">
+<style>
+html, body { width: 1080px; height: 1350px; overflow: hidden; }
+body { background: radial-gradient(900px 700px at 100% -5%, rgba(95,224,191,.35), transparent 60%), radial-gradient(800px 600px at -10% 105%, rgba(233,168,76,.22), transparent 60%), linear-gradient(165deg, #fbfdfc, #eef5f1 60%, #e4f0ea); }
+.wrap { padding: 56px 64px 0; height: 100%; display: flex; flex-direction: column; }
+.top { display: flex; justify-content: space-between; align-items: center; }
+.brand img { width: 84px; height: 84px; }
+.brand b { font-size: 46px; }
+.brand small { font-size: 21px; }
+.badge { font-size: 24px; font-weight: 800; color: var(--g); background: #fff; border: 2px solid #bfe3d8; border-radius: 999px; padding: 8px 24px; }
+h1 { font-size: 62px; font-weight: 900; line-height: 1.15; margin-top: 22px; letter-spacing: -.01em; }
+h1 span { color: var(--g2); }
+.lead { font-size: 27px; font-weight: 600; color: var(--muted); margin-top: 8px; }
+.hero { display: grid; grid-template-columns: 1.08fr 1fr; gap: 20px; margin-top: 22px; }
+.big { border-radius: 34px; padding: 24px 30px 22px; position: relative; overflow: hidden; }
+.big.life { color: #fff; background: radial-gradient(120% 100% at 100% 0%, rgba(255,255,255,.14), transparent 60%), linear-gradient(150deg, #16a283, #0f6e5c 60%, #0a3a32); box-shadow: 0 40px 80px -36px rgba(6,60,48,.8); }
+.big.year { background: #fff; box-shadow: 0 34px 70px -34px rgba(6,50,40,.45); border: 3px solid var(--gold); }
+.big .tag { display: inline-block; font-size: 21px; font-weight: 800; border-radius: 999px; padding: 4px 16px; }
+.life .tag { background: rgba(255,255,255,.18); color: #fff; }
+.year .tag { background: #fff3dd; color: #a8661a; }
+.big h2 { font-size: 36px; font-weight: 900; margin-top: 6px; }
+.big .price { font-size: 96px; font-weight: 900; line-height: 1; margin-top: 6px; direction: ltr; text-align: right; letter-spacing: -.02em; }
+.big .price small { font-size: 54px; vertical-align: 28%; margin-right: 4px; }
+.big p { font-size: 23px; font-weight: 600; margin-top: 8px; line-height: 1.45; }
+.life p { color: #cff3e7; }
+.year p { color: var(--muted); }
+.rows { margin-top: 18px; background: #fff; border-radius: 30px; box-shadow: 0 30px 60px -34px rgba(6,50,40,.4); overflow: hidden; }
+.row { display: flex; align-items: center; justify-content: space-between; padding: 13px 30px; border-bottom: 2px solid var(--line); }
+.row:last-child { border-bottom: 0; }
+.row b { font-size: 34px; font-weight: 800; }
+.row small { font-size: 21px; color: var(--muted); font-weight: 600; margin-inline-start: 12px; }
+.row .p { font-size: 40px; font-weight: 900; color: var(--g); direction: ltr; }
+.incl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; margin-top: 18px; }
+.incl div { font-size: 24px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.incl i { width: 34px; height: 34px; border-radius: 50%; background: var(--soft); display: grid; place-items: center; flex: none; font-style: normal; color: var(--g); font-weight: 900; font-size: 20px; }
+.wrap > * { flex-shrink: 0; }
+.foot { margin-top: auto; padding: 14px 0 22px; display: flex; justify-content: space-between; align-items: center; border-top: 2px dashed #c9ddd6; }
+.foot .site { font-size: 32px; font-weight: 900; color: var(--g); direction: ltr; }
+.foot .wa { text-align: left; font-size: 22px; font-weight: 700; color: var(--muted); }
+.foot .wa b { display: block; font-size: 27px; color: var(--ink); direction: ltr; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand"><img src="logo.png" alt=""><div><b>وزن</b><small>برنامج المحاسبة وإدارة المحلات</small></div></div>
+    <div class="badge">خدمة الاتصال عن بعد</div>
+  </div>
+  <h1>محلك معك <span>وين ما كنت</span></h1>
+  <p class="lead">شوف مبيعاتك وصندوقك وبيع واشتري من جوالك بالبيت، عبر الإنترنت.</p>
+
+  <div class="hero">
+    <div class="big life">
+      <span class="tag">الأفضل: ادفع مرة وحدة</span>
+      <h2>عن بعد دائم</h2>
+      <div class="price"><small>$</small>79</div>
+      <p>بتفعّلها مرة وحدة وبتضل معك للأبد.</p>
+    </div>
+    <div class="big year">
+      <span class="tag">الأوفر بالسنة</span>
+      <h2>اشتراك سنوي</h2>
+      <div class="price"><small>$</small>39.99</div>
+      <p>يعني <b class="ltr">3.33$</b> بالشهر بس، بدل <b class="ltr">4.99$</b> شهري.</p>
+    </div>
+  </div>
+
+  <div class="rows">
+    <div class="row"><span><b>6 أشهر</b><small>(3.83$ بالشهر)</small></span><span class="p">$22.99</span></div>
+    <div class="row"><span><b>3 أشهر</b><small>(4.33$ بالشهر)</small></span><span class="p">$12.99</span></div>
+    <div class="row"><span><b>شهري</b><small>للتجربة والبداية</small></span><span class="p">$4.99</span></div>
+  </div>
+
+  <div class="incl">
+    <div><i>✓</i>جوال أندرويد أو آيفون أو كمبيوتر بالبيت</div>
+    <div><i>✓</i>كل شي مشفّر، وما حدا بيشوف بياناتك</div>
+    <div><i>✓</i>بيفتح حتى لو جهاز المحل مطفي</div>
+    <div><i>✓</i>صلاحيات لكل موظف متل المحل</div>
+    <div><i>✓</i>إضافة على رخصة وزن (مش بديل عنها)</div>
+    <div><i>✓</i>التفعيل خلال دقايق</div>
+  </div>
+
+  <div class="foot">
+    <div class="site">waznsy.com</div>
+    <div class="wa">لتفعيل الخدمة (واتساب)<b>+963 968 037 609</b><b>+963 980 072 891</b></div>
+  </div>
+</div>
+</body>
+</html>

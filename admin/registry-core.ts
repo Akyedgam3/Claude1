@@ -22,6 +22,9 @@ export interface Customer {
   agentId?: string;
   /** خدمة الاتصال عن بعد (إضافية). */
   cloud?: boolean;
+  /** اشتراك «عن بعد» (من 22/11/2026): المدة، وتاريخ الانتهاء (null أو بدونه = دائم، متل القدام). */
+  cloudPlan?: Plan;
+  cloudUntil?: string | null;
   /** رخصة «كمبيوتر + جوال»: إلها مفتاح جوال مجاني (سجل تاني فيه phoneOf). */
   mobile?: boolean;
   /** هالسجل هو مفتاح الجوال لزبون الكمبيوتر هاد (ما بينخصم من رصيد الوكيل). */
@@ -68,10 +71,10 @@ export interface Agent {
   packages: { at: string; count: number; price: number; kind?: AgentKind; mobile?: boolean; currency?: 'SYP' | 'USD'; tier?: string; note?: string }[];
   /** كل رخصة انصرفت من رصيده. */
   uses: { at: string; customerId: string; action: 'issue' | 'renew' | 'upgrade'; kind?: AgentKind; mobile?: boolean }[];
-  /** رصيد «الاتصال عن بعد»: المدير بيعطيه أي عدد (موجب) أو بينقص (سالب). */
-  cloud?: { at: string; count: number; note?: string }[];
-  /** كل زبون فتحلو الوكيل الاتصال عن بعد من رصيده. */
-  cloudUses?: { at: string; customerId: string }[];
+  /** رصيد «الاتصال عن بعد» لكل مدة: المدير بيعطيه أي عدد (موجب) أو بينقص (سالب). القديم بدون plan = دائم. */
+  cloud?: { at: string; count: number; note?: string; plan?: Plan }[];
+  /** كل اشتراك «عن بعد» فتحه أو جدده الوكيل من رصيده. القديم بدون plan = دائم. */
+  cloudUses?: { at: string; customerId: string; plan?: Plan }[];
 }
 
 /**
@@ -124,11 +127,22 @@ export function agentBalance(a: Agent): Balance & Record<Bucket, Balance> {
   return { total: sum('total'), used: sum('used'), left: sum('left'), ...all };
 }
 const BUCKET_NAME: Record<Bucket, string> = { annual: 'السنوي', lifetime: 'الدائم', annualMobile: 'السنوي مع الجوال', lifetimeMobile: 'الدائم مع الجوال', flex: 'المرن' };
-/** رصيد «الاتصال عن بعد» عند الوكيل. */
-export function agentCloud(a: Agent): Balance {
-  const total = (a.cloud ?? []).reduce((s, x) => s + x.count, 0);
-  const used = (a.cloudUses ?? []).length;
-  return { total, used, left: total - used };
+/** مدد اشتراك «الاتصال عن بعد». */
+export const CLOUD_PLANS: Plan[] = ['monthly', 'quarterly', 'semiannual', 'annual', 'lifetime'];
+/** رصيد «الاتصال عن بعد» عند الوكيل: المجموع، ولكل مدة لحالها. */
+export function agentCloud(a: Agent): Balance & { plans: Record<Plan, Balance> } {
+  const of = (plan: Plan): Balance => {
+    const total = (a.cloud ?? []).filter((x) => (x.plan ?? 'lifetime') === plan).reduce((s, x) => s + x.count, 0);
+    const used = (a.cloudUses ?? []).filter((x) => (x.plan ?? 'lifetime') === plan).length;
+    return { total, used, left: total - used };
+  };
+  const plans = Object.fromEntries(CLOUD_PLANS.map((p) => [p, of(p)])) as Record<Plan, Balance>;
+  const sum = (k: keyof Balance) => CLOUD_PLANS.reduce((s, p) => s + plans[p][k], 0);
+  return { total: sum('total'), used: sum('used'), left: sum('left'), plans };
+}
+/** «عن بعد» شغّال هلق لهالزبون؟ (مفعّل وما خلصت مدته) */
+export function cloudActive(c: Customer, now = Date.now()): boolean {
+  return !!c.cloud && (c.cloudUntil == null || new Date(c.cloudUntil).getTime() > now);
 }
 /**
  * من أي رصيد بتنصرف رخصة الوكيل: شهري بس من المرن؛ سنوي ودائم من رصيدهن، وإذا خلص (أو الوكيل اختار المرن) من المرن.
@@ -519,6 +533,8 @@ export class RegistryCore {
       history: [{ at: now, action: `تفعيل من جديد بكود جديد (بدل الرخصة ${old.id.slice(0, 8)})` }],
       ...(old.agentId ? { agentId: old.agentId } : {}),
       ...(old.cloud ? { cloud: true } : {}),
+      ...(old.cloudPlan ? { cloudPlan: old.cloudPlan } : {}),
+      ...(old.cloudUntil !== undefined ? { cloudUntil: old.cloudUntil } : {}),
       ...(old.mobile ? { mobile: true } : {}),
       ...(old.trial ? { trial: true } : {}),
       code: this.newCode(),
@@ -599,11 +615,51 @@ export class RegistryCore {
     return { added, skipped };
   }
 
-  /** تشغيل/إيقاف خدمة الاتصال عن بعد لزبون (بتوصله مع القائمة الموقّعة الجاية). */
+  /**
+   * اشتراك «الاتصال عن بعد» لزبون: شهري/3/6/سنوي (بيتمدد من آخر تاريخ إذا لسا شغّال) أو دائم، أو 'off' بيوقفه.
+   * بيوصل للزبون مع القائمة الموقّعة الجاية، ولما تخلص المدة بيوقف لحالو (اللوحة بتعيد النشر كل يوم).
+   */
+  setCloudPlan(id: string, plan: Plan | 'off'): Customer {
+    const c = this.find(id);
+    if (c.phoneOf) throw new Error('الاتصال عن بعد بينفتح على رخصة الكمبيوتر');
+    const now = Date.now();
+    if (plan === 'off') {
+      delete c.cloud;
+      delete c.cloudPlan;
+      delete c.cloudUntil;
+      c.history.push({ at: new Date().toISOString(), action: 'إيقاف الاتصال عن بعد' });
+      this.note(`إيقاف الاتصال عن بعد لـ ${c.name}`, { customerId: c.id });
+      this.save();
+      return c;
+    }
+    if (!CLOUD_PLANS.includes(plan)) throw new Error('مدة الاشتراك غير معروفة');
+    if (cloudActive(c, now) && c.cloudUntil == null) throw new Error('الاتصال عن بعد عنده دائم أصلاً');
+    const days = PLANS[plan].days;
+    if (days === null) c.cloudUntil = null;
+    else {
+      const from = cloudActive(c, now) && c.cloudUntil ? Math.max(now, new Date(c.cloudUntil).getTime()) : now;
+      c.cloudUntil = new Date(from + days * DAY).toISOString();
+    }
+    c.cloud = true;
+    c.cloudPlan = plan;
+    const until = c.cloudUntil ? `حتى ${c.cloudUntil.slice(0, 10)}` : 'دائم';
+    c.history.push({ at: new Date().toISOString(), action: `الاتصال عن بعد: ${PLANS[plan].nameAr} (${until})` });
+    this.note(`الاتصال عن بعد لـ ${c.name}: ${PLANS[plan].nameAr} (${until})`, { customerId: c.id });
+    this.save();
+    return c;
+  }
+
+  /** تشغيل/إيقاف خدمة الاتصال عن بعد لزبون (القديم: تشغيل = دائم). */
   setCloud(id: string, on: boolean): Customer {
     const c = this.find(id);
-    if (on) c.cloud = true;
-    else delete c.cloud;
+    if (on) {
+      c.cloud = true;
+      delete c.cloudUntil;
+    } else {
+      delete c.cloud;
+      delete c.cloudPlan;
+      delete c.cloudUntil;
+    }
     c.history.push({ at: new Date().toISOString(), action: on ? 'تفعيل الاتصال عن بعد' : 'إيقاف الاتصال عن بعد' });
     this.note(`${on ? 'تفعيل' : 'إيقاف'} الاتصال عن بعد لـ ${c.name}`, { customerId: c.id });
     this.save();
@@ -817,29 +873,32 @@ export class RegistryCore {
   }
 
   /** المدير بيعطي الوكيل تفعيلات «اتصال عن بعد» (أي عدد)، أو بينقص (عدد سالب، ما بينزل تحت المستعمل). */
-  addCloud(id: string, count: number, note?: string): Agent {
+  addCloud(id: string, count: number, note?: string, plan: Plan = 'lifetime'): Agent {
     const a = this.agent(id);
     if (!Number.isInteger(count) || count === 0 || Math.abs(count) > 10_000) throw new Error('العدد غير صحيح');
-    const left = agentCloud(a).left;
-    if (count < 0 && -count > left) throw new Error(`رصيد ${a.name} عن بعد ${left} بس، ما فيك تنقص ${-count}`);
-    (a.cloud ??= []).push({ at: new Date().toISOString(), count, ...(note?.trim() ? { note: note.trim() } : {}) });
-    this.note(`${count > 0 ? 'إضافة' : 'إنقاص'} ${Math.abs(count)} تفعيل عن بعد ${count > 0 ? 'لـ' : 'من'} ${a.name}`, { agentId: a.id });
+    if (!CLOUD_PLANS.includes(plan)) throw new Error('مدة الاشتراك غير معروفة');
+    const left = agentCloud(a).plans[plan].left;
+    if (count < 0 && -count > left) throw new Error(`رصيد ${a.name} عن بعد (${PLANS[plan].nameAr}) ${left} بس، ما فيك تنقص ${-count}`);
+    (a.cloud ??= []).push({ at: new Date().toISOString(), count, plan, ...(note?.trim() ? { note: note.trim() } : {}) });
+    this.note(`${count > 0 ? 'إضافة' : 'إنقاص'} ${Math.abs(count)} اشتراك عن بعد (${PLANS[plan].nameAr}) ${count > 0 ? 'لـ' : 'من'} ${a.name}`, { agentId: a.id });
     this.save();
     return a;
   }
 
   /** الوكيل بيفتح الاتصال عن بعد لزبون من زباينه (بينخصم تفعيل من رصيده)، أو بيسكّره. */
-  agentSetCloud(agentId: string, customerId: string, on: boolean): Customer {
+  agentSetCloud(agentId: string, customerId: string, plan: Plan | 'off'): Customer {
     const a = this.agent(agentId);
     if (!a.active) throw new Error('هذا الوكيل موقوف');
     const c = this.find(customerId);
     if (c.agentId !== a.id) throw new Error('هالزبون مش من زباينك');
     if (c.phoneOf) throw new Error('الاتصال عن بعد بينفتح على رخصة الكمبيوتر');
-    if (on && !c.cloud) {
-      if (agentCloud(a).left <= 0) throw new Error('رصيدك من تفعيلات «الاتصال عن بعد» خلص. تواصل مع وزن لتزيده.');
-      (a.cloudUses ??= []).push({ at: new Date().toISOString(), customerId: c.id });
-    }
-    return this.setCloud(c.id, on);
+    if (plan === 'off') return this.setCloudPlan(c.id, 'off');
+    if (!CLOUD_PLANS.includes(plan)) throw new Error('مدة الاشتراك غير معروفة');
+    if (agentCloud(a).plans[plan].left <= 0) throw new Error(`رصيدك من «الاتصال عن بعد» (${PLANS[plan].nameAr}) خلص. تواصل مع وزن لتزيده.`);
+    const out = this.setCloudPlan(c.id, plan); // بيرمي غلط قبل ما ينخصم شي (مثلاً عنده دائم أصلاً)
+    (a.cloudUses ??= []).push({ at: new Date().toISOString(), customerId: c.id, plan });
+    this.save();
+    return out;
   }
 
   updateAgent(id: string, patch: { name?: string; phone?: string; city?: string; notes?: string; active?: boolean }): Agent {
@@ -894,7 +953,7 @@ export class RegistryCore {
       entries: Object.fromEntries(
         this.data.customers.map((c) => [
           c.id,
-          { status: c.status, expiresAt: c.expiresAt, devices: c.devices, ...(c.message ? { message: c.message } : {}), ...(c.cloud ? { cloud: true } : {}) },
+          { status: c.status, expiresAt: c.expiresAt, devices: c.devices, ...(c.message ? { message: c.message } : {}), ...(cloudActive(c) ? { cloud: true } : {}) },
         ]),
       ),
       ...(this.data.update ? { update: this.data.update } : {}),

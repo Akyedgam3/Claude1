@@ -1,0 +1,97 @@
+<!doctype html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="common.css">
+<style>
+html, body { width: 1080px; height: 1350px; overflow: hidden; }
+body { color: #fff; background: radial-gradient(900px 700px at 100% -10%, rgba(95,224,191,.28), transparent 60%), radial-gradient(700px 600px at -10% 110%, rgba(233,168,76,.25), transparent 60%), linear-gradient(160deg, #0f6e5c 0%, #0b4f43 45%, #082f29 100%); }
+.wrap { padding: 52px 60px 0; height: 100%; display: flex; flex-direction: column; }
+.wrap > * { flex-shrink: 0; }
+.top { display: flex; justify-content: space-between; align-items: center; }
+.brand img { width: 80px; height: 80px; box-shadow: 0 16px 32px -14px rgba(0,0,0,.5); }
+.brand b { font-size: 44px; color: #fff; }
+.brand small { font-size: 20px; color: #9fe8d4; }
+.badge { font-size: 23px; font-weight: 800; color: #0b2a24; background: linear-gradient(135deg, #ffd486, #e9a84c); border-radius: 999px; padding: 8px 24px; }
+h1 { font-size: 58px; font-weight: 900; line-height: 1.12; margin-top: 18px; }
+h1 span { color: #ffd486; }
+.lead { font-size: 25px; font-weight: 600; color: #cff3e7; margin-top: 6px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 18px; }
+.pk { background: #fff; color: var(--ink); border-radius: 28px; padding: 16px 24px 14px; position: relative; overflow: hidden; box-shadow: 0 30px 60px -34px rgba(0,0,0,.7); }
+.pk.best { outline: 4px solid #ffd486; }
+.pk .ribbon { position: absolute; top: 18px; left: -2px; background: linear-gradient(135deg, #ffd486, #e9a84c); color: #0b2a24; font-size: 18px; font-weight: 900; padding: 4px 16px 4px 14px; border-radius: 0 999px 999px 0; }
+.pk .nm { font-size: 30px; font-weight: 900; color: var(--g); }
+.pk .cnt { font-size: 54px; font-weight: 900; line-height: 1; margin-top: 2px; }
+.pk .cnt small { font-size: 26px; font-weight: 800; color: var(--muted); margin-inline-start: 6px; }
+.pk .bonus { display: inline-block; margin-top: 4px; font-size: 20px; font-weight: 800; color: #a8661a; background: #fff3dd; border-radius: 999px; padding: 3px 14px; }
+.pk .bonus.none { color: var(--muted); background: #f1f5f3; }
+.pk .pr { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.pk .pr div { background: #f3faf7; border-radius: 14px; padding: 6px 12px; }
+.pk .pr span { display: block; font-size: 18px; font-weight: 700; color: var(--muted); }
+.pk .pr b { display: block; font-size: 29px; font-weight: 900; color: var(--g); direction: ltr; text-align: right; }
+.pk .win { margin-top: 6px; font-size: 19px; font-weight: 700; color: var(--muted); }
+.pk .win b { color: #b26a12; direction: ltr; unicode-bidi: isolate; }
+.notes { margin-top: 16px; border: 2px solid rgba(255,212,134,.6); border-radius: 24px; padding: 16px 24px; background: rgba(255,212,134,.07); }
+.notes div { font-size: 20px; font-weight: 600; color: #e6fbf4; line-height: 1.6; display: flex; gap: 10px; }
+.notes div::before { content: '•'; color: #ffd486; font-weight: 900; }
+.notes b { color: #ffd486; }
+.foot { margin-top: auto; padding: 14px 0 22px; display: flex; justify-content: space-between; align-items: center; border-top: 2px dashed rgba(255,255,255,.25); }
+.foot .site { font-size: 30px; font-weight: 900; color: #9fe8d4; direction: ltr; }
+.foot .wa { text-align: left; font-size: 21px; font-weight: 700; color: #cff3e7; }
+.foot .wa b { display: block; font-size: 26px; color: #fff; direction: ltr; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand"><img src="logo.png" alt=""><div><b>وزن</b><small>برنامج المحاسبة وإدارة المحلات</small></div></div>
+    <div class="badge">باقات الوكلاء: عن بعد</div>
+  </div>
+  <h1>باقات <span>الاتصال عن بعد</span></h1>
+  <p class="lead">كل اشتراك بنص سعره الرسمي، وكل ما كبرت الباقة بتاخد اشتراكات ببلاش.</p>
+
+  <div class="grid">
+    <div class="pk">
+      <div class="nm">انطلاقة</div>
+      <div class="cnt">10<small>اشتراكات</small></div>
+      <span class="bonus none">أقل باقة</span>
+      <div class="pr"><div><span>سنوي</span><b>$200</b></div><div><span>دائم</span><b>$395</b></div></div>
+      <div class="win">ربحك: سنوي <b>$199.90</b> · دائم <b>$395</b></div>
+    </div>
+    <div class="pk">
+      <div class="nm">فضّي</div>
+      <div class="cnt">25<small>اشتراك</small></div>
+      <span class="bonus">+ 2 ببلاش</span>
+      <div class="pr"><div><span>سنوي</span><b>$500</b></div><div><span>دائم</span><b>$987.50</b></div></div>
+      <div class="win">ربحك: سنوي <b>$579.73</b> · دائم <b>$1,145.50</b></div>
+    </div>
+    <div class="pk best">
+      <span class="ribbon">الأكتر طلباً</span>
+      <div class="nm">ذهبي</div>
+      <div class="cnt">50<small>اشتراك</small></div>
+      <span class="bonus">+ 5 ببلاش</span>
+      <div class="pr"><div><span>سنوي</span><b>$1,000</b></div><div><span>دائم</span><b>$1,975</b></div></div>
+      <div class="win">ربحك: سنوي <b>$1,199.45</b> · دائم <b>$2,370</b></div>
+    </div>
+    <div class="pk">
+      <div class="nm">ماسي</div>
+      <div class="cnt">100<small>اشتراك</small></div>
+      <span class="bonus">+ 12 ببلاش</span>
+      <div class="pr"><div><span>سنوي</span><b>$2,000</b></div><div><span>دائم</span><b>$3,950</b></div></div>
+      <div class="win">ربحك: سنوي <b>$2,478.88</b> · دائم <b>$4,898</b></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <div><span>سعر الاشتراك للوكيل: <b>سنوي 20$ · دائم 39.50$</b>، وبتبيعه بالسعر الرسمي <b>39.99$ و79$</b> بالضبط.</span></div>
+    <div><span>بتفعّله لزبونك من لوحتك بكبسة، والتجديد بينضاف على آخر تاريخ. المجاني من نفس نوع الباقة.</span></div>
+    <div><span>شهري 2.50$ · 3 أشهر 6.50$ · 6 أشهر 11.50$ بالطلب. الدفع مسبق، والرصيد ما بينرد.</span></div>
+  </div>
+
+  <div class="foot">
+    <div class="site">waznsy.com</div>
+    <div class="wa">لطلب الباقة (واتساب)<b>+963 968 037 609</b><b>+963 980 072 891</b></div>
+  </div>
+</div>
+</body>
+</html>

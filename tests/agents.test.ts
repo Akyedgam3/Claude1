@@ -35,19 +35,19 @@ describe('premium agent (flex + remote)', () => {
     r.extend(m.id, 'monthly');
     expect(agentBalance(r.agent(a.id)).flex).toMatchObject({ used: 4, left: 21 });
     // الاتصال عن بعد من رصيد الوكيل
-    r.agentSetCloud(a.id, m.id, true);
-    r.agentSetCloud(a.id, m.id, true); // مفتوح أصلاً: ما بينخصم مرة تانية
+    r.agentSetCloud(a.id, m.id, 'lifetime'); // رصيد الوكيل المميز القديم = دائم
+    expect(() => r.agentSetCloud(a.id, m.id, 'lifetime')).toThrow(/أصلاً/); // مفتوح دائم: ما بينخصم مرة تانية
     expect(r.find(m.id).cloud).toBe(true);
     expect(agentCloud(r.agent(a.id)).left).toBe(24);
     r.addCloud(a.id, 10, 'هدية');
     expect(agentCloud(r.agent(a.id)).left).toBe(34);
     expect(() => r.addCloud(a.id, -100)).toThrow();
     r.addCloud(a.id, -34);
-    expect(() => r.agentSetCloud(a.id, y.id, true)).toThrow(/خلص/);
+    expect(() => r.agentSetCloud(a.id, y.id, 'lifetime')).toThrow(/خلص/);
     // وكيل عادي ما بيقدر يفعّل شهري
     const b = r.addAgent({ name: 'وكيل عادي', packages: 1 });
     expect(() => r.add({ name: 'x', machineId: '9999-8888-7777-6666', plan: 'monthly', agentId: b.id })).toThrow(/المرن/);
-    expect(() => r.agentSetCloud(b.id, m.id, true)).toThrow(/زباينك/);
+    expect(() => r.agentSetCloud(b.id, m.id, 'lifetime')).toThrow(/زباينك/);
   });
   it('annual uses its own balance first, and falls back to flex when it runs out (or when the agent picks flex)', () => {
     const r = new Registry(path.join(dir, 'registry.json'), PRIV);

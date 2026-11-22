@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { RegistryCore } from '../admin/registry-core';
+import { RegistryCore, agentCloud } from '../admin/registry-core';
 import { parseFeed, parseLicense } from '../src/license/license';
 import { publicKeyFromPrivate } from '../src/license/format';
 
@@ -64,5 +64,43 @@ describe('registry: owner adds a customer for an agent', () => {
     const paid = reg.add({ name: 'زبون عادي', machineId: '5555-5555-5555-5555', plan: 'annual', agentId: a.id, devices: 2 });
     expect(paid.agentId).toBe(a.id);
     expect(agentLeft()).toBe(before + 1); // انخصمت رخصة
+  });
+});
+
+describe('registry: remote connection as a subscription', () => {
+  it('monthly/annual extend from the end date, lifetime has none, feed turns it off when expired', () => {
+    const reg = new RegistryCore({ customers: [], agents: [] }, key);
+    const c = reg.add({ name: 'محل', machineId: M, plan: 'annual' });
+    const t0 = Date.now();
+    reg.setCloudPlan(c.id, 'monthly');
+    const u1 = new Date(reg.find(c.id).cloudUntil!).getTime();
+    expect(Math.round((u1 - t0) / 86_400_000)).toBe(30);
+    reg.setCloudPlan(c.id, 'annual'); // بيتمدد من آخر تاريخ
+    expect(Math.round((new Date(reg.find(c.id).cloudUntil!).getTime() - t0) / 86_400_000)).toBe(395);
+    let feed = parseFeed(reg.buildFeed().text, publicKeyFromPrivate(key))!;
+    expect(feed.entries[c.id]!.cloud).toBe(true);
+    // خلصت المدة: القائمة ما بتفتحها
+    reg.find(c.id).cloudUntil = new Date(t0 - 1000).toISOString();
+    feed = parseFeed(reg.buildFeed().text, publicKeyFromPrivate(key))!;
+    expect(feed.entries[c.id]!.cloud).toBeUndefined();
+    reg.setCloudPlan(c.id, 'lifetime');
+    expect(reg.find(c.id).cloudUntil).toBeNull();
+    expect(() => reg.setCloudPlan(c.id, 'monthly')).toThrow(/دائم أصلاً/);
+    reg.setCloudPlan(c.id, 'off');
+    expect(reg.find(c.id).cloud).toBeUndefined();
+  });
+
+  it('agent cloud balance per duration', () => {
+    const reg = new RegistryCore({ customers: [], agents: [] }, key);
+    const a = reg.addAgent({ name: 'وكيل' });
+    reg.addPackage(a.id, { tier: 'p25' });
+    const c = reg.add({ name: 'زبون', machineId: M, plan: 'annual', agentId: a.id });
+    reg.addCloud(a.id, 3, 'باقة', 'annual');
+    expect(() => reg.agentSetCloud(a.id, c.id, 'monthly')).toThrow(/شهري.*خلص|خلص/);
+    reg.agentSetCloud(a.id, c.id, 'annual');
+    const bal = agentCloud(reg.agent(a.id));
+    expect(bal.plans.annual).toMatchObject({ total: 3, used: 1, left: 2 });
+    expect(bal.plans.lifetime).toMatchObject({ total: 25, used: 0 }); // رصيد الوكيل المميز القديم
+    expect(reg.find(c.id)).toMatchObject({ cloud: true, cloudPlan: 'annual' });
   });
 });

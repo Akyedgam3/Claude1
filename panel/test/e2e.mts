@@ -191,6 +191,22 @@ check(up.status === 200 && up.plan === 'lifetime', `owner switched an agent cust
   await p.locator('nav.tabs button', { hasText: 'الوكلاء' }).first().click();
   await p.waitForTimeout(500);
 }
+// الاتصال عن بعد كاشتراك: المدير بيفعّل سنوي لزبون، والوكيل بياخد رصيد عن بعد بمدة وبيفعّل منه
+{
+  const res = (await p.evaluate(`(async () => {
+    const post = (u, b) => fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Wazn': '1' }, body: JSON.stringify(b) }).then(async (r) => ({ status: r.status, body: await r.json() }));
+    const st = await (await fetch('/api/state')).json();
+    const c = st.customers.find((x) => !x.phoneOf && x.status === 'active' && !x.replacedBy);
+    const a1 = await post('/api/customers/' + c.id + '/cloud', { plan: 'annual' });
+    const ag = st.agents.find((a) => a.active);
+    const add = await post('/api/agents/' + ag.id + '/cloud', { count: 3, plan: 'monthly' });
+    const st2 = await (await fetch('/api/state')).json();
+    const bal = st2.agents.find((a) => a.id === ag.id).cloudBalance.plans.monthly;
+    return { until: a1.body.cloudUntil, plan: a1.body.cloudPlan, add: add.status, bal };
+  })()`)) as { until: string; plan: string; add: number; bal: { total: number } };
+  const days = Math.round((new Date(res.until).getTime() - Date.now()) / 86_400_000);
+  check(res.plan === 'annual' && days >= 364 && days <= 366 && res.add === 200 && res.bal.total === 3, `remote connection as a subscription (${JSON.stringify(res)})`);
+}
 // سحب الوكالة بيطلع الوكيل
 await p.getByRole('button', { name: 'سحب الوكالة' }).click();
 await p.waitForTimeout(800);

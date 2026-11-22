@@ -32,11 +32,12 @@ await p.locator('.modal').getByRole('button', { name: 'سكّر' }).click();
 const card = p.locator('.item', { hasText: 'وكيل مميز' });
 check((await card.locator('.bal').innerText()).includes('25'), 'owner sees 25 flex + 25 remote');
 // المدير بيزيد 10 تفعيلات عن بعد
-await card.getByRole('button', { name: '± تفعيلات عن بعد' }).click();
+await card.getByRole('button', { name: '± رصيد عن بعد' }).click();
+await p.locator('.modal select[name=plan]').selectOption('lifetime'); // رصيد الخطة المميزة = دائم
 await p.locator('.modal [data-n="10"]').click();
 await p.locator('.modal').getByRole('button', { name: 'حفظ' }).click();
 check(await sawToast(p, 'تم'), 'owner added 10 remote activations');
-check((await p.locator('.item', { hasText: 'وكيل مميز' }).locator('.bal').innerText()).includes('35'), 'remote balance is now 35');
+check(await p.locator('.item', { hasText: 'وكيل مميز' }).locator('.bal', { hasText: '35' }).waitFor({ timeout: 8000 }).then(() => true, () => false), 'remote balance is now 35');
 await p.screenshot({ path: `${OUT}/premium-owner.png`, fullPage: true });
 
 // الوكيل
@@ -69,8 +70,9 @@ check(parseLicense(red.key ?? '', PUB)?.expiresAt === null, 'lifetime code from 
 check((await ag.locator('.bal').first().innerText()).includes('23'), 'flex balance 23 after two');
 // الاتصال عن بعد لزبونه
 const row = ag.locator('.item', { hasText: 'محل شهري' }).first();
-await row.getByRole('button', { name: 'تفعيل عن بعد' }).click();
-check(await sawToast(ag, 'انفتح الاتصال عن بعد'), 'agent opened remote for his customer');
+await row.getByRole('button', { name: 'عن بعد', exact: true }).click();
+await ag.locator('.modal').getByRole('button', { name: 'تفعيل' }).click();
+check(await sawToast(ag, 'بيوصل للزبون'), 'agent opened remote for his customer');
 check((await ag.locator('.bal').first().innerText()).includes('34'), 'remote balance 34');
 await ag.getByRole('button', { name: 'تجديد شهر' }).first().click();
 check(await sawToast(ag, 'تم التجديد'), 'agent renewed one month from flex');
