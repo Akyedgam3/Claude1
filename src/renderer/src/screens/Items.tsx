@@ -79,8 +79,10 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
       for (const r of rows) {
         const name = String(r['الاسم'] ?? '').trim();
         if (!name) continue;
-        const qty = num(r['الكمية']);
-        const cost = String(r['التكلفة'] ?? '').trim() ? parsePrice(state, String(r['التكلفة']).replace(/[,،\s]/g, ''), base) : 0;
+        // «الرصيد» و«متوسط التكلفة» = أعمدة ملف «Excel» اللي بيطلع من المواد: النقل من شركة لشركة بيمشي بدون تعديل
+        const qty = num(r['الكمية'] ?? r['الرصيد']);
+        const costText = String(r['التكلفة'] ?? r['متوسط التكلفة'] ?? r['سعر الشراء'] ?? '').trim();
+        const cost = costText ? parsePrice(state, costText.replace(/[,،\s]/g, ''), base) : 0;
         const codeText = String(r['الرمز'] ?? '').trim();
         const barcodeText = String(r['الباركود'] ?? '').trim();
         // المادة موجودة؟ بالرمز، وإلا بالباركود، وإلا بنفس الاسم
