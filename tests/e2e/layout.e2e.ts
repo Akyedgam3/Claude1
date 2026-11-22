@@ -7,6 +7,10 @@ const SCAN = () => {
   const out: string[] = [];
   const content = document.querySelector('.content') as HTMLElement;
   if (content && content.scrollWidth > content.clientWidth + 2) out.push(`PAGE hscroll ${content.scrollWidth}>${content.clientWidth}`);
+  // النافذة نفسها ما لازم تتمرّر بالعرض (بطاقات «دين سابق / سلفة / بضاعة» كانت تطلع برّا الدين)
+  for (const m of Array.from(document.querySelectorAll('.modal-body'))) {
+    if (m.scrollWidth > m.clientWidth + 2) out.push(`MODAL hscroll "${document.querySelector('.modal header')?.textContent?.trim().slice(0, 30)}" ${m.scrollWidth}>${m.clientWidth}`);
+  }
   const scrollsX = (el: Element | null): boolean => {
     for (let e = el?.parentElement; e && e !== content; e = e.parentElement) {
       const s = getComputedStyle(e);
@@ -51,6 +55,23 @@ for (const act of (process.env.ACTS ?? 'سوبرماركت,مطعم').split(',')
           await page.waitForTimeout(350);
           const issues = await page.evaluate(SCAN);
           if (issues.length) all.push(`[${w}] ${names[i]!.replace(/\s+/g, ' ').trim()}: ` + issues.join(' | '));
+          // النوافذ اللي بتنفتح من أزرار «جديد / تسجيل / +» بأعلى الشاشة
+          const openers = page.locator('.content .page-header button, .content .toolbar button, .content > div > header button').filter({ hasText: /^\s*\+|جديد|تسجيل/ });
+          const n = Math.min(await openers.count(), 4);
+          for (let k = 0; k < n; k++) {
+            const o = openers.nth(k);
+            if (!(await o.isVisible()) || !(await o.isEnabled())) continue;
+            const label = (await o.innerText()).trim();
+            await o.click().catch(() => undefined);
+            if (await page.locator('.modal').first().isVisible({ timeout: 800 }).catch(() => false)) {
+              await page.waitForTimeout(250);
+              const mi = await page.evaluate(SCAN);
+              if (mi.length) all.push(`[${w}] ${names[i]!.replace(/\s+/g, ' ').trim()} ← ${label}: ` + mi.join(' | '));
+              await page.keyboard.press('Escape');
+              await page.waitForTimeout(150);
+              if (await page.locator('.modal').first().isVisible().catch(() => false)) await page.locator('.modal header button').first().click().catch(() => undefined);
+            }
+          }
         }
       }
     } finally {

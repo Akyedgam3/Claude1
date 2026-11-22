@@ -3513,7 +3513,7 @@ button.danger-soft {
 }
 .reason-cards {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin: 12px 0;
 }
@@ -3525,6 +3525,15 @@ button.danger-soft {
   text-align: start;
   padding: 10px 12px;
   border-radius: var(--radius);
+  /* الكتابة بتلتف جوّا البطاقة (كانت البطاقة التالتة تطلع برّا النافذة) */
+  min-width: 0;
+  height: auto;
+  white-space: normal;
+}
+.reason-cards .reason strong,
+.reason-cards .reason small {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .reason-cards .reason small {
   color: var(--muted);
