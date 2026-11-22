@@ -1,0 +1,15 @@
+/* أسعار وزن الجديدة: ستايل مشترك للوحات (1080×1350) وملفات الـ PDF (A4) */
+@font-face { font-family: Cairo; src: url(fonts/cairo-arabic-400-normal.woff2); font-weight: 400; unicode-range: U+0600-06FF, U+0750-077F, U+FB50-FDFF, U+FE70-FEFF, U+200C-200F; }
+@font-face { font-family: Cairo; src: url(fonts/cairo-arabic-700-normal.woff2); font-weight: 600 800; unicode-range: U+0600-06FF, U+0750-077F, U+FB50-FDFF, U+FE70-FEFF, U+200C-200F; }
+@font-face { font-family: Cairo; src: url(fonts/cairo-arabic-900-normal.woff2); font-weight: 900; unicode-range: U+0600-06FF, U+0750-077F, U+FB50-FDFF, U+FE70-FEFF, U+200C-200F; }
+@font-face { font-family: Cairo; src: url(fonts/cairo-latin-400-normal.woff2); font-weight: 400; }
+@font-face { font-family: Cairo; src: url(fonts/cairo-latin-700-normal.woff2); font-weight: 600 800; }
+@font-face { font-family: Cairo; src: url(fonts/cairo-latin-900-normal.woff2); font-weight: 900; }
+:root { --g: #0f6e5c; --g2: #14957c; --g3: #0a3a32; --soft: #e3f2ee; --ink: #0b2a24; --muted: #4f6d66; --line: #dfe9e5; --gold: #e9a84c; --red: #d92d2a; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Cairo, sans-serif; color: var(--ink); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+.brand { display: flex; align-items: center; gap: 16px; }
+.brand img { border-radius: 20px; box-shadow: 0 16px 32px -14px rgba(6,60,48,.45); }
+.brand b { font-weight: 900; display: block; line-height: 1.1; }
+.brand small { display: block; font-weight: 700; color: var(--g2); }

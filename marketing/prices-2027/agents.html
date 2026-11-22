@@ -1,0 +1,79 @@
+<!doctype html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="common.css">
+<style>
+html, body { width: 1080px; height: 1350px; overflow: hidden; }
+body { color: #fff; background: radial-gradient(900px 700px at 100% -10%, rgba(95,224,191,.28), transparent 60%), radial-gradient(700px 600px at -10% 110%, rgba(233,168,76,.25), transparent 60%), linear-gradient(160deg, #0f6e5c 0%, #0b4f43 45%, #082f29 100%); }
+.wrap { padding: 56px 64px 0; height: 100%; display: flex; flex-direction: column; }
+.top { display: flex; justify-content: space-between; align-items: center; }
+.brand img { width: 84px; height: 84px; box-shadow: 0 16px 32px -14px rgba(0,0,0,.5); }
+.brand b { font-size: 46px; color: #fff; }
+.brand small { font-size: 21px; color: #9fe8d4; }
+.badge { font-size: 24px; font-weight: 800; color: #0b2a24; background: linear-gradient(135deg, #ffd486, #e9a84c); border-radius: 999px; padding: 8px 26px; box-shadow: 0 14px 28px -12px rgba(233,168,76,.7); }
+h1 { font-size: 68px; font-weight: 900; line-height: 1.12; margin-top: 22px; }
+h1 span { color: #ffd486; }
+.lead { font-size: 26px; font-weight: 600; color: #cff3e7; margin-top: 10px; line-height: 1.5; }
+.table { margin-top: 22px; background: #fff; color: var(--ink); border-radius: 32px; overflow: hidden; box-shadow: 0 40px 80px -40px rgba(0,0,0,.7); }
+.tr { display: grid; grid-template-columns: 1.25fr 1fr 1fr 1fr; align-items: center; padding: 12px 28px; border-bottom: 2px solid var(--line); }
+.tr:last-child { border-bottom: 0; }
+.th { background: var(--soft); font-size: 22px; font-weight: 800; color: var(--g); padding: 14px 28px; }
+.tr .n { font-size: 32px; font-weight: 900; }
+.tr .v { font-size: 33px; font-weight: 900; direction: ltr; text-align: center; }
+.th span { text-align: center; }
+.th span:first-child { text-align: start; }
+.v.buy { color: var(--g); }
+.v.sell { color: var(--ink); }
+.v.win { color: #b26a12; }
+.tr.hot { background: #fffaf0; }
+.rule { margin-top: 20px; border: 3px solid #ffd486; border-radius: 28px; padding: 22px 28px; background: rgba(255,212,134,.08); }
+.rule b { display: block; font-size: 34px; font-weight: 900; color: #ffd486; }
+.rule p { font-size: 24px; font-weight: 600; color: #e6fbf4; margin-top: 6px; line-height: 1.5; }
+.pts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; margin-top: 18px; }
+.pts div { font-size: 23px; font-weight: 700; color: #e6fbf4; display: flex; gap: 10px; align-items: center; }
+.pts i { width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,.14); display: grid; place-items: center; flex: none; font-style: normal; font-weight: 900; color: #9fe8d4; }
+.wrap > * { flex-shrink: 0; }
+.foot { margin-top: auto; padding: 18px 0 30px; display: flex; justify-content: space-between; align-items: center; border-top: 2px dashed rgba(255,255,255,.25); }
+.foot .site { font-size: 30px; font-weight: 900; color: #9fe8d4; direction: ltr; }
+.foot .wa { text-align: left; font-size: 22px; font-weight: 700; color: #cff3e7; }
+.foot .wa b { display: block; font-size: 27px; color: #fff; direction: ltr; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand"><img src="logo.png" alt=""><div><b>وزن</b><small>برنامج المحاسبة وإدارة المحلات</small></div></div>
+    <div class="badge">أسعار الوكلاء</div>
+  </div>
+  <h1>الوكيل بيربح <span>النص بالنص</span></h1>
+  <p class="lead">بتاخد كل نسخة بنص سعرها، وبتبيعها للزبون بالسعر الرسمي. يعني نص السعر ربحك.</p>
+
+  <div class="table">
+    <div class="tr th"><span>الاشتراك</span><span>بتاخدها بـ</span><span>بتبيعها بـ</span><span>ربحك</span></div>
+    <div class="tr hot"><span class="n">شراء دائم</span><span class="v buy">$57.50</span><span class="v sell">$115</span><span class="v win">$57.50</span></div>
+    <div class="tr hot"><span class="n">سنوي</span><span class="v buy">$37.50</span><span class="v sell">$75</span><span class="v win">$37.50</span></div>
+    <div class="tr"><span class="n">6 أشهر</span><span class="v buy">$27.50</span><span class="v sell">$54.99</span><span class="v win">$27.49</span></div>
+    <div class="tr"><span class="n">3 أشهر</span><span class="v buy">$17.50</span><span class="v sell">$34.99</span><span class="v win">$17.49</span></div>
+    <div class="tr"><span class="n">شهري</span><span class="v buy">$7.50</span><span class="v sell">$14.99</span><span class="v win">$7.49</span></div>
+  </div>
+
+  <div class="rule">
+    <b>السعر للزبون ثابت: لا أكتر ولا أقل</b>
+    <p>البيع بغير السعر الرسمي بيسحب الوكالة فوراً، والرصيد الباقي ما بينرد. زباينك بيضلو شغّالين.</p>
+  </div>
+
+  <div class="pts">
+    <div><i>✓</i>لوحة خاصة فيك: بتفعّل وبتجدد لحالك</div>
+    <div><i>✓</i>كود تفعيل لكل زبون بثواني</div>
+    <div><i>✓</i>الدفع مسبق، والرصيد بيتشحن فوراً</div>
+    <div><i>✓</i>فيديوهات وشرح ودعم من الشركة</div>
+  </div>
+
+  <div class="foot">
+    <div class="site">waznsy.com</div>
+    <div class="wa">لتصير وكيل (واتساب)<b>+963 968 037 609</b><b>+963 980 072 891</b></div>
+  </div>
+</div>
+</body>
+</html>
