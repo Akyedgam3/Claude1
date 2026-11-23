@@ -21,7 +21,7 @@ const open = async (file, opts) => {
   return p;
 };
 
-for (const [file, name] of [['customers.html', 'Wazn-Prices'], ['agents.html', 'Wazn-Agent-Prices'], ['packages.html', 'Wazn-Agent-Packages'], ['cloud.html', 'Wazn-Remote-Prices'], ['cloud-packages.html', 'Wazn-Agent-Remote-Packages'], ['devices.html', 'Wazn-Prices-PC-Mobile']]) {
+for (const [file, name] of [['customers.html', 'Wazn-Prices'], ['agents.html', 'Wazn-Agent-Prices'], ['packages.html', 'Wazn-Agent-Packages'], ['cloud.html', 'Wazn-Remote-Prices'], ['cloud-packages.html', 'Wazn-Agent-Remote-Packages'], ['devices.html', 'Wazn-Prices-PC-Mobile'], ['services.html', 'Wazn-Services-Support']]) {
   const p = await open(file, { viewport: { width: 1080, height: 1350 }, deviceScaleFactor: 2 });
   // لازم كل شي يساع بالصورة
   const over = await p.evaluate(() => { const f = document.querySelector('.foot'); const r = f ? f.getBoundingClientRect() : null; return !r || r.bottom > 1350 || document.querySelector('.wrap').scrollHeight > 1352; });

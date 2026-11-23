@@ -1,0 +1,96 @@
+<!doctype html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="common.css">
+<style>
+html, body { width: 1080px; height: 1350px; overflow: hidden; }
+body { background: radial-gradient(900px 700px at 100% -5%, rgba(95,224,191,.35), transparent 60%), radial-gradient(800px 600px at -10% 105%, rgba(233,168,76,.22), transparent 60%), linear-gradient(165deg, #fbfdfc, #eef5f1 60%, #e4f0ea); }
+.wrap { padding: 40px 56px 0; height: 100%; display: flex; flex-direction: column; }
+.wrap > * { flex-shrink: 0; }
+.top { display: flex; justify-content: space-between; align-items: center; }
+.brand img { width: 76px; height: 76px; }
+.brand b { font-size: 42px; }
+.brand small { font-size: 19px; }
+.badge { font-size: 22px; font-weight: 800; color: var(--g); background: #fff; border: 2px solid #bfe3d8; border-radius: 999px; padding: 8px 22px; }
+h1 { font-size: 48px; font-weight: 900; line-height: 1.15; margin-top: 16px; }
+h1 span { color: var(--g2); }
+h3 { font-size: 27px; font-weight: 900; color: var(--g); margin: 16px 0 8px; display: flex; align-items: center; gap: 10px; }
+h3::before { content: ''; width: 10px; height: 30px; border-radius: 6px; background: linear-gradient(180deg, var(--g2), var(--g)); }
+.plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.pl { background: #fff; border-radius: 26px; padding: 16px 18px 14px; box-shadow: 0 24px 50px -30px rgba(6,50,40,.45); position: relative; }
+.pl.free { background: #f4faf7; box-shadow: none; border: 2px dashed #bfe3d8; }
+.pl.best { outline: 3px solid var(--gold); }
+.pl .rb { position: absolute; top: -13px; left: 16px; background: linear-gradient(135deg, #ffd486, #e9a84c); color: #3a2503; font-size: 16px; font-weight: 900; padding: 3px 14px; border-radius: 999px; }
+.pl b { font-size: 26px; font-weight: 900; display: block; }
+.pl .p { font-size: 40px; font-weight: 900; color: var(--g); direction: ltr; text-align: right; line-height: 1.15; }
+.pl .p small { font-size: 18px; color: var(--muted); font-weight: 700; }
+.pl .y { font-size: 16px; font-weight: 800; color: #a8661a; }
+.pl ul { list-style: none; margin-top: 6px; }
+.pl li { font-size: 17px; font-weight: 700; color: #22413a; line-height: 1.55; display: flex; gap: 6px; }
+.pl li::before { content: '✓'; color: var(--g2); font-weight: 900; }
+.rows { background: #fff; border-radius: 24px; box-shadow: 0 24px 50px -30px rgba(6,50,40,.45); overflow: hidden; }
+.row { display: grid; grid-template-columns: 1fr auto; align-items: center; padding: 9px 24px; border-bottom: 2px solid var(--line); }
+.row:last-child { border-bottom: 0; }
+.row b { font-size: 25px; font-weight: 800; }
+.row small { font-size: 17px; color: var(--muted); font-weight: 600; margin-inline-start: 8px; }
+.row .p { font-size: 30px; font-weight: 900; color: var(--g); direction: ltr; }
+.row.hl { background: #fff8ea; }
+.two { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; }
+.note { margin-top: 10px; font-size: 17px; font-weight: 700; color: var(--muted); }
+.foot { margin-top: auto; padding: 12px 0 18px; display: flex; justify-content: space-between; align-items: center; border-top: 2px dashed #c9ddd6; }
+.foot .site { font-size: 30px; font-weight: 900; color: var(--g); direction: ltr; }
+.foot .wa { text-align: left; font-size: 20px; font-weight: 700; color: var(--muted); }
+.foot .wa b { display: block; font-size: 25px; color: var(--ink); direction: ltr; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand"><img src="logo.png" alt=""><div><b>وزن</b><small>برنامج المحاسبة وإدارة المحلات</small></div></div>
+    <div class="badge">الخدمات والدعم الفني</div>
+  </div>
+  <h1>منشتغل عنك… <span>وإنت ركّز على محلك</span></h1>
+
+  <h3>خطط الدعم الفني</h3>
+  <div class="plans">
+    <div class="pl free"><b>أساسي</b><div class="p">ببلاش</div><div class="y">مع كل رخصة</div>
+      <ul><li>واتساب بأوقات الدوام</li><li>رد خلال 24 ساعة</li><li>فيديوهات الشرح</li><li>التحديثات</li></ul></div>
+    <div class="pl best"><span class="rb">الأنسب للمحلات</span><b>فضّي</b><div class="p">$9.99<small> / شهر</small></div><div class="y">أو $99 بالسنة (شهرين ببلاش)</div>
+      <ul><li>رد خلال ساعتين</li><li>دخول عن بعد لحل المشاكل</li><li>ضبط الطباعة والطابعات</li><li>مساعدة بالإعدادات</li></ul></div>
+    <div class="pl"><b>ذهبي</b><div class="p">$19.99<small> / شهر</small></div><div class="y">أو $199 بالسنة (شهرين ببلاش)</div>
+      <ul><li>أولوية: رد خلال 30 دقيقة</li><li>دخول عن بعد بلا حدود</li><li>فحص بيانات ونسخ احتياطي شهري</li><li>ساعة تدريب شهرياً لموظف</li></ul></div>
+  </div>
+
+  <div class="two">
+    <div>
+      <h3>إدخال المواد عنك</h3>
+      <div class="rows">
+        <div class="row"><span><b>100 مادة</b></span><span class="p">$15</span></div>
+        <div class="row"><span><b>250 مادة</b><small>(12.80$ لكل 100)</small></span><span class="p">$32</span></div>
+        <div class="row hl"><span><b>500 مادة</b><small>(11.80$ لكل 100)</small></span><span class="p">$59</span></div>
+        <div class="row"><span><b>1000 مادة</b><small>(9.90$ لكل 100)</small></span><span class="p">$99</span></div>
+        <div class="row"><span><b>من ملف Excel عندك</b><small>(ترتيب واستيراد)</small></span><span class="p">$10</span></div>
+      </div>
+      <div class="note">الاسم والباركود والسعر والوحدة والتصنيف. الكميات بالجرد.</div>
+    </div>
+    <div>
+      <h3>التدريب والتنصيب</h3>
+      <div class="rows">
+        <div class="row"><span><b>التنصيب والشرح الأساسي</b></span><span class="p">ببلاش</span></div>
+        <div class="row"><span><b>تدريب أونلاين</b><small>(ساعة)</small></span><span class="p">$20</span></div>
+        <div class="row"><span><b>دورة بالمحل</b><small>(ساعة ونص)</small></span><span class="p">$35</span></div>
+        <div class="row"><span><b>جلسة دعم لمرة وحدة</b><small>(بدون خطة)</small></span><span class="p">$7</span></div>
+        <div class="row"><span><b>ضبط طابعة أو قارئ باركود</b></span><span class="p">$5</span></div>
+      </div>
+      <div class="note">الخدمات اختيارية وما إلها علاقة بتفعيل البرنامج.</div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div class="site">waznsy.com</div>
+    <div class="wa">للطلب (واتساب)<b>+963 968 037 609</b><b>+963 980 072 891</b></div>
+  </div>
+</div>
+</body>
+</html>
