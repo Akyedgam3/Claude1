@@ -33,6 +33,7 @@ export function useCloudHost(active: boolean, companyName: string, notify: (m: s
         fullState: () => api.cloudHostState(),
         backup: (t) => api.cloudHostBackup(t),
         runQueued: (u, p, m, a, ids) => api.cloudHostQueued(u, p, m, a, ids),
+        eventsAfter: (t, s, h) => api.cloudHostSince(t, s, h),
       });
       let warned = false;
       host.onError = (m) => {

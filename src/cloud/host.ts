@@ -11,11 +11,13 @@ import type { CloudTransport } from './transport';
 export interface CloudCompany {
   name(): string;
   login(username: string, password: string, deviceId: string, deviceName: string): Promise<{ token: string; user: User }>;
-  snapshot(token: string): Promise<{ state: CompanyState; seq: number }>;
+  snapshot(token: string): Promise<{ state: CompanyState; seq: number; hash?: string }>;
+  /** الفرق بس (العمليات بعد seq) إذا الجهاز البعيد عنده نسخة من نفس السجل؛ null = لازم نسخة كاملة. */
+  eventsAfter?(token: string, seq: number, hash: string): Promise<{ items: EventItem[]; seq: number; hash: string } | null>;
   call(token: string, method: string, args: unknown[]): Promise<{ value: unknown; seq: number }>;
   logout(token: string): Promise<void>;
   /** حالة الشركة كاملة (للنسخة المحفوظة بالسحابة اللي بيفتحها الجوال لما الجهاز الرئيسي يكون مطفي). */
-  fullState(): Promise<{ state: CompanyState; seq: number }>;
+  fullState(): Promise<{ state: CompanyState; seq: number; hash?: string }>;
   /** عملية انعملت عالجوال والجهاز الرئيسي مطفي: كلمة السر بتتحقق هون وبتتنفّذ بصلاحيات صاحبها. */
   /** ids: المعرّفات اللي طلعت عالجوال لما نفّذها (حتى تطلع نفسها هون). */
   runQueued(username: string, password: string, method: string, args: unknown[], ids?: string[]): Promise<{ value: unknown; seq: number }>;
@@ -48,6 +50,8 @@ export interface LatestInfo {
   parts: number;
   prefix: string;
   at: number;
+  /** بصمة آخر عملية بهالنسخة (لنعرف إذا نسخة الجوال المحفوظة من نفس السجل). */
+  hash?: string;
 }
 export const QUEUE_PREFIX = 'q_';
 const LATEST_EVERY_EVENTS = 150;
@@ -55,8 +59,8 @@ const LATEST_EVERY_MS = 10 * 60_000;
 
 export type CloudRequest =
   | { op: 'ping' }
-  | { op: 'login'; username: string; password: string; deviceId: string; deviceName: string }
-  | { op: 'state'; token: string }
+  | { op: 'login'; username: string; password: string; deviceId: string; deviceName: string; have?: { seq: number; hash: string } }
+  | { op: 'state'; token: string; have?: { seq: number; hash: string } }
   | { op: 'call'; token: string; method: string; args: unknown[] }
   | { op: 'logout'; token: string }
   | { op: 'backup'; token: string }
@@ -66,7 +70,7 @@ export const SESSION_EXPIRED = 'انتهت الجلسة على الجهاز ال
 export const PART_CHARS = 700_000; // أقل من حد Firestore (1MB للوثيقة)
 const MAX_DOC_CHARS = 900_000;
 const BATCH_ITEMS = 300;
-const FLUSH_MS = 700;
+const FLUSH_MS = 250;
 const KEEP_BATCHES = 400;
 const STALE_MS = 2 * 60_000;
 const HEARTBEAT_MS = 30 * 60_000;
@@ -148,7 +152,7 @@ export class CloudHost {
       const parts = Math.max(1, Math.ceil(sealed.ct.length / PART_CHARS));
       const prefix = `L${pad(this.epoch, 13)}_${pad(snap.seq)}_`;
       for (let i = 0; i < parts; i++) await this.t.set(this.room.room, 'snap', `${prefix}${i}`, { ct: sealed.ct.slice(i * PART_CHARS, (i + 1) * PART_CHARS), at: Date.now() });
-      const info: LatestInfo = { epoch: this.epoch, seq: snap.seq, iv: sealed.iv, parts, prefix, at: Date.now() };
+      const info: LatestInfo = { epoch: this.epoch, seq: snap.seq, iv: sealed.iv, parts, prefix, at: Date.now(), ...(snap.hash ? { hash: snap.hash } : {}) };
       await this.t.set(this.room.room, 'meta', 'latest', { ...(await seal(this.room.key, 'meta/latest', info)), at: info.at });
       const old = this.latestPrefix;
       this.latestPrefix = prefix;
@@ -265,10 +269,10 @@ export class CloudHost {
         return { name: this.company.name(), epoch: this.epoch };
       case 'login': {
         const { token, user } = await this.company.login(String(req.username ?? ''), String(req.password ?? ''), String(req.deviceId ?? ''), String(req.deviceName ?? 'جوال'));
-        return { token, user, name: this.company.name(), ...(await this.sendSnapshot(id, token)) };
+        return { token, user, name: this.company.name(), ...(await this.sendSnapshot(id, token, req.have)) };
       }
       case 'state':
-        return this.sendSnapshot(id, String(req.token));
+        return this.sendSnapshot(id, String(req.token), req.have);
       case 'call': {
         const { value, seq } = await this.company.call(String(req.token), String(req.method), Array.isArray(req.args) ? req.args : []);
         this.markDone(id);
@@ -302,12 +306,27 @@ export class CloudHost {
   }
 
   /** الحالة الكاملة بقطع (Firestore ما بيقبل وثيقة أكبر من 1MB). */
-  private async sendSnapshot(id: string, token: string): Promise<Record<string, unknown>> {
+  private async sendSnapshot(id: string, token: string, have?: { seq: number; hash: string }): Promise<Record<string, unknown>> {
     await this.flush();
+    // الجهاز البعيد عنده نسخة: منبعتله الفرق بس (أسرع بكتير من كل بيانات المحل على نت ضعيف)
+    if (have && Number.isSafeInteger(have.seq) && typeof have.hash === 'string' && this.company.eventsAfter) {
+      const d = await this.company.eventsAfter(token, have.seq, have.hash).catch((e: Error) => {
+        if (e?.message === SESSION_EXPIRED) throw e; // الجلسة خلصت: الجهاز البعيد بيعيد الدخول (ومعه نسخته)
+        return null;
+      });
+      if (d) {
+        const sealed = await seal(this.room.key, `snap/${id}`, d.items);
+        if (sealed.ct.length <= PART_CHARS * 4) {
+          const parts = Math.max(1, Math.ceil(sealed.ct.length / PART_CHARS));
+          for (let i = 0; i < parts; i++) await this.t.set(this.room.room, 'snap', `${id}_${i}`, { ct: sealed.ct.slice(i * PART_CHARS, (i + 1) * PART_CHARS), at: Date.now() });
+          return { seq: d.seq, hash: d.hash, epoch: this.epoch, iv: sealed.iv, parts, delta: true };
+        }
+      }
+    }
     const snap = await this.company.snapshot(token);
     const sealed = await seal(this.room.key, `snap/${id}`, snap.state);
     const parts = Math.max(1, Math.ceil(sealed.ct.length / PART_CHARS));
     for (let i = 0; i < parts; i++) await this.t.set(this.room.room, 'snap', `${id}_${i}`, { ct: sealed.ct.slice(i * PART_CHARS, (i + 1) * PART_CHARS), at: Date.now() });
-    return { seq: snap.seq, epoch: this.epoch, iv: sealed.iv, parts };
+    return { seq: snap.seq, ...(snap.hash ? { hash: snap.hash } : {}), epoch: this.epoch, iv: sealed.iv, parts };
   }
 }

@@ -60,6 +60,8 @@ let license: LicenseManager;
 let lastLicense: LicenseStatus | null = null;
 // جوال متصل عن بعد بجهاز رئيسي (بدل شركة محلية)
 let remote: CloudClient | null = null;
+/** حفظ نسخة بيانات المحل عالجوال البعيد (بتفتح أسرع المرة الجاية). */
+let remoteCache: { stop(): Promise<void>; schedule(): void } | null = null;
 /** متصل بكمبيوتر رئيسي على نفس الشبكة (Wi-Fi). */
 let lan: LanRemote | null = null;
 const cloudSessions = new CloudSessions(() => activeStore(), () => Math.max(CLOUD_MIN_DEVICES, (lastLicense ?? licenseStatus()).devices - 1));
@@ -152,10 +154,10 @@ function requirePermission(p: Permission): void {
 function attach(s: CompanyStore): void {
   store = s;
   // دفعة وحدة لكل عملية (متل الكمبيوتر): استيراد آلاف المواد ما بيعمل آلاف إعادة رسم
-  let pending: { event: CompanyEvent; seq: number }[] = [];
+  let pending: { event: CompanyEvent; seq: number; hash: string }[] = [];
   let timer: ReturnType<typeof setTimeout> | null = null;
-  const off = s.onEvent((event: CompanyEvent, seq: number) => {
-    pending.push({ event, seq });
+  const off = s.onEvent((event: CompanyEvent, seq: number, hash: string) => {
+    pending.push({ event, seq, hash });
     timer ??= setTimeout(() => {
       timer = null;
       const items = pending;
@@ -189,6 +191,8 @@ function closeStore(): void {
     lan = null;
   }
   if (remote) {
+    void remoteCache?.stop();
+    remoteCache = null;
     void remote.close();
     remote = null;
   }
@@ -617,6 +621,10 @@ function registerHandlers(): void {
     requireCloud();
     return cloudSessions.fullState();
   });
+  handle('cloud:hostSince', (token: string, seq: number, hash: string) => {
+    requireCloud();
+    return cloudSessions.eventsAfter(String(token), Number(seq), String(hash));
+  });
   handle('cloud:hostQueued', (username: string, password: string, method: string, args: unknown[], ids?: string[]) => {
     requireCloud();
     return cloudSessions.runQueued(String(username), String(password), String(method), Array.isArray(args) ? args : [], Array.isArray(ids) ? ids.map(String) : undefined);
@@ -654,6 +662,10 @@ function registerHandlers(): void {
     const s = readSettings();
     const room = await cloudRoom(code);
     const client = new CloudClient(new FirestoreTransport(), room, { username: String(o.username ?? ''), password: String(o.password ?? ''), deviceId: s.deviceId, deviceName: 'جوال' });
+    // النسخة المحفوظة من آخر مرة: الدخول بيجيب الفرق بس
+    const { loadCloudCache, cacheSaver, cacheFileName } = await import('../cloud/cache-file');
+    const cacheFile = `${USER_DATA}/${cacheFileName(room)}`;
+    client.useCache(await loadCloudCache(fs as never, cacheFile, room));
     const key = `${room.room}|${String(o.username ?? '').trim().toLowerCase()}`;
     const saved = s.cloudOffline?.[key];
     // إذا هالجهاز دخل قبل بهالحساب (فيه بصمة كلمة السر) ما منستنى الرئيسي كتير
@@ -666,6 +678,10 @@ function registerHandlers(): void {
       await client.openOffline(saved?.verifier, saved?.pending ?? []);
     }
     remote = client;
+    const saver = cacheSaver(fs as never, cacheFile, room, client);
+    remoteCache = saver;
+    client.onChange = () => saver.schedule();
+    void saver.save();
     const persist = () => {
       const cur = readSettings();
       cur.cloudOffline = { ...cur.cloudOffline, [key]: { verifier: cur.cloudOffline?.[key]?.verifier ?? saved?.verifier ?? '', pending: client.pending } };

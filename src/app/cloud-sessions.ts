@@ -55,7 +55,15 @@ export class CloudSessions {
   snapshot(token: string) {
     this.session(token);
     const store = this.store();
-    return { state: store.ledger.state, seq: store.lastSeq };
+    return { state: store.ledger.state, seq: store.lastSeq, hash: store.headHash };
+  }
+
+  /** العمليات بعد آخر وحدة عند الجهاز البعيد (إذا هو على نفس السجل)، وإلا null. */
+  eventsAfter(token: string, seq: number, hash: string) {
+    this.session(token);
+    const store = this.store();
+    const items = store.eventsAfter(seq, hash);
+    return items ? { items, seq: store.lastSeq, hash: store.headHash } : null;
   }
 
   call(token: string, method: string, args: unknown[]) {
@@ -113,7 +121,7 @@ export class CloudSessions {
   /** حالة الشركة كاملة (للنسخة المحفوظة بالسحابة). */
   fullState() {
     const store = this.store();
-    return { state: store.ledger.state, seq: store.lastSeq };
+    return { state: store.ledger.state, seq: store.lastSeq, hash: store.headHash };
   }
 
   logout(token: string): void {

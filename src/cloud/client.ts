@@ -36,12 +36,25 @@ interface Snapshot {
   epoch: number;
   iv: string;
   parts: number;
+  /** بصمة آخر عملية بسجل الجهاز الرئيسي. */
+  hash?: string;
+  /** الفرق بس (عمليات بعد اللي عندنا) بدل الحالة كاملة. */
+  delta?: boolean;
+}
+
+/** نسخة محفوظة عالجهاز البعيد من بيانات المحل: بتفتح فوراً، وبالاتصال الجاي منطلب الفرق بس. */
+export interface CloudCache {
+  state: CompanyState;
+  seq: number;
+  hash: string;
 }
 
 export class CloudClient {
   private state: CompanyState | null = null;
   private seq = 0;
   private epoch = 0;
+  /** بصمة آخر عملية وصلتنا (إذا معروفة): منطلب بعدها الفرق بس. */
+  private hash = '';
   private token = '';
   private offEvents: (() => void) | null = null;
   private offMeta: (() => void) | null = null;
@@ -63,6 +76,8 @@ export class CloudClient {
   private onEvents: ((items: EventItem[]) => void) | null = null;
   /** تغيّر الوضع (مطفي/شغّال) أو عدد العمليات المأجّلة. */
   onMode: () => void = () => undefined;
+  /** تغيّرت النسخة اللي عندنا (لحفظها عالجهاز). */
+  onChange: () => void = () => undefined;
   /** نتيجة العمليات المأجّلة بعد ما رجع الجهاز الرئيسي. */
   onQueueReport: (r: QueueReport) => void = () => undefined;
 
@@ -99,11 +114,15 @@ export class CloudClient {
       e.expired = !!res.expired;
       throw e;
     }
-    if ((res as unknown as Partial<Snapshot>).parts) this.applySnapshot(id, res as unknown as Snapshot, await this.readParts(id, res as unknown as Snapshot));
+    const sn = res as unknown as Partial<Snapshot>;
+    if (sn.parts) {
+      if (sn.delta) this.applyDelta(sn as Snapshot, await this.readParts<EventItem[]>(id, sn as Snapshot));
+      else this.applySnapshot(id, sn as Snapshot, await this.readParts<CompanyState>(id, sn as Snapshot));
+    }
     return res as T & { ok: true };
   }
 
-  private async readParts(id: string, snap: Snapshot): Promise<CompanyState> {
+  private async readParts<T>(id: string, snap: Snapshot): Promise<T> {
     const r = this.room.room;
     const parts: string[] = [];
     for (let i = 0; i < snap.parts; i++) {
@@ -112,14 +131,53 @@ export class CloudClient {
       parts.push(d.ct);
     }
     for (let i = 0; i < snap.parts; i++) void this.t.del(r, 'snap', `${id}_${i}`).catch(() => undefined);
-    return unseal<CompanyState>(this.room.key, `snap/${id}`, { iv: snap.iv, ct: parts.join('') });
+    return unseal<T>(this.room.key, `snap/${id}`, { iv: snap.iv, ct: parts.join('') });
   }
 
   private applySnapshot(_id: string, snap: Snapshot, state: CompanyState): void {
     this.state = state;
     this.seq = snap.seq;
+    this.hash = snap.hash ?? '';
     this.epoch = snap.epoch;
     this.syncedAt = Date.now();
+    this.onChange();
+  }
+
+  /** الفرق فوق النسخة اللي عندنا (من آخر عملية عندنا لآخر عملية عالجهاز الرئيسي). */
+  private applyDelta(snap: Snapshot, items: EventItem[]): void {
+    if (!this.state) throw new Error('ما في نسخة محلية');
+    // منتأكد إنها متسلسلة قبل ما نلمس النسخة
+    const fresh = items.filter((it) => it.seq > this.seq);
+    if (fresh.some((it, i) => it.seq !== this.seq + 1 + i) || (fresh.length ? fresh[fresh.length - 1]!.seq : this.seq) !== snap.seq) throw new Error('الفرق ناقص، جرّب مرة تانية');
+    for (const it of items) {
+      if (it.seq <= this.seq) continue;
+      if (it.seq !== this.seq + 1) throw new Error('فجوة بالعمليات');
+      applyEvent(this.state, it.event);
+      this.seq = it.seq;
+    }
+    this.hash = snap.hash ?? '';
+    this.seq = snap.seq;
+    this.epoch = snap.epoch;
+    this.syncedAt = Date.now();
+    this.onChange();
+  }
+
+  /** «عندي نسخة لحد هون»: بالطلب منخلّي الجهاز الرئيسي يبعت الفرق بس. */
+  private have(): { have?: { seq: number; hash: string } } {
+    return this.state && this.hash && this.seq > 0 ? { have: { seq: this.seq, hash: this.hash } } : {};
+  }
+
+  /** نسخة محفوظة من قبل (من آخر مرة): منبلّش منها، والدخول بيجيب الفرق بس. */
+  useCache(cache: CloudCache | null | undefined): void {
+    if (!cache?.state || !(cache.seq > 0) || !cache.hash) return;
+    this.state = cache.state;
+    this.seq = cache.seq;
+    this.hash = cache.hash;
+  }
+
+  /** النسخة الحالية للحفظ عالجهاز (null إذا ما في بصمة معروفة). */
+  cache(): CloudCache | null {
+    return this.state && this.hash && this.seq > 0 ? { state: this.state, seq: this.seq, hash: this.hash } : null;
   }
 
   /** بصمة كلمة السر لهالحساب (بتنحفظ بعد أول دخول ناجح). */
@@ -160,14 +218,19 @@ export class CloudClient {
     const meta = await this.t.get(r, 'meta', 'latest');
     if (!meta?.ct) throw new Error(OFFLINE);
     const info = await unseal<LatestInfo>(this.room.key, 'meta/latest', meta);
-    const parts: string[] = [];
-    for (let i = 0; i < info.parts; i++) {
-      const d = await this.t.get(r, 'snap', `${info.prefix}${i}`);
-      if (!d?.ct) throw new Error('النسخة المحفوظة عم تتحدّث هلق، جرّب بعد شوي');
-      parts.push(d.ct);
+    // النسخة المحفوظة عالجوال نفس النسخة بالسحابة أو أحدث منها: ما في داعي ننزّل كل البيانات
+    const mine = this.state && this.hash && (this.seq > info.seq || (this.seq === info.seq && info.hash === this.hash));
+    if (!mine) {
+      const parts: string[] = [];
+      for (let i = 0; i < info.parts; i++) {
+        const d = await this.t.get(r, 'snap', `${info.prefix}${i}`);
+        if (!d?.ct) throw new Error('النسخة المحفوظة عم تتحدّث هلق، جرّب بعد شوي');
+        parts.push(d.ct);
+      }
+      this.state = await unseal<CompanyState>(this.room.key, 'snap/latest', { iv: info.iv, ct: parts.join('') });
+      this.seq = info.seq;
+      this.hash = info.hash ?? '';
     }
-    this.state = await unseal<CompanyState>(this.room.key, 'snap/latest', { iv: info.iv, ct: parts.join('') });
-    this.seq = info.seq;
     this.epoch = info.epoch;
     this.syncedAt = info.at;
     // العمليات اللي صارت بعد النسخة (لآخر لحظة كان فيها الجهاز الرئيسي شغّال)
@@ -179,8 +242,9 @@ export class CloudClient {
       const items = await unseal<EventItem[]>(this.room.key, `events/${id}`, d).catch(() => [] as EventItem[]);
       const fresh = items.filter((it) => it.seq > this.seq);
       if (!fresh.length || fresh[0]!.seq !== this.seq + 1) continue;
-      for (const it of fresh) applyEvent(this.state, it.event);
+      for (const it of fresh) applyEvent(this.state!, it.event);
       this.seq = fresh[fresh.length - 1]!.seq;
+      this.hash = fresh[fresh.length - 1]!.hash ?? '';
       this.syncedAt = Math.max(this.syncedAt, d.at ?? 0);
     }
   }
@@ -209,6 +273,7 @@ export class CloudClient {
     const events: EventItem[] = [];
     const { value } = replayIds(trial.ids, () => run(this.state!, (event) => events.push({ event, seq: this.seq + events.length + 1 })));
     if (events.length) this.seq = events[events.length - 1]!.seq;
+    if (events.length) this.hash = ''; // نسختنا صار فيها عمليات مش من سجل الجهاز الرئيسي: المرة الجاية نسخة كاملة
     this.pending.push({ id, method, at: op.at });
     if (events.length) this.onEvents?.(events);
     this.onMode();
@@ -279,7 +344,7 @@ export class CloudClient {
   }
 
   async login(): Promise<{ user: User; companyName: string; state: CompanyState; seq: number }> {
-    const r = await this.request<{ token: string; user: User; name: string }>({ op: 'login', ...this.creds }, 90_000);
+    const r = await this.request<{ token: string; user: User; name: string }>({ op: 'login', ...this.creds, ...this.have() }, 90_000);
     this.token = r.token;
     this.user = r.user;
     this.companyName = r.name;
@@ -338,7 +403,7 @@ export class CloudClient {
   }
 
   private async relogin(): Promise<void> {
-    const r = await this.request<{ token: string; user: User }>({ op: 'login', ...this.creds }, 90_000);
+    const r = await this.request<{ token: string; user: User }>({ op: 'login', ...this.creds, ...this.have() }, 90_000);
     this.token = r.token;
     this.user = r.user;
   }
@@ -352,7 +417,7 @@ export class CloudClient {
       this.resyncing = (async () => {
         try {
           try {
-            await this.request({ op: 'state', token: this.token }, 90_000);
+            await this.request({ op: 'state', token: this.token, ...this.have() }, 90_000);
           } catch (e) {
             if (!(e as { expired?: boolean }).expired) throw e;
             await this.relogin(); // الدخول بيرجّع الحالة كمان
@@ -428,7 +493,9 @@ export class CloudClient {
           if (fresh[0]!.seq !== this.seq + 1) return resync(); // فجوة (دفعات قديمة انحذفت)
           for (const it of fresh) applyEvent(this.state!, it.event);
           this.seq = fresh[fresh.length - 1]!.seq;
+          this.hash = fresh[fresh.length - 1]!.hash ?? '';
           onEvents(fresh);
+          this.onChange();
         }
       })();
     });

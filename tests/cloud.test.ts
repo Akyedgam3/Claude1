@@ -77,6 +77,7 @@ describe('cloud host and client', () => {
   let sessions: CloudSessions;
   let off: () => void;
   let code: string;
+  let snapshots = 0;
 
   beforeEach(async () => {
     t = new MemoryTransport();
@@ -91,9 +92,13 @@ describe('cloud host and client', () => {
       fullState: async () => sessions.fullState(),
       runQueued: async (u, pw, m, a) => sessions.runQueued(u, pw, m, a),
       backup: async (tok) => sessions.backup(tok, readCompanyFile),
+      eventsAfter: async (tok, sq, h) => sessions.eventsAfter(tok, sq, h),
     };
+    snapshots = 0;
+    const snap0 = company.snapshot;
+    company.snapshot = async (tok) => (snapshots++, snap0(tok));
     host = new CloudHost(t, await cloudRoom(code), company);
-    off = store.onEvent((event, seq) => host.push([{ event, seq }]));
+    off = store.onEvent((event, seq, hash) => host.push([{ event, seq, hash }]));
     await host.start();
   });
   afterEach(() => {
@@ -180,7 +185,7 @@ describe('cloud host and client', () => {
     };
     off();
     host = new CloudHost(t, await cloudRoom(code), company);
-    off = store.onEvent((event, seq) => host.push([{ event, seq }]));
+    off = store.onEvent((event, seq, hash) => host.push([{ event, seq, hash }]));
     await host.start();
     await until(() => resets === 2);
     const res = await c.call('postInvoice', [sale]);
@@ -230,6 +235,68 @@ describe('cloud host and client', () => {
       fs.rmSync(restored, { recursive: true, force: true });
     }
     expect(() => CompanyStore.open(restored, { username: 'admin', password: 'secret123' })).toThrow();
+  });
+
+  it('a phone with a saved copy only downloads what changed (and a wrong copy falls back to everything)', async () => {
+    const c1 = await client();
+    await c1.login();
+    let got = 0;
+    c1.listen((items) => (got += items.length), () => undefined, () => undefined);
+    execute(store, store.user, 'postInvoice', [sale]);
+    await until(() => got > 0);
+    const saved = c1.cache()!;
+    expect(saved.seq).toBe(store.lastSeq);
+    expect(saved.hash).toBe(store.headHash);
+    await c1.close();
+    // بالغياب انعملت فواتير
+    execute(store, store.user, 'postInvoice', [sale]);
+    execute(store, store.user, 'postInvoice', [sale]);
+    const before = snapshots;
+    const c2 = await client();
+    c2.useCache(JSON.parse(JSON.stringify(saved)));
+    await c2.login();
+    expect(snapshots).toBe(before); // ما انبعتت نسخة كاملة
+    expect(c2.snapshot().seq).toBe(store.lastSeq);
+    expect(c2.snapshot().state.invoices).toHaveLength(store.ledger.state.invoices.length);
+    expect(JSON.stringify(c2.snapshot().state.stock)).toBe(JSON.stringify(store.ledger.state.stock));
+    await c2.close();
+    // نسخة مش من نفس السجل (بصمة غلط): نسخة كاملة
+    const c3 = await client();
+    c3.useCache({ ...saved, hash: 'x'.repeat(64) });
+    await c3.login();
+    expect(snapshots).toBe(before + 1);
+    expect(c3.snapshot().state.invoices).toHaveLength(store.ledger.state.invoices.length);
+    await c3.close();
+  });
+
+  it('after the main device restarts the phone catches up with only the changes', async () => {
+    const c = await client();
+    await c.login();
+    let resets = 0;
+    c.listen(() => undefined, () => resets++, () => undefined);
+    execute(store, store.user, 'postInvoice', [sale]);
+    await until(() => c.snapshot().seq === store.lastSeq);
+    const before = snapshots;
+    // الجهاز الرئيسي بيعيد تشغيل (عصر جديد)، وبينعمل بيع
+    off(); host.stop(); sessions.clear();
+    host = new CloudHost(t, await cloudRoom(code), {
+      name: () => 'محل السحابة',
+      login: async (u, p, d, n) => sessions.login(u, p, d, n),
+      snapshot: async (tok) => (snapshots++, sessions.snapshot(tok)),
+      call: async (tok, m, a) => sessions.call(tok, m, a),
+      logout: async (tok) => sessions.logout(tok),
+      fullState: async () => sessions.fullState(),
+      runQueued: async (u, pw, m, a) => sessions.runQueued(u, pw, m, a),
+      backup: async (tok) => sessions.backup(tok, readCompanyFile),
+      eventsAfter: async (tok, sq, h) => sessions.eventsAfter(tok, sq, h),
+    });
+    off = store.onEvent((event, seq, hash) => host.push([{ event, seq, hash }]));
+    await host.start();
+    execute(store, store.user, 'postInvoice', [sale]);
+    await until(() => resets > 0 && c.snapshot().seq === store.lastSeq, 6000);
+    expect(snapshots).toBe(before);
+    expect(c.snapshot().state.invoices).toHaveLength(store.ledger.state.invoices.length);
+    await c.close();
   });
 
   it('keeps working on the phone while the main device is off and syncs when it is back', async () => {
@@ -293,7 +360,7 @@ describe('cloud host and client', () => {
       runQueued: async (u, pw, m, a) => sessions.runQueued(u, pw, m, a),
       backup: async (tok) => sessions.backup(tok, readCompanyFile),
     });
-    off = store.onEvent((event, seq) => host.push([{ event, seq }]));
+    off = store.onEvent((event, seq, hash) => host.push([{ event, seq, hash }]));
     await host.start();
     await until(() => Object.keys(store.ledger.state.invoices).length === 2);
     expect(store.ledger.state.invoices[1]!.createdBy).toBe('u2');
@@ -339,7 +406,7 @@ describe('cloud host and client', () => {
       runQueued: async (u, pw, m, a, ids) => sessions.runQueued(u, pw, m, a, ids),
       backup: async (tok) => sessions.backup(tok, readCompanyFile),
     });
-    off = store.onEvent((event, seq) => host.push([{ event, seq }]));
+    off = store.onEvent((event, seq, hash) => host.push([{ event, seq, hash }]));
     await host.start();
     await until(() => reports.length === 1, 5000);
     expect(reports[0]).toEqual({ done: 5, failed: [] });

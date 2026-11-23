@@ -2,6 +2,7 @@ import * as React from 'react';
 import { createContext, useContext } from 'react';
 import { can as canDo, DEALER_BOX_ID, effectiveProfile, pharmacyValue, displayDecimals, oldLiraOn, findRate, formatMinor, niceUnitCost, toMinor, toUnitPrice, type ActivityProfile, type CompanyState, type Currency, type Feature, type Permission, type User } from '../../core';
 import type { LicenseStatus } from '../../license/manager';
+import type { EventItem } from '../../app/lan-proto';
 
 /** نسخة الموبايل (أندرويد): مستقلة، بدون شبكة محلية ولا شاشة زبون. */
 export const IS_MOBILE = typeof __WAZN_MOBILE__ !== 'undefined' && __WAZN_MOBILE__ === true;
@@ -159,6 +160,7 @@ export const api = {
   cloudHostLogout: (token: string) => inv<void>('cloud:hostLogout', token),
   cloudHostBackup: (token: string) => inv<string>('cloud:hostBackup', token),
   cloudHostState: () => inv<{ state: CompanyState; seq: number }>('cloud:hostState'),
+  cloudHostSince: (token: string, seq: number, hash: string) => inv<{ items: EventItem[]; seq: number; hash: string } | null>('cloud:hostSince', token, seq, hash),
   cloudHostQueued: (username: string, password: string, method: string, args: unknown[], ids?: string[]) => inv<{ value: unknown; seq: number }>('cloud:hostQueued', username, password, method, args, ids),
   /** الاتصال بجهاز رئيسي عن بعد (saved = آخر اتصال محفوظ، بيكفي كلمة السر). */
   cloudConnect: (o: { code?: string; username?: string; password: string; saved?: boolean }) => inv<SessionInfo>('cloud:connect', o),

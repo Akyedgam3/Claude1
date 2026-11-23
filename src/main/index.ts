@@ -792,6 +792,10 @@ function registerIpc(): void {
     const [{ CloudClient }, { FirestoreTransport }, { cloudRoom }] = await Promise.all([import('../cloud/client'), import('../cloud/firestore'), import('../cloud/code')]);
     const room = await cloudRoom(code);
     const client = new CloudClient(new FirestoreTransport(), room, { username, password: String(o.password ?? ''), deviceId: s.deviceId, deviceName: os.hostname() });
+    // النسخة المحفوظة من آخر مرة: الدخول بيجيب الفرق بس (أسرع بكتير على نت ضعيف)
+    const { loadCloudCache, cacheSaver, cacheFileName } = await import('../cloud/cache-file');
+    const cacheFile = path.join(app.getPath('userData'), cacheFileName(room));
+    client.useCache(await loadCloudCache(fs, cacheFile, room));
     const key = `${room.room}|${username.trim().toLowerCase()}`;
     const saved = s.cloudOffline?.[key];
     // إذا هالجهاز دخل قبل بهالحساب (فيه بصمة كلمة السر) ما منستنى الرئيسي كتير
@@ -816,7 +820,16 @@ function registerIpc(): void {
       const fails = r.failed.map((f) => `• ${f.error}`).join('\n');
       send(r.failed.length ? 'lan:error' : 'cloud:notice', r.failed.length ? `رجع الجهاز الرئيسي: تنفّذت ${r.done} عملية، وما تنفّذت ${r.failed.length}:\n${fails}` : `رجع الجهاز الرئيسي وتنفّذت كل العمليات اللي انعملت وهو مطفي (${r.done}).`);
     };
-    attach(new CloudBackend(client));
+    const saver = cacheSaver(fs, cacheFile, room, client);
+    client.onChange = () => saver.schedule();
+    const be = new CloudBackend(client);
+    const close0 = be.close.bind(be);
+    be.close = async () => {
+      await saver.stop();
+      return close0();
+    };
+    attach(be);
+    void saver.save();
     if (online) {
       persist(await client.verifier());
       client.collectQueued();
@@ -886,6 +899,10 @@ function registerIpc(): void {
   handle('cloud:hostState', () => {
     requireCloud();
     return cloudSessions.fullState();
+  });
+  handle('cloud:hostSince', (token: string, seq: number, hash: string) => {
+    requireCloud();
+    return cloudSessions.eventsAfter(String(token), Number(seq), String(hash));
   });
   handle('cloud:hostQueued', (username: string, password: string, method: string, args: unknown[], ids?: string[]) => {
     requireCloud();

@@ -45,8 +45,8 @@ export class LocalBackend implements Backend {
     // الأحداث بتنبعت للواجهة دفعة وحدة لكل عملية (استيراد 20 ألف مادة كان يعمل 20 ألف رسالة وإعادة رسم)
     let pending: EventItem[] = [];
     let timer: ReturnType<typeof setImmediate> | null = null;
-    const off = this.store.onEvent((event, seq) => {
-      pending.push({ event, seq });
+    const off = this.store.onEvent((event, seq, hash) => {
+      pending.push({ event, seq, hash });
       timer ??= setImmediate(() => {
         timer = null;
         const items = pending;

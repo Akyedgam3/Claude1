@@ -165,7 +165,7 @@ export class CompanyStore {
   private seq: number;
   private lastHash: string;
   private sinceSnapshot = 0;
-  private listeners = new Set<(event: CompanyEvent, seq: number) => void>();
+  private listeners = new Set<(event: CompanyEvent, seq: number, hash: string) => void>();
   private heartbeat: ReturnType<typeof setInterval>;
   /** true إن أُزيلت عملية ناقصة من نهاية السجل عند الفتح (انقطاع كهرباء أثناء الكتابة). */
   readonly recoveredTail: boolean;
@@ -381,10 +381,10 @@ export class CompanyStore {
     this.lastHash = record.hash;
     if (this.batching) {
       this.batchDirty = true;
-      return this.notify(event, seq);
+      return this.notify(event, seq, record.hash);
     }
     this.writeHead();
-    this.notify(event, seq);
+    this.notify(event, seq, record.hash);
   }
 
   private batching = false;
@@ -419,14 +419,14 @@ export class CompanyStore {
     }
   }
 
-  private notify(event: CompanyEvent, seq: number): void {
+  private notify(event: CompanyEvent, seq: number, hash: string): void {
     // التطبيق على الحالة يحدث بعد العودة من هنا؛ نؤجل الإشعار واللقطة حتى ينتهي،
     // ونثبّت قائمة المشتركين الآن حتى لا يصل الحدث لمن اشترك بعده
     const listeners = [...this.listeners];
     queueMicrotask(() => {
       for (const fn of listeners) {
         try {
-          fn(event, seq);
+          fn(event, seq, hash);
         } catch (err) {
           console.error('event listener failed', err);
         }
@@ -443,9 +443,42 @@ export class CompanyStore {
   }
 
   /** الاشتراك بالأحداث الجديدة (لتحديث الواجهة والأجهزة المتصلة). */
-  onEvent(fn: (event: CompanyEvent, seq: number) => void): () => void {
+  onEvent(fn: (event: CompanyEvent, seq: number, hash: string) => void): () => void {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);
+  }
+
+  /** بصمة آخر عملية (بتتغيّر مع كل عملية، وبتثبت إنو جهاز بعيد عنده نفس التاريخ). */
+  get headHash(): string {
+    return this.lastHash;
+  }
+
+  /**
+   * العمليات بعد seq، بشرط تكون العملية رقم seq عندنا بصمتها hash (يعني الجهاز البعيد على نفس السجل).
+   * للاتصال عن بعد: الجوال اللي عنده نسخة بياخد الفرق بس بدل كل البيانات. null = لازم نسخة كاملة.
+   */
+  eventsAfter(seq: number, hash: string, max = 20_000): { event: CompanyEvent; seq: number; hash: string }[] | null {
+    if (!(seq > 0) || seq > this.seq || !hash) return null;
+    if (this.seq - seq > max) return null;
+    if (seq === this.seq) return hash === this.lastHash ? [] : null;
+    const lines = fs.readFileSync(path.join(this.dir, JOURNAL), 'utf8').split('\n');
+    const at = lines[seq - 1];
+    if (!at) return null;
+    try {
+      const rec = JSON.parse(at) as JournalRecord;
+      if (rec.seq !== seq || rec.hash !== hash) return null;
+    } catch {
+      return null;
+    }
+    const out: { event: CompanyEvent; seq: number; hash: string }[] = [];
+    for (let i = seq; i < this.seq; i++) {
+      const raw = lines[i];
+      if (!raw) return null;
+      const rec = JSON.parse(raw) as JournalRecord;
+      if (rec.seq !== i + 1) return null;
+      out.push({ event: JSON.parse(open(this.key, rec, `${rec.seq}|${rec.prev}`).toString('utf8')) as CompanyEvent, seq: rec.seq, hash: rec.hash });
+    }
+    return out;
   }
 
   /** يحفظ لقطة مشفّرة من الحالة الحالية لتسريع الفتح القادم. */

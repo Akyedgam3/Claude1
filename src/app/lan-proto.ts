@@ -35,6 +35,8 @@ export function unseal<T>(key: Buffer, env: Envelope, aad: string): T {
 export interface EventItem {
   event: CompanyEvent;
   seq: number;
+  /** بصمة العملية بسجل الجهاز الرئيسي (للاتصال عن بعد: الجوال بيطلب الفرق من بعدها). */
+  hash?: string;
 }
 
 /** طريقة إرسال الطلب (fetch بالكمبيوتر، والـ HTTP الأصلي بالجوال لأن المتصفح بيمنع http من https). */
