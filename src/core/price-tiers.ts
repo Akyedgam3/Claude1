@@ -40,6 +40,8 @@ export function tierPrice(item: Pick<Item, 'price' | 'wholesalePrice' | 'bulkPri
 // أو معرّف قائمة من قوائم المحل (سعر الشراء أو أحد أسعار المادة ± نسبة، باسم بيختاره المحل).
 
 export const COST_LIST = 'cost';
+/** «عينات مجانية»: كل المواد ببلاش (البضاعة بتطلع من المخزون وكلفتها مصروف بقائمة الدخل) */
+export const FREE_LIST = 'free';
 const TIER_KEYS = ['retail', 'wholesale', 'bulk', 'agent', 'special'];
 
 export const PRICE_BASIS_NAMES: Record<PriceBasis, string> = {
@@ -61,13 +63,14 @@ export function partyPriceList(party: Party | null | undefined): string {
 }
 
 export function isBuiltinList(key: string): boolean {
-  return key === COST_LIST || TIER_KEYS.includes(key);
+  return key === COST_LIST || key === FREE_LIST || TIER_KEYS.includes(key);
 }
 
 /** اسم القائمة للعرض */
 export function priceListName(info: CompanyInfo | null | undefined, key: string | undefined): string {
   if (!key) return PRICE_TIER_NAMES.retail;
   if (key === COST_LIST) return 'سعر الكلفة';
+  if (key === FREE_LIST) return 'عينات مجانية';
   if (key in PRICE_TIER_NAMES) return PRICE_TIER_NAMES[key as PriceTier];
   return info?.priceLists?.find((l) => l.id === key)?.name ?? 'قائمة محذوفة';
 }
@@ -92,6 +95,7 @@ export function itemCost(state: CompanyState, itemId: string): number {
  * null = القائمة شريحة عادية (retail/wholesale/...) فبيتسعّر بالطريقة القديمة، أو ما في سعر كلفة.
  */
 export function priceListPrice(state: CompanyState, item: Item, key: string): { price: number; currency: string } | null {
+  if (key === FREE_LIST) return { price: 0, currency: item.priceCurrency };
   if (key === COST_LIST) {
     const cost = itemCost(state, item.id);
     return cost > 0 ? { price: cost, currency: state.info!.baseCurrency } : null;

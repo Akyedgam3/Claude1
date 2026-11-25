@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState } from 'react';
-import { COST_LIST, customPriceLists, isBuiltinList, partyPriceList, priceListName, priceListRule, PRICE_TIERS, type PriceListDef, lineAmount, partyBalance, partyStatement, siteJobRooms, siteJobTotals, type Invoice, type Party } from '../../../core';
+import { COST_LIST, FREE_LIST, customPriceLists, isBuiltinList, partyPriceList, priceListName, priceListRule, PRICE_TIERS, type PriceListDef, lineAmount, partyBalance, partyStatement, siteJobRooms, siteJobTotals, type Invoice, type Party } from '../../../core';
 import { major, money, parseAmount, qtyText, toInput, today, uid, useCompany, dateText } from '../api';
 import { ExportButtons, PrintButtons, DocHeader } from '../components/print';
 import { Icon } from '../components/icons';
@@ -70,6 +70,7 @@ export function Parties({ focus }: { focus?: string }) {
               </option>
             ))}
             <option value={COST_LIST}>سعر الكلفة</option>
+            <option value={FREE_LIST}>عينات مجانية</option>
             {customPriceLists(state.info).map((l) => (
               <option key={l.id} value={l.id}>
                 {l.name}
@@ -387,7 +388,7 @@ export function PartyForm({
             name: f.name.trim(),
             kind: f.kind as Party['kind'],
             // قائمة الأسعار: شريحة (مفرق/جملة/...) أو سعر الكلفة أو قائمة من قوائم المحل
-            ...(isBuiltinList(f.priceTier) && f.priceTier !== COST_LIST ? (f.priceTier !== 'retail' ? { priceTier: f.priceTier as Party['priceTier'] } : {}) : { priceList: f.priceTier }),
+            ...(isBuiltinList(f.priceTier) && f.priceTier !== COST_LIST && f.priceTier !== FREE_LIST ? (f.priceTier !== 'retail' ? { priceTier: f.priceTier as Party['priceTier'] } : {}) : { priceList: f.priceTier }),
             ...(creditLimit > 0 ? { creditLimit } : {}),
             ...(Number(f.marketerRate) > 0 ? { marketerRate: Math.min(100, Number(f.marketerRate)) } : {}),
             // طريقة العمولة بتتعدّل من شاشة المسوّقين: هون منحافظ عليها
@@ -442,6 +443,9 @@ export function PartyForm({
                   {feature('listPricing') && t.id === 'retail' ? 'زبون عادي' : feature('listPricing') && t.id === 'wholesale' ? 'معلم' : t.short}
                 </button>
               ))}
+              <button type="button" title="كل المواد ببلاش لهالزبون (هدايا وعينات): البضاعة بتطلع من المخزون وكلفتها بتنحسب مصروف" className={f.priceTier === FREE_LIST ? 'active' : ''} onClick={() => setF({ ...f, priceTier: FREE_LIST })}>
+                عينات مجانية
+              </button>
               {(party?.priceTier === 'special' || f.priceTier === 'special') && (
                 <button type="button" className={f.priceTier === 'special' ? 'active' : ''} onClick={() => setF({ ...f, priceTier: 'special' })}>
                   سعر خاص

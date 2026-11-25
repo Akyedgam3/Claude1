@@ -94,7 +94,7 @@ export function alertsFor(state: CompanyState, today: string): AppAlert[] {
   for (const inv of state.invoices) {
     if (inv.kind !== 'sale' || inv.voidEntryId || inv.date < from || inv.date > today) continue;
     for (const l of inv.lines) {
-      if (!l.itemId || !l.cost || !(l.qty > 0)) continue;
+      if (!l.itemId || !l.cost || !(l.qty > 0) || l.price === 0) continue; // سعر صفر = عينة مجانية مقصودة
       const scale = inv.currency === base ? 1 : (inv.rate || 1) * 10 ** ((state.currencies[base]?.decimals ?? 2) - (state.currencies[inv.currency]?.decimals ?? 2));
       const revenueBase = Math.round((l.qty * l.price - (l.discount ?? 0)) * scale);
       if (revenueBase < l.cost - 1) under.push({ name: l.description, inv: inv.number });

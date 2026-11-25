@@ -1,6 +1,6 @@
 // قوائم الأسعار: اختيار القائمة (بالفاتورة وبطاقة الزبون) ونافذة قائمة جديدة/تعديل.
 import { useState } from 'react';
-import { COST_LIST, PRICE_BASIS_NAMES, PRICE_TIERS, customPriceLists, priceListRule, type Party, type PriceBasis, type PriceListDef } from '../../../core';
+import { COST_LIST, FREE_LIST, PRICE_BASIS_NAMES, PRICE_TIERS, customPriceLists, priceListRule, type Party, type PriceBasis, type PriceListDef } from '../../../core';
 import { useCompany } from '../api';
 import { Field, Modal } from './ui';
 
@@ -11,6 +11,7 @@ export function priceListOptions(lists: PriceListDef[], opts: { costs: boolean; 
   const out: { key: string; label: string }[] = PRICE_TIERS.map((t) => ({ key: t.id, label: t.short }));
   if (opts.special || opts.current === 'special') out.push({ key: 'special', label: 'سعر خاص' });
   if (opts.costs || opts.current === COST_LIST) out.push({ key: COST_LIST, label: 'سعر الكلفة' });
+  out.push({ key: FREE_LIST, label: 'عينات مجانية (ببلاش)' });
   for (const l of lists) out.push({ key: l.id, label: `${l.name} (${priceListRule(l)})` });
   return out;
 }
