@@ -571,6 +571,10 @@ function PrintTab() {
           <input type="checkbox" checked={!!p.showConsumerPrice} onChange={(e) => setP({ ...p, showConsumerPrice: e.target.checked })} />
           إظهار «سعر المستهلك» بفاتورة المبيع (للجملة: المحل بيعرف بقديش يبيع القطعة؛ من بطاقة المادة وإلا سعر المفرق)
         </label>
+        <label className="check">
+          <input type="checkbox" checked={!!p.autoWhatsApp} onChange={(e) => setP({ ...p, autoWhatsApp: e.target.checked })} />
+          بعد حفظ فاتورة المبيع، افتح الواتساب للزبون برسالة الفاتورة (المبلغ والمدفوع والباقي عليه) — إذا إلو رقم
+        </label>
         {p.showConsumerPrice && (
           <Field label="ربح المحل على سعر المستهلك % (فاضي = سعر المفرق)">
             <input inputMode="decimal" placeholder="مثلاً 15" value={p.consumerMarkup ?? ''} onChange={(e) => { const n = Number(e.target.value); setP({ ...p, consumerMarkup: e.target.value.trim() && Number.isFinite(n) && n > 0 ? n : undefined }); }} />

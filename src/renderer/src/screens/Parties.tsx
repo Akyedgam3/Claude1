@@ -1,4 +1,5 @@
 import { Fragment, useMemo, useState } from 'react';
+import { sendWhatsApp } from '../components/whatsapp';
 import { COST_LIST, FREE_LIST, customPriceLists, isBuiltinList, partyPriceList, priceListName, priceListRule, PRICE_TIERS, type PriceListDef, lineAmount, partyBalance, partyStatement, siteJobRooms, siteJobTotals, type Invoice, type Party } from '../../../core';
 import { major, money, parseAmount, qtyText, toInput, today, uid, useCompany, dateText } from '../api';
 import { ExportButtons, PrintButtons, DocHeader } from '../components/print';
@@ -166,11 +167,12 @@ export function PartyPanel({ party, onEdit }: { party: Party; onEdit?: () => voi
           {can('balances.view') && <PrintButtons kind="report" name={`كشف حساب ${party.name}`} papers={['a4', '80mm']} />}
           {can('balances.view') && balance.base > 0 && (
             <button
-              title="رسالة تذكير بالدين جاهزة للإرسال"
+              className="whatsapp"
+              title="تذكير بالدين عالواتساب"
               onClick={() => {
                 const parts = Object.entries(balance.byCurrency).filter(([, v]) => v > 0).map(([c, v]) => money(state, v, c));
                 const text = `مرحباً ${party.name}،\nنذكّركم بأن الرصيد المستحق لدى ${state.info!.name} هو: ${parts.join(' + ')}.\nشكراً لتعاملكم معنا.`;
-                void navigator.clipboard.writeText(text).then(() => notify('تم نسخ رسالة التذكير، الصقها في واتساب'));
+                void sendWhatsApp(party.phone, text, notify);
               }}
             >
               تذكير بالدين

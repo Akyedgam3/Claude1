@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { autoSendInvoice } from '../components/whatsapp';
+import { invoiceText } from './InvoiceView';
 import { isMarketer, marketerTerms, attributesFor, ATTRIBUTE_SUGGESTIONS, isCashBox, computeTaxes, PRICE_TIER_NAMES, tierPrice, COST_LIST, FREE_LIST, isBuiltinList, partyPriceList, priceListPrice, type PriceTier, niceUnitCost, PRICE_SCALE, roundPrice, findRate, itemPlace, listPrices, withPlace, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
 import { convertPrice, dateText, fxRates, money, cleanNumber, qtyTotalText, qtyText, parseAmount, parseDiscount, parsePrice, rateInverted, rateToInput, inputToRate, toInput, today, uid, useCompany } from '../api';
 import { askConfirm, CurrencySelect, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
@@ -693,6 +695,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
         if (!editing) {
           savedRef.current = true;
           invoiceDrafts.remove(company, draftId);
+          autoSendInvoice(state, res.value, invoiceText, notify);
         }
         navigate('invoice', res.value.id);
       }

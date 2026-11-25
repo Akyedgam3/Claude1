@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { sendWhatsApp } from '../components/whatsapp';
 import { installmentState, serialHistory, serialsInStock, type InstallmentPlan, type Invoice, type Item } from '../../../core';
 import { addDays, dateText, money, parseAmount, toInput, today, useCompany } from '../api';
 import { Icon } from '../components/icons';
@@ -452,7 +453,7 @@ function PlanView({ plan, onBack }: { plan: InstallmentPlan; onBack: () => void 
           <Icon name="printer" size={16} /> طباعة الجدول
         </button>
         {plan.status === 'active' && st.remaining > 0 && (
-          <button onClick={() => void navigator.clipboard.writeText(reminder).then(() => notify('تم نسخ التذكير، الصقه بالواتساب'))}>نسخ تذكير واتساب</button>
+          <button className="whatsapp" onClick={() => void sendWhatsApp(party?.phone, reminder, notify)}>تذكير عالواتساب</button>
         )}
         {plan.invoiceId && (
           <button className="ghost" onClick={() => navigate('invoice', plan.invoiceId!)}>

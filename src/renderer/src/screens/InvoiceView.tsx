@@ -1,4 +1,5 @@
 import { PRICE_SCALE, roundPrice, type InvoiceLine, amountInWords, displayDecimals, attributesText, partyBalance, partyDebts, findRate, INVOICE_KIND_NAMES, invoicePartyBalance, invoiceProfit, lineAmount, weighingText, type CompanyState, type Invoice } from '../../../core';
+import { sendWhatsApp } from '../components/whatsapp';
 import { api, convertPrice, dateText, fxRates, IS_MOBILE, money, parsePrice, plainMoney, qtyText, qtyTotalText, rateLine, today, useCompany } from '../api';
 import { itemPrice } from './InvoiceEditor';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
@@ -46,6 +47,7 @@ export function InvoiceView({ id }: { id: string }) {
   // فواتير الشراء فيها أسعار الشراء: بصلاحيتها بس
   if ((inv.kind === 'purchase' || inv.kind === 'purchase_return') && !can('purchases.view')) return <Empty>ما عندك صلاحية تشوف فواتير الشراء</Empty>;
   if (IS_MOBILE) return <MobileInvoiceView inv={inv} />;
+  const party0 = inv.partyId ? state.parties[inv.partyId] : undefined;
 
   return (
     <div className="page">
@@ -65,6 +67,9 @@ export function InvoiceView({ id }: { id: string }) {
             }}
           />
         )}
+        <button className="whatsapp" title={party0?.phone ? `ابعت الفاتورة لـ ${party0.phone}` : 'ابعت الفاتورة عالواتساب (بتختار المحادثة)'} onClick={() => void sendWhatsApp(party0?.phone, invoiceText(state, inv), notify)}>
+          واتساب
+        </button>
         <button title="نص جاهز للإرسال عبر واتساب" onClick={() => void navigator.clipboard.writeText(invoiceText(state, inv)).then(() => notify('تم نسخ نص الفاتورة، الصقه في واتساب'))}>
           نسخ كنص
         </button>
@@ -279,6 +284,9 @@ function MobileInvoiceView({ inv }: { inv: Invoice }) {
             ))}
           </select>
           <button onClick={() => doPrint(true)}>PDF / مشاركة</button>
+          <button className="whatsapp" onClick={() => void sendWhatsApp(party?.phone, invoiceText(state, inv), notify)}>
+            واتساب
+          </button>
           <ConsumerToggle inv={inv} />
           <button onClick={() => void navigator.clipboard.writeText(invoiceText(state, inv)).then(() => notify('تم نسخ نص الفاتورة، الصقه في واتساب'))}>نسخ كنص</button>
           {canEditInvoice(inv, can as never) && <button onClick={() => navigate(inv.kind, inv.id)}>تعديل</button>}

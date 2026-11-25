@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { autoSendInvoice } from '../components/whatsapp';
+import { invoiceText } from './InvoiceView';
 import { itemTitle, partyBalance, resolveScan, type Invoice, type Item } from '../../../core';
 import { convertPrice, fxRates, money, cleanNumber, parseAmount, parseDiscount, parsePrice, qtyText, shownCurrencies, today, toInput, uid, useCompany } from '../api';
 import { usePrinter } from '../components/print';
@@ -246,6 +248,7 @@ export function Pos() {
     showThanks(state, money(state, total, cur), !credit && received ? { received: money(state, receivedMinor, cur), change: money(state, Math.max(0, change), cur) } : null);
     notify(change > 0 && !credit ? `تم البيع — الباقي للزبون: ${money(state, change, cur)}` : 'تم البيع');
     if (autoPrint) setTimeout(() => void printer.print('receipt'), 50);
+    autoSendInvoice(state, res.value, invoiceText, notify);
   };
 
   const hold = () => {
