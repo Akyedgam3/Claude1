@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useMemo, useRef, useState } from 'react';
 import { sendWhatsApp } from '../components/whatsapp';
 import { COST_LIST, FREE_LIST, customPriceLists, isBuiltinList, partyPriceList, priceListName, priceListRule, PRICE_TIERS, type PriceListDef, lineAmount, partyBalance, partyStatement, siteJobRooms, siteJobTotals, type Invoice, type Party } from '../../../core';
 import { major, money, parseAmount, qtyText, toInput, today, uid, useCompany, dateText } from '../api';
@@ -356,6 +356,7 @@ export function PartyForm({
   onSaved?: (p: Party) => void;
   defaultKind?: Party['kind'];
 }) {
+  const nameRef = useRef<HTMLInputElement>(null);
   const { state, call, notify, feature, can } = useCompany();
   const base = state.info!.baseCurrency;
   const [f, setF] = useState({
@@ -387,7 +388,8 @@ export function PartyForm({
           }
           const data: Party = {
             id: party?.id ?? uid(),
-            name: f.name.trim(),
+            // من الخانة نفسها: آخر كلمة من كيبورد الجوال ممكن ما تكون وصلت للحالة
+            name: (nameRef.current?.value ?? f.name).trim(),
             kind: f.kind as Party['kind'],
             // قائمة الأسعار: شريحة (مفرق/جملة/...) أو سعر الكلفة أو قائمة من قوائم المحل
             ...(isBuiltinList(f.priceTier) && f.priceTier !== COST_LIST && f.priceTier !== FREE_LIST ? (f.priceTier !== 'retail' ? { priceTier: f.priceTier as Party['priceTier'] } : {}) : { priceList: f.priceTier }),
@@ -415,7 +417,7 @@ export function PartyForm({
         }}
       >
         <Field label="الاسم" wide>
-          <input value={f.name} onChange={set('name')} autoFocus />
+          <input ref={nameRef} value={f.name} onChange={set('name')} autoFocus />
         </Field>
         <Field label="النوع">
           <select value={f.kind} onChange={set('kind')}>

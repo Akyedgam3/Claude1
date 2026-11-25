@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { commitTyping } from '../components/commitTyping';
 import { applyListPricing, attributesFor, ATTRIBUTE_SUGGESTIONS, niceUnitCost, buyDiscountOf, generateVariants, itemPlace, itemPlacesText, listPrices, withPlace, type Item, type ItemKind, type ItemUnit, type RecipeLine } from '../../../core';
 import { api, convertPrice, dateText, fxRates, major, money, unitMoney, parseAmount, parsePrice, qtyText, toInput, today, uid, useCompany } from '../api';
 import { Barcode, ExportButtons, usePrinter } from '../components/print';
@@ -699,6 +700,8 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
     if (f.price.trim()) notify(`انحوّلت الأسعار لـ${state.currencies[to]?.nameAr ?? to} بسعر الصرف`);
   };
 
+  const saveRef = useRef<() => Promise<void>>(async () => {});
+  const nameRef = useRef<HTMLInputElement>(null);
   const save = async () => {
     let data: Item;
     try {
@@ -716,7 +719,8 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
       data = {
         id: item?.id ?? uid(),
         code: f.code.trim(),
-        name: f.name.trim(),
+        // الاسم من الخانة نفسها: آخر كلمة من الكيبورد ممكن ما تكون وصلت للحالة
+        name: (nameRef.current?.value ?? f.name).trim(),
         kind: f.kind,
         unit: f.unit.trim() || 'قطعة',
         priceCurrency: cur,
@@ -768,6 +772,7 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
     }
   };
 
+  saveRef.current = save;
   return (
     <Modal title={item ? `تعديل: ${item.name}` : `${profile.itemLabel} ${newWord(profile.itemLabel)}`} onClose={onClose} width={780}>
       <Tabs<FormTab>
@@ -782,15 +787,16 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
       />
       <form
         className="form-grid"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
-          void save();
+          await commitTyping();
+          void saveRef.current();
         }}
       >
         {tab === 'basic' && (
           <>
             <Field label="الاسم" wide>
-              <input value={f.name} onChange={set('name')} autoFocus />
+              <input ref={nameRef} value={f.name} onChange={set('name')} autoFocus />
             </Field>
             <Field label="الرمز">
               <input value={f.code} onChange={set('code')} className="mono" />
