@@ -6,7 +6,7 @@ import { Icon } from './icons';
 import { normalize } from './ui';
 
 export const GROUPS: { id: string; title: string; ids: Activity[] }[] = [
-  { id: 'retail', title: 'بيع بالتجزئة', ids: ['general', 'supermarket', 'clothing', 'perfumes', 'cosmetics', 'printshop', 'books', 'toys', 'baby', 'hardware', 'tobacco', 'gold', 'watches', 'optics', 'pets', 'flowers'] },
+  { id: 'retail', title: 'بيع بالتجزئة', ids: ['general', 'supermarket', 'clothing', 'perfumes', 'cosmetics', 'printshop', 'books', 'toys', 'baby', 'hardware', 'cleaning', 'gold', 'watches', 'optics', 'pets', 'flowers'] },
   { id: 'food', title: 'أغذية ومطاعم', ids: ['restaurant', 'cafe', 'catering', 'bakery', 'sweets', 'butcher', 'fish', 'dairy', 'grains', 'roastery', 'foodstuff', 'poultry', 'water'] },
   { id: 'tech', title: 'تقنية وكهرباء', ids: ['mobile', 'mobile-accessories', 'appliances', 'electrical', 'solar'] },
   { id: 'auto', title: 'سيارات ومحروقات', ids: ['auto', 'bikes', 'carwash', 'rental', 'fuel'] },
@@ -63,7 +63,7 @@ const ALIASES: Partial<Record<Activity, string>> = {
   catering: 'ولائم طبخ مطبخ بوفيه',
   hotel: 'فندق شقق مفروشه',
   carwash: 'مغسل غسيل سيارات',
-  tobacco: 'دخان سجاير معسل',
+  cleaning: 'منظفات تنظيف مسحوق جلي صابون كلور معقم معطر محارم ديتول',
   watches: 'ساعات اكسسوارات',
   cosmetics: 'مكياج تجميل',
   water: 'مي مياه غالونات ثلج',

@@ -44,6 +44,8 @@ export interface ActivityProfile {
   features: Feature[];
   itemLabel: string; // المادة / القطعة / الصنف / الدواء
   itemsLabel: string;
+  /** انشال من قائمة الاختيار: الشركات اللي عليه بتضل شغالة متل ما هي */
+  retired?: boolean;
   units: string[]; // وحدات مقترحة
   categories: string[]; // تصنيفات مقترحة
   attributes?: string[]; // خصائص إضافية للمادة
@@ -786,6 +788,7 @@ export const ACTIVITIES: Record<Activity, ActivityProfile> = {
   tobacco: {
     id: 'tobacco',
     name: 'دخان ومعسّل',
+    retired: true,
     description: 'دخان بالكروز والعلبة، معسّل وفحم وأراكيل، وأسعار جملة ومفرق',
     icon: 'cigarette',
     color: '#868e96',
@@ -795,6 +798,19 @@ export const ACTIVITIES: Record<Activity, ActivityProfile> = {
     units: ['علبة', 'كروز', 'كيلو', 'قطعة'],
     categories: ['دخان', 'معسّل', 'فحم', 'أراكيل وقطع', 'ولاعات'],
     accountNames: { '4101': 'مبيعات الدخان' },
+  },
+  cleaning: {
+    id: 'cleaning',
+    name: 'منظفات',
+    description: 'منظفات ومواد تنظيف بالجملة والمفرق، بالكرتونة والقطعة والليتر، والصابون والمعطرات',
+    icon: 'droplets',
+    color: '#1c7ed6',
+    features: ['pos', 'units', 'priceTiers', 'batches'],
+    itemLabel: 'صنف',
+    itemsLabel: 'المنظفات',
+    units: ['قطعة', 'كرتونة', 'ليتر', 'غالون', 'كيلو', 'ظرف'],
+    categories: ['مساحيق غسيل', 'سائل جلي', 'منظفات أرضيات', 'معقمات وكلور', 'صابون وشامبو', 'معطرات', 'محارم وورقيات', 'أدوات تنظيف'],
+    accountNames: { '4101': 'مبيعات المنظفات' },
   },
   watches: {
     id: 'watches',
@@ -911,7 +927,7 @@ export const TAILOR_MEASUREMENTS = [
 /** أنواع القطع المقترحة في طلب التفصيل. */
 export const TAILOR_GARMENTS = ['ثوب', 'جلابية', 'بدلة رجالية', 'جاكيت', 'بنطال', 'قميص', 'فستان', 'عباية', 'تنورة', 'تقصير', 'تضييق', 'تصليح'];
 
-export const ACTIVITY_LIST = Object.values(ACTIVITIES);
+export const ACTIVITY_LIST = Object.values(ACTIVITIES).filter((a) => !a.retired);
 
 export function hasFeature(activity: Activity | undefined, feature: Feature): boolean {
   return ACTIVITIES[activity ?? 'general'].features.includes(feature);

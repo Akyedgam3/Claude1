@@ -115,6 +115,7 @@ export type Activity =
   | 'hotel'
   | 'carwash'
   | 'tobacco'
+  | 'cleaning'
   | 'watches'
   | 'cosmetics'
   | 'water'
