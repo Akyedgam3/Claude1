@@ -5000,3 +5000,8 @@ body.mobile .pricing-big strong { font-size: 26px; }
 .remit-office .good { color: #1e8a4c; font-weight: 700; }
 .remit-office .bad { color: #c0392b; font-weight: 700; }
 @media (max-width: 640px) { .fx-sides { grid-template-columns: 1fr; } .fx-swap { justify-self: center; transform: rotate(90deg); } }
+/* آخر الكميات المضافة للمادة (تعديل/حذف إضافة غلط) */
+.item-stock-adds { margin-top: 12px; border-top: 1px dashed var(--border); padding-top: 10px; display: grid; gap: 6px; }
+.item-stock-adds h4 { margin: 0; }
+.item-stock-add { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 10px; }
+.item-stock-add input.num-input { width: 100px; }

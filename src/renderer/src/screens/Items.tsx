@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { applyListPricing, attributesFor, ATTRIBUTE_SUGGESTIONS, niceUnitCost, buyDiscountOf, generateVariants, itemPlace, itemPlacesText, listPrices, withPlace, type Item, type ItemKind, type ItemUnit, type RecipeLine } from '../../../core';
-import { api, convertPrice, fxRates, major, money, unitMoney, parseAmount, parsePrice, qtyText, toInput, today, uid, useCompany } from '../api';
+import { api, convertPrice, dateText, fxRates, major, money, unitMoney, parseAmount, parsePrice, qtyText, toInput, today, uid, useCompany } from '../api';
 import { Barcode, ExportButtons, usePrinter } from '../components/print';
-import { CameraScanButton, ColorPicker, ConfirmButton, CurrencySelect, ItemName, Empty, Field, itemMatches, itemOptions, Modal, PageHeader, Picker, SearchBox, Tabs } from '../components/ui';
+import { askConfirm, CameraScanButton, ColorPicker, ConfirmButton, CurrencySelect, ItemName, Empty, Field, itemMatches, itemOptions, Modal, PageHeader, Picker, SearchBox, Tabs } from '../components/ui';
 import { Icon } from '../components/icons';
 import { PlaceInput } from '../components/PlaceInput';
 import { DealerForm } from './Dealers';
@@ -475,7 +475,104 @@ function QuickAddStock({ item, onClose }: { item: Item; onClose: () => void }) {
           <button className="primary big">إضافة</button>
         </div>
       </form>
+      <ItemStockAdds item={item} />
     </Modal>
+  );
+}
+
+/**
+ * آخر إضافات الكمية لهالمادة (رصيد افتتاحي / «إضافة بضاعة») مع «تعديل» و«حذف»:
+ * إذا حدا ضاف كمية غلط بيصلّحها من هون بدون ما يدوّر بسجل المخزون. العملية بتنلغى وبتنعمل من جديد بنفس تاريخها.
+ */
+function ItemStockAdds({ item }: { item: Item }) {
+  const { state, call, notify, can } = useCompany();
+  const base = state.info!.baseCurrency;
+  const showCost = can('costs.view');
+  const [editing, setEditing] = useState<{ id: string; qty: string; cost: string } | null>(null);
+  if (!can('stock.adjust')) return null;
+  const voided = new Set(state.adjustments.filter((a) => a.voidOf).map((a) => a.voidOf!));
+  const adds = state.adjustments
+    .filter((a) => a.kind === 'opening' && !a.voidOf && !voided.has(a.id) && a.lines.some((l) => l.itemId === item.id && !l.serials?.length))
+    .slice(-6)
+    .reverse();
+  if (!adds.length) return null;
+  const draftOf = (a: (typeof adds)[number], change: { qty: number; unitCost: number } | null) => ({
+    kind: 'opening' as const,
+    date: a.date,
+    warehouseId: a.warehouseId,
+    memo: a.memo,
+    lines: a.lines
+      .filter((l) => l.itemId !== item.id || change)
+      .map((l) => (l.itemId === item.id && change ? { itemId: l.itemId, qty: change.qty, unitCost: change.unitCost, ...(l.batch ? { batch: l.batch } : {}), ...(l.expiry ? { expiry: l.expiry } : {}) } : { itemId: l.itemId, qty: l.qty, unitCost: l.qty ? l.cost / l.qty : 0, ...(l.batch ? { batch: l.batch } : {}), ...(l.expiry ? { expiry: l.expiry } : {}) })),
+  });
+  return (
+    <div className="item-stock-adds wide">
+      <h4>آخر الكميات المضافة</h4>
+      <p className="muted small">ضفت كمية غلط؟ عدّلها أو احذفها من هون، والرصيد والحسابات بيتصلّحوا لحالهن.</p>
+      {adds.map((a) => {
+        const line = a.lines.find((l) => l.itemId === item.id)!;
+        const unitCost = line.qty ? line.cost / line.qty : 0;
+        const isEditing = editing?.id === a.id;
+        return (
+          <div key={a.id} className="item-stock-add">
+            <span className="muted">
+              {dateText(a.date)} · رقم {a.number}
+            </span>
+            {isEditing ? (
+              <>
+                <input className="num-input" inputMode="decimal" value={editing.qty} onChange={(e) => setEditing({ ...editing, qty: e.target.value })} aria-label="الكمية" autoFocus />
+                {showCost && <input className="num-input" inputMode="decimal" value={editing.cost} onChange={(e) => setEditing({ ...editing, cost: e.target.value })} aria-label="تكلفة الوحدة" />}
+                <button
+                  type="button"
+                  className="primary small"
+                  onClick={async () => {
+                    const q = Number(editing.qty.replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/,/g, ''));
+                    if (!(q > 0)) return notify('اكتب الكمية الصحيحة (أو احذف الإضافة)', 'error');
+                    let uc = unitCost;
+                    try {
+                      if (showCost && editing.cost.trim()) uc = parsePrice(state, editing.cost, base);
+                    } catch (err) {
+                      return notify((err as Error).message, 'error');
+                    }
+                    if ((await call('editAdjustment', a.id, draftOf(a, { qty: q, unitCost: uc }))) !== null) {
+                      notify(`انعدّلت الإضافة: ${qtyText(q)} ${item.unit}`);
+                      setEditing(null);
+                    }
+                  }}
+                >
+                  حفظ
+                </button>
+                <button type="button" className="ghost small" onClick={() => setEditing(null)}>
+                  إلغاء
+                </button>
+              </>
+            ) : (
+              <>
+                <b>
+                  +{qtyText(line.qty)} {item.unit}
+                </b>
+                {showCost && <span className="muted">{unitMoney(state, unitCost, base)} للوحدة</span>}
+                <button type="button" className="ghost small" onClick={() => setEditing({ id: a.id, qty: String(line.qty), cost: showCost ? toInput(state, Math.round(unitCost), base) : '' })}>
+                  تعديل
+                </button>
+                <button
+                  type="button"
+                  className="ghost small danger"
+                  onClick={async () => {
+                    if (!(await askConfirm(`حذف إضافة ${qtyText(line.qty)} ${item.unit} من ${item.name}؟ الرصيد بينقص بقدّها.`))) return;
+                    const others = a.lines.some((l) => l.itemId !== item.id);
+                    const ok = others ? await call('editAdjustment', a.id, draftOf(a, null)) : await call('voidAdjustment', a.id, a.date);
+                    if (ok !== null) notify('انحذفت الإضافة');
+                  }}
+                >
+                  حذف
+                </button>
+              </>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -1032,6 +1129,7 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
           </div>
         )}
 
+        {item && tab === 'basic' && <ItemStockAdds item={item} />}
         <div className="form-actions wide">
           {item && !item.archived && (
             <ConfirmButton
