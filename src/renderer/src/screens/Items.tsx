@@ -114,7 +114,7 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
           if (has(r, 'سعر النشرة')) Object.assign(next, applyListPricing(state.info ?? undefined, { ...next, listPrice: price(r, 'سعر النشرة', cur) }));
           else if (has(r, 'سعر المبيع') || has(r, 'سعر المفرق')) next.price = price(r, has(r, 'سعر المبيع') ? 'سعر المبيع' : 'سعر المفرق', cur);
           else if (!sameCur) continue; // عملة جديدة بدون سعر: ما منغيّر شي
-          for (const [col, key] of [['سعر الجملة', 'wholesalePrice'], ['سعر جملة الجملة', 'bulkPrice'], ['سعر الوكيل', 'agentPrice']] as const) {
+          for (const [col, key] of [['سعر الجملة', 'wholesalePrice'], ['سعر جملة الجملة', 'bulkPrice'], ['سعر الوكيل', 'agentPrice'], ['سعر المستهلك', 'consumerPrice']] as const) {
             if (has(r, col)) next[key] = price(r, col, cur);
             else if (!sameCur) delete next[key];
           }
@@ -174,6 +174,7 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
             ...(r['سعر الجملة'] ? { wholesalePrice: parsePrice(state, String(r['سعر الجملة']), currency) } : {}),
             ...(r['سعر جملة الجملة'] ? { bulkPrice: parsePrice(state, String(r['سعر جملة الجملة']), currency) } : {}),
             ...(r['سعر الوكيل'] ? { agentPrice: parsePrice(state, String(r['سعر الوكيل']), currency) } : {}),
+            ...(r['سعر المستهلك'] ? { consumerPrice: parsePrice(state, String(r['سعر المستهلك']), currency) } : {}),
             ...(barcodeText ? { barcode: barcodeText } : {}),
             ...(r['التصنيف'] ? { category: String(r['التصنيف']) } : {}),
             ...(r['الماركة'] ? { brand: String(r['الماركة']) } : {}),
@@ -257,6 +258,7 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
                       { header: 'سعر الوكيل', key: 'agent', type: 'money' as const },
                     ]
                   : []),
+                ...(state.info?.print?.showConsumerPrice || items.some((i) => i.consumerPrice !== undefined) ? [{ header: 'سعر المستهلك', key: 'consumer', type: 'money' as const }] : []),
                 { header: 'العملة', key: 'currency' },
                 ...(showCost ? [{ header: 'متوسط التكلفة', key: 'cost', type: 'money' as const }] : []),
               ],
@@ -275,6 +277,7 @@ export function Items({ initialQuery }: { initialQuery?: string } = {}) {
                   wholesale: i.wholesalePrice !== undefined ? major(state, i.wholesalePrice, i.priceCurrency) : null,
                   bulk: i.bulkPrice !== undefined ? major(state, i.bulkPrice, i.priceCurrency) : null,
                   agent: i.agentPrice !== undefined ? major(state, i.agentPrice, i.priceCurrency) : null,
+                  consumer: i.consumerPrice !== undefined ? major(state, i.consumerPrice, i.priceCurrency) : null,
                   currency: i.priceCurrency,
                   cost: s && s.totalQty > 0 ? major(state, niceUnitCost(s.value / s.totalQty, state.currencies[state.info!.baseCurrency]!.decimals)) : null,
                 };
