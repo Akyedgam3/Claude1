@@ -35,6 +35,15 @@ test('consumer price column on the sale invoice (A4 and thermal)', async () => {
     await expect(doc.locator('tbody tr').nth(1).locator('.doc-consumer')).toContainText('360.00'); // 30 × 12
     // الإيصال الحراري: سطر تحت الصنف
     await expect(page.locator('.thermal-doc')).toContainText('سعر المستهلك: 25.00');
+    // الزر السريع بالفاتورة نفسها: بيطفيه وبيرجّعه
+    const toggle = page.locator('label.consumer-toggle input');
+    await expect(toggle).toBeChecked();
+    await toggle.click();
+    await expect(toggle).not.toBeChecked();
+    await expect(doc.locator('thead')).not.toContainText('سعر المستهلك');
+    await toggle.click();
+    await expect(toggle).toBeChecked();
+    await expect(doc.locator('thead')).toContainText('سعر المستهلك');
     // بطاقة المادة فيها الخانة
     await nav(page, 'المواد');
     await page.locator('tr', { hasText: 'كاري' }).first().click();

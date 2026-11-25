@@ -4921,3 +4921,6 @@ body.mobile .pricing-big strong { font-size: 26px; }
 .lira-options input { margin-top: 4px; }
 .lira-options span { display: grid; gap: 2px; }
 .lira-options small { color: var(--muted); }
+
+/* زر «سعر المستهلك» السريع بفاتورة المبيع */
+.consumer-toggle { display: inline-flex; align-items: center; gap: 6px; margin: 0; white-space: nowrap; }

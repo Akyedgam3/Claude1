@@ -18,6 +18,27 @@ function docTitle(state: CompanyState, inv: Invoice): string {
   return p?.hideSaleTitle ? '' : p?.saleTitle?.trim() || INVOICE_KIND_NAMES.sale;
 }
 
+// زر سريع بفاتورة المبيع: إظهار/إخفاء «سعر المستهلك» (نفس إعداد الطباعة)
+function ConsumerToggle({ inv }: { inv: Invoice }) {
+  const { state, call, notify, can } = useCompany();
+  if (inv.kind !== 'sale' || !can('settings.manage')) return null;
+  const print = state.info!.print ?? {};
+  const on = !!print.showConsumerPrice;
+  return (
+    <label className="check consumer-toggle" title="عمود بالفاتورة بيعرّف زبون الجملة بقديش يبيع القطعة (من بطاقة المادة وإلا سعر المفرق)">
+      <input
+        type="checkbox"
+        checked={on}
+        onChange={async (e) => {
+          const v = e.target.checked;
+          if (await call('updateCompany', { print: { ...print, showConsumerPrice: v } })) notify(v ? 'صار «سعر المستهلك» يطلع بفواتير المبيع' : 'انخفى «سعر المستهلك» من الفواتير');
+        }}
+      />
+      سعر المستهلك
+    </label>
+  );
+}
+
 export function InvoiceView({ id }: { id: string }) {
   const { state, call, notify, navigate, can } = useCompany();
   const inv = state.invoices.find((i) => i.id === id);
@@ -30,6 +51,7 @@ export function InvoiceView({ id }: { id: string }) {
     <div className="page">
       <PageHeader title={`${INVOICE_KIND_NAMES[inv.kind]} رقم ${inv.number}`}>
         <PrintButtons kind={inv.kind === 'sale' || inv.kind === 'sale_return' ? 'invoice' : 'report'} name={`${INVOICE_KIND_NAMES[inv.kind]} ${inv.number}`} />
+        <ConsumerToggle inv={inv} />
         {canEditInvoice(inv, can as never) && <button onClick={() => navigate(inv.kind, inv.id)}>تعديل</button>}
         {!inv.voidEntryId && can('sales.void') && (
           <ConfirmButton
@@ -257,6 +279,7 @@ function MobileInvoiceView({ inv }: { inv: Invoice }) {
             ))}
           </select>
           <button onClick={() => doPrint(true)}>PDF / مشاركة</button>
+          <ConsumerToggle inv={inv} />
           <button onClick={() => void navigator.clipboard.writeText(invoiceText(state, inv)).then(() => notify('تم نسخ نص الفاتورة، الصقه في واتساب'))}>نسخ كنص</button>
           {canEditInvoice(inv, can as never) && <button onClick={() => navigate(inv.kind, inv.id)}>تعديل</button>}
           {inv.replaces && <button onClick={() => navigate('invoice', inv.replaces!)}>النسخة القديمة</button>}
