@@ -297,10 +297,18 @@ async function fitForPrint(contents: WebContents, paper: string, fit: boolean): 
         attached = true;
       }
       await dbg.sendCommand('Emulation.setEmulatedMedia', { media: 'print' });
-      const px = (await contents.executeJavaScript(`(() => {
+      // الطول الحقيقي للإيصال: منستنى الصور (الشعار) تخلص تحميل، ومنقيس الإيصال نفسه (موضوع absolute فما بيكبّر
+      // الصندوق اللي حواليه) — كانت الإيصالات اللي فيها شعار تنقص بالقياس وتنطبع على قطعتين
+      const px = (await contents.executeJavaScript(`(async () => {
         const all = [...document.querySelectorAll('.print-area')].filter((e) => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden');
         const el = all[all.length - 1];
-        return el ? Math.ceil(el.getBoundingClientRect().height) : 0;
+        if (!el) return 0;
+        await Promise.all([...el.querySelectorAll('img')].map((i) => (i.complete ? (i.decode ? i.decode().catch(() => {}) : null) : new Promise((r) => { i.onload = i.onerror = r; setTimeout(r, 1500); }))));
+        await new Promise((r) => requestAnimationFrame(() => r(null)));
+        const top = el.getBoundingClientRect().top;
+        let bottom = el.getBoundingClientRect().bottom;
+        for (const t of el.querySelectorAll('.thermal-doc')) if (t.getClientRects().length) bottom = Math.max(bottom, t.getBoundingClientRect().bottom);
+        return Math.ceil(Math.max(bottom - top, el.scrollHeight));
       })()`)) as number;
       await dbg.sendCommand('Emulation.setEmulatedMedia', { media: '' });
       if (!px) return none;

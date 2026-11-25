@@ -4,6 +4,7 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { activate, createCompany, launch, nav } from './helpers';
 
+const LOGO = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAAEsCAYAAAB5fY51AAAD8ElEQVR4nO3UMQ0AIADAMJQgDCW4Bwt8ZEmP/rs25l4HoGD8DgB4ZVhAhmEBGYYFZBgWkGFYQIZhARmGBWQYFpBhWECGYQEZhgVkGBaQYVhAhmEBGYYFZBgWkGFYQIZhARmGBWQYFpBhWECGYQEZhgVkGBaQYVhAhmEBGYYFZBgWkGFYQIZhARmGBWQYFpBhWECGYQEZhgVkGBaQYVhAhmEBGYYFZBgWkGFYQIZhARmGBWQYFpBhWECGYQEZhgVkGBaQYVhAhmEBGYYFZBgWkGFYQIZhARmGBWQYFpBhWECGYQEZhgVkGBaQYVhAhmEBGYYFZBgWkGFYQIZhARmGBWQYFpBhWECGYQEZhgVkGBaQYVhAhmEBGYYFZBgWkGFYQIZhARmGBWQYFpBhWECGYQEZhgVkGBaQYVhAhmEBGYYFZBgWkGFYQIZhARmGBWQYFpBhWECGYQEZhgVkGBaQYVhAhmEBGYYFZBgWkGFYQIZhARmGBWQYFpBhWECGYQEZhgVkGBaQYVhAhmEBGYYFZBgWkGFYQIZhARmGBWQYFpBhWECGYQEZhgVkGBaQYVhAhmEBGYYFZBgWkGFYQIZhARmGBWQYFpBhWECGYQEZhgVkGBaQYVhAhmEBGYYFZBgWkGFYQIZhARmGBWQYFpBhWECGYQEZhgVkGBaQYVhAhmEBGYYFZBgWkGFYQIZhARmGBWQYFpBhWECGYQEZhgVkGBaQYVhAhmEBGYYFZBgWkGFYQIZhARmGBWQYFpBhWECGYQEZhgVkGBaQYVhAhmEBGYYFZBgWkGFYQIZhARmGBWQYFpBhWECGYQEZhgVkGBaQYVhAhmEBGYYFZBgWkGFYQIZhARmGBWQYFpBhWECGYQEZhgVkGBaQYVhAhmEBGYYFZBgWkGFYQIZhARmGBWQYFpBhWECGYQEZhgVkGBaQYVhAhmEBGYYFZBgWkGFYQIZhARmGBWQYFpBhWECGYQEZhgVkGBaQYVhAhmEBGYYFZBgWkGFYQIZhARmGBWQYFpBhWECGYQEZhgVkGBaQYVhAhmEBGYYFZBgWkGFYQIZhARmGBWQYFpBhWECGYQEZhgVkGBaQYVhAhmEBGYYFZBgWkGFYQIZhARmGBWQYFpBhWECGYQEZhgVkGBaQYVhAhmEBGYYFZBgWkGFYQIZhARmGBWQYFpBhWECGYQEZhgVkGBaQYVhAhmEBGYYFZBgWkGFYQIZhARmGBWQYFpBhWECGYQEZhgVkGBaQYVhAhmEBGYYFZBgWkGFYQIZhARmGBWQYFpBhWECGYQEZhgVkGBaQYVhAhmEBGYYFZBgWkGFYQIZhARmGBWQYFpBhWECGYQEZF6aC7zpkJUB2AAAAAElFTkSuQmCC';
 const TERMS = Array.from({ length: 9 }, (_, i) => `${i + 1}. البضاعة المباعة لا ترد ولا تستبدل بعد مرور ثلاثة أيام من تاريخ الفاتورة، ويجب الاحتفاظ بالفاتورة والكرتونة الأصلية لأي مراجعة أو كفالة.`).join('\n');
 // شكوى: فاتورة فيها إضافات (سطر تحت الاسم، 3 رموز QR، شروط طويلة، توقيعات، سعر المستهلك) كانت تنطبع على 3-4 ورقات A5
 // وعلى ورقتين بس مشان الشروط. هلق كل التصاميم وكل الورق بورقة وحدة.
@@ -35,7 +36,7 @@ test('customized invoice prints on one page in every design and paper', async ()
     for (const template of (process.env.TPL ?? 'modern,classic,minimal').split(',')) {
       await call('updateCompany', {
         address: 'دمشق - الحريقة - جانب البنك التجاري', phone: '0954518116',
-        print: { template, header: 'وكيل معتمد لمنتجات الطيبات والغزالين', footer: 'شكراً لتعاملكم معنا - نتمنى لكم يوماً سعيداً', qrLink: 'https://wa.me/963954518116', qrCaption: 'واتساب',
+        print: { template, logo: LOGO, receipt: { logo: 'banner' }, header: 'وكيل معتمد لمنتجات الطيبات والغزالين', footer: 'شكراً لتعاملكم معنا - نتمنى لكم يوماً سعيداً', qrLink: 'https://wa.me/963954518116', qrCaption: 'واتساب',
           extraQrs: [{ label: 'شام كاش', value: 'shamcash:123456789', kind: 'text' }, { label: 'فيسبوك', value: 'https://facebook.com/zenix', kind: 'link' }],
           terms: TERMS, showConsumerPrice: true, consumerMarkup: 15, showSignatures: true, showAmountInWords: true, showUsdEquivalent: true },
       });
