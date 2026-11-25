@@ -4926,3 +4926,40 @@ body.mobile .pricing-big strong { font-size: 26px; }
 .consumer-toggle { display: inline-flex; align-items: center; gap: 6px; margin: 0; white-space: nowrap; }
 .consumer-prices .button-row { flex-wrap: wrap; align-items: center; gap: 12px; }
 .field-inline { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+/* شروط طويلة ورموز QR كتير: ما تكبّر الفاتورة لورقتين */
+.invoice-doc .doc-terms.long { columns: 2; column-gap: 18px; font-size: 10px; line-height: 1.45; }
+@media print {
+  .invoice-doc .doc-terms { font-size: 9.5px; line-height: 1.4; margin-top: 8px; padding-top: 6px; }
+  .invoice-doc .doc-terms.long { font-size: 8.5px; }
+  .invoice-doc .doc-signatures { margin-top: 22px; }
+  .invoice-doc .doc-side { gap: 8px; }
+  .invoice-doc .doc-side .doc-qr { width: 78px; height: 78px; }
+  .invoice-doc .doc-qr-box small { font-size: 8.5px; max-width: 80px; }
+  /* A5: المجاميع بعرض الورقة ورموز QR والتفقيط بسطر تحتها */
+  body[data-paper='a5'] .invoice-doc .doc-bottom { flex-direction: column-reverse; gap: 8px; }
+  body[data-paper='a5'] .invoice-doc .doc-totals { width: 100%; }
+  body[data-paper='a5'] .invoice-doc .doc-side { width: 100%; }
+  body[data-paper='a5'] .invoice-doc .doc-side .doc-qr { width: 64px; height: 64px; }
+  body[data-paper='a5'] .invoice-doc .doc-terms.long { columns: 1; }
+}
+/* A5 = نفس تصميم A4 مصغّر (متل طباعة A4 على A5): الأسماء ما بتنكسر لسطرين والفاتورة بتجي بورقة */
+@media print { body[data-paper='a5'] .invoice-doc { zoom: calc(0.78 * var(--fit-zoom, 1)); } }
+/* سعر المستهلك بالإيصال: سطر كامل تحت الصنف */
+.thermal-doc .t-lines tr.t-cons td { padding: 0 2px 3px; text-align: right; font-size: 0.85em; border-top: none !important; }
+.thermal-doc .t-lines tr.t-cons b { font-weight: 700; display: inline-block; direction: ltr; }
+@media print {
+  /* 58mm: الاسم بسطر، وتحته الكمية × السعر والإجمالي (الأعمدة ما بتساع وكانت الأرقام تلزق ببعض) */
+  body[data-paper='58mm'] .thermal-doc .t-lines,
+  body[data-paper='58mm'] .thermal-doc .t-lines tbody { display: block; width: 100%; }
+  body[data-paper='58mm'] .thermal-doc .t-lines colgroup,
+  body[data-paper='58mm'] .thermal-doc .t-lines thead { display: none; }
+  body[data-paper='58mm'] .thermal-doc .t-lines tr { display: grid; grid-template-columns: auto 1fr auto; gap: 0 4px; align-items: baseline; }
+  body[data-paper='58mm'] .thermal-doc .t-lines td { display: block; padding: 1px 0; border: none !important; }
+  body[data-paper='58mm'] .thermal-doc .t-lines td.t-n { grid-column: 1 / -1; padding-top: 3px; font-weight: 700; }
+  body[data-paper='58mm'] .thermal-doc .t-lines tr.t-cons td { grid-column: 1 / -1; }
+  body[data-paper='58mm'] .thermal-doc .t-lines td.t-price { text-align: center; }
+  body[data-paper='58mm'] .thermal-doc .t-lines td.t-price::before { content: '× '; }
+  body[data-paper='58mm'] .thermal-doc .t-lines td.t-total { text-align: left; font-weight: 700; }
+  body[data-paper='58mm'] .thermal-doc:not(.t-grid) .t-lines tbody tr:not(.t-cons) + tr:not(.t-cons) { border-top: 1px dotted #000; }
+  body[data-paper='58mm'] .thermal-doc .t-lines tr.t-cons + tr { border-top: 1px dotted #000; }
+}

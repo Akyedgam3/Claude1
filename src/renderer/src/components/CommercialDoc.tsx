@@ -95,7 +95,8 @@ export function extraQrs(p: PrintSettings): { text: string; label: string }[] {
       const text = !v ? '' : q.kind === 'text' ? v : q.kind === 'whatsapp' ? (whatsappNumber(v) ? `https://wa.me/${whatsappNumber(v)}` : '') : (qrLinkTarget(v) ?? '');
       return { text, label: (q.label ?? '').trim() };
     })
-    .filter((q) => q.text)
+    // نفس الرمز مرتين (مكرر، أو نفس رابط الـQR الأساسي): بينطبع مرة وحدة
+    .filter((q, i, all) => q.text && q.text !== qrLinkTarget(p.qrLink) && all.findIndex((x) => x.text === q.text) === i)
     .slice(0, 4);
 }
 
@@ -238,7 +239,7 @@ export function CommercialDoc({ model, className, preview }: { model: DocModel; 
       </section>
 
       {showStamp && model.stamp === 'void' && <div className={`doc-stamp ${model.stamp}`}>{STAMP_TEXT[model.stamp!]}</div>}
-      {p.terms && <div className="doc-terms">{p.terms}</div>}
+      {p.terms && <div className={`doc-terms${p.terms.trim().split('\n').length > 3 || p.terms.length > 260 ? ' long' : ''}`}>{p.terms}</div>}
       {signatures && (
         <div className="doc-signatures">
           <span>{signatures[0]}</span>

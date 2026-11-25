@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import qrcode from 'qrcode-generator';
 import type { ReactNode } from 'react';
 import type { ReceiptSettings } from '../../../core';
@@ -136,20 +137,28 @@ export function ThermalReceipt({ data, preview, always, logo }: { data: ReceiptD
         </thead>
         <tbody>
           {data.lines.map((l, i) => (
-            <tr key={i}>
-              <td className="t-n">
-                {l.name}
-                {l.sub?.map((s, j) => (
-                  <div className="t-sub" key={j}>
-                    {s}
-                  </div>
-                ))}
-                {l.consumer && <div className="t-sub">سعر المستهلك: {l.consumer}</div>}
-              </td>
-              <td className="num">{l.qty}</td>
-              {showPrice && <td className="num">{l.price}</td>}
-              <td className="num">{l.total}</td>
-            </tr>
+            <Fragment key={i}>
+              <tr>
+                <td className="t-n">
+                  {l.name}
+                  {l.sub?.map((s, j) => (
+                    <div className="t-sub" key={j}>
+                      {s}
+                    </div>
+                  ))}
+                </td>
+                <td className="num t-qty">{l.qty}</td>
+                {showPrice && <td className="num t-price">{l.price}</td>}
+                <td className="num t-total">{l.total}</td>
+              </tr>
+              {l.consumer && (
+                <tr className="t-cons">
+                  <td colSpan={showPrice ? 4 : 3}>
+                    سعر المستهلك: <b className="num">{l.consumer}</b>
+                  </td>
+                </tr>
+              )}
+            </Fragment>
           ))}
         </tbody>
       </table>

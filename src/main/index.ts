@@ -324,15 +324,17 @@ async function fitForPrint(contents: WebContents, paper: string, fit: boolean): 
       let st = document.getElementById('wazn-print-zoom');
       if (${z === null}) { st && st.remove(); return; }
       if (!st) { st = document.createElement('style'); st.id = 'wazn-print-zoom'; document.head.appendChild(st); }
-      st.textContent = '@media print { .print-area { zoom: ${z ?? 1}; } }';
+      st.textContent = '@media print { :root { --fit-zoom: ${z ?? 1}; } .print-area { zoom: var(--fit-zoom); } }';
     })()`);
   const restore = async () => {
     await setZoom(null).catch(() => undefined);
   };
   try {
     const pages = async () => pdfPages(await contents.printToPDF({ printBackground: true, preferCSSPageSize: true, pageSize: size }));
-    if ((await pages()) !== 2) return none;
-    for (const z of [0.94, 0.88, 0.82, 0.76, 0.7]) {
+    // صفحتين أو تلاتة (شروط طويلة، QR كتير): منصغّر لحد ما تجي بورقة وحدة، وأكتر من هيك بتنطبع على كذا ورقة عادي
+    const n = await pages();
+    if (n < 2 || n > 3) return none;
+    for (const z of [0.94, 0.88, 0.82, 0.76, 0.7, 0.64, 0.58]) {
       await setZoom(z);
       if ((await pages()) === 1) return { restore };
     }
