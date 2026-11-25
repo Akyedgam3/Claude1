@@ -278,6 +278,23 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
       if (x.lotId && !state.woodLots?.[x.lotId]) fail('الحمولة غير موجودة');
       return;
     }
+    case 'netsub.saved': {
+      const s = event.sub;
+      if (!state.parties[s.partyId]) fail('المشترك غير موجود');
+      if (!s.plan?.trim() || s.plan.length > 80) fail('اكتب اسم الباقة');
+      if (!state.currencies[s.currency]) fail('عملة غير معروفة');
+      if (!Number.isSafeInteger(s.price) || s.price < 0) fail('سعر الباقة غير صالح');
+      if (!(Number.isInteger(s.months) && s.months >= 1 && s.months <= 36)) fail('مدة التجديد غير صالحة');
+      if (!DATE_RE.test(s.start) || !DATE_RE.test(s.paidUntil)) fail('تاريخ غير صالح');
+      for (const t of [s.username, s.ip, s.device, s.location]) if (t !== undefined && t.length > 120) fail('النص طويل');
+      if (s.notes !== undefined && s.notes.length > 500) fail('الملاحظات طويلة');
+      const prev = state.netSubs?.[s.id];
+      if (prev && prev.number !== s.number) fail('لا يمكن تغيير رقم الاشتراك');
+      return;
+    }
+    case 'netsub.deleted':
+      if (!state.netSubs?.[event.subId]) fail('الاشتراك غير موجود');
+      return;
     case 'booking.saved': {
       const b = event.booking;
       if (!state.parties[b.partyId]) fail('الزبون غير موجود');
@@ -687,6 +704,13 @@ export function applyCommerceEvent(state: CompanyState, event: CompanyEvent): vo
       return;
     case 'woodexpense.saved':
       (state.woodExpenses ??= {})[event.expense.id] = { ...event.expense };
+      return;
+    case 'netsub.saved':
+      (state.netSubs ??= {})[event.sub.id] = { ...event.sub };
+      bump(state, 'netsub', event.sub.number);
+      return;
+    case 'netsub.deleted':
+      delete state.netSubs![event.subId];
       return;
     case 'booking.saved':
       (state.bookings ??= {})[event.booking.id] = { ...event.booking };

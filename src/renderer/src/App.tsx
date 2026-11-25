@@ -47,6 +47,7 @@ import { PriceList } from './screens/PriceList';
 import { ListPrices } from './screens/ListPrices';
 import { Dealers } from './screens/Dealers';
 import { HallBookings } from './screens/HallBookings';
+import { NetSubs } from './screens/NetSubs';
 import { QuoteEditor, Quotes } from './screens/Quotes';
 import { StockOps } from './screens/StockOps';
 import { Users } from './screens/Users';
@@ -514,6 +515,8 @@ function Screen({ screen }: { screen: { key: string; param?: string } }) {
       return <Dealers />;
     case 'bookings':
       return <HallBookings />;
+    case 'netsubs':
+      return <NetSubs />;
     case 'solar':
       return <Solar />;
     case 'sitejob':

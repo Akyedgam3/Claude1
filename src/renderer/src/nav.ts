@@ -24,6 +24,7 @@ export const NAV: (NavItem | string)[] = [
   { key: 'cashbox', label: 'الصندوق', icon: 'wallet', perms: ['reports.financial', 'vouchers.create'] },
   'الأجهزة والإلكترونيات',
   { key: 'devices', label: 'سجل الأجهزة (السيريال)', icon: 'laptop', feature: 'serials' },
+  { key: 'netsubs', label: 'الاشتراكات', icon: 'wifi', feature: 'netsubs', perms: ['netsubs.manage', 'sales.create'] },
   { key: 'installments', label: 'التقسيط', icon: 'calendar', feature: 'installments', perms: ['sales.create', 'vouchers.create'] },
   { key: 'trade-in', label: 'بيع مع استبدال', icon: 'transfer', feature: 'tradeIn', perm: 'sales.create' },
   { key: 'pc-build', label: 'تجميعة كمبيوتر', icon: 'cpu', feature: 'pcBuild', perm: 'sales.create' },

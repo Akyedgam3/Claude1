@@ -903,6 +903,28 @@ export interface HallBooking {
   createdAt: string;
 }
 
+// ───────────── اشتراكات الإنترنت والشبكات (2.0.8) ─────────────
+
+export interface NetSub {
+  id: string;
+  number: number;
+  partyId: string;
+  plan: string; // اسم الباقة: 4 ميغا، فضائي 10 ميغا...
+  price: number; // سعر الشهر بأصغر وحدة من currency
+  currency: string;
+  months: number; // مدة التجديد الافتراضية بالشهر
+  start: string;
+  paidUntil: string; // مدفوع لحد هالتاريخ
+  username?: string; // اسم المستخدم بالراوتر/السيرفر
+  ip?: string;
+  device?: string; // الراوتر أو الجهاز
+  location?: string; // العنوان أو البرج
+  notes?: string;
+  stopped?: boolean; // موقوف (فصل)
+  renewals: { date: string; months: number; from: string; to: string; invoiceId: string }[];
+  createdAt: string;
+}
+
 // ───────────── الطاقة الشمسية: منظومات ─────────────
 
 export type SolarStatus = 'quote' | 'accepted' | 'installed' | 'invoiced' | 'cancelled';
@@ -1256,6 +1278,7 @@ export interface CompanyState {
   printJobs?: Record<string, PrintJob>;
   dealers?: Record<string, Dealer>;
   bookings?: Record<string, HallBooking>;
+  netSubs?: Record<string, NetSub>;
   woodLots?: Record<string, WoodLot>;
   woodExpenses?: Record<string, WoodExpense>;
   solarProjects?: Record<string, SolarProject>;
@@ -1324,6 +1347,8 @@ export type CompanyEvent =
   | { type: 'woodlot.saved'; lot: WoodLot }
   | { type: 'woodexpense.saved'; expense: WoodExpense }
   | { type: 'booking.deleted'; bookingId: string }
+  | { type: 'netsub.saved'; sub: NetSub }
+  | { type: 'netsub.deleted'; subId: string }
   | { type: 'dealersale.posted'; sale: DealerSale }
   | { type: 'dealersale.voided'; saleId: string; date: string; by: string }
   | { type: 'dealermove.posted'; move: DealerMove }

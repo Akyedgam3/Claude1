@@ -16,6 +16,7 @@ import { invoiceProfit } from './reports';
 import { POULTRY_CUTS } from './poultry';
 import { dealerStock, dealerUnitCost } from './dealers';
 import { HALL_PERIODS, bookingDeposits, bookingToInvoiceLines, bookingTotals } from './halls';
+import { addMonthsIso, renewalStart } from './netsubs';
 import { woodExpenseAccount, woodLotSales } from './woodlots';
 
 /** حساب عمولات المسوّقين (بينعمل لحالو أول مرة). */
@@ -43,6 +44,7 @@ import type {
   Employee,
   PriceBoard,
   HallBooking,
+  NetSub,
   Dealer,
   DealerMove,
   DealerMoveKind,
@@ -2341,6 +2343,66 @@ export class Ledger {
     const invoice = this.postInvoice({ ...draft, paid });
     this.emit({ type: 'booking.saved', booking: { ...b, status: 'invoiced', invoiceId: invoice.id } });
     return invoice;
+  }
+
+  // ───────────── اشتراكات الإنترنت والشبكات ─────────────
+
+  /** مشترك جديد أو تعديل. paidUntil الافتراضي للجديد = البداية + مدة التجديد (إذا دفع أول شهر بفاتورة لحالها). */
+  saveNetSub(draft: Omit<NetSub, 'number' | 'renewals' | 'createdAt' | 'paidUntil'> & { paidUntil?: string }): NetSub {
+    const existing = this.state.netSubs?.[draft.id];
+    const clean = (t?: string) => (t?.trim() ? t.trim() : undefined);
+    const sub: NetSub = {
+      id: draft.id,
+      number: existing?.number ?? (this.state.counters['netsub'] ?? 0) + 1,
+      partyId: draft.partyId,
+      plan: draft.plan.trim(),
+      price: draft.price,
+      currency: draft.currency,
+      months: draft.months || 1,
+      start: draft.start,
+      paidUntil: draft.paidUntil ?? existing?.paidUntil ?? draft.start,
+      ...Object.fromEntries((['username', 'ip', 'device', 'location', 'notes'] as const).map((k) => [k, clean(draft[k])]).filter(([, v]) => v)),
+      ...(draft.stopped ? { stopped: true } : {}),
+      renewals: existing?.renewals ?? [],
+      createdAt: existing?.createdAt ?? new Date().toISOString(),
+    };
+    this.emit({ type: 'netsub.saved', sub });
+    return sub;
+  }
+
+  /** حذف المشترك (الفواتير اللي انعملت بتضل) */
+  deleteNetSub(subId: string): void {
+    if (!this.state.netSubs?.[subId]) fail('الاشتراك غير موجود');
+    this.emit({ type: 'netsub.deleted', subId });
+  }
+
+  /** تجديد: فاتورة مبيع (خدمة) بعدد الأشهر × سعر الباقة، وبيمدّد «مدفوع لحد». paid = المقبوض (الباقي دين عالمشترك). */
+  renewNetSub(subId: string, opts: TailorDeliverOptions & { months?: number; price?: number }): { sub: NetSub; invoice: Invoice } {
+    const s = this.state.netSubs?.[subId] ?? fail('الاشتراك غير موجود');
+    const months = opts.months ?? s.months;
+    if (!(Number.isInteger(months) && months >= 1 && months <= 36)) fail('عدد الأشهر غير صالح');
+    const price = opts.price ?? s.price;
+    const from = renewalStart(s, opts.date);
+    const to = addMonthsIso(from, months);
+    const draft: InvoiceDraft = {
+      kind: 'sale',
+      date: opts.date,
+      partyId: s.partyId,
+      currency: s.currency,
+      lines: [{ itemId: null, description: `اشتراك ${s.plan} — ${months === 1 ? 'شهر' : `${months} أشهر`} (من ${from} لـ ${to})`, qty: months, price }],
+      ...(opts.rate ? { rate: opts.rate } : {}),
+      ...(opts.discount ? { discount: opts.discount } : {}),
+      ...(opts.taxIds ? { taxIds: opts.taxIds } : {}),
+      ...(opts.cashAccountId ? { cashAccountId: opts.cashAccountId } : {}),
+      notes: [s.username && `المستخدم: ${s.username}`, s.ip && `IP: ${s.ip}`].filter(Boolean).join(' · ') || undefined,
+      source: { type: 'netsub', id: s.id },
+      ...(opts.paid !== undefined ? { paid: opts.paid } : {}),
+    } as InvoiceDraft;
+    const invoice = this.postInvoice(draft);
+    const sub: NetSub = { ...s, paidUntil: to, stopped: undefined, renewals: [...s.renewals, { date: opts.date, months, from, to, invoiceId: invoice.id }] };
+    delete sub.stopped;
+    this.emit({ type: 'netsub.saved', sub });
+    return { sub, invoice };
   }
 
   // ───────────── الطاقة الشمسية: منظومات ─────────────

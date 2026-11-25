@@ -2,6 +2,7 @@
 // قراءة بس من الحالة. كل تنبيه إلو الصلاحية اللي لازم تكون مع المستخدم حتى يشوفه، والشاشة اللي بتنفتح منه.
 import { installmentState } from './electronics';
 import { displayDecimals } from './money';
+import { netSubList, netSubStatus } from './netsubs';
 import type { Permission } from './permissions';
 import { recurringStatus } from './recurring';
 import { partyBalance, stockReport } from './reports';
@@ -70,6 +71,16 @@ export function alertsFor(state: CompanyState, today: string): AppAlert[] {
     .filter((x) => x.bal > 0);
   if (soonDebts.length)
     out.push({ id: 'debts-soon', level: 'info', title: `${soonDebts.length} موعد سداد خلال 3 أيام`, ...take(soonDebts, (x) => `${x.p.name}: ${fmt(x.bal)} (${x.p.debtDue === today ? 'اليوم' : x.p.debtDue})`), screen: 'debts', action: 'الديون', perm: 'balances.view' });
+
+  // ─── اشتراكات الإنترنت: خلصت أو قرّبت ───
+  const subs = netSubList(state).map((s) => ({ s, st: netSubStatus(s, today) }));
+  const subName = (x: { s: { partyId: string; plan: string } }) => `${state.parties[x.s.partyId]?.name ?? '—'} (${x.s.plan})`;
+  const expiredSubs = subs.filter((x) => x.st.state === 'expired');
+  if (expiredSubs.length)
+    out.push({ id: 'netsubs-expired', level: 'bad', title: `${expiredSubs.length} مشترك خلص اشتراكه`, ...take(expiredSubs, (x) => `${subName(x)}: من ${-x.st.days} يوم`), screen: 'netsubs', action: 'الاشتراكات', perm: 'netsubs.manage' });
+  const soonSubs = subs.filter((x) => x.st.state === 'soon');
+  if (soonSubs.length)
+    out.push({ id: 'netsubs-soon', level: 'warn', title: `${soonSubs.length} مشترك بيخلص اشتراكه خلال 3 أيام`, ...take(soonSubs, (x) => `${subName(x)}: ${x.st.days === 0 ? 'اليوم' : `باقي ${x.st.days} يوم`}`), screen: 'netsubs', action: 'الاشتراكات', perm: 'netsubs.manage' });
 
   const lateInst = Object.values(state.installments ?? {})
     .filter((pl) => pl.status === 'active')

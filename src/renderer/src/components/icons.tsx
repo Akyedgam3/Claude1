@@ -1,4 +1,5 @@
 import {
+  Wifi,
   FlaskConical,
   TreePine,
   Axe,
@@ -176,6 +177,7 @@ const ICONS: Record<string, LucideIcon> = {
   monitor: Monitor,
   cloud: Cloud,
   network: Network,
+  wifi: Wifi,
   live: Activity,
   debts: HandCoins,
   menu: Menu,

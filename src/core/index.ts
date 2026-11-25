@@ -32,5 +32,6 @@ export * from './woodlots';
 export * from './health';
 export * from './analytics';
 export * from './recurring';
+export * from './netsubs';
 export * from './alerts';
 export * from './ids';
