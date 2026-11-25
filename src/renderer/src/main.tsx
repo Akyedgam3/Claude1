@@ -7,6 +7,7 @@ import { CustomerDisplay } from './components/CustomerDisplay';
 import './styles.css';
 import './mobile.css';
 import { api, IS_MOBILE } from './api';
+import { startImeCommit } from './mobile-tables';
 
 // ويندوز: أحياناً بعد نافذة نظام (طباعة، حفظ، تأكيد) الصفحة بتبطل تستلم الكتابة. إذا انكبس على الصفحة
 // وهي مش ماسكة الكيبورد، منطلب من البرنامج يرجّع التركيز إلها (بدل ما يضطر الزبون يسكّر ويفتح).
@@ -22,6 +23,9 @@ if (!IS_MOBILE && location.hash !== '#customer') {
     true,
   );
 }
+
+// كيبورد اللمس بويندوز (تابلت) متل كيبورد الجوال: الكلمة قيد الكتابة لازم توصل قبل أي زر
+if (!IS_MOBILE && location.hash !== '#customer') startImeCommit();
 
 // نفس الواجهة بتنفتح بنافذة شاشة الزبون (#customer) بس بتعرض شاشة العرض لحالها
 createRoot(document.getElementById('root')!).render(location.hash === '#customer' ? <CustomerDisplay /> : <App />);

@@ -1,6 +1,40 @@
 import { expect, test } from '@playwright/test';
 import { activate, createCompany, launch, nav, toast } from './helpers';
 
+// الكلمة «قيد الكتابة»: القيمة بالخانة، والكيبورد ما بعت ولا input ولا change لحتى تخلص الكلمة
+const composeUncommitted = (page: import('@playwright/test').Page, sel: string, v: string) =>
+  page.evaluate(
+    ([s, val]) => {
+      const el = document.querySelector(s) as HTMLInputElement;
+      el.focus();
+      el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true, data: '' }));
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(el, val);
+      el.dispatchEvent(new CompositionEvent('compositionupdate', { bubbles: true, data: val }));
+    },
+    [sel, v] as const,
+  );
+
+// شكوى: شركة جديدة ← اسم المحل مكتوب بس «التالي» بيقول «اكتب اسم الشركة» وبيمسح الاسم
+test('new company wizard accepts a name still being composed by the phone keyboard', async () => {
+  const { page, close } = await launch();
+  try {
+    await activate(page);
+    await page.getByRole('button', { name: 'شركة جديدة', exact: true }).click();
+    await page.locator('.act-choose').click();
+    await page.locator('.act-search input').fill('سوبرماركت');
+    await page.locator('.act-card').first().click();
+    await page.locator('.act-modal-foot .primary').click();
+    await page.locator('.field', { hasText: 'اسم الشركة' }).locator('input').click();
+    await composeUncommitted(page, '.wizard-body .field input', 'ماركت الشام');
+    await page.getByRole('button', { name: 'التالي' }).click();
+    await expect(page.locator('.field', { hasText: 'اسمك' })).toBeVisible();
+    await page.getByRole('button', { name: 'رجوع' }).click();
+    await expect(page.locator('.field', { hasText: 'اسم الشركة' }).locator('input')).toHaveValue('ماركت الشام');
+  } finally {
+    await close();
+  }
+});
+
 // كيبورد الجوال: آخر كلمة («، ٢م») بتكون بالخانة بس لسا ما انبعتت للبرنامج لما يكبس حفظ.
 // منحاكيها: منحط النص بالخانة بدون حدث input، والاسم لازم ينحفظ كامل.
 test('item and customer names keep the last word the phone keyboard did not send yet', async () => {
