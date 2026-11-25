@@ -4,6 +4,9 @@ import { buildPayload, CODE_ALPHABET, compareVersions, normalizeShortCode, issue
 // ما فيه node:fs ولا node:crypto حتى يشتغل بـ Cloudflare Workers كمان.
 
 /** البصمة متل ما بيكتبها البائع: أرقام عربية، مسافات، حرف O بدل صفر، بدون شحطات. */
+/** كم مرة الوكيل بيقدر ينقل نفس الرخصة لجهاز جديد بالسنة (المدير بلا حد) */
+export const MOVE_LIMIT = 3;
+
 export function normMachineId(text: string | undefined): string {
   const t = String(text ?? '')
     .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
@@ -44,6 +47,8 @@ export interface Customer {
   code?: string;
   /** آخر محاولة تفعيل بالكود من جهاز بصمته غير المسجّلة (غالباً البصمة انكتبت غلط باللوحة). */
   tried?: { machineId: string; at: string };
+  /** مرات النقل لجهاز جديد (تواريخ): الوكيل إلو حد بالسنة */
+  moves?: string[];
   /** مدة تجريبية (1–7 أيام) ببلاش: ما بتنخصم من رصيد الوكيل، ومرة وحدة لكل جهاز. */
   trial?: boolean;
   /** «امسح وفعّل من جديد»: هالرخصة انلغت وحلّت محلها رخصة جديدة (نفس البصمة، كود تاني). */
@@ -770,32 +775,58 @@ export class RegistryCore {
     const c = this.find(id);
     if (patch.machineId) patch = { ...patch, machineId: normMachineId(patch.machineId) };
     if (patch.machineId && !/^[0-9A-F]{4}(-[0-9A-F]{4}){3}$/i.test(patch.machineId.trim())) throw new Error('بصمة الجهاز غير صحيحة');
-    Object.assign(c, Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined && v !== '')));
-    if (patch.machineId) {
-      const m = patch.machineId.trim().toUpperCase();
-      const other = this.data.customers.find((x) => x.id !== c.id && x.machineId.toUpperCase() === m && x.status !== 'revoked');
+    // بصمة جديدة = نقل لجهاز جديد (الجهاز القديم بيوقف، ونفس الكود)
+    const newMachine = patch.machineId && patch.machineId.trim().toUpperCase() !== c.machineId.toUpperCase() ? patch.machineId.trim().toUpperCase() : null;
+    if (newMachine) {
+      const other = this.data.customers.find((x) => x.id !== c.id && x.phoneOf !== c.id && x.machineId.toUpperCase() === newMachine && x.status !== 'revoked');
       if (other) throw new Error(`هالبصمة مسجّلة للزبون «${other.name}»`);
-      c.machineId = m;
-      delete c.tried;
     }
+    const { machineId: _m, ...rest } = patch;
+    Object.assign(c, Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined && v !== '')));
     c.key = this.sign(c);
     c.history.push({ at: new Date().toISOString(), action: 'تعديل البيانات وإصدار مفتاح جديد' });
     this.note(`تعديل بيانات ${c.name}`, { customerId: c.id });
     this.save();
+    if (newMachine) return this.moveDevice(c.id, newMachine);
     return c;
   }
 
   /** نقل الرخصة للجهاز اللي حاول يتفعّل بالكود (نفس الكود، والبصمة الجديدة). agentId: الوكيل لزباينه بس. */
   rebind(id: string, agentId?: string): Customer {
     const c = this.find(id);
-    if (agentId && c.agentId !== agentId) throw new Error('هالزبون مش إلك');
     if (!c.tried) throw new Error('ما في محاولة تفعيل من جهاز تاني');
-    if (c.status === 'revoked') throw new Error('هالترخيص ملغى');
-    const from = c.machineId;
-    const c2 = this.update(c.id, { machineId: c.tried.machineId });
-    c2.history.push({ at: new Date().toISOString(), action: `نقل الرخصة من البصمة ${from} للجهاز اللي حاول يتفعّل` });
+    return this.moveDevice(id, c.tried.machineId, agentId ? { agentId } : {});
+  }
+
+  /**
+   * نقل الرخصة لجهاز جديد (فرمت أو جهاز تاني) بنفس الكود: الرخصة القديمة بتنلغى (الجهاز القديم بيوقف مع قائمة الحالة)
+   * وبتنعمل رخصة على البصمة الجديدة بنفس تاريخ الانتهاء والكود. الوكيل لزباينه بس، وبحد MOVE_LIMIT مرات بالسنة.
+   */
+  moveDevice(id: string, machineId: string, opts: { agentId?: string } = {}): Customer {
+    const old = this.find(id);
+    if (opts.agentId && old.agentId !== opts.agentId) throw new Error('هالزبون مش إلك');
+    if (old.status === 'revoked') throw new Error('هالترخيص ملغى');
+    if (old.phoneOf) throw new Error('هاد مفتاح جوال. انقل رخصة الكمبيوتر تبعه، والجوال بيتفعّل بعدها بنفس الكود');
+    const machine = normMachineId(machineId);
+    if (machine.toUpperCase() === old.machineId.toUpperCase()) throw new Error('هي نفس بصمة الجهاز الحالي');
+    const yearAgo = new Date(Date.now() - 365 * 86_400_000).toISOString();
+    const moves = (old.moves ?? []).filter((d) => d > yearAgo);
+    if (opts.agentId && moves.length >= MOVE_LIMIT) throw new Error(`هالرخصة انتقلت ${MOVE_LIMIT} مرات بآخر سنة. للنقل كمان تواصل مع الإدارة.`);
+    const code = old.code;
+    const c = this.reissue(id, machine);
+    const now = new Date().toISOString();
+    // نفس الكود: منشيله عن القديمة (الملغاة) ومنحطه عالجديدة
+    if (code) {
+      delete old.code;
+      c.code = code;
+    }
+    c.moves = [...(old.moves ?? []), now];
+    delete old.tried;
+    c.history = [{ at: now, action: `نقل لجهاز جديد (من ${old.machineId} لـ ${machine}) بنفس الكود${opts.agentId ? ' عن طريق الوكيل' : ''}` }];
+    old.history.push({ at: now, action: `انتقلت لجهاز جديد ${machine}` });
+    this.note(`نقل ${c.name} لجهاز جديد (${machine})`, { customerId: c.id, ...(c.agentId ? { agentId: c.agentId } : {}) });
     this.save();
-    return c2;
+    return c;
   }
 
   // ───────────── أكواد التفعيل القصيرة ─────────────

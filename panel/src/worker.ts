@@ -626,7 +626,7 @@ export class RegistryDO extends DurableObject<Env> {
         this.schedulePublish();
         return json({ customer: c, phone });
       }
-      const m = /^\/api\/agent\/customers\/([^/]+)\/(renew|lifetime|phone|cloud|rebind)$/.exec(path);
+      const m = /^\/api\/agent\/customers\/([^/]+)\/(renew|lifetime|phone|cloud|rebind|move)$/.exec(path);
       if (m && req.method === 'POST') {
         const c = own(m[1]!);
         if (m[2] === 'cloud') {
@@ -638,7 +638,7 @@ export class RegistryDO extends DurableObject<Env> {
         }
         needKey();
         const flex = body['flex'] === true;
-        const out = m[2] === 'rebind' ? reg.rebind(c.id, agent.id) : m[2] === 'renew' ? reg.extend(c.id, str('plan') === 'monthly' ? 'monthly' : 'annual', { flex }) : m[2] === 'lifetime' ? reg.extend(c.id, 'lifetime', { flex }) : reg.addPhone(c.id, str('machineId'));
+        const out = m[2] === 'move' ? reg.moveDevice(c.id, str('machineId'), { agentId: agent.id }) : m[2] === 'rebind' ? reg.rebind(c.id, agent.id) : m[2] === 'renew' ? reg.extend(c.id, str('plan') === 'monthly' ? 'monthly' : 'annual', { flex }) : m[2] === 'lifetime' ? reg.extend(c.id, 'lifetime', { flex }) : reg.addPhone(c.id, str('machineId'));
         this.schedulePublish();
         return json(out);
       }
@@ -735,7 +735,7 @@ export class RegistryDO extends DurableObject<Env> {
         }, str('agentId') && !(body['charge'] === true || body['charge'] === 'on') ? { free: true } : {}),
       );
     }
-    const mc = /^\/api\/customers\/([^/]+)\/(extend|status|update|cloud|phone|reissue|transfer|remove|rebind)$/.exec(path);
+    const mc = /^\/api\/customers\/([^/]+)\/(extend|status|update|cloud|phone|reissue|transfer|remove|rebind|move)$/.exec(path);
     if (mc && req.method === 'POST') {
       const [, id, action] = mc;
       if (action !== 'status' && action !== 'cloud') needKey();
@@ -756,6 +756,7 @@ export class RegistryDO extends DurableObject<Env> {
       if (action === 'reissue') return touch(reg.reissue(id!, str('machineId') || undefined));
       // نقل الرخصة لوكيل (أو رجّعها مباشر)، مع خصم من رصيده أو بدون
       if (action === 'rebind') return touch(reg.rebind(id!));
+      if (action === 'move') return touch(reg.moveDevice(id!, str('machineId')));
       if (action === 'remove') return touch(reg.removeCustomer(id!));
       if (action === 'transfer') return touch(reg.transfer(id!, str('agentId') || null, { charge: body['charge'] === true || body['charge'] === 'on' }));
       return touch(

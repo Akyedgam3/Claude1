@@ -485,11 +485,13 @@ function customerRow(c, owner) {
         ${c.status === 'active' ? `<button class="small" data-c="suspend" data-id="${c.id}">إيقاف</button>` : `<button class="small" data-c="activate" data-id="${c.id}">تفعيل</button>`}
         ${!c.phoneOf ? `<button class="small" data-c="cloud" data-id="${c.id}">عن بعد</button>` : ''}
         <button class="small" data-c="edit" data-id="${c.id}">تعديل</button>
+        ${!c.phoneOf && c.status !== 'revoked' ? `<button class="small" data-c="move" data-id="${c.id}">نقل لجهاز جديد</button>` : ''}
         ${!c.phoneOf ? `<button class="small" data-c="reissue" data-id="${c.id}">امسح وفعّل بكود جديد</button>` : ''}
         ${!c.phoneOf && (S.agents ?? []).length ? `<button class="small" data-c="transfer" data-id="${c.id}">نقل لوكيل</button>` : ''}
         ${c.status !== 'revoked' ? `<button class="small danger" data-c="revoke" data-id="${c.id}">إلغاء</button>` : `<button class="small danger" data-c="remove" data-id="${c.id}">حذف نهائي</button>`}`
       : c.trial ? '<span class="muted">لما يشتري: فعّله عادي بنفس البصمة</span>' : `${!c.phoneOf && c.plan !== 'lifetime' ? `<button class="small" data-c="renew" data-id="${c.id}">تجديد سنة</button> ${S.balance?.flex?.left > 0 ? `<button class="small" data-c="renewm" data-id="${c.id}">تجديد شهر</button> ` : ''}<button class="small" data-c="lifetime" data-id="${c.id}">تحويل لدائم</button>` : ''}
-        ${!c.phoneOf && (c.cloud || S.cloud?.left > 0) ? `<button class="small" data-c="acloud" data-id="${c.id}">عن بعد</button>` : ''}`}
+        ${!c.phoneOf && (c.cloud || S.cloud?.left > 0) ? `<button class="small" data-c="acloud" data-id="${c.id}">عن بعد</button>` : ''}
+        ${!c.phoneOf && c.status !== 'revoked' ? `<button class="small" data-c="move" data-id="${c.id}">نقل لجهاز جديد (فرمت)</button>` : ''}`}
     </div></div>`;
 }
 function filterCustomers(list) {
@@ -573,6 +575,12 @@ async function customerAction(act, id, owner) {
     if (!machineId) return;
     const r = await run(() => api(owner ? `/api/customers/${id}/phone` : `/api/agent/customers/${id}/phone`, { machineId }), 'انعمل مفتاح الجوال');
     if (r) showKey(r);
+  } else if (act === 'move') {
+    const machineId = prompt(`نقل ${c.name} لجهاز جديد (بعد فرمت أو جهاز تاني).\nبصمة الجهاز الجديد (من شاشة التفعيل بوزن):`, c.tried?.machineId ?? '');
+    if (!machineId) return;
+    if (!confirm('الجهاز القديم بيوقف، والزبون بيحط نفس الكود على الجهاز الجديد. متأكد؟')) return;
+    const r = await run(() => api(owner ? `/api/customers/${id}/move` : `/api/agent/customers/${id}/move`, { machineId }), 'انتقلت الرخصة. خلّي الزبون يحط نفس الكود على الجهاز الجديد');
+    if (r) showKey(r, '<p class="muted">الزبون بيحط نفس كود التفعيل على الجهاز الجديد وبيتفعّل.</p>');
   } else if (act === 'rebind') {
     if (!confirm(`نقل رخصة ${c.name} للجهاز ${c.tried?.machineId}؟ الجهاز القديم (${c.machineId}) بيوقف، ونفس الكود بيشتغل عالجديد.`)) return;
     await run(() => api(owner ? `/api/customers/${id}/rebind` : `/api/agent/customers/${id}/rebind`, {}), 'انتقلت الرخصة. خلّي الزبون يحط الكود مرة تانية');
