@@ -48,6 +48,8 @@ import { ListPrices } from './screens/ListPrices';
 import { Dealers } from './screens/Dealers';
 import { HallBookings } from './screens/HallBookings';
 import { NetSubs } from './screens/NetSubs';
+import { FxDesk } from './screens/FxDesk';
+import { Remittances } from './screens/Remittances';
 import { QuoteEditor, Quotes } from './screens/Quotes';
 import { StockOps } from './screens/StockOps';
 import { Users } from './screens/Users';
@@ -517,6 +519,10 @@ function Screen({ screen }: { screen: { key: string; param?: string } }) {
       return <HallBookings />;
     case 'netsubs':
       return <NetSubs />;
+    case 'fx':
+      return <FxDesk />;
+    case 'remittances':
+      return <Remittances />;
     case 'solar':
       return <Solar />;
     case 'sitejob':

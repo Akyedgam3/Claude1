@@ -295,6 +295,47 @@ export function validateCommerceEvent(state: CompanyState, event: CompanyEvent):
     case 'netsub.deleted':
       if (!state.netSubs?.[event.subId]) fail('الاشتراك غير موجود');
       return;
+    case 'fxboard.saved': {
+      const b = event.board;
+      if (!DATE_RE.test(b.date)) fail('تاريخ غير صالح');
+      const seen = new Set<string>();
+      for (const r of b.rates) {
+        if (!state.currencies[r.currency] || r.currency === state.info?.baseCurrency) fail(`عملة غير صالحة بالنشرة: ${r.currency}`);
+        if (seen.has(r.currency)) fail('العملة مكررة بالنشرة');
+        seen.add(r.currency);
+        if (!(r.buy > 0 && r.sell > 0 && Number.isFinite(r.buy) && Number.isFinite(r.sell))) fail(`سعر غير صالح: ${state.currencies[r.currency]?.nameAr ?? r.currency}`);
+        if (r.buy > r.sell) fail(`سعر الشراء أعلى من المبيع: ${state.currencies[r.currency]?.nameAr ?? r.currency}`);
+      }
+      return;
+    }
+    case 'fxdeal.saved': {
+      const d = event.deal;
+      if (!DATE_RE.test(d.date)) fail('تاريخ غير صالح');
+      for (const x of [d.give, d.take]) {
+        if (!state.currencies[x.currency]) fail('عملة غير معروفة');
+        if (!Number.isSafeInteger(x.amount) || x.amount <= 0) fail('المبلغ لازم يكون أكبر من صفر');
+      }
+      if (d.give.currency === d.take.currency) fail('اختار عملتين مختلفتين');
+      if (d.partyId && !state.parties[d.partyId]) fail('الزبون غير موجود');
+      const prev = state.fxDeals?.[d.id];
+      if (prev && prev.number !== d.number) fail('لا يمكن تغيير رقم العملية');
+      return;
+    }
+    case 'remit.saved': {
+      const r = event.remit;
+      if (!DATE_RE.test(r.date)) fail('تاريخ غير صالح');
+      if (!['out', 'in'].includes(r.direction) || !['pending', 'delivered', 'cancelled'].includes(r.status)) fail('حوالة غير صالحة');
+      if (!r.sender?.trim() || !r.receiver?.trim()) fail('اكتب اسم المرسل والمستلم');
+      if (!state.parties[r.correspondentId]) fail('اختار المكتب (الوكيل)');
+      if (!state.currencies[r.currency]) fail('عملة غير معروفة');
+      if (!Number.isSafeInteger(r.amount) || r.amount <= 0) fail('مبلغ الحوالة لازم يكون أكبر من صفر');
+      if (!Number.isSafeInteger(r.fee) || r.fee < 0) fail('العمولة غير صالحة');
+      if (!/^[0-9A-Za-z-]{3,20}$/.test(r.code)) fail('رمز الحوالة غير صالح');
+      for (const t of [r.sender, r.receiver, r.destination, r.notes]) if (t !== undefined && t.length > 300) fail('النص طويل');
+      const prev = state.remittances?.[r.id];
+      if (prev && prev.number !== r.number) fail('لا يمكن تغيير رقم الحوالة');
+      return;
+    }
     case 'booking.saved': {
       const b = event.booking;
       if (!state.parties[b.partyId]) fail('الزبون غير موجود');
@@ -711,6 +752,17 @@ export function applyCommerceEvent(state: CompanyState, event: CompanyEvent): vo
       return;
     case 'netsub.deleted':
       delete state.netSubs![event.subId];
+      return;
+    case 'fxboard.saved':
+      state.fxBoard = { ...event.board, rates: event.board.rates.map((r) => ({ ...r })) };
+      return;
+    case 'fxdeal.saved':
+      (state.fxDeals ??= {})[event.deal.id] = { ...event.deal };
+      bump(state, 'fxdeal', event.deal.number);
+      return;
+    case 'remit.saved':
+      (state.remittances ??= {})[event.remit.id] = { ...event.remit };
+      bump(state, 'remit', event.remit.number);
       return;
     case 'booking.saved':
       (state.bookings ??= {})[event.booking.id] = { ...event.booking };

@@ -12,7 +12,7 @@ export const GROUPS: { id: string; title: string; ids: Activity[] }[] = [
   { id: 'auto', title: 'سيارات ومحروقات', ids: ['auto', 'bikes', 'carwash', 'rental', 'fuel'] },
   { id: 'health', title: 'صحة وجمال', ids: ['pharmacy', 'pharmacydealers', 'clinic', 'gym'] },
   { id: 'build', title: 'بناء وصناعة', ids: ['building', 'paints', 'furniture', 'gypsum', 'stone', 'woodmill', 'contractor', 'agri'] },
-  { id: 'services', title: 'خدمات ومكاتب', ids: ['tailor', 'weddinghall', 'hotel', 'travel', 'realestate', 'school'] },
+  { id: 'services', title: 'خدمات ومكاتب', ids: ['tailor', 'weddinghall', 'hotel', 'exchange', 'travel', 'realestate', 'school'] },
   { id: 'trade', title: 'جملة ونقل', ids: ['wholesale', 'customs'] },
 ];
 /** الأكثر استعمالاً أول شي */
@@ -52,6 +52,7 @@ const ALIASES: Partial<Record<Activity, string>> = {
   flowers: 'ورد زهور تزيين',
   hardware: 'خردوات عده ادوات منزليه نوفوتيه',
   paints: 'دهان بويه الوان',
+  exchange: 'صرافه صراف تصريف عملات عمله حواله حوالات دولار يورو مكتب تحويل اموال',
   travel: 'سفر سياحه طيران حجوزات',
   realestate: 'عقارات بيوت ايجار مكتب عقاري',
   rental: 'تاجير سيارات ايجار سيارات معدات',

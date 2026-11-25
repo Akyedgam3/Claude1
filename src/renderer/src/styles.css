@@ -4963,3 +4963,40 @@ body.mobile .pricing-big strong { font-size: 26px; }
   body[data-paper='58mm'] .thermal-doc:not(.t-grid) .t-lines tbody tr:not(.t-cons) + tr:not(.t-cons) { border-top: 1px dotted #000; }
   body[data-paper='58mm'] .thermal-doc .t-lines tr.t-cons + tr { border-top: 1px dotted #000; }
 }
+
+/* ───────────── الصرافة والحوالات ───────────── */
+.fx-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr)); gap: 10px; margin-bottom: 14px; }
+.fx-rate-card { background: var(--surface, #fff); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; display: grid; gap: 4px; }
+.fx-rate-card > b { font-size: 1.05em; }
+.fx-rate-card > div { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.fx-rate-card > div span { color: var(--muted); font-size: 0.85em; }
+.fx-rate-card > div strong { font-size: 1.35em; font-weight: 800; }
+.fx-rate-card > div:nth-of-type(1) strong { color: #1e8a4c; }
+.fx-rate-card > div:nth-of-type(2) strong { color: #c2410c; }
+.fx-rate-card.cash strong { font-size: 1.15em; }
+.fx-board.old .fx-rate-card:not(.cash) { border-style: dashed; }
+.fx-exchange { display: grid; gap: 12px; margin-bottom: 16px; }
+.fx-sides { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; align-items: end; }
+.fx-side { display: grid; gap: 6px; min-width: 0; }
+.fx-side > label { font-weight: 700; color: var(--muted); }
+.fx-side.give > label { color: #1e8a4c; }
+.fx-side.take > label { color: #c2410c; }
+.fx-amount { display: flex; gap: 6px; min-width: 0; }
+.fx-amount input.big { flex: 1; min-width: 0; font-size: 1.4em; font-weight: 800; }
+.fx-amount select { width: auto; max-width: 45%; }
+.fx-swap { margin-bottom: 6px; }
+.fx-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 10px; align-items: end; }
+.fx-meta button.big { min-height: 44px; font-size: 1.05em; }
+.fx-deals tr.voided td, .remit-table tr.voided td { opacity: 0.55; text-decoration: line-through; }
+.fx-board-form table input { width: 100%; }
+.fx-receipt-body { display: grid; gap: 6px; margin: 10px 0; }
+.fx-receipt-body > div { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px dashed var(--border, #ddd); padding: 4px 0; }
+.fx-receipt-foot { text-align: center; color: #555; margin-top: 10px; }
+.fx-sign { display: flex; justify-content: space-between; margin-top: 26px; gap: 10px; }
+.fx-total { background: var(--primary-soft); border-radius: 10px; padding: 8px 12px; }
+.remit-offices { margin-top: 16px; }
+.remit-office-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 8px; }
+.remit-office { display: flex; justify-content: space-between; gap: 10px; border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; }
+.remit-office .good { color: #1e8a4c; font-weight: 700; }
+.remit-office .bad { color: #c0392b; font-weight: 700; }
+@media (max-width: 640px) { .fx-sides { grid-template-columns: 1fr; } .fx-swap { justify-self: center; transform: rotate(90deg); } }

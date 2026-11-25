@@ -115,6 +115,7 @@ export type Activity =
   | 'hotel'
   | 'carwash'
   | 'tobacco'
+  | 'exchange'
   | 'cleaning'
   | 'watches'
   | 'cosmetics'
@@ -903,6 +904,66 @@ export interface HallBooking {
   createdAt: string;
 }
 
+// ───────────── الصرافة والحوالات (2.0.8) ─────────────
+
+/** سعر عملة بالنشرة: كم عملة أساسية بالوحدة. buy = المحل بيشتري من الزبون، sell = المحل بيبيع */
+export interface FxBoardRate {
+  currency: string;
+  buy: number;
+  sell: number;
+}
+
+export interface FxBoard {
+  date: string;
+  updatedAt: string;
+  rates: FxBoardRate[];
+}
+
+/** عملية تصريف: الزبون بيعطي give وبياخد take (المبالغ بأصغر وحدة) */
+export interface FxDeal {
+  id: string;
+  number: number;
+  date: string;
+  createdAt: string;
+  side: 'buy' | 'sell' | 'cross';
+  give: { currency: string; amount: number };
+  take: { currency: string; amount: number };
+  /** ربح فرق السعر بالعملة الأساسية (سالب = خسارة) */
+  profit: number;
+  partyId?: string;
+  customer?: string;
+  idNo?: string; // رقم الهوية (للمبالغ الكبيرة)
+  entryId: string;
+  voided?: boolean;
+  createdBy?: string;
+}
+
+/** حوالة: صادرة (الزبون بيدفع عنا وبيستلم عند المكتب التاني) أو واردة (منسلّمها نحنا) */
+export interface Remittance {
+  id: string;
+  number: number;
+  direction: 'out' | 'in';
+  date: string;
+  createdAt: string;
+  sender: string;
+  senderPhone?: string;
+  receiver: string;
+  receiverPhone?: string;
+  receiverIdNo?: string;
+  destination?: string; // المدينة / البلد
+  correspondentId: string; // المكتب (طرف بالعملاء والموردين)
+  amount: number;
+  currency: string;
+  fee: number; // عمولتنا بنفس العملة
+  code: string; // رمز الاستلام
+  status: 'pending' | 'delivered' | 'cancelled';
+  entryId?: string;
+  deliverEntryId?: string;
+  deliveredAt?: string;
+  notes?: string;
+  createdBy?: string;
+}
+
 // ───────────── اشتراكات الإنترنت والشبكات (2.0.8) ─────────────
 
 export interface NetSub {
@@ -1279,6 +1340,9 @@ export interface CompanyState {
   dealers?: Record<string, Dealer>;
   bookings?: Record<string, HallBooking>;
   netSubs?: Record<string, NetSub>;
+  fxBoard?: FxBoard;
+  fxDeals?: Record<string, FxDeal>;
+  remittances?: Record<string, Remittance>;
   woodLots?: Record<string, WoodLot>;
   woodExpenses?: Record<string, WoodExpense>;
   solarProjects?: Record<string, SolarProject>;
@@ -1348,6 +1412,9 @@ export type CompanyEvent =
   | { type: 'woodexpense.saved'; expense: WoodExpense }
   | { type: 'booking.deleted'; bookingId: string }
   | { type: 'netsub.saved'; sub: NetSub }
+  | { type: 'fxboard.saved'; board: FxBoard }
+  | { type: 'fxdeal.saved'; deal: FxDeal }
+  | { type: 'remit.saved'; remit: Remittance }
   | { type: 'netsub.deleted'; subId: string }
   | { type: 'dealersale.posted'; sale: DealerSale }
   | { type: 'dealersale.voided'; saleId: string; date: string; by: string }

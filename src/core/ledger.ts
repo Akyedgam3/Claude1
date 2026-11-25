@@ -17,6 +17,7 @@ import { POULTRY_CUTS } from './poultry';
 import { dealerStock, dealerUnitCost } from './dealers';
 import { HALL_PERIODS, bookingDeposits, bookingToInvoiceLines, bookingTotals } from './halls';
 import { addMonthsIso, renewalStart } from './netsubs';
+import { fxMid, fxSide, newRemitCode } from './fx';
 import { woodExpenseAccount, woodLotSales } from './woodlots';
 
 /** حساب عمولات المسوّقين (بينعمل لحالو أول مرة). */
@@ -45,6 +46,9 @@ import type {
   PriceBoard,
   HallBooking,
   NetSub,
+  FxBoardRate,
+  FxDeal,
+  Remittance,
   Dealer,
   DealerMove,
   DealerMoveKind,
@@ -848,6 +852,13 @@ export class Ledger {
     const entry = this.reversal(original, date);
     this.emit({ type: 'entry.posted', entry });
     return entry;
+  }
+
+  /** إلغاء قيد تابع لعملية الصرافة أو الحوالة (من جوّا العملية نفسها) */
+  private voidOwnEntry(entryId: string, date: string): void {
+    const original = this.state.entries.find((e) => e.id === entryId) ?? fail('القيد غير موجود');
+    if (this.state.voided[entryId]) return;
+    this.emit({ type: 'entry.posted', entry: this.reversal(original, date) });
   }
 
   private reversal(original: JournalEntry, date: string): JournalEntry {
@@ -2343,6 +2354,158 @@ export class Ledger {
     const invoice = this.postInvoice({ ...draft, paid });
     this.emit({ type: 'booking.saved', booking: { ...b, status: 'invoiced', invoiceId: invoice.id } });
     return invoice;
+  }
+
+  // ───────────── الصرافة والحوالات ─────────────
+
+  /** صندوق العملة: إذا ما في صندوق إلها منعمله («صندوق اليورو») */
+  currencyBox(currency: string): string {
+    if (currency === this.base.code) return SYSTEM_ACCOUNTS.cash;
+    const found = cashAccountFor(this.state, currency);
+    if (found !== SYSTEM_ACCOUNTS.cash) return found;
+    const cur = this.state.currencies[currency] ?? fail('عملة غير معروفة');
+    let n = 1109;
+    while (this.state.accounts[String(n)]) n++;
+    if (n > 1199) fail('ما في رقم فاضي لصندوق جديد بدليل الحسابات');
+    this.saveAccount({ id: String(n), name: `صندوق ${cur.nameAr}`, type: 'asset', parentId: this.state.accounts['11'] ? '11' : null, isGroup: false, currency });
+    return String(n);
+  }
+
+  /** نشرة الأسعار: شراء ومبيع لكل عملة. سعر الوسط بيصير سعر الصرف بالبرنامج لهاليوم. */
+  saveFxBoard(rates: FxBoardRate[], date: string): void {
+    this.emit({ type: 'fxboard.saved', board: { date, updatedAt: new Date().toISOString(), rates } });
+    for (const r of rates) this.emit({ type: 'rate.set', rate: { date, currency: r.currency, kind: 'market', rate: fxMid(r) } });
+  }
+
+  /**
+   * عملية تصريف: الزبون بيعطي give وبياخد take. كل عملة من صندوقها، والفرق عن سعر الصرف (الوسط)
+   * بيصير «أرباح الصرافة» (أو خسارة إذا بعت أرخص من الوسط).
+   */
+  postFx(d: { date: string; give: { currency: string; amount: number }; take: { currency: string; amount: number }; partyId?: string; customer?: string; idNo?: string }): FxDeal {
+    for (const x of [d.give, d.take]) if (!Number.isSafeInteger(x.amount) || x.amount <= 0) fail('المبلغ لازم يكون أكبر من صفر');
+    if (d.give.currency === d.take.currency) fail('اختار عملتين مختلفتين');
+    const base = this.base;
+    const rateOf = (c: string) => (c === base.code ? 1 : (this.rateFor(c, d.date) ?? fail(`حط سعر ${this.state.currencies[c]?.nameAr ?? c} بالنشرة أول`)));
+    const toBase = (x: { currency: string; amount: number }) => (x.currency === base.code ? x.amount : convertMinor(x.amount, this.state.currencies[x.currency] ?? fail('عملة غير معروفة'), base, rateOf(x.currency)));
+    const profit = toBase(d.give) - toBase(d.take);
+    const inBox = this.currencyBox(d.give.currency);
+    const outBox = this.currencyBox(d.take.currency);
+    const line = (x: { currency: string; amount: number }) => (x.currency === base.code ? {} : { currency: x.currency, rate: rateOf(x.currency) });
+    const side = fxSide(base.code, d.give.currency, d.take.currency);
+    const number = (this.state.counters['fxdeal'] ?? 0) + 1;
+    const who = d.customer?.trim() || (d.partyId ? this.state.parties[d.partyId]?.name : '') || '';
+    const name = (c: string) => this.state.currencies[c]?.nameAr ?? c;
+    const entry = this.postEntry({
+      date: d.date,
+      memo: `صرافة رقم ${number}: ${side === 'buy' ? `شراء ${name(d.give.currency)}` : side === 'sell' ? `مبيع ${name(d.take.currency)}` : `${name(d.give.currency)} بـ${name(d.take.currency)}`}${who ? ` — ${who}` : ''}`,
+      lines: [
+        { accountId: inBox, debit: d.give.amount, ...line(d.give) },
+        { accountId: outBox, credit: d.take.amount, ...line(d.take) },
+        ...(profit > 0 ? [{ accountId: SYSTEM_ACCOUNTS.fxGain, credit: profit }] : profit < 0 ? [{ accountId: SYSTEM_ACCOUNTS.fxLoss, debit: -profit }] : []),
+      ],
+      source: { type: 'fx', id: newId() },
+      createdBy: this.actor,
+    });
+    const deal: FxDeal = {
+      id: entry.source!.id,
+      number,
+      date: d.date,
+      createdAt: new Date().toISOString(),
+      side,
+      give: { ...d.give },
+      take: { ...d.take },
+      profit,
+      ...(d.partyId ? { partyId: d.partyId } : {}),
+      ...(d.customer?.trim() ? { customer: d.customer.trim() } : {}),
+      ...(d.idNo?.trim() ? { idNo: d.idNo.trim() } : {}),
+      entryId: entry.id,
+      createdBy: this.actor,
+    };
+    this.emit({ type: 'fxdeal.saved', deal });
+    return deal;
+  }
+
+  /** إلغاء عملية تصريف (المصاري بترجع للصناديق) */
+  voidFx(dealId: string, date: string): FxDeal {
+    const deal = this.state.fxDeals?.[dealId] ?? fail('العملية غير موجودة');
+    if (deal.voided) fail('العملية ملغاة من قبل');
+    this.voidOwnEntry(deal.entryId, date);
+    const next = { ...deal, voided: true };
+    this.emit({ type: 'fxdeal.saved', deal: next });
+    return next;
+  }
+
+  /**
+   * حوالة جديدة. صادرة: الزبون بيدفع المبلغ + العمولة بالصندوق، والمبلغ بيصير دين علينا للمكتب لحتى يسلّمه.
+   * واردة: بتنسجّل معلّقة بدون حركة، وبالتسليم المصاري بتطلع من الصندوق على حساب المكتب.
+   */
+  saveRemittance(d: Omit<Remittance, 'id' | 'number' | 'createdAt' | 'status' | 'code' | 'entryId' | 'deliverEntryId' | 'deliveredAt'> & { id?: string; code?: string }): Remittance {
+    if (d.id && this.state.remittances?.[d.id]) fail('الحوالة موجودة');
+    const corr = this.state.parties[d.correspondentId] ?? fail('اختار المكتب (الوكيل)');
+    if (!Number.isSafeInteger(d.amount) || d.amount <= 0) fail('مبلغ الحوالة لازم يكون أكبر من صفر');
+    if (!Number.isSafeInteger(d.fee) || d.fee < 0) fail('العمولة غير صالحة');
+    const number = (this.state.counters['remit'] ?? 0) + 1;
+    const r: Remittance = {
+      ...d,
+      id: d.id ?? newId(),
+      number,
+      createdAt: new Date().toISOString(),
+      status: 'pending',
+      code: d.code?.trim() || newRemitCode(this.state),
+      createdBy: this.actor,
+    };
+    if (d.direction === 'out') {
+      const fx = d.currency === this.base.code ? {} : { currency: d.currency };
+      const entry = this.postEntry({
+        date: d.date,
+        memo: `حوالة صادرة رقم ${number}: ${d.sender} ← ${d.receiver}${d.destination ? ` (${d.destination})` : ''} عن طريق ${corr.name}`,
+        lines: [
+          { accountId: this.currencyBox(d.currency), debit: d.amount + d.fee, ...fx },
+          { accountId: SYSTEM_ACCOUNTS.suppliers, credit: d.amount, partyId: corr.id, ...fx },
+          ...(d.fee ? [{ accountId: SYSTEM_ACCOUNTS.serviceRevenue, credit: d.fee, ...fx }] : []),
+        ],
+        source: { type: 'remit', id: r.id },
+        createdBy: this.actor,
+      });
+      r.entryId = entry.id;
+    }
+    this.emit({ type: 'remit.saved', remit: r });
+    return r;
+  }
+
+  /** تسليم: الصادرة = المكتب سلّمها (بس علامة). الواردة = سلّمناها للمستلم (المصاري بتطلع من الصندوق) */
+  deliverRemittance(id: string, date: string): Remittance {
+    const r = this.state.remittances?.[id] ?? fail('الحوالة غير موجودة');
+    if (r.status !== 'pending') fail(r.status === 'delivered' ? 'الحوالة انسلّمت من قبل' : 'الحوالة ملغاة');
+    const next: Remittance = { ...r, status: 'delivered', deliveredAt: new Date().toISOString() };
+    if (r.direction === 'in') {
+      const corr = this.state.parties[r.correspondentId] ?? fail('المكتب غير موجود');
+      const fx = r.currency === this.base.code ? {} : { currency: r.currency };
+      const entry = this.postEntry({
+        date,
+        memo: `تسليم حوالة واردة رقم ${r.number}: ${r.receiver} (من ${r.sender}) عن طريق ${corr.name}`,
+        lines: [
+          { accountId: SYSTEM_ACCOUNTS.suppliers, debit: r.amount + r.fee, partyId: corr.id, ...fx },
+          { accountId: this.currencyBox(r.currency), credit: r.amount, ...fx },
+          ...(r.fee ? [{ accountId: SYSTEM_ACCOUNTS.serviceRevenue, credit: r.fee, ...fx }] : []),
+        ],
+        source: { type: 'remit', id: `${r.id}:deliver` },
+        createdBy: this.actor,
+      });
+      next.deliverEntryId = entry.id;
+    }
+    this.emit({ type: 'remit.saved', remit: next });
+    return next;
+  }
+
+  /** إلغاء حوالة معلّقة: الصادرة بترجع المصاري للزبون (إلغاء القيد) */
+  cancelRemittance(id: string, date: string): Remittance {
+    const r = this.state.remittances?.[id] ?? fail('الحوالة غير موجودة');
+    if (r.status !== 'pending') fail('بس الحوالة المعلّقة بتنلغى');
+    if (r.entryId) this.voidOwnEntry(r.entryId, date);
+    const next: Remittance = { ...r, status: 'cancelled' };
+    this.emit({ type: 'remit.saved', remit: next });
+    return next;
   }
 
   // ───────────── اشتراكات الإنترنت والشبكات ─────────────

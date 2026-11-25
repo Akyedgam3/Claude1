@@ -22,6 +22,9 @@ export const NAV: (NavItem | string)[] = [
   { key: 'alerts', label: 'التنبيهات', icon: 'bell' },
   // الصندوق فوق كل شي حتى يلتقى بسرعة (F10)
   { key: 'cashbox', label: 'الصندوق', icon: 'wallet', perms: ['reports.financial', 'vouchers.create'] },
+  'الصرافة والحوالات',
+  { key: 'fx', label: 'الصرافة', icon: 'transfer', feature: 'fxdesk', perms: ['fx.manage', 'fx.rates'] },
+  { key: 'remittances', label: 'الحوالات', icon: 'wallet', feature: 'remittances', perm: 'fx.manage' },
   'الأجهزة والإلكترونيات',
   { key: 'devices', label: 'سجل الأجهزة (السيريال)', icon: 'laptop', feature: 'serials' },
   { key: 'netsubs', label: 'الاشتراكات', icon: 'wifi', feature: 'netsubs', perms: ['netsubs.manage', 'sales.create'] },

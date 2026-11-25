@@ -243,8 +243,8 @@ describe('reports', () => {
 });
 
 describe('activities', () => {
-  it('provides 59 business profiles each with a valid chart', () => {
-    expect(ACTIVITY_LIST).toHaveLength(59);
+  it('provides 60 business profiles each with a valid chart', () => {
+    expect(ACTIVITY_LIST).toHaveLength(60);
     for (const a of ACTIVITY_LIST) {
       const l = company(a.id);
       expect(Object.keys(l.state.accounts).length).toBeGreaterThan(40);

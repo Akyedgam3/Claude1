@@ -72,6 +72,13 @@ export function alertsFor(state: CompanyState, today: string): AppAlert[] {
   if (soonDebts.length)
     out.push({ id: 'debts-soon', level: 'info', title: `${soonDebts.length} موعد سداد خلال 3 أيام`, ...take(soonDebts, (x) => `${x.p.name}: ${fmt(x.bal)} (${x.p.debtDue === today ? 'اليوم' : x.p.debtDue})`), screen: 'debts', action: 'الديون', perm: 'balances.view' });
 
+  // ─── الصرافة والحوالات ───
+  if (state.fxBoard?.rates.length && state.fxBoard.date < today)
+    out.push({ id: 'fxboard-old', level: 'warn', title: 'نشرة أسعار الصرافة مش محدّثة اليوم', lines: [`آخر تحديث ${state.fxBoard.date}`], more: 0, screen: 'fx', action: 'الصرافة', perm: 'fx.rates' });
+  const waitingIn = Object.values(state.remittances ?? {}).filter((r) => r.direction === 'in' && r.status === 'pending');
+  if (waitingIn.length)
+    out.push({ id: 'remits-waiting', level: 'info', title: `${waitingIn.length} حوالة واردة لسا ما انسلّمت`, ...take(waitingIn, (r) => `${r.receiver}: ${fmt(r.amount, r.currency)}`), screen: 'remittances', action: 'الحوالات', perm: 'fx.manage' });
+
   // ─── اشتراكات الإنترنت: خلصت أو قرّبت ───
   const subs = netSubList(state).map((s) => ({ s, st: netSubStatus(s, today) }));
   const subName = (x: { s: { partyId: string; plan: string } }) => `${state.parties[x.s.partyId]?.name ?? '—'} (${x.s.plan})`;
