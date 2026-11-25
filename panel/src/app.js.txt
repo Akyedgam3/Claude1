@@ -478,6 +478,7 @@ function customerRow(c, owner) {
   return `<div class="item"><div class="top"><div><b class="name">${esc(c.name)}</b> ${statusTag(c)} ${c.mobile ? '<span class="tag mob">+ جوال</span>' : ''} ${c.phoneOf ? '<span class="tag mob">مفتاح جوال</span>' : ''} ${c.trial ? '<span class="tag suspended">تجربة</span>' : ''} ${cloudTag(c)}
       <div class="muted">${owner ? (agent ? 'الوكيل: ' + esc(agent.name) + ' · ' : 'مباشر · ') : ''}${esc(S.plans?.[c.plan]?.nameAr ?? (c.plan === 'lifetime' ? 'دائم' : 'سنوي'))} · ${c.devices} جهاز · <span class="mono">${esc(c.machineId)}</span>${c.phone ? ' · <span class="mono">' + esc(c.phone) + '</span>' : ''}</div>
       <div class="muted" style="${left !== null && left <= 30 ? 'color:var(--bad)' : ''}">ينتهي: ${fmtDate(c.expiresAt)}${left !== null ? (left > 0 ? ` (باقي ${left} يوم)` : ' (منتهي)') : ''}</div></div></div>
+    ${c.tried && c.status !== 'revoked' ? `<div style="margin-top:8px;padding:8px 10px;border-radius:8px;background:#fdecec;color:#8a1c1c;line-height:1.8">⚠️ حاول يتفعّل بالكود من جهاز بصمته <b class="mono">${esc(c.tried.machineId)}</b> (${fmtDate(c.tried.at)})، والمسجّلة <span class="mono">${esc(c.machineId)}</span>. إذا هاد جهاز الزبون (غالباً البصمة انكتبت غلط): <button class="small primary" data-c="rebind" data-id="${c.id}">انقل الرخصة لهالجهاز</button></div>` : ''}
     <div class="row" style="margin-top:8px"><button class="small primary" data-c="key" data-id="${c.id}">المفتاح</button>
       ${c.mobile && !hasPhone ? `<button class="small" data-c="phone" data-id="${c.id}">+ مفتاح الجوال</button>` : ''}
       ${owner ? `<button class="small" data-c="extend" data-id="${c.id}">تمديد</button>
@@ -572,6 +573,9 @@ async function customerAction(act, id, owner) {
     if (!machineId) return;
     const r = await run(() => api(owner ? `/api/customers/${id}/phone` : `/api/agent/customers/${id}/phone`, { machineId }), 'انعمل مفتاح الجوال');
     if (r) showKey(r);
+  } else if (act === 'rebind') {
+    if (!confirm(`نقل رخصة ${c.name} للجهاز ${c.tried?.machineId}؟ الجهاز القديم (${c.machineId}) بيوقف، ونفس الكود بيشتغل عالجديد.`)) return;
+    await run(() => api(owner ? `/api/customers/${id}/rebind` : `/api/agent/customers/${id}/rebind`, {}), 'انتقلت الرخصة. خلّي الزبون يحط الكود مرة تانية');
   } else if (act === 'renew') {
     if (!confirm(`تجديد ${c.name} سنة؟ بتنخصم رخصة من رصيدك.`)) return;
     const r = await run(() => api(`/api/agent/customers/${id}/renew`, {}), 'تم التجديد');

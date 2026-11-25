@@ -3,6 +3,17 @@ import { buildPayload, CODE_ALPHABET, compareVersions, normalizeShortCode, issue
 // سجل العملاء والوكلاء والتراخيص: نفس المنطق للوحة الإدارة على الجهاز (registry.ts) وعلى النت (panel/).
 // ما فيه node:fs ولا node:crypto حتى يشتغل بـ Cloudflare Workers كمان.
 
+/** البصمة متل ما بيكتبها البائع: أرقام عربية، مسافات، حرف O بدل صفر، بدون شحطات. */
+export function normMachineId(text: string | undefined): string {
+  const t = String(text ?? '')
+    .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[\u06F0-\u06F9]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
+    .toUpperCase()
+    .replace(/O/g, '0')
+    .replace(/[^0-9A-Z]/g, '');
+  return /^[0-9A-F]{16}$/.test(t) ? t.match(/.{4}/g)!.join('-') : String(text ?? '').trim();
+}
+
 export interface Customer {
   id: string; // رقم الترخيص
   name: string;
@@ -31,6 +42,8 @@ export interface Customer {
   phoneOf?: string;
   /** كود التفعيل القصير (16 حرف): البرنامج بيجيب فيه المفتاح الطويل من لوحة الإدارة على النت. */
   code?: string;
+  /** آخر محاولة تفعيل بالكود من جهاز بصمته غير المسجّلة (غالباً البصمة انكتبت غلط باللوحة). */
+  tried?: { machineId: string; at: string };
   /** مدة تجريبية (1–7 أيام) ببلاش: ما بتنخصم من رصيد الوكيل، ومرة وحدة لكل جهاز. */
   trial?: boolean;
   /** «امسح وفعّل من جديد»: هالرخصة انلغت وحلّت محلها رخصة جديدة (نفس البصمة، كود تاني). */
@@ -322,6 +335,7 @@ export class RegistryCore {
 
   add(input: { name: string; phone?: string; notes?: string; machineId: string; plan: Plan; devices?: number; offlineDays?: number; agentId?: string; force?: boolean; mobile?: boolean; flex?: boolean }, opts: { prepaid?: boolean; free?: boolean } = {}): Customer {
     if (!input.name?.trim()) throw new Error('اسم العميل مطلوب');
+    input = { ...input, machineId: normMachineId(input.machineId) };
     // التجربة بتنتهي لما يشتري: منلغي رخصة التجربة على نفس الجهاز ومنكمّل التفعيل عادي
     const machine = input.machineId?.trim().toUpperCase();
     for (const t of this.data.customers.filter((x) => x.trial && x.machineId === machine && x.status !== 'revoked')) {
@@ -386,6 +400,7 @@ export class RegistryCore {
    */
   trial(input: { name: string; phone?: string; machineId: string; days: number; agentId?: string; notes?: string }): Customer {
     if (!input.name?.trim()) throw new Error('اسم الزبون مطلوب');
+    input = { ...input, machineId: normMachineId(input.machineId) };
     const days = Number(input.days);
     if (!Number.isInteger(days) || days < 1 || days > TRIAL_MAX_DAYS) throw new Error(`المدة التجريبية من يوم لـ ${TRIAL_MAX_DAYS} أيام`);
     if (!/^[0-9A-F]{4}(-[0-9A-F]{4}){3}$/i.test(input.machineId?.trim() ?? '')) throw new Error('بصمة الجهاز غير صحيحة (مثال: 1A2B-3C4D-5E6F-7A8B)');
@@ -423,6 +438,7 @@ export class RegistryCore {
 
   /** مفتاح تطبيق الجوال لزبون رخصته «كمبيوتر + جوال»: نفس الاشتراك والانتهاء، وما بينخصم شي من الرصيد. */
   addPhone(id: string, machineId: string): Customer {
+    machineId = normMachineId(machineId);
     const pc = this.find(id);
     if (!pc.mobile) throw new Error('رخصة هالزبون للكمبيوتر بس، ما فيها جوال');
     if (this.data.customers.some((x) => x.phoneOf === pc.id && x.status !== 'revoked')) throw new Error('هالزبون إلو مفتاح جوال من قبل');
@@ -510,6 +526,7 @@ export class RegistryCore {
    * بينلغى كمان، والكود الجديد بيفعّل الجوال من جديد (إذا الرخصة «+ جوال»).
    */
   reissue(id: string, machineId?: string): Customer {
+    if (machineId) machineId = normMachineId(machineId);
     const old = this.find(id);
     if (old.phoneOf) throw new Error('هاد مفتاح جوال. اعمل «امسح وفعّل من جديد» على رخصة الكمبيوتر تبعه');
     if (old.replacedBy) throw new Error('هالرخصة انعمل بدالها رخصة جديدة من قبل');
@@ -751,14 +768,34 @@ export class RegistryCore {
 
   update(id: string, patch: { name?: string; phone?: string; notes?: string; devices?: number; offlineDays?: number; machineId?: string }): Customer {
     const c = this.find(id);
+    if (patch.machineId) patch = { ...patch, machineId: normMachineId(patch.machineId) };
     if (patch.machineId && !/^[0-9A-F]{4}(-[0-9A-F]{4}){3}$/i.test(patch.machineId.trim())) throw new Error('بصمة الجهاز غير صحيحة');
     Object.assign(c, Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined && v !== '')));
-    if (patch.machineId) c.machineId = patch.machineId.trim().toUpperCase();
+    if (patch.machineId) {
+      const m = patch.machineId.trim().toUpperCase();
+      const other = this.data.customers.find((x) => x.id !== c.id && x.machineId.toUpperCase() === m && x.status !== 'revoked');
+      if (other) throw new Error(`هالبصمة مسجّلة للزبون «${other.name}»`);
+      c.machineId = m;
+      delete c.tried;
+    }
     c.key = this.sign(c);
     c.history.push({ at: new Date().toISOString(), action: 'تعديل البيانات وإصدار مفتاح جديد' });
     this.note(`تعديل بيانات ${c.name}`, { customerId: c.id });
     this.save();
     return c;
+  }
+
+  /** نقل الرخصة للجهاز اللي حاول يتفعّل بالكود (نفس الكود، والبصمة الجديدة). agentId: الوكيل لزباينه بس. */
+  rebind(id: string, agentId?: string): Customer {
+    const c = this.find(id);
+    if (agentId && c.agentId !== agentId) throw new Error('هالزبون مش إلك');
+    if (!c.tried) throw new Error('ما في محاولة تفعيل من جهاز تاني');
+    if (c.status === 'revoked') throw new Error('هالترخيص ملغى');
+    const from = c.machineId;
+    const c2 = this.update(c.id, { machineId: c.tried.machineId });
+    c2.history.push({ at: new Date().toISOString(), action: `نقل الرخصة من البصمة ${from} للجهاز اللي حاول يتفعّل` });
+    this.save();
+    return c2;
   }
 
   // ───────────── أكواد التفعيل القصيرة ─────────────
@@ -818,7 +855,13 @@ export class RegistryCore {
     const own = this.data.customers.find((c) => c.code === code);
     if (own) {
       if (own.status === 'revoked') throw new Error('هالترخيص ملغى. تواصل مع البائع.');
-      if (ids.includes(own.machineId)) return own;
+      if (ids.includes(own.machineId)) {
+        if (own.tried) {
+          delete own.tried;
+          this.save();
+        }
+        return own;
+      }
       // كود الكمبيوتر انكتب عالجوال (أو العكس): إذا الرخصة فيها جوال منرجّع الجهاز الصح
       const pc = own.phoneOf ? this.data.customers.find((c) => c.id === own.phoneOf) : own;
       const phone = pc ? this.data.customers.find((c) => c.phoneOf === pc.id && c.status !== 'revoked') : undefined;
@@ -834,10 +877,15 @@ export class RegistryCore {
           this.actor = prev;
         }
       }
+      // منسجّل المحاولة: البائع بيشوفها باللوحة وبينقل الرخصة لهالجهاز بكبسة (غالباً البصمة انكتبت غلط)
+      own.tried = { machineId: ids[0]!, at: new Date().toISOString() };
+      this.note(`محاولة تفعيل ${own.name} بالكود من جهاز تاني (${ids[0]})`, { customerId: own.id, ...(own.agentId ? { agentId: own.agentId } : {}) });
+      this.save();
       throw new Error(
-        own.mobile || own.phoneOf
-          ? 'هالكود لجهاز تاني، والجوال التابع لهالرخصة متفعّل من قبل. ابعت بصمة هالجهاز للبائع.'
-          : 'هالكود مسجّل على جهاز تاني (رخصة كمبيوتر بس، بدون جوال). ابعت بصمة هالجهاز للبائع.',
+        (own.mobile || own.phoneOf
+          ? 'هالكود لجهاز تاني، والجوال التابع لهالرخصة متفعّل من قبل.'
+          : 'هالكود مسجّل على بصمة غير بصمة هالجهاز (غالباً البصمة انكتبت غلط).') +
+          ` بصمة هالجهاز: ${ids[0]}. البائع بيشوف المحاولة باللوحة وبيقدر ينقل الرخصة لهالجهاز بكبسة، وبعدها جرّب الكود مرة تانية.`,
       );
     }
     const card = this.cards.find((c) => c.code === code);

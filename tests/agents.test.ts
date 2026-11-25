@@ -163,7 +163,7 @@ describe('agents', () => {
     const c = r.add({ name: 'زبون', machineId: M1, plan: 'annual', agentId: a.id });
     expect(c.code).toMatch(/^[A-HJ-NP-Z2-9]{4}(-[A-HJ-NP-Z2-9]{4}){3}$/);
     expect(r.redeem(c.code!.replace(/-/g, '').toLowerCase(), ['0000-0000-0000-0000', M1]).key).toBe(c.key);
-    expect(() => r.redeem(c.code!, [M2])).toThrow(/جهاز تاني/);
+    expect(() => r.redeem(c.code!, [M2])).toThrow(/جهاز تاني|غير بصمة هالجهاز/);
     expect(() => r.redeem('ABCD', [M1])).toThrow(/16/);
     // رخصة «+ جوال»: كود الكمبيوتر نفسه بيفعّل الجوال أول مرة، وبعدها الجوال والكمبيوتر بيرجعولهم مفاتيحهم
     r.addPackage(a.id, { tier: 'a10m' });
