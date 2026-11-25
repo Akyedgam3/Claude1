@@ -571,6 +571,11 @@ function PrintTab() {
           <input type="checkbox" checked={!!p.showConsumerPrice} onChange={(e) => setP({ ...p, showConsumerPrice: e.target.checked })} />
           إظهار «سعر المستهلك» بفاتورة المبيع (للجملة: المحل بيعرف بقديش يبيع القطعة؛ من بطاقة المادة وإلا سعر المفرق)
         </label>
+        {p.showConsumerPrice && (
+          <Field label="ربح المحل على سعر المستهلك % (فاضي = سعر المفرق)">
+            <input inputMode="decimal" placeholder="مثلاً 15" value={p.consumerMarkup ?? ''} onChange={(e) => { const n = Number(e.target.value); setP({ ...p, consumerMarkup: e.target.value.trim() && Number.isFinite(n) && n > 0 ? n : undefined }); }} />
+          </Field>
+        )}
         <label className="check">
           <input type="checkbox" checked={p.fitOnePage !== false} onChange={(e) => setP({ ...p, fitOnePage: e.target.checked })} />
           الفاتورة بصفحة وحدة (إذا فاضت شوي بتتصغّر لتجي بورقة وحدة، والإيصال الحراري بينطبع على قد طوله بدون ورقة زيادة)

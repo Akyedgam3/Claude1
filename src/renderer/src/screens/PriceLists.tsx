@@ -110,6 +110,8 @@ export function PriceLists() {
         </table>
       </section>
 
+      {can('settings.manage') && <ConsumerPrices />}
+
       <section className="card print-area">
         <DocHeader title={`قائمة أسعار: ${current.name}`} />
         <div className="toolbar no-print">
@@ -156,5 +158,42 @@ export function PriceLists() {
         />
       )}
     </div>
+  );
+}
+
+/** «أسعار المستهلك» لزباين الجملة: ربح المحل بنسبة وحدة على كل المواد، وإظهارها بالفاتورة */
+function ConsumerPrices() {
+  const { state, call, notify } = useCompany();
+  const print = state.info!.print ?? {};
+  const [pct, setPct] = useState(print.consumerMarkup ? String(print.consumerMarkup) : '');
+  const [on, setOn] = useState(!!print.showConsumerPrice);
+  const save = async () => {
+    const n = Number(String(pct).replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x660)).replace('٫', '.').replace(',', '.'));
+    if (pct.trim() && (!Number.isFinite(n) || n < 0 || n > 1000)) return void notify('اكتب نسبة صحيحة (مثلاً 15)', 'error');
+    const next = { ...print, showConsumerPrice: on };
+    if (pct.trim() && n > 0) next.consumerMarkup = n;
+    else delete next.consumerMarkup;
+    if (await call('updateCompany', { print: next })) notify(on ? (n > 0 ? `صار سعر المستهلك = سعر الفاتورة + ${n}% لكل المواد` : 'صار سعر المستهلك يطلع بالفاتورة') : 'انحفظ، وسعر المستهلك مخفي من الفواتير');
+  };
+  return (
+    <section className="card consumer-prices">
+      <h3>أسعار المستهلك</h3>
+      <p className="muted">
+        لزباين الجملة: بفاتورة المبيع بيطلع عمود «سعر المستهلك» حتى المحل يعرف بقديش يبيع. حط ربح المحل مرة وحدة وبيتطبّق على كل المواد: سعر المستهلك = سعر المادة بالفاتورة + النسبة. المادة اللي إلها «سعر مستهلك» ببطاقتها بتضل عليه. بدون نسبة = سعر المفرق.
+      </p>
+      <div className="button-row">
+        <label className="check">
+          <input type="checkbox" checked={on} onChange={(e) => setOn(e.target.checked)} />
+          إظهار سعر المستهلك بالفاتورة
+        </label>
+        <label className="field-inline">
+          ربح المحل %
+          <input className="num" style={{ width: 90 }} inputMode="decimal" placeholder="مثلاً 15" value={pct} onChange={(e) => setPct(e.target.value)} />
+        </label>
+        <button className="primary" onClick={() => void save()}>
+          حفظ
+        </button>
+      </div>
+    </section>
   );
 }

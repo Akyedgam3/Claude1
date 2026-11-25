@@ -4924,3 +4924,5 @@ body.mobile .pricing-big strong { font-size: 26px; }
 
 /* زر «سعر المستهلك» السريع بفاتورة المبيع */
 .consumer-toggle { display: inline-flex; align-items: center; gap: 6px; margin: 0; white-space: nowrap; }
+.consumer-prices .button-row { flex-wrap: wrap; align-items: center; gap: 12px; }
+.field-inline { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }

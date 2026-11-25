@@ -594,7 +594,7 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
   );
 }
 
-/** سعر المستهلك لسطر (بعملة الفاتورة، لوحدة السطر): من بطاقة المادة، وإلا سعر المفرق. */
+/** سعر المستهلك لسطر (بعملة الفاتورة، لوحدة السطر): من بطاقة المادة، وإلا سعر الفاتورة + ربح المحل (إذا محدد)، وإلا سعر المفرق. */
 export function consumerPrice(state: CompanyState, inv: Invoice, l: InvoiceLine): number | null {
   const item = l.itemId ? state.items[l.itemId] : null;
   if (!item || item.kind === 'service') return null;
@@ -603,6 +603,12 @@ export function consumerPrice(state: CompanyState, inv: Invoice, l: InvoiceLine)
     const factor = item.units?.find((u) => u.name === l.unit)?.factor ?? 1;
     const v = convertPrice(state, Math.round(roundPrice(item.consumerPrice * factor) * PRICE_SCALE), item.priceCurrency, inv.currency, rates);
     return v === null || v <= 0 ? null : Math.round(v / PRICE_SCALE);
+  }
+  const markup = state.info?.print?.consumerMarkup;
+  if (markup && markup > 0 && l.qty > 0) {
+    const net = (l.price * l.qty - (l.discount ?? 0)) / l.qty;
+    const v = Math.round(net * (1 + markup / 100));
+    return v > 0 ? v : null;
   }
   const t = itemPrice(state, item, { ...(l.unit ? { unit: l.unit } : {}), currency: inv.currency, date: inv.date, list: 'retail', rates });
   const v = t ? Math.round(parsePrice(state, t, inv.currency)) : 0;
