@@ -5005,3 +5005,6 @@ body.mobile .pricing-big strong { font-size: 26px; }
 .item-stock-adds h4 { margin: 0; }
 .item-stock-add { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 10px; }
 .item-stock-add input.num-input { width: 100px; }
+/* قياس الحجر بالفاتورة */
+.stone-measure .segmented { display: flex; flex-wrap: wrap; gap: 4px; }
+.stone-measure .stone-result { padding: 10px 14px; border-radius: 12px; background: var(--primary-soft); font-size: 1.1em; text-align: center; }

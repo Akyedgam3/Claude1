@@ -34,5 +34,6 @@ export * from './analytics';
 export * from './recurring';
 export * from './netsubs';
 export * from './fx';
+export * from './stone-measure';
 export * from './alerts';
 export * from './ids';

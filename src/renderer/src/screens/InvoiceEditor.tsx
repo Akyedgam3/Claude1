@@ -11,6 +11,7 @@ import { Icon } from '../components/icons';
 import { PriceListSelect } from '../components/PriceLists';
 import { ExtraCostsEditor, extraCostsOf, extraRowsFrom, type ExtraRow } from '../components/ExtraCosts';
 import { WeighingModal, weightsFromQty } from '../components/Weighing';
+import { StoneMeasureModal } from '../components/StoneMeasure';
 import { PlaceInput } from '../components/PlaceInput';
 
 interface LineState {
@@ -209,6 +210,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
   const [extraRows, setExtraRows] = useState<ExtraRow[]>(() => (editing ? extraRowsFrom(state, editing.extras, editing.currency, lockedBox ?? editing.cashAccountId) : (d?.extras ?? [])));
   const [newItem, setNewItem] = useState<string | null>(null);
   const [weighLine, setWeighLine] = useState<string | null>(null);
+  const [measureLine, setMeasureLine] = useState<string | null>(null);
   // صيدلية مع موردين: بفاتورة الشراء منحط سعر الصيدلية وسعر المورّد لكل مادة
   // تفصيل التكلفة (معمل + شحن + ضريبة + جمارك) بفاتورة الشراء: اختياري
   const [breakdown, setBreakdown] = useState(() => kind === 'purchase' && (lines.some((l) => l.parts) || (() => { try { return localStorage.getItem('wazn.costBreakdown') === '1'; } catch { return false; } })()));
@@ -1105,6 +1107,11 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
                         inputMode="decimal"
                         onKeyDown={enterNext}
                       />
+                      {feature('stoneblocks') && (l.itemId || l.description) && (
+                        <button type="button" className="icon" title="قياس: طول × عرض × سماكة × عدد" onClick={() => setMeasureLine(l.key)}>
+                          <Icon name="ruler" size={15} />
+                        </button>
+                      )}
                       {feature('poultry') && (l.itemId || l.description) && (
                         <button type="button" className={`icon${l.weighing ? ' on' : ''}`} title={l.weighing ? `${l.weighing.weights.length} وزنات` : 'وزنات قفص قفص'} onClick={() => setWeighLine(l.key)}>
                           <Icon name="weight" size={15} />
@@ -1292,6 +1299,24 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
         </section>
       </div>
 
+      {measureLine && (() => {
+        const l = lines.find((x) => x.key === measureLine);
+        if (!l) return null;
+        const item = l.itemId ? state.items[l.itemId] : null;
+        return (
+          <StoneMeasureModal
+            {...(l.unit || item?.unit ? { itemUnit: l.unit || item!.unit } : {})}
+            onClose={() => setMeasureLine(null)}
+            onSave={(r) => {
+              // وحدة السطر: إذا المادة إلها وحدة بنفس الاسم (م² أو م³) منختارها
+              const unit = item && item.unit !== r.unit && item.units?.some((u) => u.name === r.unit) ? r.unit : l.unit;
+              const note = [l.note?.trim(), r.text].filter(Boolean).join(' · ');
+              setLine(l.key, { qty: String(r.qty), unit, note });
+              setMeasureLine(null);
+            }}
+          />
+        );
+      })()}
       {weighLine && (() => {
         const l = lines.find((x) => x.key === weighLine);
         if (!l) return null;
