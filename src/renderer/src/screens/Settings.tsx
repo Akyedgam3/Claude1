@@ -7,7 +7,7 @@ import { CommercialDoc, QrImage, sampleModel } from '../components/CommercialDoc
 import { api, currencyName, dateText, IS_MOBILE, today, useCompany, type BackupLocation, type LanStatus } from '../api';
 import { PAPER_NAMES } from '../components/print';
 import { sampleReceipt, ThermalReceipt } from '../components/ThermalReceipt';
-import { Field, Modal, PageHeader, Tabs } from '../components/ui';
+import { askConfirm, Field, Modal, PageHeader, Tabs } from '../components/ui';
 import { CloudTab } from '../cloud/CloudTab';
 
 type Tab = 'company' | 'customize' | 'print' | 'receipt' | 'taxes' | 'lan' | 'cloud' | 'backup' | 'period' | 'account' | 'license' | 'reset' | 'health';
@@ -1104,7 +1104,14 @@ function PeriodTab() {
           <p className="muted">ينقل أرباح/خسائر السنة إلى "الأرباح المدوّرة" ويقفل السنة. لا يمكن التراجع عنه.</p>
           <div className="inline-form">
             <input type="date" value={yearEnd} onChange={(e) => setYearEnd(e.target.value)} />
-            <button className="danger" onClick={async () => (await call('closeYear', yearEnd)) && notify('تم إقفال السنة المالية')}>
+            <button
+              className="danger"
+              disabled={!yearEnd}
+              onClick={async () => {
+                if (!(await askConfirm(`إقفال السنة لحد ${dateText(yearEnd)}؟ ربح السنة بينتقل للأرباح المدوّرة، وكل الحركات لحد هالتاريخ بتنقفل وما بتتعدّل. ما بيرجع. (اعمل نسخة احتياطية قبل)`))) return;
+                if (await call('closeYear', yearEnd)) notify('تم إقفال السنة المالية');
+              }}
+            >
               إقفال السنة
             </button>
           </div>

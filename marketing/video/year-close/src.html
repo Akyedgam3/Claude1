@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<title>وزن — تسكير السنة</title>
+<style>
+@font-face { font-family: Cairo; font-weight: 400; src: url(fonts/cairo-arabic-400-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 700; src: url(fonts/cairo-arabic-700-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 900; src: url(fonts/cairo-arabic-900-normal.woff2); unicode-range: U+0600-06FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: Cairo; font-weight: 400; src: url(fonts/cairo-latin-400-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F; }
+@font-face { font-family: Cairo; font-weight: 700; src: url(fonts/cairo-latin-700-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F; }
+@font-face { font-family: Cairo; font-weight: 900; src: url(fonts/cairo-latin-900-normal.woff2); unicode-range: U+0000-00FF, U+2000-206F; }
+:root { --g: #0f6e5c; --g2: #14957c; --mint: #5fe0bf; --soft: #e3f2ee; --ink: #0d2a24; --muted: #5b716b; --red: #d64535; --gold: #e7a83c; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1080px; height: 1920px; overflow: hidden; background: #f4f7f6; }
+body { font-family: Cairo, sans-serif; color: var(--ink); }
+.ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+#stage { position: absolute; inset: 0; overflow: hidden; background: radial-gradient(ellipse 120% 70% at 50% 30%, #ffffff 0%, #eef5f2 60%, #e2eeea 100%); }
+#dots { position: absolute; inset: 0; background-image: radial-gradient(rgba(15, 110, 92, 0.09) 1.6px, transparent 1.7px); background-size: 38px 38px; mask-image: radial-gradient(ellipse at 50% 40%, #000 0%, transparent 78%); }
+#blob1 { position: absolute; width: 760px; height: 760px; border-radius: 50%; background: #5fe0bf; filter: blur(140px); opacity: 0.28; }
+#blob2 { position: absolute; width: 640px; height: 640px; border-radius: 50%; background: #e7a83c; filter: blur(150px); opacity: 0.14; }
+
+/* الهوية */
+#brand { position: absolute; top: 70px; left: 70px; right: 70px; display: flex; align-items: center; justify-content: space-between; z-index: 20; }
+#brand .who { display: flex; align-items: center; gap: 16px; }
+#brand img { width: 78px; height: 78px; border-radius: 22px; box-shadow: 0 12px 30px rgba(15, 110, 92, 0.28); }
+#brand b { font: 900 52px Cairo; color: var(--g); }
+#chip { padding: 10px 28px; border-radius: 999px; background: var(--g); color: #fff; font: 700 34px Cairo; box-shadow: 0 10px 26px rgba(15, 110, 92, 0.3); }
+
+/* العنوان */
+#title { position: absolute; top: 200px; left: 60px; right: 60px; height: 240px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font: 900 82px/1.22 Cairo; z-index: 10; }
+#title em { font-style: normal; color: var(--g2); }
+#title .red { color: var(--red); }
+
+/* الشاشة */
+#screen { position: absolute; left: 40px; right: 40px; top: 460px; height: 840px; border-radius: 36px; background: #fff; box-shadow: 0 50px 110px rgba(13, 42, 36, 0.22), 0 0 0 1px rgba(13, 42, 36, 0.06); overflow: hidden; z-index: 5; }
+#bar { height: 52px; background: #f1f5f4; display: flex; align-items: center; gap: 12px; padding: 0 24px; border-bottom: 1px solid #e2ebe8; }
+#bar i { width: 16px; height: 16px; border-radius: 50%; background: #d4dedb; display: block; }
+#bar span { margin-inline-start: auto; font: 700 24px Cairo; color: var(--muted); }
+#view { position: absolute; top: 52px; left: 0; right: 0; bottom: 0; overflow: hidden; background: #fff; }
+#cam { position: absolute; left: 0; top: 0; width: 1440px; height: 900px; transform-origin: 0 0; }
+#cam img { position: absolute; inset: 0; width: 1440px; height: 900px; opacity: 0; }
+#ring { position: absolute; border: 6px solid var(--g2); border-radius: 16px; box-shadow: 0 0 0 9999px rgba(13, 42, 36, 0.16), 0 0 30px rgba(20, 149, 124, 0.6); opacity: 0; pointer-events: none; }
+#cursor { position: absolute; width: 54px; height: 54px; z-index: 3; opacity: 0; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.35)); }
+#ripple { position: absolute; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%; border: 5px solid var(--g2); opacity: 0; }
+
+/* بطاقات «شو بيصير» و«شو بيضل» */
+.cards { position: absolute; left: 60px; right: 60px; top: 480px; display: grid; gap: 34px; z-index: 6; }
+.card { display: flex; align-items: center; gap: 30px; padding: 34px 40px; border-radius: 34px; background: #fff; box-shadow: 0 30px 70px rgba(13, 42, 36, 0.14); opacity: 0; }
+.card .ic { flex: none; width: 128px; height: 128px; border-radius: 34px; display: grid; place-items: center; background: var(--soft); color: var(--g); }
+.card .ic svg { width: 70px; height: 70px; }
+.card b { display: block; font: 900 54px/1.25 Cairo; }
+.card small { display: block; font: 700 36px/1.4 Cairo; color: var(--muted); margin-top: 6px; }
+.card.red .ic { background: #fdecea; color: var(--red); }
+.card.gold .ic { background: #fdf3e0; color: #b9791a; }
+
+/* قائمة «شو بيضل» فوق الشاشة */
+#keep { position: absolute; left: 30px; right: 30px; top: 1325px; display: flex; flex-wrap: wrap; gap: 12px 14px; justify-content: center; z-index: 7; }
+#keep span { display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 999px; background: #fff; box-shadow: 0 14px 32px rgba(13, 42, 36, 0.12); font: 900 36px Cairo; white-space: nowrap; opacity: 0; }
+#keep span svg { width: 32px; height: 32px; color: var(--g2); }
+
+/* الترجمة */
+#cap { position: absolute; left: 60px; right: 60px; top: 1580px; min-height: 220px; display: flex; align-items: center; justify-content: center; text-align: center; z-index: 12; }
+#cap div { padding: 22px 40px; border-radius: 30px; background: rgba(13, 42, 36, 0.9); color: #fff; font: 700 50px/1.45 Cairo; box-shadow: 0 20px 50px rgba(13, 42, 36, 0.25); }
+
+/* التحذير */
+#warn { position: absolute; left: 60px; right: 60px; top: 520px; padding: 60px 50px; border-radius: 48px; background: #fff; text-align: center; box-shadow: 0 40px 90px rgba(214, 69, 53, 0.22); border: 4px solid #f3c2bb; opacity: 0; z-index: 8; }
+#warn .ic { width: 170px; height: 170px; margin: 0 auto 20px; border-radius: 50%; display: grid; place-items: center; background: #fdecea; color: var(--red); }
+#warn .ic svg { width: 96px; height: 96px; }
+#warn b { display: block; font: 900 76px/1.25 Cairo; color: var(--red); }
+#warn p { font: 700 46px/1.5 Cairo; margin-top: 22px; opacity: 0; }
+#warn p em { font-style: normal; color: var(--g); font-weight: 900; }
+
+/* الخاتمة */
+#end { position: absolute; inset: 0; z-index: 30; background: linear-gradient(160deg, #13917a 0%, #0f6e5c 55%, #0a4f42 100%); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; opacity: 0; }
+#end img { width: 230px; height: 230px; border-radius: 58px; box-shadow: 0 30px 70px rgba(0, 0, 0, 0.35); }
+#end h2 { font: 900 120px Cairo; margin-top: 30px; }
+#end h3 { font: 700 58px Cairo; color: #c9f5e8; }
+#end .site { margin-top: 60px; font: 900 64px Cairo; padding: 14px 44px; border-radius: 999px; background: rgba(255, 255, 255, 0.14); }
+#end .ph { margin-top: 34px; font: 900 56px/1.6 Cairo; }
+#end .ph small { display: block; font: 700 40px Cairo; color: #c9f5e8; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="dots"></div>
+  <div id="blob1"></div>
+  <div id="blob2"></div>
+  <div id="brand"><div class="who"><img src="logo.png" alt="" /><b>وزن</b></div><span id="chip">تسكير السنة</span></div>
+  <div id="title"></div>
+
+  <div id="screen">
+    <div id="bar"><i></i><i></i><i></i><span id="barTitle">وزن</span></div>
+    <div id="view">
+      <div id="cam">
+        <img data-s="home" src="shots/home.png" alt="" />
+        <img data-s="backup" src="shots/backup.png" alt="" />
+        <img data-s="period" src="shots/period.png" alt="" />
+        <img data-s="closed" src="shots/closed.png" alt="" />
+        <img data-s="items" src="shots/items.png" alt="" />
+        <img data-s="debts" src="shots/debts.png" alt="" />
+        <img data-s="box" src="shots/box.png" alt="" />
+        <img data-s="reports" src="shots/reports.png" alt="" />
+        <div id="ring"></div>
+        <div id="ripple"></div>
+        <svg id="cursor" viewBox="0 0 24 24"><path d="M4 3l7 18 2.5-7.5L21 11z" fill="#fff" stroke="#0d2a24" stroke-width="1.6" stroke-linejoin="round" /></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="cards" id="what">
+    <div class="card gold"><div class="ic">__I_TROPHY__</div><div><b>ربح السنة ← الأرباح المدوّرة</b><small>بينتقل لحالو</small></div></div>
+    <div class="card"><div class="ic">__I_ZERO__</div><div><b>المبيعات والمصاريف من صفر</b><small>بالسنة الجديدة</small></div></div>
+    <div class="card red"><div class="ic">__I_LOCK__</div><div><b>السنة القديمة بتنقفل</b><small>ما حدا بيقدر يعدّل عليها</small></div></div>
+  </div>
+
+  <div id="keep">
+    <span>__I_CHECK__ المخزون بكمياته</span>
+    <span>__I_CHECK__ ديون الزباين والموردين</span>
+    <span>__I_CHECK__ الصناديق والمواد</span>
+  </div>
+
+  <div id="warn">
+    <div class="ic">__I_ALERT__</div>
+    <b>الإقفال ما بيرجع</b>
+    <p>بدك تقفل شهر بس؟<br />استعمل <em>«قفل فترة»</em> بدل إقفال السنة</p>
+  </div>
+
+  <div id="cap"><div></div></div>
+
+  <div id="end">
+    <img src="logo.png" alt="" />
+    <h2>وزن</h2>
+    <h3>حساباتك مرتّبة</h3>
+    <div class="site ltr">waznsy.com</div>
+    <div class="ph"><small>واتساب</small><span class="ltr">+963 968 037 609</span><br /><span class="ltr">+963 980 072 891</span></div>
+  </div>
+</div>
+<script>
+const ALIGN = __ALIGN__;
+const BOXES = __BOXES__;
+window.DURATION = 70;
+const $ = (s) => document.querySelector(s);
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const ease = (x) => { x = clamp(x); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+const outBack = (x) => { x = clamp(x); const c = 1.5; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+const fade = (t, a, b, d = 0.35) => clamp((t - a) / d) * (1 - clamp((t - (b - d)) / d));
+
+// الشاشات ومتى: [من، لـ، اللقطة، عنوان الشريط]
+const SHOTS = [
+  [0, 4.0, 'home', 'الرئيسية'],
+  [4.0, 11.8, 'backup', 'الإعدادات ← النسخ الاحتياطي'],
+  [11.8, 22.7, 'period', 'الإعدادات ← إقفال الفترات'],
+  [22.7, 23.6, 'closed', 'الإعدادات ← إقفال الفترات'],
+  [36.9, 40.2, 'items', 'المواد'],
+  [40.2, 42.3, 'debts', 'الديون'],
+  [42.3, 48.5, 'box', 'الصندوق'],
+  [48.5, 55.0, 'reports', 'التقارير'],
+  [59.5, 63.4, 'period', 'الإعدادات ← إقفال الفترات'],
+];
+// التأشيرات: [من، لـ، اللقطة، العنصر، نقرة؟، تكبير]
+const FOCUS = [
+  [4.4, 8.6, 'backup', 'tab', 1, 1.5],
+  [8.6, 11.8, 'backup', 'main', 1, 1.6],
+  [11.9, 15.2, 'period', 'tab', 1, 1.5],
+  [15.2, 18.3, 'period', 'year', 0, 1.45],
+  [18.3, 20.6, 'period', 'date', 0, 1.7],
+  [20.6, 22.7, 'period', 'button', 1, 1.8],
+  [22.7, 23.6, 'closed', 'note', 0, 1.3],
+  [37.6, 40.2, 'items', 'qty', 0, 1.3],
+  [50.6, 55.0, 'reports', 'period', 1, 1.6],
+  [59.6, 63.4, 'period', 'lock', 0, 1.45],
+];
+// العناوين فوق
+const TITLES = [
+  [0, 4.0, 'خلصت السنة؟<br /><em>سكّرها بوزن بدقيقة</em>'],
+  [4.0, 11.8, 'أول شي:<br /><em>نسخة احتياطية</em>'],
+  [11.8, 22.7, 'الإعدادات ← <em>إقفال السنة</em>'],
+  [22.7, 36.9, 'شو بيصير بعد الإقفال؟'],
+  [36.9, 48.5, 'شو بيضل <em>متل ما هو؟</em>'],
+  [48.5, 55.0, 'تقارير السنة القديمة<br /><em>موجودة دايماً</em>'],
+  [55.0, 63.4, '<span class="red">مهم تعرف</span>'],
+];
+// الترجمة (مصحّحة من الصوت)
+const CAPS = [
+  [0.0, 3.94, 'خلصت السنة؟ سكّرها بوزن بدقيقة.'],
+  [4.08, 8.88, 'قبل ما تسكّر السنة، تأكد إنو كل الفواتير والمصاريف انسجّلت،'],
+  [8.88, 11.6, 'واعمل نسخة احتياطية من بياناتك.'],
+  [11.94, 15.28, 'هلأ من الإعدادات، فوت على «إقفال الفترات»،'],
+  [15.28, 18.2, 'وبعدين اختار «إقفال السنة المالية»،'],
+  [18.38, 22.6, 'حط التاريخ 31/12، واكبس «إقفال السنة».'],
+  [22.8, 24.5, 'شو بيصير بعد الإقفال؟'],
+  [24.56, 28.4, 'ربح السنة بينتقل تلقائياً على الأرباح المدوّرة،'],
+  [28.64, 32.5, 'والمبيعات والمصاريف بالسنة الجديدة بتبلّش من صفر،'],
+  [32.68, 36.9, 'والسنة القديمة بتنقفل، يعني ما عاد حدا بيقدر يعدّل عليها.'],
+  [36.98, 39.9, 'أما شو بيضل متل ما هو: المخزون بكمياته،'],
+  [40.28, 44.4, 'ديون الزباين والموردين، الصناديق والمواد.'],
+  [44.5, 48.5, 'يعني بتكمّل شغلك بنفس الشركة، بلا ما تدخّل شي من جديد.'],
+  [48.58, 51.6, 'وتقارير السنة القديمة؟ موجودة دايماً،'],
+  [51.78, 54.9, 'بس اختار الفترة المطلوبة من قسم التقارير.'],
+  [55.02, 59.52, 'مهم تعرف: الإقفال ما بيرجع. إذا بدك تقفل شهر بس،'],
+  [60.06, 63.3, 'استعمل «قفل الفترة» بدل إقفال السنة.'],
+  [63.54, 66.5, 'وزن، حساباتك مرتّبة.'],
+];
+
+const VIEW_W = 1000, VIEW_H = 788; // داخل الشاشة
+const imgs = Object.fromEntries([...document.querySelectorAll('#cam img')].map((i) => [i.dataset.s, i]));
+let lastCap = '';
+
+function camFor(shot, name, zoom) {
+  const b = BOXES[shot]?.[name];
+  if (!b) return { s: VIEW_W / 1440, x: 0, y: 0 };
+  const s = (VIEW_W / 1440) * zoom;
+  const cx = b[0] + b[2] / 2, cy = b[1] + b[3] / 2;
+  let x = VIEW_W / 2 - cx * s, y = VIEW_H / 2 - cy * s;
+  x = Math.min(0, Math.max(VIEW_W - 1440 * s, x));
+  y = Math.min(0, Math.max(VIEW_H - 900 * s, y));
+  return { s, x, y };
+}
+
+window.render = (t) => {
+  // الخلفية بتتحرك شوي
+  $('#blob1').style.transform = `translate(${-120 + Math.sin(t * 0.25) * 90}px, ${-100 + Math.cos(t * 0.2) * 70}px)`;
+  $('#blob2').style.transform = `translate(${620 + Math.cos(t * 0.22) * 80}px, ${1300 + Math.sin(t * 0.18) * 90}px)`;
+
+  // العنوان
+  const tt = TITLES.find(([a, b]) => t >= a && t < b);
+  const title = $('#title');
+  if (tt) {
+    if (title.dataset.k !== String(tt[0])) { title.innerHTML = tt[2]; title.dataset.k = String(tt[0]); }
+    const k = fade(t, tt[0], tt[1], 0.4);
+    title.style.opacity = k;
+    title.style.transform = `translateY(${(1 - outBack(clamp((t - tt[0]) / 0.6))) * 40}px)`;
+  } else title.style.opacity = 0;
+
+  // الشاشة
+  const sh = SHOTS.find(([a, b]) => t >= a && t < b);
+  const screen = $('#screen');
+  screen.style.opacity = sh ? 1 : 0;
+  const screenIn = sh ? outBack(clamp((t - SHOTS.filter((x) => x[0] <= t).reduce((m, x, i, arr) => (i > 0 && arr[i - 1][1] < x[0] ? x[0] : m), 0)) / 0.7)) : 0;
+  screen.style.transform = sh ? `scale(${0.92 + 0.08 * screenIn})` : 'scale(0.9)';
+  for (const [k, im] of Object.entries(imgs)) im.style.opacity = sh && sh[2] === k ? clamp((t - sh[0]) / 0.25 + (sh[0] < 0.1 ? 1 : 0)) : 0;
+  if (sh) $('#barTitle').textContent = sh[3];
+
+  // الكاميرا: من عرض كامل للتأشيرة بنعومة
+  const f = FOCUS.find(([a, b, s]) => t >= a && t < b && sh && s === sh[2]);
+  const prevF = FOCUS.filter(([a, b, s]) => b <= t && sh && s === sh[2] && b > sh[0]).pop();
+  // عرض كامل: الشاشة مالية الارتفاع ولازقة يمين (القائمة الجانبية والمحتوى العربي)
+  const fs = VIEW_H / 900;
+  const full = { s: fs, x: VIEW_W - 1440 * fs, y: 0 };
+  let cam = full;
+  if (f) {
+    const from = prevF && prevF[1] >= f[0] - 0.05 ? camFor(prevF[2], prevF[3], prevF[5]) : full;
+    const to = camFor(f[2], f[3], f[5]);
+    const k = ease((t - f[0]) / 0.9);
+    cam = { s: from.s + (to.s - from.s) * k, x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k };
+  } else if (prevF && sh && t - prevF[1] < 0.9) {
+    const from = camFor(prevF[2], prevF[3], prevF[5]);
+    const k = ease((t - prevF[1]) / 0.9);
+    cam = { s: from.s + (full.s - from.s) * k, x: from.x + (full.x - from.x) * k, y: from.y + (full.y - from.y) * k };
+  }
+  // حركة خفيفة دايمة
+  const drift = 1 + Math.sin(t * 0.6) * 0.006;
+  $('#cam').style.transform = `translate(${cam.x}px, ${cam.y}px) scale(${cam.s * drift})`;
+
+  // الحلقة والمؤشر
+  const ring = $('#ring'), cur = $('#cursor'), rip = $('#ripple');
+  if (f && BOXES[f[2]]?.[f[3]]) {
+    const b = BOXES[f[2]][f[3]];
+    const k = clamp((t - f[0] - 0.5) / 0.35) * (1 - clamp((t - f[1] + 0.25) / 0.25));
+    const pad = 10;
+    Object.assign(ring.style, { left: b[0] - pad + 'px', top: b[1] - pad + 'px', width: b[2] + pad * 2 + 'px', height: b[3] + pad * 2 + 'px', opacity: k, borderWidth: 6 / (cam.s * 1.4) + 'px' });
+    const cx = b[0] + b[2] * 0.55, cy = b[1] + b[3] * 0.6;
+    const kk = ease((t - f[0] - 0.2) / 0.7);
+    const sx = cx + 260 * (1 - kk), sy = cy + 200 * (1 - kk);
+    Object.assign(cur.style, { left: sx + 'px', top: sy + 'px', opacity: k, transform: `scale(${1 / (cam.s * 1.3)})`, transformOrigin: '0 0' });
+    if (f[4]) {
+      const r = (t - f[0] - 1.05) / 0.55;
+      Object.assign(rip.style, { left: cx + 'px', top: cy + 'px', opacity: r > 0 && r < 1 ? 1 - r : 0, transform: `scale(${1 + r * 2.6})` });
+    } else rip.style.opacity = 0;
+  } else { ring.style.opacity = 0; cur.style.opacity = 0; rip.style.opacity = 0; }
+
+  // بطاقات «شو بيصير»
+  const what = [...document.querySelectorAll('#what .card')];
+  const wt = [24.4, 28.5, 32.6];
+  what.forEach((c, i) => {
+    const k = t >= 22.7 && t < 36.9 ? clamp((t - wt[i]) / 0.5) * (1 - clamp((t - 36.6) / 0.3)) : 0;
+    c.style.opacity = k;
+    c.style.transform = `translateX(${(1 - outBack(clamp((t - wt[i]) / 0.6))) * -120}px) scale(${t >= wt[i] && t < wt[i] + 4 ? 1.02 : 1})`;
+  });
+
+  // «شو بيضل»
+  const keep = [...document.querySelectorAll('#keep span')];
+  const kt = [38.6, 40.3, 42.3];
+  keep.forEach((c, i) => {
+    const k = t >= 36.9 && t < 48.5 ? clamp((t - kt[i]) / 0.4) * (1 - clamp((t - 48.2) / 0.3)) : 0;
+    c.style.opacity = k;
+    c.style.transform = `scale(${0.7 + 0.3 * outBack(clamp((t - kt[i]) / 0.5))})`;
+  });
+
+  // التحذير
+  const warn = $('#warn');
+  const wk = t >= 55.0 && t < 59.5 ? clamp((t - 55.1) / 0.5) * (1 - clamp((t - 59.2) / 0.3)) : 0;
+  warn.style.opacity = wk;
+  warn.style.transform = `scale(${0.85 + 0.15 * outBack(clamp((t - 55.1) / 0.7))}) rotate(${Math.sin(t * 18) * (t > 56.3 && t < 56.8 ? 1.2 : 0)}deg)`;
+  warn.querySelector('p').style.opacity = clamp((t - 57.4) / 0.4);
+  if (wk > 0) screen.style.opacity = 0;
+
+  // الترجمة
+  const c = CAPS.find(([a, b]) => t >= a - 0.1 && t < b + 0.25);
+  const cap = $('#cap div');
+  if (c && t < 63.4) {
+    if (lastCap !== c[2]) { cap.textContent = c[2]; lastCap = c[2]; }
+    cap.parentElement.style.opacity = clamp((t - c[0] + 0.1) / 0.2) * (1 - clamp((t - c[1]) / 0.25));
+  } else cap.parentElement.style.opacity = 0;
+
+  // الخاتمة
+  const end = $('#end');
+  const ek = clamp((t - 63.3) / 0.6);
+  end.style.opacity = ek;
+  end.querySelector('img').style.transform = `scale(${0.6 + 0.4 * outBack(clamp((t - 63.4) / 0.8))})`;
+  end.querySelector('.site').style.opacity = clamp((t - 64.6) / 0.5);
+  end.querySelector('.ph').style.opacity = clamp((t - 65.4) / 0.5);
+};
+Promise.all([document.fonts.ready, ...[...document.images].map((i) => (i.complete ? null : new Promise((r) => (i.onload = i.onerror = r))))]).then(() => {
+  window.render(0);
+  window.READY = true;
+});
+</script>
+</body>
+</html>
