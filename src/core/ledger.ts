@@ -734,6 +734,37 @@ export class Ledger {
     });
   }
 
+  /**
+   * صرف بين صندوقين بعملتين (ليرة ← دولار مثلاً): بيطلع `amount` من صندوق `from` بعملته وبيفوت `toAmount`
+   * على صندوق `to` بعملته. الفرق عن سعر الصرف المسجّل بيروح على «فروقات الصرف» (ربح أو خسارة).
+   */
+  exchangeBoxes(d: { date: string; from: string; to: string; fromCurrency: string; amount: number; toCurrency: string; toAmount: number; memo?: string }): JournalEntry {
+    for (const v of [d.amount, d.toAmount]) if (!(v > 0) || !Number.isSafeInteger(v)) fail('المبلغ يجب أن يكون أكبر من صفر');
+    if (d.fromCurrency === d.toCurrency) fail('اختار عملتين مختلفتين (للتحويل بنفس العملة استعمل «تحويل»)');
+    const from = this.state.accounts[d.from] ?? fail('الصندوق غير موجود');
+    const to = this.state.accounts[d.to] ?? fail('الصندوق غير موجود');
+    for (const a of [from, to]) if (a.isGroup || a.type !== 'asset') fail(`«${a.name}» مش صندوق`);
+    if (from.currency && from.currency !== d.fromCurrency) fail(`«${from.name}» بيقبل ${this.state.currencies[from.currency]?.nameAr ?? from.currency} بس`);
+    if (to.currency && to.currency !== d.toCurrency) fail(`«${to.name}» بيقبل ${this.state.currencies[to.currency]?.nameAr ?? to.currency} بس`);
+    const base = this.base;
+    const rateOf = (c: string) => (c === base.code ? 1 : (this.rateFor(c, d.date) ?? fail(`سجّل سعر ${this.state.currencies[c]?.nameAr ?? c} لهاليوم أول`)));
+    const toBase = (c: string, v: number) => (c === base.code ? v : convertMinor(v, this.state.currencies[c] ?? fail('عملة غير معروفة'), base, rateOf(c)));
+    const diff = toBase(d.toCurrency, d.toAmount) - toBase(d.fromCurrency, d.amount);
+    const line = (c: string) => (c === base.code ? {} : { currency: c, rate: rateOf(c) });
+    const name = (c: string) => this.state.currencies[c]?.nameAr ?? c;
+    return this.postEntry({
+      date: d.date,
+      memo: d.memo?.trim() || `صرف ${name(d.fromCurrency)} بـ${name(d.toCurrency)}: من ${from.name} إلى ${to.name}`,
+      lines: [
+        { accountId: d.to, debit: d.toAmount, ...line(d.toCurrency) },
+        { accountId: d.from, credit: d.amount, ...line(d.fromCurrency) },
+        ...(diff > 0 ? [{ accountId: SYSTEM_ACCOUNTS.fxGain, credit: diff }] : diff < 0 ? [{ accountId: SYSTEM_ACCOUNTS.fxLoss, debit: -diff }] : []),
+      ],
+      source: { type: 'boxtransfer', id: newId() },
+      createdBy: this.actor,
+    });
+  }
+
   /** المالك سحب مصاري من الصندوق لإلو (مسحوبات): بتطلع من الصندوق وبتنحسب على جاري المالك، ومش مصروف. */
   drawFromBox(d: { date: string; from: string; amount: number; memo?: string; currency?: string }): JournalEntry {
     if (!(d.amount > 0) || !Number.isSafeInteger(d.amount)) fail('المبلغ يجب أن يكون أكبر من صفر');

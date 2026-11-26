@@ -1,10 +1,10 @@
 // الصندوق: رصيد كل صندوق وبنك بعملته (من القيود نفسها، فمطابق للحسابات)، الداخل والخارج بالفترة،
 // وكل حركة بنوعها والرصيد بعدها. وزر «تصفير الصندوق»: كل اللي فيه بيروح لصندوق تاني أو بنك أو سحب للمالك.
 import { useMemo, useState } from 'react';
-import { cashBoxes, fullStatement, type Account } from '../../../core';
-import { dateText, major, money, parseAmount, toInput, today, useCompany } from '../api';
+import { cashBoxes, findRate, fullStatement, type Account } from '../../../core';
+import { dateText, major, money, parseAmount, rateToInput, toInput, today, useCompany } from '../api';
 import { DocHeader, ExportButtons, PrintButtons } from '../components/print';
-import { Empty, Field, Modal, PageHeader, Stat } from '../components/ui';
+import { askConfirm, Empty, Field, Modal, PageHeader, Stat } from '../components/ui';
 import { asPeriod, PeriodPicker, usePeriod } from '../components/PeriodPicker';
 import { Icon } from '../components/icons';
 import { entryTarget } from '../components/openEntry';
@@ -36,6 +36,7 @@ export function CashBox() {
   const [currency, setCurrency] = useState<string | undefined>(undefined);
   const [zeroing, setZeroing] = useState(false);
   const [filling, setFilling] = useState(false);
+  const [exchanging, setExchanging] = useState(false);
   const d = today();
   // ملخص كل الصناديق: الرصيد الآن والداخل والخارج اليوم، لكل عملة
   const summary = useMemo(
@@ -104,6 +105,11 @@ export function CashBox() {
                 <Icon name="wallet" size={16} /> تصفير السالب
               </button>
             )}
+            {can('cash.manage') && Object.keys(state.currencies).length > 1 && (
+              <button onClick={() => setExchanging(true)}>
+                <Icon name="transfer" size={16} /> صرف عملة
+              </button>
+            )}
             {can('cash.manage') && (
               <button className="primary" onClick={() => setZeroing(true)}>
                 <Icon name="transfer" size={16} /> تصفير الصندوق / تحويل
@@ -158,6 +164,7 @@ export function CashBox() {
             )}
           </div>
           {filling && <FillBox box={box} negatives={negatives} onClose={() => setFilling(false)} />}
+          {exchanging && <ExchangeBox box={box} boxes={boxes} onClose={() => setExchanging(false)} />}
           {zeroing && <ZeroBox box={box} balances={boxBalances(state, box.id)} boxes={boxes} onClose={() => setZeroing(false)} />}
         </>
       )}
@@ -198,6 +205,126 @@ function CashTable({ rows, opening, m, mc }: { rows: ReturnType<typeof fullState
         ))}
       </tbody>
     </table>
+  );
+}
+
+/**
+ * صرف عملة بين صندوقين: ليرات من صندوق الليرة ← دولارات بصندوق الدولار (أو العكس).
+ * المبلغ الداخل بيتحسب لحالو من سعر اليوم، وفيك تعدّله إذا صرفت بسعر تاني (الفرق بيروح على فروقات الصرف).
+ */
+function ExchangeBox({ box, boxes, onClose }: { box: Account; boxes: Account[]; onClose: () => void }) {
+  const { state, call, notify } = useCompany();
+  const base = state.info!.baseCurrency;
+  const curs = Object.keys(state.currencies);
+  const bal = boxBalances(state, box.id);
+  const [fromCur, setFromCur] = useState(box.currency ?? (Object.entries(bal).find(([, v]) => v > 0)?.[0] ?? base));
+  const others = boxes.filter((b) => b.id !== box.id);
+  const firstTo = others.find((b) => b.currency && b.currency !== fromCur) ?? others[0] ?? box;
+  const [to, setTo] = useState(firstTo.id);
+  const toBox = state.accounts[to];
+  const [toCurState, setToCur] = useState(firstTo.currency ?? curs.find((c) => c !== fromCur) ?? base);
+  const toCur = toBox?.currency ?? toCurState;
+  const [amountText, setAmountText] = useState('');
+  const [toText, setToText] = useState<string | null>(null); // null = محسوب من السعر
+  const [date, setDate] = useState(today());
+  const dec = (c: string) => state.currencies[c]?.decimals ?? 2;
+  const rate = (c: string) => (c === base ? 1 : findRate(state, c, date));
+  const amount = (() => {
+    try {
+      return parseAmount(state, amountText, fromCur);
+    } catch {
+      return 0;
+    }
+  })();
+  const rf = rate(fromCur);
+  const rt = rate(toCur);
+  const auto = rf && rt && amount > 0 ? Math.round(((amount / 10 ** dec(fromCur)) * rf * 10 ** dec(toCur)) / rt) : 0;
+  const toAmount = (() => {
+    if (toText === null) return auto;
+    try {
+      return parseAmount(state, toText, toCur);
+    } catch {
+      return 0;
+    }
+  })();
+  const have = bal[fromCur] ?? 0;
+  const name = (c: string) => state.currencies[c]?.nameAr ?? c;
+  const save = async () => {
+    if (fromCur === toCur) return notify('اختار عملتين مختلفتين', 'error');
+    if (!rf || !rt) return notify(`سجّل سعر ${name(fromCur === base ? toCur : fromCur)} لهاليوم أول (الإعدادات ← العملات أو الرئيسية)`, 'error');
+    if (!(amount > 0) || !(toAmount > 0)) return notify('اكتب المبلغ', 'error');
+    if (amount > have && !(await askConfirm(`بـ«${box.name}» ${money(state, Math.max(0, have), fromCur)} بس. الصندوق رح يصير بالسالب. كمّل؟`))) return;
+    if (await call('exchangeBoxes', { date, from: box.id, to, fromCurrency: fromCur, amount, toCurrency: toCur, toAmount })) {
+      notify(`تم الصرف: طلع ${money(state, amount, fromCur)} وفات ${money(state, toAmount, toCur)} على ${toBox?.name ?? ''}`);
+      onClose();
+    }
+  };
+  // السعر الفعلي للعملية (كم ليرة بالدولار)، حتى يشوف إذا مطابق لسعر اليوم
+  const foreign = fromCur === base ? toCur : fromCur;
+  const effective = amount > 0 && toAmount > 0 && (fromCur === base || toCur === base)
+    ? (fromCur === base ? amount / 10 ** dec(fromCur) / (toAmount / 10 ** dec(toCur)) : toAmount / 10 ** dec(toCur) / (amount / 10 ** dec(fromCur)))
+    : null;
+  return (
+    <Modal title={`صرف عملة من ${box.name}`} onClose={onClose} width={500}>
+      <div className="form-grid">
+        {!box.currency && (
+          <Field label="العملة اللي طالعة">
+            <select value={fromCur} onChange={(e) => (setFromCur(e.target.value), setToText(null))}>
+              {curs.map((c) => (
+                <option key={c} value={c}>
+                  {name(c)}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+        <Field label={`المبلغ اللي طالع (${state.currencies[fromCur]?.symbol ?? fromCur})`}>
+          <input value={amountText} onChange={(e) => (setAmountText(e.target.value), setToText(null))} inputMode="decimal" autoFocus />
+        </Field>
+        <p className="wide muted">بالصندوق هلق: {money(state, have, fromCur)}</p>
+        <Field label="لأي صندوق">
+          <select value={to} onChange={(e) => (setTo(e.target.value), setToText(null))}>
+            {others.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+        {!toBox?.currency && (
+          <Field label="العملة اللي داخلة">
+            <select value={toCur} onChange={(e) => (setToCur(e.target.value), setToText(null))}>
+              {curs.filter((c) => c !== fromCur).map((c) => (
+                <option key={c} value={c}>
+                  {name(c)}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+        <Field label={`المبلغ اللي داخل (${state.currencies[toCur]?.symbol ?? toCur})`}>
+          <input value={toText ?? (auto ? toInput(state, auto, toCur) : '')} onChange={(e) => setToText(e.target.value)} inputMode="decimal" />
+        </Field>
+        <Field label="التاريخ">
+          <input type="date" value={date} onChange={(e) => (setDate(e.target.value), setToText(null))} />
+        </Field>
+        {fromCur === toCur ? (
+          <p className="wide bad">نفس العملة: استعمل «تصفير الصندوق / تحويل».</p>
+        ) : !rf || !rt ? (
+          <p className="wide bad">ما في سعر {name(foreign)} مسجّل لهاليوم. سجّله أول.</p>
+        ) : (
+          <p className="wide muted">
+            سعر اليوم: {foreign !== base ? `1 ${name(foreign)} = ${rateToInput(state, foreign, rate(foreign) ?? 0).toLocaleString('en')} ${state.currencies[base]?.symbol ?? base}` : ''}
+            {effective !== null && Math.abs(effective - (rate(foreign) ?? 0)) > 1e-9 && <> — سعر هالصرف {rateToInput(state, foreign, effective).toLocaleString('en', { maximumFractionDigits: 4 })} (الفرق بيروح على فروقات الصرف)</>}
+          </p>
+        )}
+        <div className="form-actions wide">
+          <button className="primary big" disabled={!(amount > 0) || !(toAmount > 0) || fromCur === toCur} onClick={() => void save()}>
+            صرف
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 

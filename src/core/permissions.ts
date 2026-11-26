@@ -116,6 +116,7 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
   transferBox: (args) => ((args[0] as { from?: string } | undefined)?.from === '11019' ? 'vouchers.create' : 'cash.manage'),
   drawFromBox: 'cash.manage',
   fillBox: 'cash.manage',
+  exchangeBoxes: 'cash.manage',
   recalcCommissions: 'vouchers.create',
   writeOffMarketerOver: 'vouchers.create',
   undoMarketerWriteOff: 'vouchers.create',
