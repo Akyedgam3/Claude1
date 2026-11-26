@@ -218,6 +218,46 @@ export function App() {
   const [searching, setSearching] = useState(false);
   // الموبايل: القائمة الجانبية درج بينفتح من زر ☰
   const [navOpen, setNavOpen] = useState(false);
+  // زر الرجوع بالجوال (زر أندرويد وسحبة الآيفون): بيرجع خطوة وحدة لورا، مش للرئيسية ولا بيطلع من التطبيق.
+  // منحط خطوة «حارسة» بسجل المتصفح، وكل رجوع منمسكه: بيسكّر النافذة المفتوحة، أو القائمة، أو بيرجع للشاشة اللي قبل.
+  // بالرئيسية وما في شي ورا: رجوع كمان مرة بيطلع من التطبيق.
+  const navOpenRef = useRef(navOpen);
+  navOpenRef.current = navOpen;
+  const hasCompany = !!ctx;
+  const guarded = useRef(false);
+  useEffect(() => {
+    if (!IS_MOBILE || !hasCompany) return;
+    const guard = () => {
+      history.pushState({ wazn: 1 }, '');
+      guarded.current = true;
+    };
+    guard();
+    const onPop = () => {
+      if (document.querySelector('.modal-backdrop')) {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        return guard();
+      }
+      if (navOpenRef.current) {
+        setNavOpen(false);
+        return guard();
+      }
+      if (trail.current.length || screenRef.current.key !== 'dashboard') {
+        back();
+        return guard();
+      }
+      guarded.current = false;
+      notify('اكبس رجوع كمان مرة للخروج');
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [hasCompany, back, notify]);
+  // بعد «اكبس كمان مرة للخروج» إذا فتح شاشة تانية: منرجّع الخطوة الحارسة
+  useEffect(() => {
+    if (IS_MOBILE && hasCompany && !guarded.current) {
+      history.pushState({ wazn: 1 }, '');
+      guarded.current = true;
+    }
+  }, [screen, hasCompany]);
   // الوضع الداكن: تفضيل لكل جهاز
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     try {
