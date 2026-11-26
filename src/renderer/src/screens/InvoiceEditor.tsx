@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { confirmCashOut } from '../components/cashGuard';
 import { autoSendInvoice } from '../components/whatsapp';
 import { invoiceText } from './InvoiceView';
 import { isMarketer, marketerTerms, attributesFor, ATTRIBUTE_SUGGESTIONS, isCashBox, computeTaxes, PRICE_TIER_NAMES, tierPrice, COST_LIST, FREE_LIST, isBuiltinList, partyPriceList, priceListPrice, type PriceTier, niceUnitCost, PRICE_SCALE, roundPrice, findRate, itemPlace, listPrices, withPlace, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
-import { convertPrice, dateText, fxRates, money, cleanNumber, qtyTotalText, qtyText, parseAmount, parseDiscount, parsePrice, rateInverted, rateToInput, inputToRate, toInput, today, uid, useCompany } from '../api';
+import { discountProblem, convertPrice, dateText, fxRates, money, cleanNumber, qtyTotalText, qtyText, parseAmount, parseDiscount, parsePrice, rateInverted, rateToInput, inputToRate, toInput, today, uid, useCompany } from '../api';
 import { askConfirm, CurrencySelect, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
 import { invoiceDrafts } from '../drafts';
 import { ItemForm } from './Items';
@@ -510,16 +511,18 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
   // نحفظ الفاتورة المفتوحة مع كل تعديل (لتضل موجودة إذا راح على شاشة تانية)، والفاضية ما منحفظها
   const savedRef = useRef(false);
   useEffect(() => {
-    if (editing) return;
+    if (editId || editing) return;
     window.dispatchEvent(new CustomEvent('wazn:draft', { detail: draftId }));
     return () => void window.dispatchEvent(new CustomEvent('wazn:draft', { detail: null }));
-  }, [editing, draftId]);
+  }, [editId, editing, draftId]);
   useEffect(() => {
-    if (editing || savedRef.current) return;
+    // شاشة تعديل فاتورة ما بتحفظ «فاتورة مفتوحة» أبداً: بعد الحفظ الفاتورة القديمة بتنلغى فـediting بيصير
+    // فاضي للحظة، وكانت تنحفظ كمسودة وتطلع بـ«+ جديدة» (تقرير التجربة B2)
+    if (editId || editing || savedRef.current) return;
     if (!used.length && !partyId && !notes.trim()) return invoiceDrafts.remove(company, draftId);
     const data: DraftData = { partyId, date, currency, rateText, warehouseId, lines, discount, taxIds, paidText, payMode, cashAccountId, salesman, vatNumber, marketerId, notes, priceList: listKey, extras: extraRows };
     invoiceDrafts.save(company, { id: draftId, kind, title: (partyId && state.parties[partyId]?.name) || (isSale ? 'زبون نقدي' : 'مورد نقدي'), count: used.length, updated: Date.now(), data });
-  }, [editing, company, draftId, kind, isSale, state.parties, used, partyId, date, currency, rateText, warehouseId, lines, discount, taxIds, paidText, payMode, cashAccountId, salesman, vatNumber, marketerId, notes, listKey, extraRows]);
+  }, [editId, editing, company, draftId, kind, isSale, state.parties, used, partyId, date, currency, rateText, warehouseId, lines, discount, taxIds, paidText, payMode, cashAccountId, salesman, vatNumber, marketerId, notes, listKey, extraRows]);
   const preview = useMemo(() => {
     try {
       const amounts = used.map((l) => {
@@ -529,7 +532,8 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
       const subtotal = amounts.reduce((s, a) => s + a, 0);
       const disc = parseDiscount(state, discount, currency, subtotal);
       const t = computeTaxes(subtotal - disc, taxIds.map((id) => ({ ...state.taxes[id]!, active: true })));
-      return { amounts, subtotal, disc, taxes: t.taxes, total: t.total, error: null as string | null };
+      const discErr = isSale ? discountProblem(state, discount, currency, subtotal, user.role === 'owner') : null;
+      return { amounts, subtotal, disc, taxes: t.taxes, total: t.total, error: discErr as string | null };
     } catch (e) {
       return { amounts: [] as number[], subtotal: 0, disc: 0, taxes: [], total: 0, error: (e as Error).message };
     }
@@ -609,6 +613,8 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
       if (extraCosts.some((x) => x.pay === 'supplier') && !partyId) return notify('التكلفة الإضافية «على حساب المورد»: اختار المورد بالفاتورة', 'error');
       if (extraCosts.some((x) => x.pay === 'party' && !x.partyId)) return notify('اختار الجهة اللي إلها التكلفة الإضافية (شركة الشحن أو المخلّص)', 'error');
     }
+    // فاتورة شراء مدفوعة من الصندوق: إذا الصندوق ما فيه كفاية منسأل قبل ما يصير بالسالب
+    if ((kind === 'purchase' || kind === 'sale_return') && !editing && !(await confirmCashOut(state, cashId, currency, paid + Math.max(0, extra)))) return;
     if (extra > 0 && !(await askConfirm(`المدفوع أكتر من الفاتورة بـ ${money(state, extra, currency)}. بتنسجّل الزيادة ${isSale ? 'مقبوضة من' : 'مدفوعة لـ'} ${state.parties[partyId!]?.name ?? ''} على حسابه الجاري؟`))) return;
     savingRef.current = true;
     setSaving(true);

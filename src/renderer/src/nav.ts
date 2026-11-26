@@ -58,7 +58,7 @@ export const NAV: (NavItem | string)[] = [
   { key: 'marketers', label: 'المسوّقين', icon: 'users', perm: 'reports.financial' },
   { key: 'vouchers', label: 'سندات القبض والدفع', icon: 'wallet', perm: 'vouchers.create' },
   { key: 'cashjournal', label: 'يومية الصندوق', icon: 'journal', perm: 'vouchers.create' },
-  { key: 'recurring', label: 'المصاريف الثابتة', icon: 'calendar', perms: ['vouchers.create', 'accounts.manage'] },
+  { key: 'recurring', label: 'المصاريف الثابتة', icon: 'calendar', perm: 'accounts.manage' },
   { key: 'invoices', label: 'سجل الفواتير', icon: 'receipt' },
   'المخزون والبطاقات',
   { key: 'items', label: 'المواد', icon: 'package' },

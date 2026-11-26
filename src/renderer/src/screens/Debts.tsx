@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { confirmCashOut } from '../components/cashGuard';
 import { sendWhatsApp } from '../components/whatsapp';
 import { INVOICE_KIND_NAMES, partyBalance, partyDebts, type CompanyState, type DebtItem, type Invoice, type JournalEntry, type Party, type PartyDebts } from '../../../core';
 import { addDays, dateText, major, money, parseAmount, today, toInput, uid, useCompany } from '../api';
@@ -687,6 +688,7 @@ export function PayForm({ party, direction, onClose }: { party: Party; direction
 
   const save = async () => {
     if (minor <= 0) return notify('أدخل المبلغ', 'error');
+    if (direction === 'out' && !(await confirmCashOut(state, cashId, currency, minor))) return;
     setBusy(true);
     try {
       const res = await call('settleDebt', { direction, partyId: party.id, date, amount: minor, currency, ...(cashId ? { cashAccountId: cashId } : {}), ...(memo.trim() ? { memo: memo.trim() } : {}) });

@@ -449,6 +449,30 @@ export function parseDiscount(state: CompanyState, text: string, currency: strin
   return Math.min(max, Math.round(n * 10 ** (state.currencies[currency]?.decimals ?? 2)));
 }
 
+/**
+ * مشكلة بخانة الخصم (تقرير التجربة B3): خصم أكبر من المجموع كان ينقص لحالو للمجموع فتطلع الفاتورة ببلاش
+ * بدون ما حدا ينتبه. هلق: رسالة واضحة، وحد أعلى للموظفين من الإعدادات.
+ */
+export function discountProblem(state: CompanyState, text: string, currency: string, of: number, owner: boolean): string | null {
+  const t = cleanNumber(text ?? '');
+  if (!t || of <= 0) return null;
+  const pct = /^(\d+(?:\.\d+)?)%$|^%(\d+(?:\.\d+)?)$/.exec(t);
+  let raw: number;
+  if (pct) {
+    const p = Number(pct[1] ?? pct[2]);
+    if (p > 100) return 'الخصم أكبر من 100%';
+    raw = Math.round((of * p) / 100);
+  } else {
+    const n = Number(t);
+    if (!Number.isFinite(n) || n < 0) return 'اكتب الخصم رقم (50) أو نسبة (10%)';
+    raw = Math.round(n * 10 ** (state.currencies[currency]?.decimals ?? 2));
+  }
+  if (raw > of) return 'الخصم أكبر من المجموع';
+  const max = state.info?.maxDiscountPct;
+  if (!owner && max && raw > Math.round((of * max) / 100)) return `أكبر خصم مسموح ${max}% (اسأل المالك)`;
+  return null;
+}
+
 export function qtyText(q: number): string {
   return Number.isInteger(q) ? String(q) : q.toFixed(3).replace(/0+$/, '');
 }

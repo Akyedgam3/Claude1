@@ -12,6 +12,7 @@ export const PERMISSIONS = {
   'invoices.all': 'رؤية فواتير باقي المستخدمين',
   'purchases.create': 'فواتير الشراء',
   'vouchers.create': 'سندات القبض والدفع',
+  'cash.manage': 'إدارة الصناديق (تحويل بينها، سحب المالك، تصفير السالب، رؤية كل الصناديق والبنك)',
   'vouchers.void': 'إلغاء السندات',
   'journal.create': 'القيود اليدوية',
   'items.manage': 'إدارة المواد والأسعار',
@@ -70,7 +71,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   accountant: [
     'sales.create', 'sales.void', 'returns.create', 'discount.give', 'price.edit', 'sales.credit', 'invoices.all', 'purchases.create', 'purchases.view', 'profits.view', 'stock.qty', 'balances.view', 'vouchers.create', 'vouchers.void',
     'journal.create', 'costs.view', 'parties.manage', 'reports.financial', 'reports.stock', 'accounts.manage', 'rates.manage',
-    'stock.adjust', 'backup.manage',
+    'stock.adjust', 'backup.manage', 'cash.manage',
   ],
   cashier: ['stock.qty', 'balances.view', 'sales.create', 'price.edit', 'sales.credit', 'invoices.all', 'returns.create', 'pos.use', 'restaurant.use', 'appointments.manage', 'tailoring.manage', 'printjobs.manage', 'dealers.manage', 'bookings.manage', 'solar.manage', 'netsubs.manage', 'fx.manage', 'vouchers.create', 'parties.manage'],
   storekeeper: ['stock.qty', 'purchases.view', 'invoices.all', 'items.manage', 'stock.adjust', 'stock.transfer', 'production.manage', 'purchases.create', 'reports.stock'],
@@ -86,6 +87,8 @@ export function permissionsOf(user: User): Set<Permission> {
   const denied = new Set(user.denied ?? []);
   if (set.has('costs.view') && !denied.has('profits.view')) set.add('profits.view');
   if (set.has('purchases.create') && !denied.has('purchases.view')) set.add('purchases.view');
+  // «إدارة الصناديق» انفصلت عن السندات (2.0.12): اللي معه دليل الحسابات بياخدها لحالو
+  if (set.has('accounts.manage') && !denied.has('cash.manage')) set.add('cash.manage');
   if (user.role !== 'owner') for (const p of denied) set.delete(p as Permission);
   return set;
 }
@@ -109,9 +112,10 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
   saveAccount: 'accounts.manage',
   setupDealerBox: 'accounts.manage',
   removeDealerBox: 'accounts.manage',
-  transferBox: 'vouchers.create',
-  drawFromBox: 'vouchers.create',
-  fillBox: 'vouchers.create',
+  // تسديد صندوق المورّد (الصيدلية) للصندوق المشترك بيضل بصلاحية السندات؛ باقي التحويلات «إدارة الصناديق»
+  transferBox: (args) => ((args[0] as { from?: string } | undefined)?.from === '11019' ? 'vouchers.create' : 'cash.manage'),
+  drawFromBox: 'cash.manage',
+  fillBox: 'cash.manage',
   recalcCommissions: 'vouchers.create',
   writeOffMarketerOver: 'vouchers.create',
   undoMarketerWriteOff: 'vouchers.create',

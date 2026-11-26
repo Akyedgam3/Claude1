@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { autoSendInvoice } from '../components/whatsapp';
 import { invoiceText } from './InvoiceView';
 import { itemTitle, partyBalance, resolveScan, type Invoice, type Item } from '../../../core';
-import { convertPrice, fxRates, money, cleanNumber, parseAmount, parseDiscount, parsePrice, qtyText, shownCurrencies, today, toInput, uid, useCompany } from '../api';
+import { discountProblem, convertPrice, fxRates, money, cleanNumber, parseAmount, parseDiscount, parsePrice, qtyText, shownCurrencies, today, toInput, uid, useCompany } from '../api';
 import { usePrinter } from '../components/print';
 import { ItemName, matches, partyOptions, Picker, ScanInput } from '../components/ui';
 import { InvoiceDocument } from './InvoiceView';
@@ -181,6 +181,7 @@ export function Pos() {
   const mobileTab = useCartTab();
   const subtotal = cart.reduce((s, l) => s + Math.round(l.qty * l.price), 0);
   const disc = parseDiscount(state, discount, cur, subtotal);
+  const discountError = discountProblem(state, discount, cur, subtotal, user.role === 'owner');
   const taxes = Object.values(state.taxes).filter((t) => t.active && t.percent > 0);
   const net = subtotal - disc;
   const total = net + taxes.reduce((s, t) => s + Math.round((net * t.percent) / 100), 0);
@@ -213,6 +214,7 @@ export function Pos() {
 
   const pay = async (credit: boolean) => {
     if (!cart.length || busy) return;
+    if (discountError) return notify(discountError, 'error');
     if (credit && !partyId) return notify('اختر العميل للبيع بالدين', 'error');
     if (!credit && change < 0) return notify('المبلغ المستلم أقل من الإجمالي', 'error');
     setBusy(true);
@@ -549,7 +551,8 @@ export function Pos() {
           {can('discount.give') && (
             <>
               <span>خصم</span>
-              <input className="num-input" value={discount} onChange={(e) => setDiscount(e.target.value)} placeholder="مبلغ أو %" />
+              <input className={`num-input${discountError ? ' invalid' : ''}`} value={discount} onChange={(e) => setDiscount(e.target.value)} placeholder="مبلغ أو %" title={discountError ?? undefined} />
+              {discountError && <small className="bad pos-disc-error">{discountError}</small>}
             </>
           )}
           {taxes.map((t) => (

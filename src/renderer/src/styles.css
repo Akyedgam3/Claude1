@@ -5008,3 +5008,6 @@ body.mobile .pricing-big strong { font-size: 26px; }
 /* قياس الحجر بالفاتورة */
 .stone-measure .segmented { display: flex; flex-wrap: wrap; gap: 4px; }
 .stone-measure .stone-result { padding: 10px 14px; border-radius: 12px; background: var(--primary-soft); font-size: 1.1em; text-align: center; }
+/* خانة غلط (خصم أكبر من المجموع...) */
+input.invalid { border-color: var(--bad, #c0392b) !important; box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.15); }
+.pos-totals .pos-disc-error { grid-column: 1 / -1; font-weight: 700; }

@@ -23,8 +23,14 @@ function boxBalances(state: ReturnType<typeof useCompany>['state'], id: string, 
 const NO_CASH = 'ما في نقد بالصندوق';
 
 export function CashBox() {
-  const { state, can } = useCompany();
-  const boxes = useMemo(() => cashBoxes(state).filter((a) => !a.hidden || can('accounts.manage')), [state.accounts]);
+  const { state, can, user } = useCompany();
+  // بدون «إدارة الصناديق» (الكاشير): صندوقه بس (أو الصندوق الرئيسي)، بدون البنك وباقي الصناديق
+  const boxes = useMemo(() => {
+    const all = cashBoxes(state).filter((a) => !a.hidden || can('accounts.manage'));
+    if (can('cash.manage')) return all;
+    const own = user.cashAccountId ? all.find((a) => a.id === user.cashAccountId) : undefined;
+    return own ? [own] : all.filter((a) => a.id !== '1102');
+  }, [state.accounts, user.cashAccountId]);
   const [sel, setSel] = useState<string>(boxes[0]?.id ?? '');
   const [period, setPeriod] = usePeriod('today');
   const [currency, setCurrency] = useState<string | undefined>(undefined);
@@ -56,7 +62,8 @@ export function CashBox() {
   const st = useMemo(() => (box ? fullStatement(state, { kind: 'account', id: box.id }, p, { ...((currency ?? box.currency) ? { currency: currency ?? box.currency! } : {}), hideVoided: true }) : null), [state, box?.id, p.from, p.to, currency]);
   const cur = st?.currency ?? box?.currency ?? state.info!.baseCurrency;
   const m = (v: number) => money(state, v, cur);
-  const mc = (v: number) => (v < 0 ? NO_CASH : m(v));
+  // بالسالب منبيّن الرقم نفسه (أحمر) حتى المالك يعرف قديش ناقص، مش «ما في نقد» بس
+  const mc = (v: number) => (v < 0 ? `${m(v)} (بالسالب)` : m(v));
   const negatives = box ? Object.entries(boxBalances(state, box.id)).filter(([, v]) => v < 0) : [];
 
   if (!boxes.length) return <div className="page"><PageHeader title="الصندوق" /><Empty>ما في صناديق.</Empty></div>;
@@ -74,7 +81,7 @@ export function CashBox() {
               </span>
               {curs.map((c) => (
                 <span key={c} className="cash-line">
-                  <b className={(now[c] ?? 0) < 0 ? 'muted' : ''}>{(now[c] ?? 0) < 0 ? `${NO_CASH}${curs.length > 1 ? ` (${state.currencies[c]?.symbol ?? c})` : ''}` : money(state, now[c] ?? 0, c)}</b>
+                  <b className={(now[c] ?? 0) < 0 ? 'bad' : ''} title={(now[c] ?? 0) < 0 ? NO_CASH : undefined}>{money(state, now[c] ?? 0, c)}</b>
                   <small className="muted">
                     اليوم: <span className="good">+{money(state, inToday[c] ?? 0, c)}</span> <span className="bad">−{money(state, outToday[c] ?? 0, c)}</span>
                   </small>
@@ -88,12 +95,12 @@ export function CashBox() {
         <>
           <div className="toolbar cash-head">
             <h3>{box.name}</h3>
-            {can('vouchers.create') && negatives.length > 0 && (
+            {can('cash.manage') && negatives.length > 0 && (
               <button onClick={() => setFilling(true)}>
                 <Icon name="wallet" size={16} /> تصفير السالب
               </button>
             )}
-            {can('vouchers.create') && (
+            {can('cash.manage') && (
               <button className="primary" onClick={() => setZeroing(true)}>
                 <Icon name="transfer" size={16} /> تصفير الصندوق / تحويل
               </button>

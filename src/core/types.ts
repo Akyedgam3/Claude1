@@ -223,6 +223,8 @@ export interface CompanyInfo {
   autoRates?: boolean;
   lockedUntil?: string; // لا تُقبل أي حركة بتاريخ أقدم أو يساوي هذا التاريخ (فترة مقفلة)
   allowNegativeStock?: boolean;
+  /** أكبر خصم (%) على الفاتورة للموظفين (المالك بلا حد). فاضي = بلا حد */
+  maxDiscountPct?: number;
   /** عمولات المسوّقين القديمة انصحّحت لتصير من ربح الفاتورة (fixCommissionsOnce) */
   commissionsFromProfit?: boolean;
   /** عمولات «من الربح» انصحّحت لتلحق تصحيح التكاليف (syncCommissionsOnce) */

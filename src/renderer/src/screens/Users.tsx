@@ -12,7 +12,7 @@ const PERM_GROUPS: { title: string; perms: Permission[] }[] = [
   { title: 'البيع والفواتير', perms: ['sales.create', 'pos.use', 'price.edit', 'discount.give', 'sales.credit', 'returns.create', 'sales.void'] },
   { title: 'التقارير', perms: ['reports.financial', 'reports.stock'] },
   { title: 'المواد والمخزون', perms: ['items.manage', 'purchases.create', 'stock.adjust', 'stock.transfer', 'production.manage'] },
-  { title: 'المال والحسابات', perms: ['vouchers.create', 'vouchers.void', 'parties.manage', 'journal.create', 'accounts.manage', 'rates.manage'] },
+  { title: 'المال والحسابات', perms: ['vouchers.create', 'vouchers.void', 'cash.manage', 'parties.manage', 'journal.create', 'accounts.manage', 'rates.manage'] },
   { title: 'الإدارة', perms: ['settings.manage', 'users.manage', 'backup.manage', 'period.close', 'partners.manage', 'employees.manage'] },
 ];
 const GROUPED = new Set(PERM_GROUPS.flatMap((g) => g.perms));

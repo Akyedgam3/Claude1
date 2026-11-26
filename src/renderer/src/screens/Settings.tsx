@@ -743,6 +743,22 @@ function TaxesTab() {
           <input type="checkbox" checked={!!info.allowNegativeStock} onChange={async (e) => (await call('updateCompany', { allowNegativeStock: e.target.checked })) && notify('تم الحفظ')} />
           السماح بالبيع بدون رصيد كافٍ (رصيد سالب)
         </label>
+      </section>
+      <section className="card">
+        <h3>الخصم</h3>
+        <Field label="أكبر خصم مسموح للموظفين على الفاتورة % (فاضي = بلا حد، المالك دايماً بلا حد)">
+          <input
+            inputMode="decimal"
+            placeholder="مثلاً 20"
+            defaultValue={info.maxDiscountPct ?? ''}
+            onBlur={async (e) => {
+              const n = Number(e.target.value.trim());
+              const v = e.target.value.trim() && Number.isFinite(n) && n > 0 && n <= 100 ? n : undefined;
+              if (v === info.maxDiscountPct) return;
+              if (await call('updateCompany', { maxDiscountPct: v ?? 0 })) notify(v ? `صار أكبر خصم للموظفين ${v}%` : 'الخصم بلا حد');
+            }}
+          />
+        </Field>
         {feature('scale') && (
           <form
             className="form-grid four"

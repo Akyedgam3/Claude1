@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { confirmCashOut } from '../components/cashGuard';
 import { amountInWords, displayDecimals, type JournalEntry } from '../../../core';
 import { dateText, inputToRate, major, money, parseAmount, toInput, today, useCompany } from '../api';
 import { DocHeader, ExportButtons, PrintButtons } from '../components/print';
@@ -86,6 +87,7 @@ export function Vouchers({ initialKind, editId }: { initialKind?: 'receipt' | 'p
       cashAccountId: cashId,
       memo: memo.trim() || (kind === 'receipt' ? 'قبض' : 'دفع'),
     };
+    if (kind === 'payment' && !editing && !(await confirmCashOut(state, cashId, currency, minor))) return;
     const res = editing ? await call<JournalEntry>('editVoucher', editing.id, draft) : await call<JournalEntry>('postVoucher', draft);
     if (res) {
       notify(editing ? 'تم تعديل السند' : 'تم حفظ السند');

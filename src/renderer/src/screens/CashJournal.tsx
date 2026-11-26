@@ -1,5 +1,6 @@
 // «يومية الصندوق»: كذا قبض ودفع على صندوق واحد بشاشة وحدة، وكبسة وحدة بتسجّلهن كلهن (F9).
 // كل سطر بيصير سند قبض أو دفع عادي: بيطلع بالسندات وبكشف حساب صاحبه وبالصندوق.
+import { confirmCashOut } from '../components/cashGuard';
 import { useEffect, useMemo, useState } from 'react';
 import { isCashBox, type CompanyState } from '../../../core';
 import { fxRates, money, parseAmount, today, uid, useCompany } from '../api';
@@ -96,6 +97,9 @@ export function CashJournal() {
         memo: r.memo.trim() || `يومية الصندوق — ${name ?? ''}`,
       });
     }
+    // صافي اللي طالع من الصندوق بهالعملة (المقبوض بيغطي المدفوع)
+    const out = list.reduce((s, v) => s + (v.kind === 'payment' ? v.amount : -v.amount), 0);
+    if (out > 0 && !(await confirmCashOut(state, box.id, currency, out))) return;
     setSaving(true);
     try {
       const res = await call('postVouchers', list);
