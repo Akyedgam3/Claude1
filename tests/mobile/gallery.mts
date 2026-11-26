@@ -1,0 +1,71 @@
+// صور الجوال لمعرض «100 صورة عن وزن»: npx tsx tests/mobile/gallery.mts <OUT> (www على 8790)
+import { chromium } from '@playwright/test';
+import fs from 'node:fs';
+import path from 'node:path';
+import { issueLicense } from '../../src/license/license';
+const devKey = fs.readFileSync('dev-keys/license-private.dev.pem', 'utf8');
+const OUT = process.argv[2]!;
+const capFile = path.join(OUT, 'captions.json');
+const captions = JSON.parse(fs.readFileSync(capFile, 'utf8'));
+let n = 200; // أرقام الجوال بعد الكمبيوتر
+const b = await chromium.launch();
+const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+const p = await ctx.newPage();
+await p.addInitScript(() => localStorage.setItem('mizan.tour.off', '1'));
+await p.goto('http://127.0.0.1:8790/index.html');
+await p.getByText('بصمة الجهاز', { exact: true }).waitFor({ timeout: 20000 });
+const machineId = (await p.locator('.big-code').first().innerText()).trim();
+await p.locator('textarea').first().fill(issueLicense({ customer: 'تجربة', machineId, plan: 'annual' }, devKey));
+await p.getByRole('button', { name: 'تفعيل', exact: true }).click();
+await p.getByText('شركة جديدة').first().click();
+await p.waitForTimeout(600);
+const shot = async (title: string, desc: string) => {
+  await p.waitForTimeout(700);
+  const id = String(++n);
+  await p.screenshot({ path: path.join(OUT, 'raw', `${id}.png`) });
+  captions[id] = { title, desc, act: 'جوال', mobile: true };
+  fs.writeFileSync(capFile, JSON.stringify(captions, null, 1));
+  console.log('SHOT', id, title);
+};
+const go = async (label: string) => {
+  if (await p.locator('.mobile-bar .menu').isVisible()) await p.locator('.mobile-bar .menu').click();
+  await p.locator('.sidebar nav button', { hasText: label }).first().click();
+};
+const tryShot = async (fn: () => Promise<unknown>, title: string, desc: string) => {
+  try { await p.keyboard.press('Escape').catch(() => 0); await fn(); await shot(title, desc); } catch (e) { console.log('SKIP', title, String(e).slice(0, 120)); }
+};
+await p.locator('.act-choose').click();
+await p.waitForTimeout(500);
+await shot('اختار نوع شغلك', 'أكتر من 55 نوع محل، وكل نوع بيجهّزلك البرنامج على قده من أول دقيقة.');
+await p.locator('.act-search input').fill('سوبرماركت');
+await p.locator('.act-card').first().click();
+await p.locator('.act-modal-foot .primary').click();
+await p.locator('.field', { hasText: 'اسم الشركة' }).locator('input').fill('ماركت الموبايل');
+await p.getByRole('button', { name: 'التالي' }).click();
+await p.locator('.field', { hasText: 'اسمك' }).locator('input').fill('المالك');
+await p.locator('.field', { hasText: 'كلمة السر (6' }).locator('input').fill('secret123');
+await p.locator('.field', { hasText: 'تأكيد كلمة السر' }).locator('input').fill('secret123');
+await p.locator('.demo-check input').check();
+await p.getByRole('button', { name: 'إنشاء الشركة' }).click();
+await p.getByRole('button', { name: 'حفظته، تابع' }).click();
+await p.waitForTimeout(1500);
+await shot('وزن عالجوال', 'نفس البرنامج كامل على جوال أندرويد أو آيفون، ويشتغل بدون إنترنت.');
+await tryShot(async () => { await p.locator('.bottom-nav button', { hasText: 'المزيد' }).click(); }, 'كل الأقسام بإيدك', 'كل أقسام البرنامج بقائمة مرتّبة على الجوال.');
+await tryShot(async () => { await p.locator('.nav-backdrop').click({ position: { x: 10, y: 300 } }); await p.locator('.bottom-nav button', { hasText: 'البيع' }).click(); await p.locator('.pos-item').first().click(); await p.locator('.pos-item').nth(1).click(); await p.locator('.pos-item').nth(2).click(); }, 'الكاشير عالجوال', 'بيع بكبسة أو بكاميرا الجوال كقارئ باركود.');
+await tryShot(async () => { await p.locator('.m-cart-bar').click(); }, 'السلة والدفع', 'السلة واضحة والباقي للزبون بيتحسب لحالو.');
+await tryShot(async () => { await p.getByRole('button', { name: 'دفع نقداً' }).click(); await p.waitForTimeout(800); await go('سجل الفواتير'); }, 'الفواتير عالجوال', 'كل فاتورة ببطاقة واضحة: المبلغ والمدفوع والحالة.');
+await tryShot(async () => { await p.locator('table.table tbody tr').first().click(); }, 'الفاتورة عالجوال', 'افتح الفاتورة وابعتها PDF أو عالواتساب للزبون فوراً.');
+await tryShot(() => go('فاتورة مبيع'), 'فاتورة مبيع من الجوال', 'فاتورة كاملة بالوحدات والخصم ونقدي أو دين.');
+await tryShot(() => go('الديون'), 'الديون عالجوال', 'مين إلك عليه ومين عليك، وتذكير بالواتساب بكبسة.');
+await tryShot(() => go('المواد'), 'المواد عالجوال', 'الأسعار والكميات والنواقص بجيبتك وين ما كنت.');
+await tryShot(() => go('الصندوق'), 'الصندوق عالجوال', 'قديش بالصندوق هلق، وشو فات وطلع اليوم.');
+await tryShot(() => go('لوحة الإدارة'), 'لوحة الإدارة عالجوال', 'أرقام شغلك ومقارنتها بالفترة اللي قبل، وانت برا المحل.');
+await tryShot(() => go('التقارير'), 'التقارير عالجوال', 'الأرباح والخسائر والميزانية وإغلاق اليوم على شاشة الجوال.');
+await tryShot(() => go('العملاء والموردون'), 'الزباين عالجوال', 'رقم كل زبون ورصيده، وكشف حسابه بكبسة.');
+await tryShot(() => go('التنبيهات'), 'التنبيهات عالجوال', 'نواقص وصلاحيات وديون متأخرة، كلها بإشعار واحد.');
+await tryShot(() => go('سندات القبض والدفع'), 'السندات عالجوال', 'سجّل قبض أو دفع من الجوال وهو بيوصل للحسابات فوراً.');
+await tryShot(() => go('الجرد وعمليات المخزون'), 'الجرد بالكاميرا', 'جرد المحل بكاميرا الجوال بدل قارئ الباركود.');
+await tryShot(() => go('تعلّم وزن'), 'تعلّم وزن عالجوال', 'دليل الاستخدام والنصايح معك دايماً.');
+await tryShot(() => go('الإعدادات'), 'الإعدادات عالجوال', 'شعارك وتصميم فواتيرك والنسخ الاحتياطي من الجوال.');
+await tryShot(() => go('كشف الحساب'), 'كشف الحساب عالجوال', 'كشف حساب أي زبون وابعته PDF.');
+await b.close();
