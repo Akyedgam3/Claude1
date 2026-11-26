@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useRef, useState } from 'react';
-import { sendWhatsApp } from '../components/whatsapp';
+import { reminderText, sendWhatsApp } from '../components/whatsapp';
 import { COST_LIST, FREE_LIST, customPriceLists, isBuiltinList, partyPriceList, priceListName, priceListRule, PRICE_TIERS, type PriceListDef, lineAmount, partyBalance, partyStatement, siteJobRooms, siteJobTotals, type Invoice, type Party } from '../../../core';
 import { major, money, parseAmount, qtyText, toInput, today, uid, useCompany, dateText } from '../api';
 import { ExportButtons, PrintButtons, DocHeader } from '../components/print';
@@ -171,7 +171,7 @@ export function PartyPanel({ party, onEdit }: { party: Party; onEdit?: () => voi
               title="تذكير بالدين عالواتساب"
               onClick={() => {
                 const parts = Object.entries(balance.byCurrency).filter(([, v]) => v > 0).map(([c, v]) => money(state, v, c));
-                const text = `مرحباً ${party.name}،\nنذكّركم بأن الرصيد المستحق لدى ${state.info!.name} هو: ${parts.join(' + ')}.\nشكراً لتعاملكم معنا.`;
+                const text = reminderText(state, party.name, parts.join(' + '), party.debtDue ? dateText(party.debtDue) : undefined);
                 void sendWhatsApp(party.phone, text, notify);
               }}
             >

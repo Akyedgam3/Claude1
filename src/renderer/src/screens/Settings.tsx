@@ -9,6 +9,7 @@ import { PAPER_NAMES } from '../components/print';
 import { sampleReceipt, ThermalReceipt } from '../components/ThermalReceipt';
 import { askConfirm, Field, Modal, PageHeader, Tabs } from '../components/ui';
 import { CloudTab } from '../cloud/CloudTab';
+import { DEFAULT_REMINDER, reminderText } from '../components/whatsapp';
 
 type Tab = 'company' | 'customize' | 'print' | 'receipt' | 'taxes' | 'lan' | 'cloud' | 'backup' | 'period' | 'account' | 'license' | 'reset' | 'health';
 
@@ -436,6 +437,7 @@ function PrintTab() {
   ];
   const colors = ['#0f6e5c', '#1f5fa8', '#8a3fa0', '#b5531c', '#a52a2a', '#12302b', '#c07a12', '#2f8f3a'];
   return (
+    <>
     <section className="card">
       <div className="print-designer">
         <div className="designer-controls">
@@ -621,6 +623,40 @@ function PrintTab() {
           <button className="primary">حفظ</button>
         </div>
       </form>
+    </section>
+    <ReminderCard />
+    </>
+  );
+}
+
+/** نص رسالة تذكير الدين اللي بتنبعت عالواتساب (من الديون أو بطاقة الزبون) */
+function ReminderCard() {
+  const { state, call, notify } = useCompany();
+  const [text, setText] = useState(state.info!.reminderText?.trim() || DEFAULT_REMINDER);
+  const sample = reminderText({ ...state, info: { ...state.info!, reminderText: text } }, 'أبو خالد', '43.00 $', '30/11/2026');
+  return (
+    <section className="card reminder-card">
+      <h3>رسالة تذكير الدين (واتساب)</h3>
+      <p className="muted">
+        الكلمات بين القوسين بتتبدّل لحالها: <b>{'{الاسم}'}</b> اسم الزبون، <b>{'{المبلغ}'}</b> اللي عليه، <b>{'{المحل}'}</b> اسم محلك، <b>{'{الموعد}'}</b> موعد السداد إذا في.
+      </p>
+      <textarea rows={5} value={text} onChange={(e) => setText(e.target.value)} />
+      <p className="muted">بتطلع هيك:</p>
+      <pre className="reminder-sample">{sample}</pre>
+      <div className="form-actions">
+        <button
+          className="primary"
+          onClick={async () => {
+            const v = text.trim() === DEFAULT_REMINDER ? '' : text.trim();
+            if (await call('updateCompany', { reminderText: v })) notify('تم حفظ رسالة التذكير');
+          }}
+        >
+          حفظ الرسالة
+        </button>
+        <button type="button" onClick={() => setText(DEFAULT_REMINDER)}>
+          رجّع الرسالة الأصلية
+        </button>
+      </div>
     </section>
   );
 }

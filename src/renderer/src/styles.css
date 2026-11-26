@@ -5047,3 +5047,5 @@ body.pdf-busy, body.pdf-busy * { cursor: progress !important; }
 body:not(.mobile) .stats .stat { container-type: inline-size; }
 body:not(.mobile) .stats .stat strong { white-space: nowrap; font-size: min(21px, 10.5cqi); }
 .line-attrs-more { font-size: 12px; display: inline-block; margin-top: 2px; }
+.reminder-card textarea { width: 100%; }
+.reminder-sample { white-space: pre-wrap; font-family: inherit; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin: 0 0 10px; }

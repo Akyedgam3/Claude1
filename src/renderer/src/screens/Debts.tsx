@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { confirmCashOut } from '../components/cashGuard';
-import { sendWhatsApp } from '../components/whatsapp';
+import { reminderText, sendWhatsApp } from '../components/whatsapp';
 import { INVOICE_KIND_NAMES, partyBalance, partyDebts, type CompanyState, type DebtItem, type Invoice, type JournalEntry, type Party, type PartyDebts } from '../../../core';
 import { addDays, dateText, major, money, parseAmount, today, toInput, uid, useCompany } from '../api';
 import { DocHeader, ExportButtons, PrintButtons } from '../components/print';
@@ -470,8 +470,7 @@ function ReminderButton({ state, party, list }: { state: CompanyState; party: Pa
       className="whatsapp"
       title={party.phone ? `تذكير بالدين عالواتساب لـ ${party.phone}` : 'تذكير بالدين عالواتساب (ما في رقم للزبون: بتختار المحادثة)'}
       onClick={() => {
-        const due = party.debtDue ? `\nموعد السداد المتفق عليه: ${dateText(party.debtDue)}.` : '';
-        const text = `السلام عليكم ${party.name}،\nنودّ تذكيركم بأن المبلغ المستحق لـ${state.info!.name} هو: ${amountsText(state, list, 1)}.${due}\nشاكرين لكم حسن التعامل.`;
+        const text = reminderText(state, party.name, amountsText(state, list, 1), party.debtDue ? dateText(party.debtDue) : undefined);
         void sendWhatsApp(party.phone, text, notify);
       }}
     >

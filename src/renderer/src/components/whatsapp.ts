@@ -30,3 +30,16 @@ export function autoSendInvoice(state: CompanyState, inv: Invoice, text: (s: Com
     .catch(() => state)
     .then((fresh) => sendWhatsApp(phone, text(fresh, fresh.invoices.find((i) => i.id === inv.id) ?? inv), notify));
 }
+
+/** النص الافتراضي لتذكير الدين (بيتغيّر من الإعدادات ← الطباعة والفواتير ← «رسالة تذكير الدين») */
+export const DEFAULT_REMINDER = 'السلام عليكم {الاسم}،\nنودّ تذكيركم بأن المبلغ المستحق لـ{المحل} هو: {المبلغ}.{الموعد}\nشاكرين لكم حسن التعامل.';
+
+/** رسالة تذكير الدين بنص المحل نفسه: {الاسم} {المبلغ} {المحل} {الموعد} بيتبدّلوا */
+export function reminderText(state: CompanyState, name: string, amount: string, due?: string): string {
+  const tpl = state.info?.reminderText?.trim() || DEFAULT_REMINDER;
+  return tpl
+    .replace(/\{الاسم\}/g, name)
+    .replace(/\{المبلغ\}/g, amount)
+    .replace(/\{المحل\}/g, state.info?.name ?? '')
+    .replace(/\{الموعد\}/g, due ? `\nموعد السداد المتفق عليه: ${due}.` : '');
+}

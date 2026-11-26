@@ -217,6 +217,8 @@ export interface ScaleSettings {
 
 export interface CompanyInfo {
   name: string;
+  /** نص رسالة تذكير الدين عالواتساب (فيه {الاسم} {المبلغ} {المحل} {الموعد})؛ فاضي = النص الافتراضي */
+  reminderText?: string;
   activity?: Activity;
   baseCurrency: string;
   fiscalYearStart: string; // MM-DD
