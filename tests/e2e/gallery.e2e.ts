@@ -9,7 +9,7 @@ import { activate, companyWizard, launch, nav } from './helpers';
 test.setTimeout(60 * 60 * 1000);
 const OUT = process.env.GALLERY_OUT!;
 type Shot = { title: string; desc: string; go?: string; run?: (p: Page) => Promise<unknown>; el?: string };
-const captions: Record<string, { title: string; desc: string; act: string }> = fs.existsSync(path.join(OUT, 'captions.json')) ? JSON.parse(fs.readFileSync(path.join(OUT, 'captions.json'), 'utf8')) : {};
+const captions: Record<string, { title: string; desc: string; act: string }> = OUT && fs.existsSync(path.join(OUT, 'captions.json')) ? JSON.parse(fs.readFileSync(path.join(OUT, 'captions.json'), 'utf8')) : {};
 let n = Object.keys(captions).length;
 
 const click = (p: Page, sel: string, hasText?: string | RegExp) => p.locator(sel, hasText ? { hasText } : {}).first().click({ timeout: 5000 });
