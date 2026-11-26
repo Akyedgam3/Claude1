@@ -4964,6 +4964,10 @@ body.mobile .pricing-big strong { font-size: 26px; }
   body[data-paper='58mm'] .thermal-doc .t-lines td { display: block; padding: 1px 0; border: none !important; }
   body[data-paper='58mm'] .thermal-doc .t-lines td.t-n { grid-column: 1 / -1; padding-top: 3px; font-weight: 700; }
   body[data-paper='58mm'] .thermal-doc .t-lines tr.t-cons td { grid-column: 1 / -1; }
+  /* 58mm ما في محل لعمود: سعر المستهلك بسطر صغير بآخر الصنف */
+  body[data-paper='58mm'] .thermal-doc .t-lines td.t-cons-col { grid-column: 1 / -1; grid-row: 3; text-align: right; font-size: 0.85em; direction: rtl; }
+  body[data-paper='58mm'] .thermal-doc .t-lines td.t-cons-col:empty { display: none; }
+  body[data-paper='58mm'] .thermal-doc .t-lines td.t-cons-col::before { content: 'سعر المستهلك: '; }
   body[data-paper='58mm'] .thermal-doc .t-lines td.t-price { text-align: center; }
   body[data-paper='58mm'] .thermal-doc .t-lines td.t-price::before { content: '× '; }
   body[data-paper='58mm'] .thermal-doc .t-lines td.t-total { text-align: left; font-weight: 700; }
@@ -5019,3 +5023,22 @@ body.mobile .pricing-big strong { font-size: 26px; }
 input.invalid { border-color: var(--bad, #c0392b) !important; box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.15); }
 .pos-totals .pos-disc-error { grid-column: 1 / -1; font-weight: 700; }
 .voucher-party-info { display: block; margin-top: 6px; line-height: 1.7; }
+/* التفقيط الطويل بيلف لسطر تاني بدل ما ينقص عحافة الورقة */
+.invoice-doc .doc-side > div:last-child { flex: 1; min-width: 0; }
+.invoice-doc .doc-words { overflow-wrap: anywhere; }
+/* نافذة صغيرة (800×600): القائمة أضيق والكاشير بيتقاسم العرض، وأزرار الدفع دايماً مبيّنة تحت السلة */
+@media (max-width: 1000px) {
+  body:not(.mobile) .shell { grid-template-columns: 180px 1fr; }
+  body:not(.mobile) .sidebar nav button { font-size: 13px; }
+  body:not(.mobile) .pos { grid-template-columns: minmax(0, 1fr) minmax(280px, 340px); gap: 10px; }
+  body:not(.mobile) .pos-search { grid-template-columns: 1fr; }
+}
+body:not(.mobile) .pos-cart .pos-pay { position: sticky; bottom: -1px; background: var(--surface); padding-bottom: 4px; z-index: 2; }
+/* حرية تصميم الإيصال الحراري */
+.thermal-doc.t-right .t-name,
+.thermal-doc.t-right .t-header,
+.thermal-doc.t-right .t-contact { text-align: right; }
+.thermal-doc.t-title-box .t-title { border: 1.5px solid #000; border-radius: 3px; }
+.thermal-doc.t-title-dark .t-title,
+.thermal-doc.t-title-dark .t-grand { background: #000; color: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; border-color: #000; padding-inline: 4px; }
+.thermal-doc .t-words { text-align: center; font-size: 0.88em; margin-top: 4px; }

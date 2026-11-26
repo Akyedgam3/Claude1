@@ -612,12 +612,13 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
     ...(state.users[inv.createdBy] ? { cashier: state.users[inv.createdBy]!.displayName } : {}),
     ...(party ? { customer: party.name } : {}),
     ...((inv.vatNumber ?? party?.vatNumber) ? { customerVat: inv.vatNumber ?? party!.vatNumber! } : {}),
-    // خصم السطر ما إلو عمود بالحراري، فبينكتب تحت الصنف
-    lines: inv.lines.map((l, i) => ({ name: l.description, sub: l.discount ? [...(model.lines[i]!.sub ?? []), `خصم ${plain(l.discount)}`] : model.lines[i]!.sub!, qty: qtyText(l.qty), price: plain(l.price), total: plain(lineAmount(l)), ...(consumer[i] ? { consumer: plain(consumer[i]!) } : {}) })),
+    // خصم السطر ما إلو عمود بالحراري، فبينكتب تحت الصنف (بينطفى من تصميم الإيصال)
+    lines: inv.lines.map((l, i) => ({ name: l.description, sub: model.lines[i]!.sub!, ...(l.discount ? { discount: plain(l.discount) } : {}), ...(l.itemId && state.items[l.itemId]?.code ? { code: state.items[l.itemId]!.code } : {}), qty: qtyText(l.qty), price: plain(l.price), total: plain(lineAmount(l)), ...(consumer[i] ? { consumer: plain(consumer[i]!) } : {}) })),
     totals: model.totals,
     grand: { label: 'الصافي', value: m(inv.total) },
     after: model.after!,
     ...(inv.notes && !order ? { note: inv.notes } : {}),
+    ...(model.words ? { words: model.words } : {}),
     qrText: model.qrText!,
   };
   return (

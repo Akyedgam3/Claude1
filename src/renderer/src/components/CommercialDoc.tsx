@@ -252,7 +252,8 @@ export function CommercialDoc({ model, className, preview }: { model: DocModel; 
 }
 
 /** فاتورة تجريبية لمعاينة التصميم في الإعدادات. */
-export function sampleModel(currencySymbol: string): DocModel {
+/** فاتورة تجريبية للمعاينة: بأسماء مواد المحل نفسه إذا في (كانت «زيت محرك» لكل الأنشطة). */
+export function sampleModel(currencySymbol: string, names: string[] = []): DocModel {
   const f = (n: number) => `${n.toLocaleString('en', { minimumFractionDigits: 2 })} ${currencySymbol}`;
   return {
     title: 'فاتورة مبيع',
@@ -260,9 +261,9 @@ export function sampleModel(currencySymbol: string): DocModel {
     meta: [{ label: 'التاريخ', value: <span className="ltr">11/10/2026</span> }],
     party: { label: 'السيد/ة', name: 'أبو خالد', phone: '0933 111 222' },
     lines: [
-      { description: 'زيت محرك 5W30 - 4 لتر', qty: '2 علبة', price: f(3500), total: f(7000) },
-      { description: 'فلتر زيت', sub: ['كفالة 6 شهراً'], qty: '1 قطعة', price: f(750), total: f(750) },
-      { description: 'أجور تغيير زيت', qty: '1', price: f(500), total: f(500) },
+      { description: names[0] ?? 'مادة أولى', qty: '2', price: f(3500), total: f(7000) },
+      { description: names[1] ?? 'مادة تانية', qty: '1', price: f(750), total: f(750) },
+      { description: names[2] ?? 'خدمة', qty: '1', price: f(500), total: f(500) },
     ],
     totals: [{ label: 'المجموع', value: f(8250) }],
     grand: { label: 'الإجمالي', value: f(8250) },

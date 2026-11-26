@@ -14,8 +14,12 @@ export interface ReceiptLine {
   qty: string;
   price: string;
   total: string;
-  /** سعر المستهلك: سطر صغير تحت اسم الصنف */
+  /** سعر المستهلك: عمود لحالو جنب السعر */
   consumer?: string;
+  /** خصم السطر (بينكتب تحت الصنف) */
+  discount?: string;
+  /** رمز المادة */
+  code?: string;
 }
 
 export interface ReceiptData {
@@ -37,6 +41,8 @@ export interface ReceiptData {
   grand: { label: string; value: string };
   after?: { label: string; value: string }[];
   note?: string;
+  /** المبلغ كتابة */
+  words?: string;
   qrText?: string;
   draft?: boolean; // الحساب المبدئي قبل الدفع
 }
@@ -67,6 +73,8 @@ export function ThermalReceipt({ data, preview, always, logo }: { data: ReceiptD
   const img = logo ?? c.print?.logo;
   const logoMode = r.logo ?? 'small';
   const showPrice = on(r.showPrice);
+  // سعر المستهلك عمود جنب السعر (كان سطر تحت الصنف وكان يتخربط مع الأسطر)
+  const showCons = on(r.showConsumer) && data.lines.some((l) => !!l.consumer);
   const meta: [string, ReactNode][] = [];
   if (on(r.showNumber) && data.number !== undefined) meta.push([data.draft ? 'رقم الطلب' : 'رقم الفاتورة', <b className="ltr">{data.number}</b>]);
   if (on(r.showDate) && data.date) meta.push(['التاريخ', <span className="ltr">{data.date}</span>]);
@@ -81,7 +89,7 @@ export function ThermalReceipt({ data, preview, always, logo }: { data: ReceiptD
 
   return (
     <div
-      className={`thermal-doc print-area t-${r.fontSize ?? 'md'} ${r.grid ? 't-grid' : ''} ${always ? 'always' : ''}`}
+      className={`thermal-doc print-area t-${r.fontSize ?? 'md'} ${r.grid ? 't-grid' : ''} ${r.align === 'right' ? 't-right' : ''} t-title-${r.titleStyle ?? 'plain'} ${always ? 'always' : ''}`}
       style={{ ['--t-w80' as string]: `${r.width80 ?? 70}mm`, ['--t-w58' as string]: `${r.width58 ?? 48}mm` }}
     >
       {img && logoMode !== 'none' && (
@@ -120,18 +128,20 @@ export function ThermalReceipt({ data, preview, always, logo }: { data: ReceiptD
           ))}
         </div>
       )}
-      <table className="t-lines">
+      <table className={`t-lines${showCons ? ' with-cons' : ''}`}>
         <colgroup>
           <col />
-          <col style={{ width: showPrice ? '14%' : '16%' }} />
-          {showPrice && <col style={{ width: '21%' }} />}
-          <col style={{ width: showPrice ? '26%' : '32%' }} />
+          <col style={{ width: showCons ? '11%' : showPrice ? '14%' : '16%' }} />
+          {showPrice && <col style={{ width: showCons ? '19%' : '21%' }} />}
+          {showCons && <col style={{ width: '19%' }} />}
+          <col style={{ width: showCons ? '22%' : showPrice ? '26%' : '32%' }} />
         </colgroup>
         <thead>
           <tr>
             <th className="t-n">الصنف</th>
             <th>الكمية</th>
             {showPrice && <th>السعر</th>}
+            {showCons && <th>المستهلك</th>}
             <th>الإجمالي</th>
           </tr>
         </thead>
@@ -141,6 +151,8 @@ export function ThermalReceipt({ data, preview, always, logo }: { data: ReceiptD
               <tr>
                 <td className="t-n">
                   {l.name}
+                  {r.showCode && l.code && <div className="t-sub ltr">{l.code}</div>}
+                  {on(r.showLineDiscount) && l.discount && <div className="t-sub">خصم {l.discount}</div>}
                   {l.sub?.map((s, j) => (
                     <div className="t-sub" key={j}>
                       {s}
@@ -149,15 +161,9 @@ export function ThermalReceipt({ data, preview, always, logo }: { data: ReceiptD
                 </td>
                 <td className="num t-qty">{l.qty}</td>
                 {showPrice && <td className="num t-price">{l.price}</td>}
+                {showCons && <td className="num t-cons-col">{l.consumer ?? ''}</td>}
                 <td className="num t-total">{l.total}</td>
               </tr>
-              {l.consumer && (
-                <tr className="t-cons">
-                  <td colSpan={showPrice ? 4 : 3}>
-                    سعر المستهلك: <b className="num">{l.consumer}</b>
-                  </td>
-                </tr>
-              )}
             </Fragment>
           ))}
         </tbody>
@@ -173,13 +179,14 @@ export function ThermalReceipt({ data, preview, always, logo }: { data: ReceiptD
           <span>{data.grand.label}</span>
           <strong>{data.grand.value}</strong>
         </div>
-        {data.after?.map((t, i) => (
+        {on(r.showPaid) && data.after?.map((t, i) => (
           <div key={i}>
             <span>{t.label}</span>
             <strong>{t.value}</strong>
           </div>
         ))}
       </div>
+      {r.showWords && data.words && <div className="t-words">{data.words}</div>}
       {on(r.showTime) && data.time && <div className="t-time ltr">{data.time}</div>}
       {data.note && <div className="t-note">{data.note}</div>}
       {data.draft && <div className="t-draft">هذه ليست فاتورة نهائية</div>}
@@ -206,17 +213,24 @@ export function ThermalReceipt({ data, preview, always, logo }: { data: ReceiptD
   );
 }
 
-/** إيصال مطعم تجريبي لمعاينة التصميم بالإعدادات. */
-export function sampleReceipt(symbol: string): ReceiptData {
+/** إيصال تجريبي لمعاينة التصميم بالإعدادات (مطعم أو محل حسب النشاط). */
+export function sampleReceipt(symbol: string, restaurant = true, consumer = false): ReceiptData {
   const f = (n: number) => n.toLocaleString('en', { minimumFractionDigits: 2 });
-  const rows: [string, number, number][] = [
-    ['وجبة اسكالوب', 1, 27500],
-    ['سندويشة فاهيتا', 1, 16000],
-    ['بيتزا شيش', 1, 25000],
-    ['كولا تنك', 2, 3000],
-    ['عيران', 1, 3000],
-    ['ماء صغيرة', 3, 1000],
-  ];
+  const rows: [string, number, number][] = restaurant
+    ? [
+        ['وجبة اسكالوب', 1, 27500],
+        ['سندويشة فاهيتا', 1, 16000],
+        ['بيتزا شيش', 1, 25000],
+        ['كولا تنك', 2, 3000],
+        ['عيران', 1, 3000],
+        ['ماء صغيرة', 3, 1000],
+      ]
+    : [
+        ['زيت عافية 1 لتر', 2, 17000],
+        ['رز مصري 1 كغ', 1, 12500],
+        ['سكر 1 كغ', 3, 9000],
+        ['شاي 500 غ', 1, 21000],
+      ];
   const total = rows.reduce((t, [, q, p]) => t + q * p, 0);
   const now = new Date();
   return {
@@ -224,17 +238,19 @@ export function sampleReceipt(symbol: string): ReceiptData {
     number: 8,
     date: now.toLocaleDateString('en-GB'),
     time: now.toLocaleString('en-GB'),
-    table: 'طاولة 13',
-    orderNo: 42,
-    captain: 'أبو سمير',
-    guests: 4,
+    ...(restaurant ? { table: 'طاولة 13', orderNo: 42, captain: 'أبو سمير', guests: 4 } : { customer: 'أبو خالد' }),
     cashier: 'المالك',
-    lines: rows.map(([name, q, p]) => ({ name, qty: String(q), price: f(p), total: f(q * p) })),
+    lines: rows.map(([name, q, p], i) => ({ name, qty: String(q), price: f(p), total: f(q * p), code: `100${i + 1}`, ...(consumer ? { consumer: f(Math.round(p * 1.15)) } : {}), ...(i === 0 && !restaurant ? { discount: f(1000) } : {}) })),
     totals: [
       { label: 'المجموع', value: `${f(total)} ${symbol}` },
       { label: 'الخصم', value: `0.00 ${symbol}` },
     ],
     grand: { label: 'الصافي', value: `${f(total)} ${symbol}` },
+    after: [
+      { label: 'المقبوض', value: `${f(total)} ${symbol}` },
+      { label: 'الباقي', value: `0.00 ${symbol}` },
+    ],
+    words: 'المبلغ كتابة يطلع هون',
     qrText: `فاتورة 8\n${f(total)}`,
   };
 }

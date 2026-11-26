@@ -285,7 +285,7 @@ function ReceiptTab() {
   const save = async () => {
     if (await call('updateCompany', { print: { ...print, ...(logo ? { logo } : {}), receipt: r } })) notify('تم حفظ تصميم الإيصال');
   };
-  const sample = sampleReceipt(state.currencies[state.info!.baseCurrency]?.symbol ?? '');
+  const sample = sampleReceipt(state.currencies[state.info!.baseCurrency]?.symbol ?? '', !!restaurant, !!state.info!.print?.showConsumerPrice);
   return (
     <section className="card receipt-designer">
       <div>
@@ -332,6 +332,19 @@ function ReceiptTab() {
               <option value={62}>ورق 80: 62mm (طابعة ضيقة)</option>
             </select>
           </Field>
+          <Field label="رأس الإيصال (الاسم والعنوان)">
+            <select value={r.align ?? 'center'} onChange={(e) => setR({ ...r, align: e.target.value as ReceiptSettings['align'] })}>
+              <option value="center">بالنص</option>
+              <option value="right">عاليمين</option>
+            </select>
+          </Field>
+          <Field label="شكل العنوان والصافي">
+            <select value={r.titleStyle ?? 'plain'} onChange={(e) => setR({ ...r, titleStyle: e.target.value as ReceiptSettings['titleStyle'] })}>
+              <option value="plain">خطوط منقطة</option>
+              <option value="box">بإطار</option>
+              <option value="dark">خلفية سودا (أوضح)</option>
+            </select>
+          </Field>
           <Field label="عنوان الإيصال">
             <input value={r.title ?? ''} onChange={(e) => setR({ ...r, title: e.target.value })} placeholder="فاتورة مبيع" />
           </Field>
@@ -346,13 +359,18 @@ function ReceiptTab() {
           {flag('showNumber', 'رقم الفاتورة')}
           {flag('showDate', 'التاريخ')}
           {flag('showTime', 'الوقت بالآخر')}
-          {flag('showTable', 'رقم الطاولة')}
-          {flag('showOrderType', 'سفري / توصيل')}
-          {flag('showCaptain', 'اسم الكابتن')}
-          {flag('showGuests', 'عدد الضيوف')}
+          {restaurant && flag('showTable', 'رقم الطاولة')}
+          {restaurant && flag('showOrderType', 'سفري / توصيل')}
+          {restaurant && flag('showCaptain', 'اسم الكابتن')}
+          {restaurant && flag('showGuests', 'عدد الضيوف')}
           {flag('showCashier', 'اسم الكاشير')}
           {flag('showCustomer', 'اسم الزبون')}
           {flag('showPrice', 'عمود سعر الوحدة')}
+          {state.info!.print?.showConsumerPrice && flag('showConsumer', 'عمود سعر المستهلك')}
+          {flag('showLineDiscount', 'خصم السطر تحت الصنف')}
+          {flag('showCode', 'رمز المادة تحت الاسم', false)}
+          {flag('showPaid', 'المقبوض والباقي والحساب السابق')}
+          {flag('showWords', 'المبلغ كتابة', false)}
           {flag('grid', 'جدول بخطوط', false)}
           {flag('showQr', 'رمز QR', false)}
           {flag('showExtraQrs', 'رموز QR الإضافية (واتساب، شام كاش...)')}
@@ -483,7 +501,7 @@ function PrintTab() {
         <div className="designer-preview">
           <div className="preview-scale">
             <div className="paper-preview">
-              <CommercialDoc model={sampleModel(state.currencies[state.info!.baseCurrency]?.symbol ?? '')} preview={p} className="sample" />
+              <CommercialDoc model={sampleModel(state.currencies[state.info!.baseCurrency]?.symbol ?? '', Object.values(state.items).filter((i) => !i.archived).slice(0, 3).map((i) => i.name))} preview={p} className="sample" />
             </div>
           </div>
         </div>

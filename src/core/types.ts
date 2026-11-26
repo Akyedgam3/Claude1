@@ -197,6 +197,13 @@ export interface ReceiptSettings {
   showQr?: boolean; // افتراضياً لا
   showExtraQrs?: boolean; // رموز QR الإضافية (افتراضياً نعم إذا في)
   displayWelcome?: string; // رسالة شاشة الزبون وقت ما في طلب
+  showConsumer?: boolean; // عمود سعر المستهلك (إذا مفعّل من إعدادات الطباعة)
+  showLineDiscount?: boolean; // خصم السطر تحت الصنف
+  showCode?: boolean; // رمز المادة تحت الاسم (افتراضياً لا)
+  showPaid?: boolean; // المقبوض والباقي والحساب السابق
+  showWords?: boolean; // المبلغ كتابة (افتراضياً لا)
+  align?: 'center' | 'right'; // رأس الإيصال بالنص أو عاليمين
+  titleStyle?: 'plain' | 'box' | 'dark'; // شكل عنوان الإيصال والصافي
 }
 
 /** إعدادات باركود الميزان (مواد الوزن): 2 + رمز المادة + الوزن/السعر + رقم تحقق. */
