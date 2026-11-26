@@ -356,7 +356,10 @@ async function fitForPrint(contents: WebContents, paper: string, fit: boolean): 
 async function printOrPdf(contents: WebContents, opts: { paper: string; printer?: string; copies?: number; pdf?: string; size?: { w: number; h: number }; fit?: boolean }): Promise<string | boolean> {
   const fitted = opts.size ? { restore: async () => {} } : await fitForPrint(contents, opts.paper, opts.fit !== false);
   try {
-    return await printOrPdfRaw(contents, { ...(fitted.height ? { ...opts, size: { w: opts.paper === '58mm' ? 58 : 80, h: fitted.height } } : opts), ...(fitted.scale ? { scale: fitted.scale } : {}) });
+    // الحراري: إذا ما قدرنا نقيس الطول منطبع على ورقة 80mm بطول A4 (مش على صفحة A4 كاملة)
+    const thermal = opts.paper === '80mm' || opts.paper === '58mm';
+    const h = fitted.height ?? (thermal && !opts.size ? 297 : 0);
+    return await printOrPdfRaw(contents, { ...(h ? { ...opts, size: { w: opts.paper === '58mm' ? 58 : 80, h } } : opts), ...(fitted.scale ? { scale: fitted.scale } : {}) });
   } finally {
     await fitted.restore();
   }

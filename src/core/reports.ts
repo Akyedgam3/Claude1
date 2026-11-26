@@ -478,10 +478,13 @@ export function dailySummary(state: CompanyState, date: string, userId?: string)
   let voided = 0;
   let discounts = 0;
   const items = new Map<string, number>();
+  // النسخة القديمة من فاتورة انعدّلت مش «ملغاة»، والمحذوفة بالغلط كمان؛ منعد بس فواتير المبيع اللي انلغت فعلاً
+  const replaced = new Set<string>();
+  for (const inv of state.invoices) if (inv.replaces) replaced.add(inv.replaces);
   for (const inv of state.invoices) {
     if (inv.date !== date || !mine(inv.createdBy)) continue;
     if (inv.voidEntryId) {
-      voided++;
+      if (inv.kind === 'sale' && !inv.deleted && !replaced.has(inv.id)) voided++;
       continue;
     }
     const r = row(inv.currency);

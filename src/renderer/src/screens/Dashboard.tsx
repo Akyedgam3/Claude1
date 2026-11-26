@@ -40,7 +40,7 @@ export function Dashboard() {
         for (const l of i.lines) {
           if (!l.itemId) continue;
           const t = (top[l.itemId] ??= { qty: 0, total: 0 });
-          t.qty += l.qty;
+          t.qty += l.qty * (l.factor ?? 1); // بالوحدة الأساسية: الكرتونة = عدد قطعها
           t.total += toBase(Math.round(l.qty * l.price) - (l.discount ?? 0), i.currency, i.rate);
         }
     }

@@ -1361,7 +1361,11 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
           </div>
         </Modal>
       )}
-      {newParty && <PartyForm party={null} defaultKind={isSale ? 'customer' : 'supplier'} onClose={() => setNewParty(false)} onSaved={(p) => changeParty(p.id)} />}
+      {newParty && <PartyForm party={null} defaultKind={isSale ? 'customer' : 'supplier'} onClose={() => setNewParty(false)} onSaved={(p) => {
+        changeParty(p.id);
+        // بعد ما تسكّر نافذة المورد الجديد الفوكس بيرجع لخانة الباركود، فأول مسح بينضاف
+        setTimeout(() => document.querySelector<HTMLInputElement>('.page .scan-row .scan-input')?.focus(), 80);
+      }} />}
     </div>
   );
 }

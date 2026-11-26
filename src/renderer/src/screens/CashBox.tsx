@@ -39,8 +39,11 @@ export function CashBox() {
   const d = today();
   // ملخص كل الصناديق: الرصيد الآن والداخل والخارج اليوم، لكل عملة
   const summary = useMemo(
-    () =>
-      boxes.map((b) => {
+    () => {
+      // الملغى وقيد إلغائه ما بينحسبوا بداخل/خارج اليوم (متل جدول الحركة)، فالكرت بيطابق الجدول
+      const voided = new Set<string>();
+      for (const e of state.entries) if (e.voidOf) voided.add(e.voidOf).add(e.id);
+      return boxes.map((b) => {
         const now: Record<string, number> = {};
         const inToday: Record<string, number> = {};
         const outToday: Record<string, number> = {};
@@ -48,13 +51,14 @@ export function CashBox() {
           for (const l of e.lines) {
             if (l.accountId !== b.id) continue;
             now[l.currency] = (now[l.currency] ?? 0) + l.debit - l.credit;
-            if (e.date === d) {
+            if (e.date === d && !voided.has(e.id)) {
               inToday[l.currency] = (inToday[l.currency] ?? 0) + l.debit;
               outToday[l.currency] = (outToday[l.currency] ?? 0) + l.credit;
             }
           }
         return { box: b, now, inToday, outToday };
-      }),
+      });
+    },
     [state.entries, boxes, d],
   );
   const box = state.accounts[sel];

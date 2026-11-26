@@ -53,7 +53,14 @@ export function Pos() {
   const [partyId, setPartyId] = useState<string | null>(null);
   const [received, setReceived] = useState('');
   const [discount, setDiscount] = useState('');
-  const [autoPrint, setAutoPrint] = useState(true);
+  // الاختيار بينحفظ على هالجهاز (كان يرجع مفعّل كل ما يطلع ويرجع على الكاشير)
+  const [autoPrint, setAutoPrintState] = useState(() => {
+    try { return localStorage.getItem('wazn.pos.autoPrint') !== '0'; } catch { return true; }
+  });
+  const setAutoPrint = (on: boolean) => {
+    setAutoPrintState(on);
+    try { localStorage.setItem('wazn.pos.autoPrint', on ? '1' : '0'); } catch { /* تخزين المتصفح مقفول */ }
+  };
   const [last, setLast] = useState<Invoice | null>(null);
   const [busy, setBusy] = useState(false);
   const [noteFor, setNoteFor] = useState<string | null>(null);
@@ -215,7 +222,7 @@ export function Pos() {
   const pay = async (credit: boolean) => {
     if (!cart.length || busy) return;
     if (discountError) return notify(discountError, 'error');
-    if (credit && !partyId) return notify('اختر العميل للبيع بالدين', 'error');
+    if (credit && !partyId) return notify('اختار الزبون من فوق أول، البيع على الحساب لازمه اسم', 'error');
     if (!credit && change < 0) return notify('المبلغ المستلم أقل من الإجمالي', 'error');
     setBusy(true);
     const res = await call<Invoice>('postInvoice', {
@@ -597,7 +604,7 @@ export function Pos() {
             دفع نقداً
           </button>
           {can('sales.credit') && (
-            <button className="big" disabled={busy || !cart.length || !partyId} onClick={() => pay(true)}>
+            <button className="big" disabled={busy || !cart.length} title={partyId ? undefined : 'اختار الزبون أول'} onClick={() => pay(true)}>
               على الحساب
             </button>
           )}

@@ -121,6 +121,8 @@ export function kpis(state: CompanyState, r: Range): Kpis {
   for (const e of state.entries) {
     if (!inRange(e.date, r)) continue;
     if (e.lines.every((l) => boxes.has(l.accountId))) continue;
+    // تصفير السالب وسحب المالك مصاري المالك نفسه، مش شغل داخل وطالع
+    if (e.source?.type === 'boxtransfer') continue;
     for (const l of e.lines) {
       if (!boxes.has(l.accountId)) continue;
       k.cashIn += l.baseDebit;

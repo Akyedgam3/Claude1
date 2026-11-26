@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { confirmCashOut } from '../components/cashGuard';
-import { amountInWords, displayDecimals, type JournalEntry } from '../../../core';
+import { amountInWords, displayDecimals, INVOICE_KIND_NAMES, partyDebts, type CompanyState, type JournalEntry } from '../../../core';
 import { dateText, inputToRate, major, money, parseAmount, toInput, today, useCompany } from '../api';
 import { DocHeader, ExportButtons, PrintButtons } from '../components/print';
 import { ConfirmButton, CurrencySelect, Empty, Field, Modal, PageHeader, partyOptions, Picker } from '../components/ui';
@@ -162,6 +162,7 @@ export function Vouchers({ initialKind, editId }: { initialKind?: 'receipt' | 'p
           {target === 'party' ? (
             <Field label="الاسم">
               <Picker options={partyOptions(state)} value={partyId} onChange={setPartyId} />
+              {partyId && <PartyOpenInfo state={state} partyId={partyId} />}
             </Field>
           ) : (
             <Field label="الحساب">
@@ -298,5 +299,36 @@ function VoucherPrint({ entry, onClose }: { entry: JournalEntry; onClose: () => 
         </div>
       </div>
     </Modal>
+  );
+}
+
+/** تحت اسم الزبون/المورد بالسند: رصيده والفواتير المفتوحة (السند بينوزّع عليها بالأقدم أول). */
+function PartyOpenInfo({ state, partyId }: { state: CompanyState; partyId: string }) {
+  const debts = useMemo(() => partyDebts(state, partyId), [state, partyId]);
+  const rows = debts.filter((d) => d.balance !== 0);
+  if (!rows.length) return <small className="muted voucher-party-info">حسابه صفر، ما في فواتير مفتوحة</small>;
+  return (
+    <div className="voucher-party-info">
+      {rows.map((d) => {
+        const open = d.open
+          .map((o) => ({ o, inv: state.invoices.find((i) => i.entryId === o.entryId) }))
+          .filter((x) => x.inv)
+          .slice(0, 5);
+        return (
+          <div key={d.currency}>
+            <small>
+              {d.balance > 0 ? 'الرصيد عليه: ' : 'الرصيد إله: '}
+              <b className={d.balance > 0 ? 'bad' : 'good'}>{money(state, Math.abs(d.balance), d.currency)}</b>
+            </small>
+            {open.length > 0 && (
+              <small className="muted">
+                {' '}— الفواتير المفتوحة (الدفعة بتنحسب عالأقدم أول):{' '}
+                {open.map(({ o, inv }) => `${INVOICE_KIND_NAMES[inv!.kind]} ${inv!.number}: باقي ${money(state, Math.abs(o.remaining), d.currency)}`).join('، ')}
+              </small>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }

@@ -1218,6 +1218,12 @@ input.mono {
   font-family: inherit;
   font-size: 15px;
 }
+/* الخانة فاضية: النص العربي يمين لشمال (كان يطلع «Enter … امسح» مقلوب)، ولما تكتب باركود بيرجع شمال ليمين */
+input.mono:placeholder-shown,
+.scan-input:placeholder-shown {
+  direction: rtl;
+  text-align: right;
+}
 .paper-select {
   width: auto;
 }
@@ -1987,7 +1993,8 @@ strong.good {
 .invoice-doc .doc-stamp.paid {
   color: #1e8a4c;
 }
-.invoice-doc .doc-stamp.credit {
+.invoice-doc .doc-stamp.credit,
+.invoice-doc .doc-stamp.partial {
   color: #c2671c;
 }
 .invoice-doc .doc-stamp.void {
@@ -5011,3 +5018,4 @@ body.mobile .pricing-big strong { font-size: 26px; }
 /* خانة غلط (خصم أكبر من المجموع...) */
 input.invalid { border-color: var(--bad, #c0392b) !important; box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.15); }
 .pos-totals .pos-disc-error { grid-column: 1 / -1; font-weight: 700; }
+.voucher-party-info { display: block; margin-top: 6px; line-height: 1.7; }

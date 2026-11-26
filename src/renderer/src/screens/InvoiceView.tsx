@@ -122,12 +122,32 @@ export function InvoiceView({ id }: { id: string }) {
 }
 
 /** الباقي من هالفاتورة هلق (بعد كل الدفعات اللي إجت بعدها، بالأقدم أول) بعملتها. */
-export function invoiceRemaining(state: CompanyState, inv: Invoice): number {
+export function invoiceRemaining(state: CompanyState, inv: Invoice, cache?: Map<string, ReturnType<typeof partyDebts>>): number {
   if (inv.voidEntryId) return 0;
   if (!inv.partyId) return Math.max(0, inv.total - inv.paid);
-  const d = partyDebts(state, inv.partyId).find((x) => x.currency === inv.currency);
+  let debts = cache?.get(inv.partyId);
+  if (!debts) {
+    debts = partyDebts(state, inv.partyId);
+    cache?.set(inv.partyId, debts);
+  }
+  const d = debts.find((x) => x.currency === inv.currency);
   const m = d?.movements.find((x) => x.entryId === inv.entryId);
   return m ? Math.abs(m.remaining) : 0;
+}
+
+/**
+ * المقبوض من الفاتورة هلق: اللي انقبض وقت البيع + السندات والدفعات اللي انوزّعت عليها بعدين
+ * (كانت الفاتورة المطبوعة والسجل يبيّنوا بس اللي انقبض وقت البيع).
+ */
+export function invoicePaidNow(state: CompanyState, inv: Invoice, cache?: Map<string, ReturnType<typeof partyDebts>>): number {
+  if (inv.voidEntryId) return inv.paid;
+  return Math.max(inv.paid, inv.total - invoiceRemaining(state, inv, cache));
+}
+
+/** ختم الفاتورة حسب الوضع هلق: مدفوعة، مدفوعة جزئياً، أو آجل. */
+export function invoiceStamp(state: CompanyState, inv: Invoice): 'paid' | 'partial' | 'credit' {
+  const rem = invoiceRemaining(state, inv);
+  return rem <= 0 ? 'paid' : rem < inv.total ? 'partial' : 'credit';
 }
 
 /** شريط فوق الفاتورة: حالتها، المقبوض والباقي هلق، رصيد الزبون، قبض دفعة، واتساب، كشف الحساب، والفاتورة السابقة/التالية. */
@@ -144,7 +164,7 @@ function InvoiceInfoBar({ inv }: { inv: Invoice }) {
       ? { t: 'مدفوعة بالكامل', c: 'paid' }
       : paidNow > 0
         ? { t: 'مدفوع جزء منها', c: 'partial' }
-        : { t: 'آجل (ما انقبض شي)', c: 'credit' };
+        : { t: inv.kind === 'sale' || inv.kind === 'purchase_return' ? 'آجل (ما انقبض شي)' : 'آجل (ما اندفع شي)', c: 'credit' };
   const sameKind = state.invoices.filter((x) => x.kind === inv.kind && !x.deleted).sort((a, b) => a.number - b.number);
   const idx = sameKind.findIndex((x) => x.id === inv.id);
   const prev = idx > 0 ? sameKind[idx - 1] : undefined;
@@ -224,8 +244,9 @@ function MobileInvoiceView({ inv }: { inv: Invoice }) {
   const saleSide = inv.kind === 'sale' || inv.kind === 'sale_return';
   const moneyIn = inv.kind === 'sale' || inv.kind === 'purchase_return';
   const m = (v: number) => money(state, v, inv.currency);
-  const remaining = inv.total - inv.paid;
-  const status = inv.voidEntryId ? { t: inv.deleted ? 'محذوفة' : 'ملغاة', c: 'void' } : invoiceRemaining(state, inv) > 0 ? { t: 'آجل', c: 'credit' } : { t: 'مدفوعة', c: 'paid' };
+  const remaining = invoiceRemaining(state, inv);
+  const stampNow = invoiceStamp(state, inv);
+  const status = inv.voidEntryId ? { t: inv.deleted ? 'محذوفة' : 'ملغاة', c: 'void' } : stampNow === 'paid' ? { t: 'مدفوعة', c: 'paid' } : stampNow === 'partial' ? { t: 'مدفوعة جزئياً', c: 'credit' } : { t: 'آجل', c: 'credit' };
   const name = `${INVOICE_KIND_NAMES[inv.kind]} ${inv.number}`;
   const doPrint = (pdf: boolean) => {
     setPreview(false);
@@ -453,7 +474,9 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
   const order = src?.type === 'order' ? state.orders[src.id] : undefined;
   const table = order?.tableId ? state.tables[order.tableId] : undefined;
   const m = (v: number) => money(state, v, inv.currency);
-  const remaining = inv.total - inv.paid;
+  // الباقي والمقبوض هلق (مع السندات اللي انوزّعت عالفاتورة بعدين)
+  const remaining = invoiceRemaining(state, inv);
+  const paidNow = invoicePaidNow(state, inv);
   const usdRate = inv.currency === 'USD' ? null : findRate(state, 'USD', inv.date);
   const showUsd = print.showUsdEquivalent && inv.currency !== 'USD' && usdRate;
   const decimals = state.currencies[inv.currency]?.decimals ?? 2;
@@ -559,8 +582,10 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
         : [
             ...(account?.before ?? []),
             // المدفوع كله مع الفاتورة: إذا دفع أكتر من قيمتها، الزيادة نزلت من حسابه القديم وبتبيّن هون
-            { label: moneyIn ? 'المقبوض' : 'المدفوع', value: m(inv.paid + (invoicePartyBalance(state, inv)?.extraPaid ?? 0)) },
-            ...(account ? account.after : remaining > 0 ? [{ label: 'الباقي', value: m(remaining) }] : []),
+            { label: moneyIn ? 'المقبوض' : 'المدفوع', value: m(Math.max(inv.paid + (invoicePartyBalance(state, inv)?.extraPaid ?? 0), paidNow)) },
+            ...(account ? account.after : []),
+            // الباقي من هالفاتورة هلق (بعد السندات اللي انوزّعت عليها)؛ مع الحساب السابق بيبيّن بس إذا انقبض شي بعدين
+            ...(remaining > 0 && (!account || paidNow > inv.paid) ? [{ label: account ? 'الباقي من الفاتورة' : 'الباقي', value: m(remaining) }] : []),
           ]),
       ...(inv.currency !== company.baseCurrency ? [{ label: 'سعر الصرف', value: rateLine(state, inv.currency, inv.rate) }] : []),
       ...(showUsd ? [{ label: 'المقابل بالدولار', value: money(state, Math.round(((inv.total * inv.rate) / usdRate) * 10 ** (2 - decimals)), 'USD') }] : []),
@@ -568,7 +593,7 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
     ...(print.showAmountInWords !== false ? { words: amountInWords(inv.total, inv.currency, displayDecimals(state, inv.currency)) } : {}),
     ...(inv.notes && !shipment ? { notes: inv.notes } : shipment?.notes ? { notes: shipment.notes } : {}),
     // الختم حسب الوضع هلق: إذا انقبض الباقي بعدين بيصير «مدفوعة»
-    stamp: inv.voidEntryId ? 'void' : viaMarketer ? null : invoiceRemaining(state, inv) > 0 ? 'credit' : 'paid',
+    stamp: inv.voidEntryId ? 'void' : viaMarketer ? null : invoiceStamp(state, inv),
     qrText: [company.name, `${INVOICE_KIND_NAMES[inv.kind]} رقم ${inv.number}`, dateText(inv.date), `الإجمالي: ${m(inv.total)}`, party ? party.name : ''].filter(Boolean).join('\n'),
   };
   // نسخة الطابعة الحرارية: أرقام بدون رمز العملة حتى تساع الأعمدة، وتفاصيل الطلب (طاولة، كابتن...) إذا الفاتورة من مطعم
@@ -587,10 +612,11 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
     ...(state.users[inv.createdBy] ? { cashier: state.users[inv.createdBy]!.displayName } : {}),
     ...(party ? { customer: party.name } : {}),
     ...((inv.vatNumber ?? party?.vatNumber) ? { customerVat: inv.vatNumber ?? party!.vatNumber! } : {}),
-    lines: inv.lines.map((l, i) => ({ name: l.description, sub: model.lines[i]!.sub!, qty: qtyText(l.qty), price: plain(l.price), total: plain(lineAmount(l)), ...(consumer[i] ? { consumer: plain(consumer[i]!) } : {}) })),
+    // خصم السطر ما إلو عمود بالحراري، فبينكتب تحت الصنف
+    lines: inv.lines.map((l, i) => ({ name: l.description, sub: l.discount ? [...(model.lines[i]!.sub ?? []), `خصم ${plain(l.discount)}`] : model.lines[i]!.sub!, qty: qtyText(l.qty), price: plain(l.price), total: plain(lineAmount(l)), ...(consumer[i] ? { consumer: plain(consumer[i]!) } : {}) })),
     totals: model.totals,
     grand: { label: 'الصافي', value: m(inv.total) },
-    after: model.after!.filter((a) => a.label !== 'المقبوض' || remaining > 0 || !!account),
+    after: model.after!,
     ...(inv.notes && !order ? { note: inv.notes } : {}),
     qrText: model.qrText!,
   };

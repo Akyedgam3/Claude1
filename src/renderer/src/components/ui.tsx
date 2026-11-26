@@ -348,15 +348,19 @@ export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { key:
 /** زر يطلب تأكيداً بضغطة ثانية (للإلغاء والحذف). */
 export function ConfirmButton({ label, confirmLabel, onConfirm, className }: { label: string; confirmLabel?: string; onConfirm: () => void | Promise<unknown>; className?: string }) {
   const [armed, setArmed] = useState(false);
+  // بيرجع لحالو بعد 10 ثواني، وما بيرجع طول ما الماوس عليه (كان يرجع بسرعة وما تعرف ليش ما انحذف)
+  const [hover, setHover] = useState(false);
   useEffect(() => {
-    if (!armed) return;
-    const t = setTimeout(() => setArmed(false), 4000);
+    if (!armed || hover) return;
+    const t = setTimeout(() => setArmed(false), 10000);
     return () => clearTimeout(t);
-  }, [armed]);
+  }, [armed, hover]);
   return armed ? (
     <button
       type="button"
       className={`danger ${className ?? ''}`}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
       onClick={async () => {
         setArmed(false);
         await onConfirm();

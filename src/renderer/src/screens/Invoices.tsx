@@ -5,6 +5,7 @@ import { ExportButtons } from '../components/print';
 import { ConfirmButton, Empty, Field, matches, PageHeader, SearchBox } from '../components/ui';
 import { Icon } from '../components/icons';
 import { DraftsList } from '../components/DraftsList';
+import { invoicePaidNow } from './InvoiceView';
 
 /** صلاحية تعديل الفاتورة: إلغاء + إنشاء من نفس النوع، ومش طالعة من طلب أو مشروع. */
 export function canEditInvoice(inv: Invoice, can: (p: never) => boolean): boolean {
@@ -52,6 +53,16 @@ export function Invoices({ initial }: { initial?: string } = {}) {
   const deletedCount = useMemo(() => state.invoices.filter((i) => i.deleted).length, [state.invoices]);
   // الملغاة (والنسخ القديمة من الفواتير المعدّلة) بقائمة لحالها، مش مخلوطة بالفواتير الشغّالة
   const [showVoided, setShowVoided] = useState(false);
+  // المدفوع هلق (مع السندات اللي انوزّعت عالفاتورة بعدين)؛ ديون كل زبون بتنحسب مرة وحدة
+  const paidOf = useMemo(() => {
+    const cache = new Map();
+    const memo = new Map<string, number>();
+    return (i: Invoice) => {
+      let v = memo.get(i.id);
+      if (v === undefined) memo.set(i.id, (v = invoicePaidNow(state, i, cache)));
+      return v;
+    };
+  }, [state]);
   const voidedCount = useMemo(() => state.invoices.filter((i) => i.voidEntryId && !i.deleted && sideOf(i.kind) === side).length, [state.invoices, side]);
   // قائمة الكبسة اليمين على الفاتورة
   const [menu, setMenu] = useState<{ inv: Invoice; x: number; y: number } | null>(null);
@@ -106,8 +117,8 @@ export function Invoices({ initial }: { initial?: string } = {}) {
                 party: i.partyId ? state.parties[i.partyId]?.name : 'نقدي',
                 currency: i.currency,
                 total: major(state, i.total, i.currency),
-                paid: major(state, i.paid, i.currency),
-                rest: major(state, i.total - i.paid, i.currency),
+                paid: major(state, paidOf(i), i.currency),
+                rest: major(state, Math.max(0, i.total - paidOf(i)), i.currency),
                 user: users[i.createdBy]?.displayName ?? i.createdBy,
                 status: i.deleted ? 'محذوفة' : i.voidEntryId ? 'ملغاة' : '',
               })),
@@ -199,7 +210,7 @@ export function Invoices({ initial }: { initial?: string } = {}) {
                 <td>{dateText(i.date)}</td>
                 <td>{i.partyId ? state.parties[i.partyId]?.name : 'نقدي'}</td>
                 <td className="num">{money(state, i.total, i.currency)}</td>
-                <td className="num">{money(state, i.paid, i.currency)}</td>
+                <td className="num">{money(state, paidOf(i), i.currency)}</td>
                 {showProfit && side === 'sale' && (
                   <td className="num">
                     {i.kind === 'sale' && !i.voidEntryId

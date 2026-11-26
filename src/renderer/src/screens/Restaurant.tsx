@@ -923,7 +923,7 @@ export function RestaurantLive() {
     for (const l of inv.lines) {
       const k = l.itemId ?? l.description;
       const x = top.get(k) ?? { name: l.description, qty: 0, amount: 0 };
-      x.qty += l.qty;
+      x.qty += l.qty * (l.factor ?? 1);
       x.amount += Math.round(l.qty * l.price);
       top.set(k, x);
     }
