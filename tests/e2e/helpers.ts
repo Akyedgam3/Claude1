@@ -104,7 +104,16 @@ export async function pick(page: Page, input: ReturnType<Page['locator']>, text:
 }
 
 export async function toast(page: Page, text: string | RegExp): Promise<void> {
-  await expect(page.locator('.toast').filter({ hasText: text }).last()).toBeVisible();
+  // دفع أكتر من رصيد الصندوق بيسأل «الصندوق رح يصير بالسالب، كمّل؟»: بالاختبارات منكمّل
+  const target = page.locator('.toast').filter({ hasText: text }).last();
+  const negative = page.locator('.modal', { hasText: 'رح يصير بالسالب' });
+  await expect
+    .poll(async () => {
+      if (await target.isVisible()) return true;
+      if (await negative.isVisible()) await negative.getByRole('button', { name: 'نعم', exact: true }).click().catch(() => undefined);
+      return false;
+    }, { timeout: 10_000 })
+    .toBe(true);
 }
 
 /** ينتظر ظهور ملف بامتداد معيّن في مجلد (بعد التصدير). */

@@ -24,8 +24,9 @@ test('item currency change converts prices; Excel re-import updates prices; extr
     const priceInput = m.locator('.tier-prices-row label', { hasText: 'مفرق' }).locator('input');
     await expect(priceInput).toHaveValue(/110[,٬]?000/);
     await m.getByRole('button', { name: 'حفظ' }).click();
+    // الحفظ بياخد لحظة: منستنى الحالة تتحدّث قبل ما نقراها
+    await expect.poll(async () => (await page.evaluate(() => (window as any).mizan.invoke('company:state'))).state.items['usd1'].priceCurrency).toBe('SYP');
     const st = await page.evaluate(() => (window as any).mizan.invoke('company:state'));
-    expect(st.state.items['usd1'].priceCurrency).toBe('SYP');
     expect(st.state.items['usd1'].price / 10 ** st.state.currencies['SYP'].decimals).toBe(110000);
 
     // استيراد إكسل، وبعدين نفس المواد بسعر تاني: الأسعار بتتحدّث

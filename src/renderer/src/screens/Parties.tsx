@@ -350,17 +350,20 @@ export function PartyForm({
   onClose,
   onSaved,
   defaultKind = 'customer',
+  defaultName = '',
 }: {
   party: Party | null;
   onClose: () => void;
   onSaved?: (p: Party) => void;
   defaultKind?: Party['kind'];
+  /** الاسم اللي انكتب بالبحث قبل ما يكبس «+» (كان يضيع) */
+  defaultName?: string;
 }) {
   const nameRef = useRef<HTMLInputElement>(null);
   const { state, call, notify, feature, can } = useCompany();
   const base = state.info!.baseCurrency;
   const [f, setF] = useState({
-    name: party?.name ?? '',
+    name: party?.name ?? defaultName,
     kind: party?.kind ?? defaultKind,
     phone: party?.phone ?? '',
     address: party?.address ?? '',

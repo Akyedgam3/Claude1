@@ -75,11 +75,16 @@ export function usePrinter() {
       }
     },
     async pdf(name: string, paper: Paper = 'a4') {
+      // بياخد كم ثانية: مؤشر حتى ما يكبس مرة تانية ويفكّر ما صار شي
+      document.body.classList.add('pdf-busy');
+      notify('عم يجهّز ملف PDF…');
       try {
         const file = await withPaper(paper, () => api.exportPdf({ paper, name }));
         if (file) notify(`تم حفظ الملف: ${file}`);
       } catch (e) {
         notify((e as Error).message, 'error');
+      } finally {
+        document.body.classList.remove('pdf-busy');
       }
     },
   };

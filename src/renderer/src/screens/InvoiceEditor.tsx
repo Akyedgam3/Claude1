@@ -3,7 +3,7 @@ import { confirmCashOut } from '../components/cashGuard';
 import { autoSendInvoice } from '../components/whatsapp';
 import { invoiceText } from './InvoiceView';
 import { isMarketer, marketerTerms, attributesFor, ATTRIBUTE_SUGGESTIONS, isCashBox, computeTaxes, PRICE_TIER_NAMES, tierPrice, COST_LIST, FREE_LIST, isBuiltinList, partyPriceList, priceListPrice, type PriceTier, niceUnitCost, PRICE_SCALE, roundPrice, findRate, itemPlace, listPrices, withPlace, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
-import { discountProblem, convertPrice, dateText, fxRates, money, cleanNumber, qtyTotalText, qtyText, parseAmount, parseDiscount, parsePrice, rateInverted, rateToInput, inputToRate, toInput, today, uid, useCompany } from '../api';
+import { discountProblem, priceInvalid, convertPrice, dateText, fxRates, money, cleanNumber, qtyTotalText, qtyText, parseAmount, parseDiscount, parsePrice, rateInverted, rateToInput, inputToRate, toInput, today, uid, useCompany } from '../api';
 import { askConfirm, CurrencySelect, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
 import { invoiceDrafts } from '../drafts';
 import { ItemForm } from './Items';
@@ -277,6 +277,8 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
     setLines((ls) => ls.map((l) => (l.itemId ? { ...l, sell: suggest(l, margins.retailMargin) || l.sell, dealer: suggest(l, margins.dealerMargin) || l.dealer } : l)));
   const weighBirds = feature('poultry');
   const [newParty, setNewParty] = useState(false);
+  const typedParty = useRef('');
+  const [openAttrs, setOpenAttrs] = useState<Set<string>>(() => new Set());
   const [serialChoices, setSerialChoices] = useState<{ code: string; matches: SerialMatch[] } | null>(null);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
@@ -791,7 +793,14 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
               </button>
             )}
             {can('parties.manage') && (
-              <button type="button" className="icon" title="إضافة جديد" onClick={() => setNewParty(true)}>
+              <button
+                type="button"
+                className="icon"
+                title="إضافة جديد"
+                // الاسم المكتوب بالبحث بينقرا قبل ما تفقد الخانة الفوكس، وبيتعبّى بالنموذج
+                onMouseDown={(e) => (typedParty.current = e.currentTarget.closest('.with-button, .field')?.querySelector<HTMLInputElement>('input')?.value.trim() ?? '')}
+                onClick={() => setNewParty(true)}
+              >
                 <Icon name="plus" size={16} />
               </button>
             )}
@@ -976,8 +985,17 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
                         )}
                         {item && (() => {
                           // خيارات الصنف (اللون، الوزن، الحجم...): من بطاقته، وبتتغيّر لهالبيعة بس، وبتنطبع بالفاتورة
-                          const names = [...new Set([...attributesFor(profile, item.category), ...Object.keys(l.attrs ?? {})])];
-                          if (!names.length) return null;
+                          const all = [...new Set([...attributesFor(profile, item.category), ...Object.keys(l.attrs ?? {})])];
+                          if (!all.length) return null;
+                          // الفاضية مطوية تحت «+ تفاصيل» (كانت الماركة/اللون/النكهة تطلع بكل سطر وتشوّش)
+                          const filled = all.filter((a) => l.attrs?.[a]?.trim());
+                          const names = openAttrs.has(l.key) ? all : filled;
+                          if (!names.length)
+                            return (
+                              <button type="button" className="link line-attrs-more" onClick={() => setOpenAttrs((x) => new Set(x).add(l.key))}>
+                                + تفاصيل ({all.join('، ')})
+                              </button>
+                            );
                           return (
                             <span className="line-attrs">
                               {Object.entries(ATTRIBUTE_SUGGESTIONS).map(([a, vals]) => (
@@ -998,6 +1016,11 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
                                   />
                                 </label>
                               ))}
+                              {names.length < all.length && (
+                                <button type="button" className="link line-attrs-more" onClick={() => setOpenAttrs((x) => new Set(x).add(l.key))}>
+                                  + تفاصيل
+                                </button>
+                              )}
                             </span>
                           );
                         })()}
@@ -1126,7 +1149,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
                     </div>
                   </td>
                   <td data-label="السعر">
-                    <input className="num-input" value={l.price} readOnly={lockPrice && !!l.itemId} title={lockPrice && l.itemId ? 'ما عندك صلاحية تغيير السعر' : undefined} onChange={(e) => setLine(l.key, { price: e.target.value, manualPrice: true, src: priceSrc(e.target.value) })} inputMode="decimal" onKeyDown={enterNext} />
+                    <input className={`num-input${priceInvalid(state, l.price, currency) ? ' invalid' : ''}`} value={l.price} readOnly={lockPrice && !!l.itemId} title={lockPrice && l.itemId ? 'ما عندك صلاحية تغيير السعر' : undefined} onChange={(e) => setLine(l.key, { price: e.target.value, manualPrice: true, src: priceSrc(e.target.value) })} inputMode="decimal" onKeyDown={enterNext} />
                     {!(lockPrice && l.itemId) && (() => {
                       const h = l.itemId ? partyHistory.last.get(l.itemId) : undefined;
                       if (!h || (h.unit || '') !== (l.unit || '')) return null;
@@ -1361,7 +1384,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
           </div>
         </Modal>
       )}
-      {newParty && <PartyForm party={null} defaultKind={isSale ? 'customer' : 'supplier'} onClose={() => setNewParty(false)} onSaved={(p) => {
+      {newParty && <PartyForm party={null} defaultKind={isSale ? 'customer' : 'supplier'} defaultName={partyId ? '' : typedParty.current} onClose={() => setNewParty(false)} onSaved={(p) => {
         changeParty(p.id);
         // بعد ما تسكّر نافذة المورد الجديد الفوكس بيرجع لخانة الباركود، فأول مسح بينضاف
         setTimeout(() => document.querySelector<HTMLInputElement>('.page .scan-row .scan-input')?.focus(), 80);

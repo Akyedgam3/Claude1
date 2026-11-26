@@ -16,6 +16,7 @@ const PERM_GROUPS: { title: string; perms: Permission[] }[] = [
   { title: 'الإدارة', perms: ['settings.manage', 'users.manage', 'backup.manage', 'period.close', 'partners.manage', 'employees.manage'] },
 ];
 const GROUPED = new Set(PERM_GROUPS.flatMap((g) => g.perms));
+const NAV_PERMS = new Set(NAV.flatMap((n) => (typeof n === 'string' ? [] : ([n.perm, ...(n.perms ?? []), n.also].filter(Boolean) as Permission[]))));
 const PERM_HINTS: Partial<Record<Permission, string>> = {
   'costs.view': 'بدونها ما بيشوف سعر الشراء ولا التكلفة ولا قيمة البضاعة، بأي شاشة',
   'profits.view': 'بدونها ما بيشوف ربح الفاتورة ولا ربح اليوم ولا تقارير الأرباح',
@@ -79,7 +80,10 @@ function UserForm({ user, onClose }: { user: User | null; onClose: () => void })
   const boxes = cashAccounts(state);
   const [hidden, setHidden] = useState<Set<string>>(new Set(user?.hiddenScreens ?? []));
   // الأقسام الموجودة بنشاط المحل (من غير الرئيسية)
+  // صلاحيات أقسام نشاطات تانية (طاولات، تفصيل، طاقة شمسية...) ما منعرضها لهالنشاط
+  const navPermsOf = (n: NavItem) => [n.perm, ...(n.perms ?? []), n.also].filter(Boolean) as Permission[];
   const sections = NAV.filter((n): n is NavItem => typeof n !== 'string' && n.key !== 'dashboard' && (!n.feature || feature(n.feature)) && (!n.features || n.features.some(feature)));
+  const shownPerms = new Set(sections.flatMap(navPermsOf));
   const [f, setF] = useState({
     // مع صندوق المورد: الحساب الجديد (الصيدلية) افتراضياً عالصندوق المشترك
     cashAccountId: user ? (user.cashAccountId ?? '') : state.accounts['11019'] ? (boxes.find((b) => !b.hidden)?.id ?? '') : '',
@@ -182,7 +186,7 @@ function UserForm({ user, onClose }: { user: User | null; onClose: () => void })
         {f.role !== 'owner' && (
           <div className="field wide">
             <span>الصلاحيات (يمكنك إضافة أو سحب صلاحيات من الدور)</span>
-            {[...PERM_GROUPS, { title: 'أقسام النشاط', perms: ALL_PERMISSIONS.filter((p) => !GROUPED.has(p)) }].map((g) => (
+            {[...PERM_GROUPS, { title: 'أقسام النشاط', perms: ALL_PERMISSIONS.filter((p) => !GROUPED.has(p) && (!NAV_PERMS.has(p) || shownPerms.has(p) || f.extra.has(p))) }].map((g) => (
               <div key={g.title} className="perm-group">
                 <h4>{g.title}</h4>
                 <div className="perm-grid">

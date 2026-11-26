@@ -426,15 +426,26 @@ function QuickAddStock({ item, onClose }: { item: Item; onClose: () => void }) {
   const [warehouseId, setWarehouseId] = useState(whs[0]?.id ?? 'main');
   const [qty, setQty] = useState('');
   const [cost, setCost] = useState(avg && showCost ? toInput(state, avg, base) : '');
+  // الإضافة بأي وحدة (3 كراتين مثلاً) وبتنحفظ بالوحدة الأساسية
+  const units = (item.units ?? []).filter((u) => u.factor > 0);
+  const [unit, setUnit] = useState('');
+  const factor = units.find((u) => u.name === unit)?.factor ?? 1;
+  const changeUnit = (name: string) => {
+    const f = units.find((u) => u.name === name)?.factor ?? 1;
+    setUnit(name);
+    if (avg && showCost) setCost(toInput(state, Math.round(avg * f), base));
+  };
   const save = async () => {
-    const q = Number(qty.replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))));
-    if (!(q > 0)) return notify('اكتب الكمية', 'error');
+    const entered = Number(qty.replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))));
+    if (!(entered > 0)) return notify('اكتب الكمية', 'error');
+    const q = entered * factor;
+    const unitCost = cost.trim() ? Math.round(parsePrice(state, cost, base) / factor) : avg;
     const res = await call('adjustStock', {
       kind: 'opening',
       date: today(),
       warehouseId,
       memo: 'إضافة بضاعة',
-      lines: [{ itemId: item.id, qty: q, unitCost: cost.trim() ? parsePrice(state, cost, base) : avg }],
+      lines: [{ itemId: item.id, qty: q, unitCost }],
     });
     if (res) {
       notify(`تمت إضافة ${qtyText(q)} ${item.unit} لـ ${item.name}`);
@@ -453,11 +464,23 @@ function QuickAddStock({ item, onClose }: { item: Item; onClose: () => void }) {
           void save();
         }}
       >
-        <Field label={`الكمية المضافة (${item.unit})`}>
+        <Field label={`الكمية المضافة (${unit || item.unit})`}>
           <input value={qty} onChange={(e) => setQty(e.target.value)} inputMode="decimal" autoFocus />
         </Field>
+        {units.length > 0 && (
+          <Field label="الوحدة">
+            <select value={unit} onChange={(e) => changeUnit(e.target.value)}>
+              <option value="">{item.unit}</option>
+              {units.map((u) => (
+                <option key={u.name} value={u.name}>
+                  {u.name} ({qtyText(u.factor)} {item.unit})
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
         {showCost && (
-          <Field label={`تكلفة الوحدة (${state.currencies[base]?.symbol ?? base}) — اختياري`}>
+          <Field label={`تكلفة ${unit || 'الوحدة'} (${state.currencies[base]?.symbol ?? base}) — اختياري`}>
             <input value={cost} onChange={(e) => setCost(e.target.value)} inputMode="decimal" />
           </Field>
         )}

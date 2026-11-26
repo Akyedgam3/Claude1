@@ -5042,3 +5042,8 @@ body:not(.mobile) .pos-cart .pos-pay { position: sticky; bottom: -1px; backgroun
 .thermal-doc.t-title-dark .t-title,
 .thermal-doc.t-title-dark .t-grand { background: #000; color: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; border-color: #000; padding-inline: 4px; }
 .thermal-doc .t-words { text-align: center; font-size: 0.88em; margin-top: 4px; }
+body.pdf-busy, body.pdf-busy * { cursor: progress !important; }
+/* أرقام الكروت الكبيرة: الرقم والعملة بسطر واحد، والخط بيصغر لحاله إذا الكرت ضيّق (كانت «ل.س» تنزل لسطر لحالها) */
+body:not(.mobile) .stats .stat { container-type: inline-size; }
+body:not(.mobile) .stats .stat strong { white-space: nowrap; font-size: min(21px, 10.5cqi); }
+.line-attrs-more { font-size: 12px; display: inline-block; margin-top: 2px; }

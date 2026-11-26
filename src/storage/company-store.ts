@@ -543,7 +543,10 @@ export class CompanyStore {
    * تُحفظ آخر `keep` نسخ فقط في مجلد النسخ الافتراضي.
    */
   backup(destRoot = path.join(this.dir, 'backups'), keep = 30): string {
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    // بتوقيت الجهاز (كان UTC فاسم المجلد ما بيطابق الساعة اللي قدامك)؛ نفس الترتيب الأبجدي = الزمني
+    const t = new Date();
+    const p2 = (n: number, w = 2) => String(n).padStart(w, '0');
+    const stamp = `${t.getFullYear()}-${p2(t.getMonth() + 1)}-${p2(t.getDate())}T${p2(t.getHours())}-${p2(t.getMinutes())}-${p2(t.getSeconds())}-${p2(t.getMilliseconds(), 3)}`;
     const dest = path.join(destRoot, stamp);
     fs.mkdirSync(dest, { recursive: true });
     for (const file of [META, KEYRING, JOURNAL, HEAD]) {

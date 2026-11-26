@@ -142,12 +142,30 @@ export function Welcome({
       {recovery && (
         <Modal title="احفظ رمز الاسترداد" onClose={() => undefined}>
           <p>بيانات الشركة مشفّرة بكلمة السر. إن نسيت كلمة السر فهذا الرمز هو الطريقة الوحيدة لفتح الشركة.</p>
-          <p className="big-code mono selectable" dir="ltr">
-            {recovery}
-          </p>
+          <div className="print-area recovery-sheet">
+            <h3 className="print-only">رمز استرداد شركتك على وزن</h3>
+            <p className="big-code mono selectable" dir="ltr">
+              {recovery}
+            </p>
+            <p className="print-only">احفظ هالورقة بمكان آمن. بهالرمز بتفتح الشركة إذا نسيت كلمة السر.</p>
+          </div>
           <p className="bad">اكتبه على ورقة واحفظه في مكان آمن. لن يظهر مرة أخرى.</p>
           <div className="form-actions">
             <button onClick={() => navigator.clipboard.writeText(recovery)}>نسخ</button>
+            <button
+              onClick={() => {
+                // ملف نصي صغير بالرمز (بيتحفظ بالتنزيلات أو بيسأل وين)
+                const blob = new Blob([`رمز استرداد شركتك على وزن\r\n${recovery}\r\n`], { type: 'text/plain;charset=utf-8' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `Wazn-رمز-الاسترداد.txt`;
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+              }}
+            >
+              احفظه كملف
+            </button>
+            {!IS_MOBILE && !IS_WEB && <button onClick={() => void api.print({ paper: 'a4', fit: false })}>اطبعه</button>}
             <button
               className="primary"
               onClick={async () => {
@@ -487,7 +505,8 @@ function NewCompany({ notify, onCreated }: { notify: (m: string, k?: 'ok' | 'err
 }
 
 function LoginPanel({ peek, onClose, notify, onOpened }: { peek: CompanyPeek; onClose: () => void; notify: (m: string, k?: 'ok' | 'error') => void; onOpened: () => Promise<void> }) {
-  const [username, setUsername] = useState(peek.usernames[0] ?? '');
+  // أكتر من مستخدم: ما منختار حدا مسبقاً (الكاشير كان يدخل كمالك بالغلط)
+  const [username, setUsername] = useState(peek.usernames.length === 1 ? peek.usernames[0]! : '');
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
   const [recovery, setRecovery] = useState<string | null>(null);
@@ -506,6 +525,11 @@ function LoginPanel({ peek, onClose, notify, onOpened }: { peek: CompanyPeek; on
       <form
         onSubmit={async (e) => {
           e.preventDefault();
+          if (recovery === null && !username) {
+            notify('اختار اسمك من فوق أول', 'error');
+            setShake((n) => n + 1);
+            return;
+          }
           setBusy(true);
           try {
             const s = await api.login(peek.dir, recovery !== null ? { recoveryCode: recovery } : { username, password });

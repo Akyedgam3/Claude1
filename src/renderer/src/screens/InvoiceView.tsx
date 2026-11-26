@@ -577,6 +577,8 @@ export function InvoiceDocument({ inv }: { inv: Invoice }) {
     ],
     grand: { label: 'الإجمالي', value: m(inv.total) },
     after: [
+      // تكاليف الشراء الإضافية (نقل، جمركة...) ما بتدخل بالإجمالي بس دخلت بتكلفة المواد: منبيّنها حتى ما تضيع
+      ...(inv.extras?.length ? [{ label: `تكاليف إضافية${inv.extras.some((x) => x.memo) ? ` (${inv.extras.map((x) => x.memo).filter(Boolean).join('، ')})` : ''}`, value: m(inv.extras.reduce((t, x) => t + x.amount, 0)) }] : []),
       ...(viaMarketer
         ? []
         : [

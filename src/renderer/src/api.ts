@@ -434,6 +434,16 @@ export function parsePrice(state: CompanyState, text: string, currency: string):
   return toUnitPrice(t, displayDecimals(state, currency));
 }
 
+/** السعر المكتوب غلط (حروف، سالب، أكتر من خانات العملة): للتلوين وقت الكتابة بدل ما يطلع الغلط بس عند الحفظ */
+export function priceInvalid(state: CompanyState, text: string, currency: string): boolean {
+  if (!cleanNumber(text ?? '')) return false;
+  try {
+    return parsePrice(state, text, currency) < 0;
+  } catch {
+    return true;
+  }
+}
+
 /**
  * الخصم: مبلغ («50») أو نسبة («10%» أو «%10») من المبلغ `of`، بأي أرقام.
  * ما بيرمي غلط أبداً (نص ما بينفهم = بلا خصم) حتى ما يتصفّر حساب الفاتورة وقت الكتابة، وما بيتجاوز المبلغ نفسه.

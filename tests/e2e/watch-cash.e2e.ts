@@ -61,10 +61,9 @@ test('مراقبة المواد وكشف الحساب والصندوق وتصف�
     await z.getByRole('button', { name: 'تصفير', exact: true }).click();
     await toast(page, 'تم: طلع');
     await expect(page.locator('.cash-card').first().locator('.cash-line b').first()).toHaveText(/^0\.00/);
-    // طلع منه أكتر من اللي فيه: ما بيبيّن سالب، بيكتب «ما في نقد»، وزر «تصفير السالب» بيرجّعه صفر
+    // طلع منه أكتر من اللي فيه: الرقم السالب بالأحمر (تقرير التجربة B4)، وزر «تصفير السالب» بيرجّعه صفر
     await page.evaluate(() => (window as any).mizan.invoke('company:call', 'drawFromBox', [{ date: new Date().toISOString().slice(0, 10), from: '1101', amount: 500000 }]));
-    await expect(page.locator('.cash-card').first()).toContainText('ما في نقد');
-    await expect(page.locator('.cash-card').first()).not.toContainText('-');
+    await expect(page.locator('.cash-card').first().locator('.cash-line b.bad').first()).toContainText('5,000');
     await page.getByRole('button', { name: /تصفير السالب/ }).click();
     await expect(page.locator('.modal')).toContainText('5,000');
     if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT.replace('.png', '-5.png') });

@@ -11,7 +11,7 @@ interface Step {
 }
 
 const STEPS: Step[] = [
-  { title: 'أهلاً بك في وزن', text: 'جولة سريعة من 10 خطوات تعرّفك على أهم أقسام البرنامج. يمكنك تخطّيها في أي وقت وإعادتها لاحقاً من الإعدادات.' },
+  { title: 'أهلاً بك في وزن', text: 'جولة سريعة تعرّفك على أهم أقسام البرنامج. يمكنك تخطّيها في أي وقت وإعادتها لاحقاً من الإعدادات.' },
   { target: '[data-tour="search"]', title: 'البحث السريع', text: 'اضغط Ctrl+K من أي مكان وابحث عن مادة أو زبون أو فاتورة أو أي شاشة في البرنامج.' },
   { target: '[data-nav="dashboard"]', title: 'الشاشة الرئيسية', text: 'ملخّص يومك: المبيعات، الأرباح، النقد في الصندوق والديون. اضغط على أي بطاقة لتفتح تفاصيلها.' },
   { target: '[data-nav="pos"], [data-nav="restaurant"]', title: 'البيع السريع', text: 'نقطة البيع للبيع بالباركود أو بالضغط على المواد، مع حساب الباقي للزبون وطباعة الإيصال. اختصارها F3.' },
@@ -54,6 +54,13 @@ export function Tour() {
 
   // الخطوات اللي عنصرها مش ظاهر لهالمستخدم (صلاحيات أو نشاط مختلف) منتخطّاها
   // على الموبايل القائمة درج مسكّر، فالبطاقات بتطلع بالنص بدون تأشير
+  // القائمة بتتركّب بعد الجولة: منعيد الحساب بعد أول رسم (كانت تطلع «1/1» وتقول 10 خطوات)
+  const [, setMounted] = useState(0);
+  useEffect(() => {
+    const t = requestAnimationFrame(() => setMounted((x) => x + 1));
+    const t2 = setTimeout(() => setMounted((x) => x + 1), 300);
+    return () => (cancelAnimationFrame(t), clearTimeout(t2));
+  }, [open]);
   const steps: Step[] = IS_MOBILE ? STEPS.map(({ title, text }) => ({ title, text })) : STEPS.filter((s) => !s.target || document.querySelector(s.target));
   const step = steps[Math.min(i, steps.length - 1)]!;
 

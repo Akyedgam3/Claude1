@@ -27,6 +27,9 @@ test('خيارات الصنف (الحجم واللون والوزن) بالفا�
     const opts = row.locator('.line-attrs');
     await expect(opts.locator('label', { hasText: 'الحجم' }).locator('input')).toHaveValue('وسط');
     await expect(opts.locator('label', { hasText: 'الوزن' }).locator('input')).toHaveValue('1 كغ');
+    // اللون فاضي بالبطاقة فمطوي تحت «+ تفاصيل»
+    await expect(opts.locator('label', { hasText: 'اللون' })).toHaveCount(0);
+    await opts.getByRole('button', { name: '+ تفاصيل' }).click();
     // لهالبيعة: حجم كبير ولون أحمر
     await opts.locator('label', { hasText: 'الحجم' }).locator('input').fill('كبير');
     await opts.locator('label', { hasText: 'اللون' }).locator('input').fill('برتقالي');

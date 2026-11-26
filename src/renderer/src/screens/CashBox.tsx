@@ -281,7 +281,7 @@ function ZeroBox({ box, balances, boxes, onClose }: { box: Account; balances: Re
 /** تصفير السالب: إذا طلع من الصندوق أكتر من اللي فات عليه (مصاري ما انسجّلت)، المالك بيحط الفرق فبيرجع الصندوق صفر. */
 function FillBox({ box, negatives, onClose }: { box: Account; negatives: [string, number][]; onClose: () => void }) {
   const { state, call, notify } = useCompany();
-  const [currency, setCurrency] = useState(negatives[0]![0]);
+  const [currency, setCurrency] = useState(() => negatives[0]?.[0] ?? box.currency ?? state.info!.baseCurrency);
   const amount = -(negatives.find(([c]) => c === currency)?.[1] ?? 0);
   const [date, setDate] = useState(today());
   const save = async () => {
