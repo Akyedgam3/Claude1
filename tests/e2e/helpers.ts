@@ -107,10 +107,13 @@ export async function toast(page: Page, text: string | RegExp): Promise<void> {
   // دفع أكتر من رصيد الصندوق بيسأل «الصندوق رح يصير بالسالب، كمّل؟»: بالاختبارات منكمّل
   const target = page.locator('.toast').filter({ hasText: text }).last();
   const negative = page.locator('.modal', { hasText: 'رح يصير بالسالب' });
+  // فاتورة شراء والصندوق ما فيه كفاية: «من وين إجت المصاري؟» ← «دفعت من الصندوق» (نفس التصرف القديم)
+  const purchase = page.locator('.modal', { hasText: 'من وين إجت المصاري' });
   await expect
     .poll(async () => {
       if (await target.isVisible()) return true;
-      if (await negative.isVisible()) await negative.getByRole('button', { name: 'نعم', exact: true }).click().catch(() => undefined);
+      if (await purchase.isVisible()) await purchase.getByRole('button', { name: /دفعت من الصندوق/ }).click().catch(() => undefined);
+      else if (await negative.isVisible()) await negative.getByRole('button', { name: 'نعم', exact: true }).click().catch(() => undefined);
       return false;
     }, { timeout: 10_000 })
     .toBe(true);

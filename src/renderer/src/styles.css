@@ -5049,3 +5049,9 @@ body:not(.mobile) .stats .stat strong { white-space: nowrap; font-size: min(21px
 .line-attrs-more { font-size: 12px; display: inline-block; margin-top: 2px; }
 .reminder-card textarea { width: 100%; }
 .reminder-sample { white-space: pre-wrap; font-family: inherit; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin: 0 0 10px; }
+/* نافذة الخيارات (askChoice): كل خيار زر عريض مع شرح تحته */
+.choice-msg { font-weight: 600; margin-bottom: 12px; line-height: 1.7; }
+.choice-list { display: flex; flex-direction: column; gap: 8px; }
+.choice-list button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: right; padding: 10px 14px; white-space: normal; }
+.choice-list button small { font-weight: 500; opacity: .8; line-height: 1.5; }
+.choice-list button.ghost { align-items: center; }

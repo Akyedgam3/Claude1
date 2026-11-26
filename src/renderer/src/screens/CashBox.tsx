@@ -1,7 +1,7 @@
 // الصندوق: رصيد كل صندوق وبنك بعملته (من القيود نفسها، فمطابق للحسابات)، الداخل والخارج بالفترة،
 // وكل حركة بنوعها والرصيد بعدها. وزر «تصفير الصندوق»: كل اللي فيه بيروح لصندوق تاني أو بنك أو سحب للمالك.
 import { useMemo, useState } from 'react';
-import { cashBoxes, findRate, fullStatement, type Account } from '../../../core';
+import { cashBoxes, findRate, fullStatement, SYSTEM_ACCOUNTS, type Account } from '../../../core';
 import { dateText, major, money, parseAmount, rateToInput, toInput, today, useCompany } from '../api';
 import { DocHeader, ExportButtons, PrintButtons } from '../components/print';
 import { askConfirm, Empty, Field, Modal, PageHeader, Stat } from '../components/ui';
@@ -37,6 +37,7 @@ export function CashBox() {
   const [zeroing, setZeroing] = useState(false);
   const [filling, setFilling] = useState(false);
   const [exchanging, setExchanging] = useState(false);
+  const [opening, setOpening] = useState(false);
   const d = today();
   // ملخص كل الصناديق: الرصيد الآن والداخل والخارج اليوم، لكل عملة
   const summary = useMemo(
@@ -105,6 +106,11 @@ export function CashBox() {
                 <Icon name="wallet" size={16} /> تصفير السالب
               </button>
             )}
+            {can('cash.manage') && can('vouchers.create') && (
+              <button onClick={() => setOpening(true)} title="المصاري اللي كانت معك قبل ما تبلّش عالبرنامج، أو مصاري حطيتها من عندك">
+                <Icon name="wallet" size={16} /> رصيد افتتاحي
+              </button>
+            )}
             {can('cash.manage') && Object.keys(state.currencies).length > 1 && (
               <button onClick={() => setExchanging(true)}>
                 <Icon name="transfer" size={16} /> صرف عملة
@@ -164,6 +170,7 @@ export function CashBox() {
             )}
           </div>
           {filling && <FillBox box={box} negatives={negatives} onClose={() => setFilling(false)} />}
+          {opening && <OpeningCash box={box} onClose={() => setOpening(false)} />}
           {exchanging && <ExchangeBox box={box} boxes={boxes} onClose={() => setExchanging(false)} />}
           {zeroing && <ZeroBox box={box} balances={boxBalances(state, box.id)} boxes={boxes} onClose={() => setZeroing(false)} />}
         </>
@@ -205,6 +212,78 @@ function CashTable({ rows, opening, m, mc }: { rows: ReturnType<typeof fullState
         ))}
       </tbody>
     </table>
+  );
+}
+
+/**
+ * الرصيد الافتتاحي للصندوق: المصاري اللي كانت بالدرج قبل البرنامج (أو حطها المالك) بتفوت رأس مال، مش مبيعات،
+ * فالصندوق ما بيصير بالسالب لما تندفع فواتير البضاعة الموجودة. فيك تكتب قديش معك هلق والبرنامج بيحسب الفرق.
+ */
+function OpeningCash({ box, onClose }: { box: Account; onClose: () => void }) {
+  const { state, call, notify } = useCompany();
+  const base = state.info!.baseCurrency;
+  const bal = boxBalances(state, box.id);
+  const [currency, setCurrency] = useState(box.currency ?? base);
+  const now = bal[currency] ?? 0;
+  const [mode, setMode] = useState<'count' | 'add'>('count');
+  const [text, setText] = useState('');
+  const [date, setDate] = useState(() => state.entries.reduce((d, e) => (e.date < d ? e.date : d), today()));
+  let typed = 0;
+  try {
+    typed = text.trim() ? parseAmount(state, text, currency) : 0;
+  } catch {
+    typed = -1;
+  }
+  const amount = mode === 'count' ? typed - now : typed;
+  const save = async () => {
+    if (typed < 0) return notify('اكتب المبلغ رقم', 'error');
+    if (!(amount > 0)) return notify(mode === 'count' ? `بالصندوق ${money(state, now, currency)} أصلاً، ما في شي يتزاد` : 'اكتب المبلغ', 'error');
+    if (await call('postVoucher', { kind: 'receipt', date, amount, currency, accountId: SYSTEM_ACCOUNTS.capital, cashAccountId: box.id, memo: `رصيد افتتاحي لـ${box.name}` })) {
+      notify(`تم: فات ${money(state, amount, currency)} على ${box.name} كرأس مال`);
+      onClose();
+    }
+  };
+  const curs = box.currency ? [box.currency] : Object.keys(state.currencies);
+  return (
+    <Modal title={`رصيد افتتاحي: ${box.name}`} onClose={onClose} width={480}>
+      <p className="muted">المصاري اللي كانت معك قبل ما تبلّش عالبرنامج، أو حطيتها من عندك. بتنسجّل رأس مال إلك، مش مبيعات، وما بتغيّر الربح.</p>
+      <div className="form-grid">
+        <div className="segmented wide">
+          <button type="button" className={mode === 'count' ? 'active' : ''} onClick={() => setMode('count')}>عدّيت الدرج: قديش فيه هلق؟</button>
+          <button type="button" className={mode === 'add' ? 'active' : ''} onClick={() => setMode('add')}>مبلغ بدي زيده</button>
+        </div>
+        {curs.length > 1 && (
+          <Field label="العملة">
+            <select value={currency} onChange={(e) => setCurrency(e.target.value)}>
+              {curs.map((c) => (
+                <option key={c} value={c}>
+                  {state.currencies[c]?.nameAr ?? c}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+        <Field label={mode === 'count' ? `قديش بالدرج هلق (${state.currencies[currency]?.symbol ?? currency})` : `المبلغ (${state.currencies[currency]?.symbol ?? currency})`}>
+          <input value={text} onChange={(e) => setText(e.target.value)} inputMode="decimal" autoFocus />
+        </Field>
+        <Field label="التاريخ (أول يوم بالبرنامج)">
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </Field>
+        <p className="wide muted">
+          بالبرنامج هلق: <b className={now < 0 ? 'bad' : ''}>{money(state, now, currency)}</b>
+          {amount > 0 && (
+            <>
+              {' '}← رح يفوت <b>{money(state, amount, currency)}</b> ويصير الصندوق <b>{money(state, now + amount, currency)}</b>
+            </>
+          )}
+        </p>
+        <div className="form-actions wide">
+          <button className="primary big" disabled={!(amount > 0)} onClick={() => void save()}>
+            حفظ
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 

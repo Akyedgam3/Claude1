@@ -429,7 +429,8 @@ export function ScanInput({ onScan, placeholder, autoFocus, inputRef }: { onScan
 }
 
 // تأكيد من جوّا البرنامج بدل confirm() الأصلي: على ويندوز نافذة confirm بتخلّي الخانات تبطل تقبل كتابة لحتى يتسكّر البرنامج
-type Ask = { message: string; resolve: (ok: boolean) => void };
+type Choice = { value: string; label: string; hint?: string; primary?: boolean };
+type Ask = { message: string; title?: string; choices?: Choice[]; resolve: (v: any) => void };
 let pushAsk: ((a: Ask) => void) | null = null;
 
 /** بيسأل المستخدم ويرجّع true إذا وافق. */
@@ -437,11 +438,16 @@ export function askConfirm(message: string): Promise<boolean> {
   return new Promise((resolve) => (pushAsk ? pushAsk({ message, resolve }) : resolve(window.confirm(message))));
 }
 
+/** بيسأل بأكتر من خيار (كل خيار زر مع شرح)؛ بيرجّع قيمة الخيار أو null إذا سكّر. */
+export function askChoice(message: string, choices: Choice[], title?: string): Promise<string | null> {
+  return new Promise((resolve) => (pushAsk ? pushAsk({ message, choices, ...(title ? { title } : {}), resolve }) : resolve(null)));
+}
+
 /** مكان نافذة التأكيد (مرة وحدة بأعلى الواجهة). */
 export function ConfirmHost() {
   const [ask, setAsk] = useState<Ask | null>(null);
   useEffect(() => {
-    pushAsk = (a) => setAsk((cur) => (cur ? (a.resolve(false), cur) : a));
+    pushAsk = (a) => setAsk((cur) => (cur ? (a.resolve(a.choices ? null : false), cur) : a));
     return () => {
       pushAsk = null;
     };
@@ -451,6 +457,28 @@ export function ConfirmHost() {
     ask.resolve(ok);
     setAsk(null);
   };
+  if (ask.choices) {
+    const pick = (v: string | null) => {
+      ask.resolve(v);
+      setAsk(null);
+    };
+    return (
+      <Modal title={ask.title ?? 'شو بدك تعمل؟'} onClose={() => pick(null)} width={500}>
+        <p className="choice-msg">{ask.message}</p>
+        <div className="choice-list">
+          {ask.choices.map((c, i) => (
+            <button key={c.value} className={c.primary ? 'primary' : ''} autoFocus={i === 0} onClick={() => pick(c.value)}>
+              <b>{c.label}</b>
+              {c.hint && <small>{c.hint}</small>}
+            </button>
+          ))}
+          <button className="ghost" onClick={() => pick(null)}>
+            رجوع للفاتورة
+          </button>
+        </div>
+      </Modal>
+    );
+  }
   return (
     <Modal title="تأكيد" onClose={() => done(false)} width={420}>
       <p>{ask.message}</p>

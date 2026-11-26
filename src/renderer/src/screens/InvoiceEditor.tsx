@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { confirmCashOut } from '../components/cashGuard';
+import { confirmCashOut, purchaseCashChoice } from '../components/cashGuard';
 import { autoSendInvoice } from '../components/whatsapp';
 import { invoiceText } from './InvoiceView';
-import { isMarketer, marketerTerms, attributesFor, ATTRIBUTE_SUGGESTIONS, isCashBox, computeTaxes, PRICE_TIER_NAMES, tierPrice, COST_LIST, FREE_LIST, isBuiltinList, partyPriceList, priceListPrice, type PriceTier, niceUnitCost, PRICE_SCALE, roundPrice, findRate, itemPlace, listPrices, withPlace, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
+import { SYSTEM_ACCOUNTS, isMarketer, marketerTerms, attributesFor, ATTRIBUTE_SUGGESTIONS, isCashBox, computeTaxes, PRICE_TIER_NAMES, tierPrice, COST_LIST, FREE_LIST, isBuiltinList, partyPriceList, priceListPrice, type PriceTier, niceUnitCost, PRICE_SCALE, roundPrice, findRate, itemPlace, listPrices, withPlace, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
 import { discountProblem, priceInvalid, convertPrice, dateText, fxRates, money, cleanNumber, qtyTotalText, qtyText, parseAmount, parseDiscount, parsePrice, rateInverted, rateToInput, inputToRate, toInput, today, uid, useCompany } from '../api';
 import { askConfirm, CurrencySelect, Field, ItemName, itemMatches, itemOptions, Modal, PageHeader, partyOptions, Picker, ScanInput } from '../components/ui';
 import { invoiceDrafts } from '../drafts';
@@ -616,7 +616,16 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
       if (extraCosts.some((x) => x.pay === 'party' && !x.partyId)) return notify('اختار الجهة اللي إلها التكلفة الإضافية (شركة الشحن أو المخلّص)', 'error');
     }
     // فاتورة شراء مدفوعة من الصندوق: إذا الصندوق ما فيه كفاية منسأل قبل ما يصير بالسالب
-    if ((kind === 'purchase' || kind === 'sale_return') && !editing && !(await confirmCashOut(state, cashId, currency, paid + Math.max(0, extra)))) return;
+    let capitalTopUp = 0;
+    if (kind === 'purchase' && !editing) {
+      const { choice, shortfall } = await purchaseCashChoice(state, cashId, currency, paid + Math.max(0, extra));
+      if (!choice) return;
+      if (choice === 'credit') {
+        setPayMode('credit');
+        return notify(partyId ? 'صارت الفاتورة «دون دفع» (دين للمورد). راجعها واكبس حفظ' : 'صارت الفاتورة «دون دفع»: اختار المورد واكبس حفظ', partyId ? 'ok' : 'error');
+      }
+      if (choice === 'capital') capitalTopUp = shortfall;
+    } else if (kind === 'sale_return' && !editing && !(await confirmCashOut(state, cashId, currency, paid + Math.max(0, extra)))) return;
     if (extra > 0 && !(await askConfirm(`المدفوع أكتر من الفاتورة بـ ${money(state, extra, currency)}. بتنسجّل الزيادة ${isSale ? 'مقبوضة من' : 'مدفوعة لـ'} ${state.parties[partyId!]?.name ?? ''} على حسابه الجاري؟`))) return;
     savingRef.current = true;
     setSaving(true);
@@ -655,6 +664,20 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
         ...(kind === 'purchase' && extraCosts.length ? { extras: extraCosts } : {}),
       };
       const res = editing ? await call<Invoice>('replaceInvoice', editing.id, draft) : await call<Invoice>('postInvoice', draft);
+      // «البضاعة كانت عندي من قبل / من جيبتي»: الناقص بالصندوق بينسجّل رأس مال (سند قبض من رأس المال لنفس الصندوق)
+      if (res && capitalTopUp > 0) {
+        const v = await call('postVoucher', {
+          kind: 'receipt',
+          date,
+          amount: capitalTopUp,
+          currency,
+          ...(currency !== base ? { rate } : {}),
+          accountId: SYSTEM_ACCOUNTS.capital,
+          cashAccountId: cashId,
+          memo: `رأس مال: بضاعة أو مصاري من قبل (فاتورة شراء رقم ${res.value.number})`,
+        });
+        if (v) notify(`انسجّل ${money(state, capitalTopUp, currency)} رأس مال، والصندوق ما صار بالسالب`);
+      }
       if (res && extra > 0) {
         const v = await call('postVoucher', {
           kind: isSale ? 'receipt' : 'payment',
