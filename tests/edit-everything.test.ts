@@ -57,4 +57,26 @@ describe('edit everything', () => {
     expect(l.state.stock['a']).toMatchObject({ totalQty: 12, value: 6000 });
     balanced(l);
   });
+
+  // فيديو زبون: «بضاعة أول المدة» فيها زيت 800مل كمية 1 وانباع، وتعديل أي سطر تاني كان ينرفض «فات منها 1 وهلق موجود 0»
+  it('editing an opening operation works when one of its items is sold out', () => {
+    const l = shop();
+    l.saveItem({ id: 'b', code: 'B', name: 'زيت نورا 800مل', kind: 'stock', unit: 'قطعة', price: 1000, priceCurrency: 'USD' });
+    const a = l.adjustStock({ kind: 'opening', date: D, lines: [{ itemId: 'a', qty: 10, unitCost: 600 }, { itemId: 'b', qty: 1, unitCost: 300 }] });
+    l.postInvoice({ kind: 'sale', date: D, paid: 1000, lines: [{ itemId: 'b', qty: 1, price: 1000 }] });
+    expect(l.state.stock['b']!.totalQty).toBe(0);
+    // تعديل كمية وسعر المادة التانية: بيمشي
+    l.editAdjustment(a.id, { kind: 'opening', date: D, lines: [{ itemId: 'a', qty: 12, unitCost: 550 }, { itemId: 'b', qty: 1, unitCost: 300 }] });
+    expect(l.state.stock['a']).toMatchObject({ totalQty: 12, value: 6600 });
+    expect(l.state.stock['b']!.totalQty).toBe(0);
+    balanced(l);
+    // تنقيص المادة اللي انباعت لتحت المباع: بينرفض برسالة واضحة، وما بيتغيّر شي
+    const a2 = l.state.adjustments.filter((x) => !x.voidOf).at(-1)!;
+    expect(() => l.editAdjustment(a2.id, { kind: 'opening', date: D, lines: [{ itemId: 'a', qty: 12, unitCost: 550 }] })).toThrow(/ما بيصير تنقّص «زيت نورا 800مل»/);
+    expect(l.state.stock['a']!.totalQty).toBe(12);
+    // زيادة المادة اللي انباعت: بيمشي
+    l.editAdjustment(a2.id, { kind: 'opening', date: D, lines: [{ itemId: 'a', qty: 12, unitCost: 550 }, { itemId: 'b', qty: 3, unitCost: 300 }] });
+    expect(l.state.stock['b']!.totalQty).toBe(2);
+    balanced(l);
+  });
 });

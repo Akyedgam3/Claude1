@@ -1534,13 +1534,26 @@ export class Ledger {
     const a = this.state.adjustments.find((x) => x.id === adjustmentId) ?? fail('العملية غير موجودة');
     if (a.kind === 'count' || a.kind === 'revalue') fail('الجرد وتعديل سعر الشراء ما بيتعدّلوا: ألغِهن واعمل جديد');
     if (d.kind !== a.kind) fail('ما بيصير تغيّر نوع العملية');
+    // الرصيد بيتفحص على الفرق بس (القديم − الجديد لكل مادة): مادة انباعت منها وما تغيّرت كميتها ما بتمنع تعديل باقي الأسطر
+    // (كان الإلغاء الكامل يرفض «فات منها 1 وهلق موجود 0» حتى لو الزبون عم يعدّل سعر سطر تاني)
+    if (!this.state.info?.allowNegativeStock) {
+      const net: Record<string, number> = {};
+      for (const l of a.lines) if (l.qty > 0) net[`${a.warehouseId}|${l.itemId}`] = (net[`${a.warehouseId}|${l.itemId}`] ?? 0) + l.qty;
+      const wh = d.warehouseId ?? a.warehouseId;
+      for (const l of d.lines) if (l.qty > 0) net[`${wh}|${l.itemId}`] = (net[`${wh}|${l.itemId}`] ?? 0) - l.qty;
+      for (const [k, out] of Object.entries(net)) {
+        const [w, itemId] = k.split('|') as [string, string];
+        const have = this.state.stock[itemId]?.qty[w] ?? 0;
+        if (out > have + 1e-9) fail(`ما بيصير تنقّص «${this.state.items[itemId]?.name}» ${out}: الموجود منها هلق ${have} بس (انباع منها). خلّي كميتها ${Math.max(0, Math.round((out - have) * 1000) / 1000)} على الأقل`);
+      }
+    }
     const trial = this.trialCopy();
-    trial.voidAdjustment(a.id, a.date);
+    trial.voidAdjustmentInner(a.id, a.date, false);
     trial.adjustStock(d);
     this.recostPaused++;
     let res: StockAdjustment;
     try {
-      this.voidAdjustment(a.id, a.date);
+      this.voidAdjustmentInner(a.id, a.date, false);
       res = this.adjustStock(d);
     } finally {
       this.recostPaused--;
@@ -1711,13 +1724,18 @@ export class Ledger {
    * وقيدها بينلغى، فالربح والمخزون بيرجعوا متل قبلها. ما بتنلغى إذا البضاعة اللي فاتت فيها انباعت.
    */
   voidAdjustment(adjustmentId: string, date: string): StockAdjustment {
+    return this.voidAdjustmentInner(adjustmentId, date, true);
+  }
+
+  /** داخلي: `checkStock` = false بالتعديل (الفحص هناك على الفرق بين القديم والجديد) */
+  private voidAdjustmentInner(adjustmentId: string, date: string, checkStock: boolean): StockAdjustment {
     const a = this.state.adjustments.find((x) => x.id === adjustmentId) ?? fail('العملية غير موجودة');
     if (a.voidOf) fail('هي عملية إلغاء، ما بتنلغى');
     if (this.state.adjustments.some((x) => x.voidOf === a.id)) fail('العملية ملغاة مسبقاً');
     if (a.lines.some((l) => l.serials?.length)) fail('عمليات الأرقام التسلسلية ما بتنلغى؛ اعمل جرد جديد');
     const need: Record<string, number> = {};
     for (const l of a.lines) if (l.qty > 0) need[l.itemId] = (need[l.itemId] ?? 0) + l.qty;
-    if (!this.state.info?.allowNegativeStock)
+    if (checkStock && !this.state.info?.allowNegativeStock)
       for (const [itemId, qty] of Object.entries(need)) {
         const have = this.state.stock[itemId]?.qty[a.warehouseId] ?? 0;
         if (qty > have + 1e-9) fail(`ما بتنلغى: «${this.state.items[itemId]?.name}» فات منها ${qty} وهلق موجود ${have} بس (انباع منها). ألغِ الجرد اللي بعدها أو اعمل جرد جديد`);
