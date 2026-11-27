@@ -515,6 +515,12 @@ export interface DebtDraft {
 export interface DebtPaymentDraft {
   /** القبض من جوّا فاتورة: قيد الفاتورة، فبتنسدّ هي أول */
   appliesTo?: string;
+  /**
+   * الزبون دفع بعملة غير عملة الدين (دين بالدولار وقبضنا ليرات): `payCurrency`/`payAmount` = اللي فات عالصندوق،
+   * و`currency`/`amount` = قديش نزل من الدين. الفرق عن سعر الصرف المسجّل بيروح على فروقات الصرف.
+   */
+  payCurrency?: string;
+  payAmount?: number;
   direction: 'in' | 'out';
   partyId: string;
   date: string;
@@ -777,6 +783,43 @@ export class Ledger {
     });
   }
 
+  /**
+   * تسديد دين بعملة تانية (زبون عليه 35$ ودفع ليرات): الصندوق بعملة الدفع، وحساب الزبون بعملة الدين،
+   * والفرق بين قيمتهم بسعر الصرف المسجّل بيروح على فروقات الصرف (4301/5301).
+   */
+  private settleDebtFx(d: DebtPaymentDraft): JournalEntry {
+    const party = this.state.parties[d.partyId] ?? fail('الشخص غير موجود');
+    const debtCur = d.currency ?? this.base.code;
+    const payCur = d.payCurrency!;
+    for (const v of [d.amount, d.payAmount ?? 0]) if (!(v > 0) || !Number.isSafeInteger(v)) fail('المبلغ يجب أن يكون أكبر من صفر');
+    const base = this.base;
+    const rateOf = (c: string) => (c === base.code ? 1 : (this.rateFor(c, d.date) ?? fail(`سجّل سعر ${this.state.currencies[c]?.nameAr ?? c} لهاليوم أول`)));
+    const toBase = (c: string, v: number) => (c === base.code ? v : convertMinor(v, this.state.currencies[c] ?? fail('عملة غير معروفة'), base, rateOf(c)));
+    const cash = d.cashAccountId ?? cashAccountFor(this.state, payCur);
+    const box = this.state.accounts[cash] ?? fail('الصندوق غير موجود');
+    if (box.currency && box.currency !== payCur) fail(`«${box.name}» بيقبل ${this.state.currencies[box.currency]?.nameAr ?? box.currency} بس`);
+    const inflow = d.direction === 'in';
+    const partyAcc = inflow ? SYSTEM_ACCOUNTS.customers : SYSTEM_ACCOUNTS.suppliers;
+    const line = (c: string) => (c === base.code ? {} : { currency: c, rate: rateOf(c) });
+    const cashBase = toBase(payCur, d.payAmount!);
+    const debtBase = toBase(debtCur, d.amount);
+    // القبض: الصندوق مدين والزبون دائن؛ إذا الصندوق أكتر من الدين بالقيمة = ربح صرف
+    const gain = inflow ? cashBase - debtBase : debtBase - cashBase;
+    const name = (c: string) => this.state.currencies[c]?.nameAr ?? c;
+    return this.postEntry({
+      date: d.date,
+      memo: `${inflow ? 'قبض من' : 'دفع لـ'} ${party.name}: ${name(payCur)} عن دين ${name(debtCur)}${d.memo?.trim() ? ` — ${d.memo.trim()}` : ''}`,
+      lines: [
+        { accountId: cash, ...(inflow ? { debit: d.payAmount } : { credit: d.payAmount }), ...line(payCur) },
+        { accountId: partyAcc, partyId: party.id, ...(inflow ? { credit: d.amount } : { debit: d.amount }), ...line(debtCur) },
+        ...(gain > 0 ? [{ accountId: SYSTEM_ACCOUNTS.fxGain, credit: gain }] : gain < 0 ? [{ accountId: SYSTEM_ACCOUNTS.fxLoss, debit: -gain }] : []),
+      ],
+      source: { type: 'debtfx', id: newId() },
+      ...(d.appliesTo ? { appliesTo: d.appliesTo } : {}),
+      createdBy: d.createdBy ?? this.actor,
+    });
+  }
+
   /** المالك سحب مصاري من الصندوق لإلو (مسحوبات): بتطلع من الصندوق وبتنحسب على جاري المالك، ومش مصروف. */
   drawFromBox(d: { date: string; from: string; amount: number; memo?: string; currency?: string }): JournalEntry {
     if (!(d.amount > 0) || !Number.isSafeInteger(d.amount)) fail('المبلغ يجب أن يكون أكبر من صفر');
@@ -890,7 +933,7 @@ export class Ledger {
   voidEntry(entryId: string, date: string): JournalEntry {
     const original = this.state.entries.find((e) => e.id === entryId) ?? fail('القيد غير موجود');
     const writeOff = original.source?.type === 'commission' && original.source.id.startsWith('over:');
-    if (original.source && !writeOff && !['receipt', 'payment', 'manual', 'opening', 'work-adjust', 'debt', 'boxtransfer'].includes(original.source.type)) {
+    if (original.source && !writeOff && !['receipt', 'payment', 'manual', 'opening', 'work-adjust', 'debt', 'boxtransfer', 'debtfx'].includes(original.source.type)) {
       fail('هذا القيد تابع لمستند؛ ألغِ المستند نفسه');
     }
     const entry = this.reversal(original, date);
@@ -1651,6 +1694,7 @@ export class Ledger {
 
   /** قبضت من حدا (in) أو دفعت لحدا (out). بيسكّر الدين من الحساب اللي عليه الرصيد. */
   settleDebt(d: DebtPaymentDraft): JournalEntry {
+    if (d.payCurrency && d.payCurrency !== (d.currency ?? this.base.code)) return this.settleDebtFx(d);
     const party = this.state.parties[d.partyId] ?? fail('الشخص غير موجود');
     const balance = (acc: string) =>
       this.state.entries.reduce((s, e) => s + e.lines.reduce((x, l) => x + (l.partyId === party.id && l.accountId === acc ? l.baseDebit - l.baseCredit : 0), 0), 0);

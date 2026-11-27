@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { confirmCashOut } from '../components/cashGuard';
 import { reminderText, sendWhatsApp } from '../components/whatsapp';
-import { INVOICE_KIND_NAMES, partyBalance, partyDebts, type CompanyState, type DebtItem, type Invoice, type JournalEntry, type Party, type PartyDebts } from '../../../core';
-import { addDays, dateText, major, money, parseAmount, today, toInput, uid, useCompany } from '../api';
+import { findRate, INVOICE_KIND_NAMES, partyBalance, partyDebts, type CompanyState, type DebtItem, type Invoice, type JournalEntry, type Party, type PartyDebts } from '../../../core';
+import { addDays, cleanNumber, dateText, inputToRate, major, money, parseAmount, rateToInput, today, toInput, uid, useCompany } from '../api';
 import { DocHeader, ExportButtons, PrintButtons } from '../components/print';
 import { CurrencySelect, Empty, Field, Modal, PageHeader, partyOptions, Picker, SearchBox, matches } from '../components/ui';
 import { Icon } from '../components/icons';
@@ -673,24 +673,37 @@ export function PayForm({ party, direction, onClose, invoice }: { party: Party; 
   const [date, setDate] = useState(today());
   const [memo, setMemo] = useState('');
   const [nextDue, setNextDue] = useState(party.debtDue ?? '');
-  const boxes = cashAccounts(state, currency);
+  // الدفع بعملة غير عملة الدين (دين بالدولار والزبون دفع ليرات): المبلغ بعملة الدفع، وبينزل من الدين بسعر الصرف
+  const [payCur, setPayCur] = useState(currency);
+  const cross = payCur !== currency;
+  const fxCur = payCur !== base ? payCur : currency; // العملة الأجنبية بالعملية (سعرها بيتعدّل)
+  const storedRate = fxCur === base ? 1 : (findRate(state, fxCur, date) ?? 0);
+  const [rateText, setRateText] = useState('');
+  const fxRate = rateText.trim() && Number(cleanNumber(rateText)) > 0 ? inputToRate(state, fxCur, Number(cleanNumber(rateText))) : storedRate;
+  const boxes = cashAccounts(state, payCur);
   const [box, setBox] = useState('');
-  const cashId = boxes.some((b) => b.id === box) ? box : (boxes.find((b) => b.currency === currency) ?? boxes[0])?.id;
+  const cashId = boxes.some((b) => b.id === box) ? box : (boxes.find((b) => b.currency === payCur) ?? boxes[0])?.id;
   const [busy, setBusy] = useState(false);
-  let minor = 0;
+  let paid = 0; // اللي فات عالصندوق، بعملة الدفع
   try {
-    minor = parseAmount(state, amount, currency);
+    paid = parseAmount(state, amount, payCur);
   } catch {
-    minor = 0;
+    paid = 0;
   }
+  // قديش بينزل من الدين بعملته: بنفس العملة = نفسه، وبعملة تانية بسعر الصرف (المكتوب أو سعر اليوم)
+  const dec = (c: string) => state.currencies[c]?.decimals ?? 2;
+  const rOf = (c: string) => (c === base ? 1 : c === fxCur ? fxRate : (findRate(state, c, date) ?? 0));
+  const minor = !cross ? paid : rOf(currency) > 0 ? Math.round((paid / 10 ** dec(payCur)) * rOf(payCur) / rOf(currency) * 10 ** dec(currency)) : 0;
   const rest = outstanding - minor;
 
   const save = async () => {
-    if (minor <= 0) return notify('أدخل المبلغ', 'error');
-    if (direction === 'out' && !(await confirmCashOut(state, cashId, currency, minor))) return;
+    if (paid <= 0) return notify('أدخل المبلغ', 'error');
+    if (cross && !(fxRate > 0)) return notify(`سجّل سعر ${state.currencies[fxCur]?.nameAr ?? fxCur} لهاليوم أو اكتبه هون`, 'error');
+    if (minor <= 0) return notify('المبلغ صغير كتير بهالسعر', 'error');
+    if (direction === 'out' && !(await confirmCashOut(state, cashId, payCur, paid))) return;
     setBusy(true);
     try {
-      const res = await call('settleDebt', { direction, partyId: party.id, date, amount: minor, currency, ...(cashId ? { cashAccountId: cashId } : {}), ...(memo.trim() ? { memo: memo.trim() } : invoice ? { memo: `دفعة من فاتورة رقم ${invoice.number}` } : {}), ...(invoice && currency === invoice.currency ? { appliesTo: invoice.entryId } : {}) });
+      const res = await call('settleDebt', { direction, partyId: party.id, date, amount: minor, currency, ...(cross ? { payCurrency: payCur, payAmount: paid } : {}), ...(cashId ? { cashAccountId: cashId } : {}), ...(memo.trim() ? { memo: memo.trim() } : invoice ? { memo: `دفعة من فاتورة رقم ${invoice.number}` } : {}), ...(invoice && currency === invoice.currency ? { appliesTo: invoice.entryId } : {}) });
       if (!res) return;
       // سُدِّد الدين بالكامل: نحذف موعد السداد. بقي جزء: نحفظ الموعد الجديد
       if (can('parties.manage')) {
@@ -700,7 +713,8 @@ export function PayForm({ party, direction, onClose, invoice }: { party: Party; 
         else if (nextDue) p.debtDue = nextDue;
         if (p.debtDue !== state.parties[party.id]?.debtDue) await call('saveParty', p);
       }
-      notify(direction === 'in' ? `تم قبض ${money(state, minor, currency)} من ${party.name}` : `تم دفع ${money(state, minor, currency)} إلى ${party.name}`);
+      const what = cross ? `${money(state, paid, payCur)} (عن ${money(state, minor, currency)})` : money(state, minor, currency);
+      notify(direction === 'in' ? `تم قبض ${what} من ${party.name}` : `تم دفع ${what} إلى ${party.name}`);
       onClose();
     } finally {
       setBusy(false);
@@ -728,16 +742,42 @@ export function PayForm({ party, direction, onClose, invoice }: { party: Party; 
         <Field label="المبلغ">
           <input className="num-input big-input" autoFocus value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" />
         </Field>
-        <Field label="العملة">
+        <Field label={open.length > 1 ? 'الدين اللي عم تسدّه' : 'عملة الدين'}>
           <CurrencySelect
             value={currency}
             onChange={(c) => {
               setCurrency(c);
+              setPayCur(c);
+              setRateText('');
               const o = Math.max(0, (bal.byCurrency[c] ?? 0) * sign);
               setAmount(o ? toInput(state, o, c) : '');
             }}
           />
         </Field>
+        <Field label={direction === 'in' ? 'العملة اللي قبضتها' : 'العملة اللي دفعتها'}>
+          {/* كل العملات (حتى المخفية): دين بالدولار والزبون دفع ليرات */}
+          <select
+            value={payCur}
+            onChange={(e) => {
+              const c = e.target.value;
+              setPayCur(c);
+              setRateText('');
+              setBox('');
+              setAmount('');
+            }}
+          >
+            {Object.values(state.currencies).map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.nameAr} ({c.symbol})
+              </option>
+            ))}
+          </select>
+        </Field>
+        {cross && (
+          <Field label={`سعر ${state.currencies[fxCur]?.nameAr ?? fxCur}`}>
+            <input className="num-input" inputMode="decimal" value={rateText} placeholder={storedRate > 0 ? String(rateToInput(state, fxCur, storedRate)) : 'اكتب السعر'} onChange={(e) => setRateText(e.target.value)} />
+          </Field>
+        )}
         {boxes.length > 1 && (
           <Field label="الصندوق">
             <select value={cashId} onChange={(e) => setBox(e.target.value)}>
@@ -761,6 +801,11 @@ export function PayForm({ party, direction, onClose, invoice }: { party: Party; 
           <input value={memo} onChange={(e) => setMemo(e.target.value)} />
         </Field>
       </div>
+      {cross && paid > 0 && minor > 0 && (
+        <p className="muted">
+          {direction === 'in' ? 'رح يفوت عالصندوق' : 'رح يطلع من الصندوق'} <b>{money(state, paid, payCur)}</b>، وينزل من الدين <b>{money(state, minor, currency)}</b>
+        </p>
+      )}
       {outstanding > 0 && minor > 0 && (
         <p className={rest > 0 ? 'muted' : 'good'}>
           {rest > 0 ? `يتبقى ${money(state, rest, currency)}` : rest === 0 ? 'بهذا يُسدَّد الحساب بالكامل ✓' : `زيادة ${money(state, -rest, currency)} — تصبح ${direction === 'in' ? 'له علينا' : 'لنا عليه'}`}
@@ -768,7 +813,15 @@ export function PayForm({ party, direction, onClose, invoice }: { party: Party; 
       )}
       <div className="form-actions">
         {outstanding > 0 && (
-          <button className="ghost" onClick={() => setAmount(toInput(state, outstanding, currency))}>
+          <button
+            className="ghost"
+            onClick={() => {
+              if (!cross) return setAmount(toInput(state, outstanding, currency));
+              // المبلغ كامل بعملة الدفع
+              const v = Math.round((outstanding / 10 ** dec(currency)) * rOf(currency) / rOf(payCur) * 10 ** dec(payCur));
+              if (rOf(payCur) > 0) setAmount(toInput(state, v, payCur));
+            }}
+          >
             المبلغ كاملاً
           </button>
         )}
