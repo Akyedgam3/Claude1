@@ -5095,3 +5095,6 @@ body:not(.mobile) .stats .stat strong { white-space: nowrap; font-size: min(21px
 .invoice-doc.doc-nodetails .doc-sub { display: none; }
 /* سعر تحت الكلفة بالكاشير */
 .price-edit-btn.below-cost { color: var(--bad, #c0392b) !important; font-weight: 700; text-decoration: underline wavy; }
+/* الحراري أعمدة مع المستهلك (5 أعمدة): الأرقام بخط أصغر شوي حتى ما يطلع الصفر لبرّا خانتو */
+.thermal-doc .t-lines.with-cons td.num { font-size: 0.84em; letter-spacing: -0.35px; padding-inline: 1px; }
+.thermal-doc .t-lines td.num { overflow: hidden; }
