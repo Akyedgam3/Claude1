@@ -12,3 +12,4 @@ dist32/
 .claude/settings.local.json
 marketing/play-store/*.aab
 marketing/gallery/*.zip
+marketing/posters/*.zip
