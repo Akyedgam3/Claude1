@@ -146,10 +146,11 @@ export function ThermalReceipt({ data, preview, always, logo }: { data: ReceiptD
         <thead className={on(r.showHeaderRow) ? '' : 't-nohead'}>
           <tr>
             <th className="t-n">الصنف</th>
-            <th>الكمية</th>
-            {showPrice && <th>السعر</th>}
-            {showCons && <th>المستهلك</th>}
-            <th>الإجمالي</th>
+            {/* مع عمود المستهلك الأعمدة ضيقة: عناوين أقصر (كانت تنقص «الكمي» و«المستهلا») */}
+            <th>{showCons ? 'كمية' : 'الكمية'}</th>
+            {showPrice && <th>{showCons ? 'سعر' : 'السعر'}</th>}
+            {showCons && <th>مستهلك</th>}
+            <th>{showCons ? 'إجمالي' : 'الإجمالي'}</th>
           </tr>
         </thead>
         <tbody>

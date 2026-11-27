@@ -34,7 +34,7 @@ test('consumer price column on the sale invoice (A4 and thermal)', async () => {
     await expect(doc.locator('tbody tr').nth(0).locator('.doc-consumer')).toContainText('25.00');
     await expect(doc.locator('tbody tr').nth(1).locator('.doc-consumer')).toContainText('360.00'); // 30 × 12
     // الإيصال الحراري: عمود «المستهلك» جنب السعر
-    await expect(page.locator('.thermal-doc .t-lines thead')).toContainText('المستهلك');
+    await expect(page.locator('.thermal-doc .t-lines thead')).toContainText('مستهلك');
     await expect(page.locator('.thermal-doc .t-lines tbody tr').first().locator('.t-cons-col')).toHaveText('25.00');
     // الزر السريع بالفاتورة نفسها: بيطفيه وبيرجّعه
     const toggle = page.locator('label.consumer-toggle input');
