@@ -76,9 +76,11 @@ export function ThermalReceipt({ data, preview, always, logo }: { data: ReceiptD
   // سعر المستهلك عمود جنب السعر (كان سطر تحت الصنف وكان يتخربط مع الأسطر)
   const showCons = on(r.showConsumer) && data.lines.some((l) => !!l.consumer);
   // «تلقائي»: مع عمود المستهلك الأعمدة ما بتساع على 80mm (كانت الأرقام تلزق ببعض)، فالصنف بسطر وتحته أرقامه
-  const stacked = r.layout === 'stacked' || ((r.layout ?? 'auto') === 'auto' && showCons);
+  // إذا مفعّل «جدول بخطوط» التلقائي بيضل جدول (زبون: «ليش ما في جدول؟»)، وبيشيل الكسور حتى تساع الأعمدة
+  const stacked = r.layout === 'stacked' || ((r.layout ?? 'auto') === 'auto' && showCons && !r.grid);
+  const autoCompact = (r.layout ?? 'auto') === 'auto' && showCons && !!r.grid;
   // بدون كسور: 1,130.00 ← 1,130 (بس إذا الكسور أصفار)
-  const nd = (v: string) => (r.hideDecimals ? v.replace(/(\d)\.0+(?!\d)/g, '$1') : v);
+  const nd = (v: string) => (r.hideDecimals || autoCompact ? v.replace(/(\d)\.0+(?!\d)/g, '$1') : v);
   const totals = data.totals.filter((t) => on(r.showQtyTotal) || t.label !== 'مجموع الكمية');
   const meta: [string, ReactNode][] = [];
   if (on(r.showNumber) && data.number !== undefined) meta.push([data.draft ? 'رقم الطلب' : 'رقم الفاتورة', <b className="ltr">{data.number}</b>]);

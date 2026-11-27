@@ -341,7 +341,7 @@ function ReceiptTab() {
           </Field>
           <Field label="ترتيب الأصناف">
             <select value={r.layout ?? 'auto'} onChange={(e) => setR({ ...r, layout: e.target.value as ReceiptSettings['layout'] })}>
-              <option value="auto">تلقائي (بسطر لحالو إذا في عمود مستهلك)</option>
+              <option value="auto">تلقائي (جدول، وبسطر لحالو إذا في عمود مستهلك بدون خطوط)</option>
               <option value="columns">أعمدة (الصنف، الكمية، السعر، الإجمالي)</option>
               <option value="stacked">الصنف بسطر لحالو وتحته الأرقام (أوضح)</option>
             </select>
