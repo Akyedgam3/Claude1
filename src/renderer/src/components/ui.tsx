@@ -82,7 +82,7 @@ export function PageHeader({ title, children }: { title: string; children?: Reac
       ) : (
         // كل الشاشات: سهم رجوع للشاشة اللي قبل (كمان زر الرجوع بالماوس وAlt+←)
         ctx?.canBack && !IS_MOBILE && (
-          <button className="back-arrow" onClick={ctx.back} title="رجوع للشاشة اللي قبل (Alt+←)" aria-label="رجوع">
+          <button className="back-arrow" onClick={ctx.back} title="الشاشة اللي قبل (Alt+←)" aria-label="الشاشة السابقة">
             <Icon name="prev" size={18} />
           </button>
         )
