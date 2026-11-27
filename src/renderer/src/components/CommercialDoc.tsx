@@ -112,9 +112,12 @@ export function CommercialDoc({ model, className, preview }: { model: DocModel; 
   const showStamp = p.showStamp !== false && model.stamp;
   const consumerCol = model.lines.some((l) => l.consumer);
   const signatures = model.signatures ?? (p.showSignatures ? (['توقيع المستلم', 'توقيع المحاسب'] as [string, string]) : undefined);
+  // فاتورة فيها بنود كتير (26 مثلاً): مضغوطة لحالها حتى تساع بصفحة وحدة، إلا إذا مطفية من الإعدادات
+  const compact = p.compactLines === true || (p.compactLines !== false && model.lines.length > 14);
+  const totals = p.hideQtyTotal ? model.totals.filter((t) => t.label !== 'مجموع الكمية') : model.totals;
 
   return (
-    <div className={`print-area invoice-doc doc-${template} ${className ?? ''}`} style={style}>
+    <div className={`print-area invoice-doc doc-${template} ${compact ? 'doc-compact' : ''} ${p.hideLineDetails ? 'doc-nodetails' : ''} ${className ?? ''}`} style={style}>
       <header className="doc-head">
         <div className="doc-brand">
           {p.logo && <img src={p.logo} alt="" className="doc-logo" />}
@@ -219,7 +222,7 @@ export function CommercialDoc({ model, className, preview }: { model: DocModel; 
           </div>
         </div>
         <div className="doc-totals">
-          {model.totals.map((t, i) => (
+          {totals.map((t, i) => (
             <div key={i} className={t.muted ? 'muted' : ''}>
               <span>{t.label}</span>
               <strong>{t.value}</strong>

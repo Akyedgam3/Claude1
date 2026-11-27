@@ -151,6 +151,10 @@ export interface PrintSettings {
   /** خلي الفاتورة صفحة وحدة: بيصغّر الخط والفراغات شوي إذا كانت رح تفيض لصفحة تانية (افتراضياً نعم) */
   fitOnePage?: boolean;
   showStamp?: boolean; // ختم مدفوعة / آجل / ملغاة (افتراضياً نعم)
+  /** فاتورة مضغوطة: أسطر ورأس أصغر لحتى تساع بنود أكتر بالصفحة (افتراضياً تلقائي فوق 14 بند؛ false = أبداً) */
+  compactLines?: boolean;
+  hideQtyTotal?: boolean; // بدون سطر «مجموع الكمية»
+  hideLineDetails?: boolean; // بدون التفاصيل تحت الصنف (الماركة، الدفعة، الملاحظة...)
   showSignatures?: boolean; // خانات التوقيع
   terms?: string; // الشروط والأحكام أسفل الفاتورة
   showPreviousBalance?: boolean; // الحساب السابق والرصيد بعد الفاتورة (افتراضياً نعم)

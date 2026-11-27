@@ -5082,3 +5082,16 @@ body:not(.mobile) .stats .stat strong { white-space: nowrap; font-size: min(21px
 /* الأعمدة العادية: العناوين ما بتلزق ببعض (كانت «الكميةالسعر») */
 .thermal-doc .t-lines th { white-space: normal; overflow-wrap: anywhere; line-height: 1.2; font-size: 0.82em; padding-inline: 1px; }
 .page-header .back-arrow { flex: none; width: 34px; height: 34px; padding: 0; display: inline-grid; place-items: center; border-radius: 10px; }
+/* فاتورة مضغوطة (بنود كتيرة): أسطر ورأس أصغر لحتى تساع 26 بند وأكتر بصفحة A4 */
+.invoice-doc.doc-compact .doc-head { padding-top: 10px; padding-bottom: 10px; }
+.invoice-doc.doc-compact .doc-head h1 { font-size: 1.35em; }
+.invoice-doc.doc-compact .doc-logo { max-height: 48px; }
+.invoice-doc.doc-compact .doc-lines th,
+.invoice-doc.doc-compact .doc-lines td { padding-top: 2px; padding-bottom: 2px; font-size: 11.5px; line-height: 1.35; }
+.invoice-doc.doc-compact .doc-sub { font-size: 10px; line-height: 1.3; }
+.invoice-doc.doc-compact .doc-totals > div { padding-top: 2px; padding-bottom: 2px; }
+.invoice-doc.doc-compact .doc-info, .invoice-doc.doc-compact .doc-party { padding-top: 6px; padding-bottom: 6px; }
+.invoice-doc.doc-compact .doc-bottom { margin-top: 8px; }
+.invoice-doc.doc-nodetails .doc-sub { display: none; }
+/* سعر تحت الكلفة بالكاشير */
+.price-edit-btn.below-cost { color: var(--bad, #c0392b) !important; font-weight: 700; text-decoration: underline wavy; }

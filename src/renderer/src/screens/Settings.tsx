@@ -491,7 +491,22 @@ function PrintTab() {
               <input type="checkbox" checked={!!p.showSignatures} onChange={(e) => setP({ ...p, showSignatures: e.target.checked })} />
               خانات التوقيع
             </label>
+            <label className="check">
+              <input type="checkbox" checked={!p.hideQtyTotal} onChange={(e) => setP({ ...p, hideQtyTotal: !e.target.checked })} />
+              سطر «مجموع الكمية»
+            </label>
+            <label className="check">
+              <input type="checkbox" checked={!p.hideLineDetails} onChange={(e) => setP({ ...p, hideLineDetails: !e.target.checked })} />
+              التفاصيل تحت الصنف (الماركة، الدفعة، الملاحظة)
+            </label>
           </div>
+          <Field label="حجم أسطر الفاتورة (لحتى تساع بنود أكتر بالصفحة)" wide>
+            <select value={p.compactLines === true ? 'on' : p.compactLines === false ? 'off' : 'auto'} onChange={(e) => setP({ ...p, compactLines: e.target.value === 'on' ? true : e.target.value === 'off' ? false : undefined })}>
+              <option value="auto">تلقائي: مضغوطة إذا فيها أكتر من 14 بند</option>
+              <option value="on">دايماً مضغوطة (بتساع 26 بند وأكتر)</option>
+              <option value="off">عادية دايماً</option>
+            </select>
+          </Field>
           {p.showQr !== false && (
             <div className="form-grid">
               <Field label="شو بيفتح الـQR؟ (فاضي = ملخص الفاتورة)">

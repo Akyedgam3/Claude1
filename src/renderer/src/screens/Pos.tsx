@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { autoSendInvoice } from '../components/whatsapp';
 import { checkBelowCost } from '../components/cashGuard';
 import { invoiceText } from './InvoiceView';
-import { itemTitle, partyBalance, resolveScan, type Invoice, type Item } from '../../../core';
+import { findRate, itemTitle, itemUnitCost, partyBalance, resolveScan, type Invoice, type Item } from '../../../core';
 import { discountProblem, convertPrice, fxRates, money, cleanNumber, parseAmount, parseDiscount, parsePrice, qtyText, shownCurrencies, today, toInput, uid, useCompany } from '../api';
 import { usePrinter } from '../components/print';
 import { ItemName, matches, partyOptions, Picker, ScanInput } from '../components/ui';
@@ -240,6 +240,18 @@ export function Pos() {
     return out;
   }, [total, cur, state.currencies, rates]);
 
+  // سعر أقل من الكلفة: بيحمرّ بالسلة فوراً
+  const belowCost = (l: CartLine): boolean => {
+    const item = state.items[l.itemId];
+    if (!item || (item.kind !== 'stock' && item.kind !== 'composite') || !(l.price > 0)) return false;
+    const cost = itemUnitCost(state, item.id);
+    if (!(cost > 0)) return false;
+    const r = cur === base ? 1 : (findRate(state, cur, today()) ?? 0);
+    if (!(r > 0)) return false;
+    const dec = (c: string) => state.currencies[c]?.decimals ?? 2;
+    const factor = (l.unit && item.units?.find((u) => u.name === l.unit)?.factor) || 1;
+    return (l.price * r * 10 ** (dec(base) - dec(cur))) / factor < cost - 0.5;
+  };
   const payingRef = useRef(false);
   const pay = async (credit: boolean) => {
     if (payingRef.current) return;
@@ -501,7 +513,7 @@ export function Pos() {
                     <ItemName item={item} strong />
                     <small>
                       {can('price.edit') ? (
-                        <button className={`price-edit-btn ${l.custom ? 'on' : ''}`} title="غيّر السعر لهالزبون" onClick={() => setPriceFor(priceFor === l.key ? null : l.key)}>
+                         <button className={`price-edit-btn ${l.custom ? 'on' : ''} ${belowCost(l) ? 'below-cost' : ''}`} title={belowCost(l) ? 'السعر أقل من سعر الكلفة: رح تبيع بخسارة' : 'غيّر السعر لهالزبون'} onClick={() => setPriceFor(priceFor === l.key ? null : l.key)}>
                           {money(state, l.price, cur)} / {l.unit || item.unit} ✎
                         </button>
                       ) : (

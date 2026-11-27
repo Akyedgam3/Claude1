@@ -289,6 +289,25 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
   const invertRate = rateInverted(state, currency);
   const typedRate = Number(cleanNumber(rateText ?? '')) || 0;
   const rate = currency === base ? 1 : (typedRate ? inputToRate(state, currency, typedRate) : storedRate || 0);
+  // سعر المبيع أقل من الكلفة: الخانة بتحمرّ وقت الكتابة (مش بس عند الحفظ)
+  const belowCost = (l: LineState): boolean => {
+    if (kind !== 'sale' || !l.itemId || !l.price.trim() || !(rate > 0)) return false;
+    const item = state.items[l.itemId];
+    if (!item || (item.kind !== 'stock' && item.kind !== 'composite')) return false;
+    const cost = itemUnitCost(state, item.id);
+    if (!(cost > 0)) return false;
+    let price = 0;
+    try {
+      price = parsePrice(state, l.price, currency);
+    } catch {
+      return false;
+    }
+    if (!(price > 0)) return false;
+    const factor = (l.unit && item.units?.find((u) => u.name === l.unit)?.factor) || 1;
+    const dec = (c: string) => state.currencies[c]?.decimals ?? 2;
+    const priceBase = (price * rate * 10 ** (dec(base) - dec(currency))) / factor;
+    return priceBase < cost - 0.5;
+  };
   const items = useMemo(() => itemOptions(state, (i) => isSale || i.kind !== 'composite'), [state, isSale]);
   const boxes = cashAccounts(state, currency);
   const cashId = boxes.some((b) => b.id === cashAccountId) ? cashAccountId : (boxes.find((b) => b.currency === currency) ?? boxes[0])?.id ?? '1101';
@@ -1209,7 +1228,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
                     </div>
                   </td>
                   <td data-label="السعر">
-                    <input className={`num-input${priceInvalid(state, l.price, currency) ? ' invalid' : ''}`} value={l.price} readOnly={lockPrice && !!l.itemId} title={lockPrice && l.itemId ? 'ما عندك صلاحية تغيير السعر' : undefined} onChange={(e) => setLine(l.key, { price: e.target.value, manualPrice: true, src: priceSrc(e.target.value) })} inputMode="decimal" onKeyDown={enterNext} />
+                    <input className={`num-input${priceInvalid(state, l.price, currency) || belowCost(l) ? ' invalid' : ''}`} value={l.price} readOnly={lockPrice && !!l.itemId} title={lockPrice && l.itemId ? 'ما عندك صلاحية تغيير السعر' : belowCost(l) ? 'السعر أقل من سعر الكلفة: رح تبيع بخسارة' : undefined} onChange={(e) => setLine(l.key, { price: e.target.value, manualPrice: true, src: priceSrc(e.target.value) })} inputMode="decimal" onKeyDown={enterNext} />
                     {!(lockPrice && l.itemId) && (() => {
                       const h = l.itemId ? partyHistory.last.get(l.itemId) : undefined;
                       if (!h || (h.unit || '') !== (l.unit || '')) return null;
