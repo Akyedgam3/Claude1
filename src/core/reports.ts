@@ -619,6 +619,7 @@ export interface DebtItem {
   date: string;
   memo: string;
   source?: { type: string; id: string };
+  appliesTo?: string; // الدفعة لفاتورة معيّنة (قيدها)
   amount: number; // موجب = زاد ما له علينا من حق، سالب = نقص (بعملة الحركة)
   remaining: number; // ما بقي غير مسدَّد من هذه الحركة (بنفس إشارتها)
 }
@@ -645,7 +646,7 @@ export function partyDebts(state: CompanyState, partyId: string): PartyDebts[] {
     for (const [cur, amount] of sums) {
       if (amount === 0) continue;
       const list = byCur.get(cur) ?? [];
-      list.push({ entryId: e.id, date: e.date, memo: e.memo, ...(e.source ? { source: e.source } : {}), amount, remaining: amount });
+      list.push({ entryId: e.id, date: e.date, memo: e.memo, ...(e.source ? { source: e.source } : {}), ...(e.appliesTo ? { appliesTo: e.appliesTo } : {}), amount, remaining: amount });
       byCur.set(cur, list);
     }
   }
@@ -656,15 +657,31 @@ export function partyDebts(state: CompanyState, partyId: string): PartyDebts[] {
     // كل حركة بعكس اتجاه الرصيد تُسدِّد أقدم الحركات المفتوحة باتجاهه
     const queue: DebtItem[] = [];
     let credit = 0;
+    const left = new Map<DebtItem, number>();
     for (const m of movements) {
-      if (sign !== 0 && Math.sign(m.amount) === sign) queue.push(m);
-      else credit += Math.abs(m.amount);
+      if (sign !== 0 && Math.sign(m.amount) === sign) {
+        queue.push(m);
+        left.set(m, Math.abs(m.amount));
+      }
+    }
+    for (const m of movements) {
+      if (sign !== 0 && Math.sign(m.amount) === sign) continue;
+      let amt = Math.abs(m.amount);
+      // دفعة انقبضت من جوّا فاتورة: بتسدّ هالفاتورة أول، والباقي بيروح عالأقدم متل العادة
+      const target = m.appliesTo ? queue.find((q) => q.entryId === m.appliesTo) : undefined;
+      if (target) {
+        const use = Math.min(amt, left.get(target)!);
+        left.set(target, left.get(target)! - use);
+        amt -= use;
+      }
+      credit += amt;
     }
     for (const m of movements) m.remaining = 0;
     for (const m of queue) {
-      const use = Math.min(credit, Math.abs(m.amount));
+      const rest = left.get(m)!;
+      const use = Math.min(credit, rest);
       credit -= use;
-      m.remaining = (Math.abs(m.amount) - use) * sign;
+      m.remaining = (rest - use) * sign;
     }
     out.push({ currency, balance, movements, open: queue.filter((m) => m.remaining !== 0) });
   }

@@ -15,6 +15,9 @@ describe('money', () => {
 
   it('formats with thousands separators', () => {
     expect(formatMinor(123456789, 2)).toBe('1,234,567.89');
+    // حرف بخانة الكمية = NaN: كان يوقّع الشاشة (حلقة لا نهائية)
+    expect(formatMinor(NaN, 2)).toBe('0');
+    expect(formatMinor(Infinity, 2)).toBe('0');
     expect(formatMinor(-5, 2)).toBe('-0.05');
     expect(formatMinor(1000, 0)).toBe('1,000');
   });

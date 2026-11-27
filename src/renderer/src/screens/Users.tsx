@@ -9,7 +9,7 @@ import { NAV, type NavItem } from '../nav';
 /** الصلاحيات مقسومة لمجموعات لحتى تنقرا بسهولة */
 const PERM_GROUPS: { title: string; perms: Permission[] }[] = [
   { title: 'شو بيشوف (الأسعار والأرقام الحساسة)', perms: ['costs.view', 'profits.view', 'purchases.view', 'stock.qty', 'balances.view', 'invoices.all', 'items.hidden'] },
-  { title: 'البيع والفواتير', perms: ['sales.create', 'pos.use', 'price.edit', 'discount.give', 'sales.credit', 'returns.create', 'sales.void'] },
+  { title: 'البيع والفواتير', perms: ['sales.create', 'pos.use', 'price.edit', 'price.belowCost', 'discount.give', 'sales.credit', 'returns.create', 'sales.void'] },
   { title: 'التقارير', perms: ['reports.financial', 'reports.stock'] },
   { title: 'المواد والمخزون', perms: ['items.manage', 'purchases.create', 'stock.adjust', 'stock.transfer', 'production.manage'] },
   { title: 'المال والحسابات', perms: ['vouchers.create', 'vouchers.void', 'cash.manage', 'parties.manage', 'journal.create', 'accounts.manage', 'rates.manage'] },
@@ -25,6 +25,7 @@ const PERM_HINTS: Partial<Record<Permission, string>> = {
   'balances.view': 'بدونها ما بيشوف ديون الزباين والموردين ولا كشوف حساباتهم',
   'invoices.all': 'بدونها بسجل الفواتير بيشوف فواتيره هو بس',
   'price.edit': 'بدونها السعر بيطلع من بطاقة المادة وما بيقدر يغيّره',
+  'price.belowCost': 'بدونها ما بيقدر يبيع بأقل من سعر الكلفة (بيطلعلو «اسأل المالك»)',
   'sales.credit': 'بدونها كل فاتورة مبيع لازم تندفع كاملة (وبيختفي زر «على الحساب» بنقطة البيع)',
 };
 

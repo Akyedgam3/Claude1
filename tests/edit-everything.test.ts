@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_CURRENCIES, Ledger, SYSTEM_ACCOUNTS, accountBalance, chartFor, defaultTaxes, partyBalance, trialBalance } from '../src/core';
+import { DEFAULT_CURRENCIES, Ledger, SYSTEM_ACCOUNTS, accountBalance, chartFor, defaultTaxes, partyBalance, partyDebts, trialBalance } from '../src/core';
 
 // التعديل بكل الأقسام: سند، دين، قيد يدوي، عملية مخزون — بيلغي القديم بتاريخه وبيسجّل الجديد، وما بيخرب شي إذا فشل
 
@@ -77,6 +77,46 @@ describe('edit everything', () => {
     // زيادة المادة اللي انباعت: بيمشي
     l.editAdjustment(a2.id, { kind: 'opening', date: D, lines: [{ itemId: 'a', qty: 12, unitCost: 550 }, { itemId: 'b', qty: 3, unitCost: 300 }] });
     expect(l.state.stock['b']!.totalQty).toBe(2);
+    balanced(l);
+  });
+
+  // تقرير 2.0.14 (P14): «قبض دفعة» من جوّا فاتورة 12 كانت تنحسب على فاتورة 10 الأقدم
+  it('a payment taken from inside an invoice settles that invoice first', () => {
+    const l = shop();
+    l.adjustStock({ kind: 'opening', date: D, lines: [{ itemId: 'a', qty: 100, unitCost: 100 }] });
+    const i10 = l.postInvoice({ kind: 'sale', date: D, partyId: 'c', paid: 0, lines: [{ itemId: 'a', qty: 15, price: 1000 }] });
+    const i12 = l.postInvoice({ kind: 'sale', date: D, partyId: 'c', paid: 20000, lines: [{ itemId: 'a', qty: 64, price: 1000 }] });
+    const rem = (id: string) => Math.abs(partyDebts(l.state, 'c')[0]!.movements.find((m) => m.entryId === id)!.remaining);
+    l.settleDebt({ direction: 'in', partyId: 'c', date: D, amount: 10000, appliesTo: i12.entryId });
+    expect(rem(i12.entryId)).toBe(34000);
+    expect(rem(i10.entryId)).toBe(15000);
+    // دفعة عادية (بدون فاتورة) بتروح عالأقدم متل قبل
+    l.settleDebt({ direction: 'in', partyId: 'c', date: D, amount: 5000 });
+    expect(rem(i10.entryId)).toBe(10000);
+    expect(rem(i12.entryId)).toBe(34000);
+    // دفعة أكبر من الفاتورة: الزيادة عالأقدم
+    l.settleDebt({ direction: 'in', partyId: 'c', date: D, amount: 40000, appliesTo: i12.entryId });
+    expect(rem(i12.entryId)).toBe(0);
+    expect(rem(i10.entryId)).toBe(4000);
+    balanced(l);
+  });
+
+  // تقرير 2.0.14 (P29): قفل اليوم كان يوقف البيع وما بينفك
+  it('a locked period can be unlocked, but never before a year close', () => {
+    const l = shop();
+    l.adjustStock({ kind: 'opening', date: '2025-06-01', lines: [{ itemId: 'a', qty: 10, unitCost: 100 }] });
+    l.lockPeriod(D);
+    expect(() => l.postInvoice({ kind: 'sale', date: D, paid: 1000, lines: [{ itemId: 'a', qty: 1, price: 1000 }] })).toThrow(/مقفلة/);
+    l.unlockPeriod();
+    expect(l.state.info!.lockedUntil).toBeUndefined();
+    l.postInvoice({ kind: 'sale', date: D, paid: 1000, lines: [{ itemId: 'a', qty: 1, price: 1000 }] });
+    // بعد إقفال سنة (فيها مبيعات): الفك بيوقف عند تاريخ الإقفال
+    l.postInvoice({ kind: 'sale', date: '2025-07-01', paid: 1000, lines: [{ itemId: 'a', qty: 1, price: 1000 }] });
+    l.closeYear('2025-12-31');
+    l.lockPeriod(D);
+    l.unlockPeriod();
+    expect(l.state.info!.lockedUntil).toBe('2025-12-31');
+    expect(() => l.unlockPeriod('2025-06-01')).toThrow(/إقفال السنة|مقفول/);
     balanced(l);
   });
 });

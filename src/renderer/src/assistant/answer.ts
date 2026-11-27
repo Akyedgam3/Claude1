@@ -190,7 +190,7 @@ function fromData(question: string, ctx: AskContext, focus?: string): Reply | nu
     const parts = [`${item.name}:`];
     if (item.kind !== 'service') parts.push(`الموجود: ${qty.toLocaleString('en')} ${item.unit}`);
     parts.push(`سعر المبيع: ${fmt(item.price, item.priceCurrency)}`);
-    if (can('costs.view') && lvl?.lastCost) parts.push(`آخر تكلفة: ${fmt(lvl.lastCost)}`);
+    if (can('costs.view') && lvl?.lastCost) parts.push(`آخر تكلفة: ${fmt(Math.round(lvl.lastCost))}`);
     if (item.minStock !== undefined && qty <= item.minStock) parts.push('⚠ قربت تخلص، لازم تطلب.');
     return reply(parts.join('\n'), [{ label: 'افتح المادة', screen: 'items', param: item.name }]);
   }
@@ -243,7 +243,8 @@ function fromData(question: string, ctx: AskContext, focus?: string): Reply | nu
   }
 
   // «مين أكتر واحد عليه دين؟»
-  if (/(مين اكتر|مين اكثر|اكبر|اعلى).*(دين|ديون|عليه|مديون)|(مين عليه اكتر|المديونين)/.test(norm) && (fin || can('balances.view'))) {
+  // «مين عليه دين؟» / «مين مديون؟» كمان (كان يجاوب شرح عام بدون أسماء)
+  if (/(مين اكتر|مين اكثر|اكبر|اعلى).*(دين|ديون|عليه|مديون)|(مين عليه اكتر|المديونين)|^(مين|شو|مين هن|مين يلي|مين اللي)\s*(عليهم|عليه|عليها)\s*(دين|ديون|مصاري)|^مين (مديون|المديون)/.test(norm) && (fin || can('balances.view'))) {
     const top = topDebtors(state, 5);
     if (!top.length) return reply('ما في حدا عليه دين 👌', [{ label: 'الديون', screen: 'debts' }]);
     return reply(`أكتر الزباين عليهم:\n${top.map((x, i) => `${i + 1}. ${x.name}: ${fmt(x.amount)}`).join('\n')}`, [{ label: 'الديون', screen: 'debts' }]);

@@ -8,6 +8,7 @@ export const PERMISSIONS = {
   'returns.create': 'المرتجعات',
   'discount.give': 'إعطاء خصم',
   'price.edit': 'تغيير سعر المادة وقت البيع',
+  'price.belowCost': 'البيع بأقل من سعر الكلفة',
   'sales.credit': 'البيع بالدين (آجل أو دفعة ناقصة)',
   'invoices.all': 'رؤية فواتير باقي المستخدمين',
   'purchases.create': 'فواتير الشراء',
@@ -71,7 +72,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   accountant: [
     'sales.create', 'sales.void', 'returns.create', 'discount.give', 'price.edit', 'sales.credit', 'invoices.all', 'purchases.create', 'purchases.view', 'profits.view', 'stock.qty', 'balances.view', 'vouchers.create', 'vouchers.void',
     'journal.create', 'costs.view', 'parties.manage', 'reports.financial', 'reports.stock', 'accounts.manage', 'rates.manage',
-    'stock.adjust', 'backup.manage', 'cash.manage',
+    'stock.adjust', 'backup.manage', 'cash.manage', 'price.belowCost',
   ],
   cashier: ['stock.qty', 'balances.view', 'sales.create', 'price.edit', 'sales.credit', 'invoices.all', 'returns.create', 'pos.use', 'restaurant.use', 'appointments.manage', 'tailoring.manage', 'printjobs.manage', 'dealers.manage', 'bookings.manage', 'solar.manage', 'netsubs.manage', 'fx.manage', 'vouchers.create', 'parties.manage'],
   storekeeper: ['stock.qty', 'purchases.view', 'invoices.all', 'items.manage', 'stock.adjust', 'stock.transfer', 'production.manage', 'purchases.create', 'reports.stock'],
@@ -104,6 +105,12 @@ export function can(user: User | null | undefined, permission: Permission): bool
 }
 
 /** الصلاحية المطلوبة لكل عملية على الدفتر. العمليات غير المذكورة هنا ممنوعة على الواجهة. */
+/** سند على حساب من حقوق الملكية (رأس المال، جاري المالك والشركاء) */
+const ownerMoney = (v: unknown): boolean => {
+  const id = (v as { accountId?: unknown } | null | undefined)?.accountId;
+  return typeof id === 'string' && id.startsWith('3');
+};
+
 export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) => Permission)> = {
   updateCompany: 'settings.manage',
   // قوائم الأسعار: قائمة جديدة من الفاتورة بصلاحية تغيير السعر (تعديل قائمة موجودة بدو items.manage بالمنفّذ)
@@ -126,6 +133,7 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
   postEntry: 'journal.create',
   voidEntry: 'vouchers.void',
   lockPeriod: 'period.close',
+  unlockPeriod: 'period.close',
   closeYear: 'period.close',
   saveParty: 'parties.manage',
   mergeParty: 'parties.manage',
@@ -147,13 +155,15 @@ export const METHOD_PERMISSIONS: Record<string, Permission | ((args: unknown[]) 
   voidInvoice: 'sales.void',
   deleteInvoice: 'sales.void',
   replaceInvoice: 'sales.void',
-  postVoucher: 'vouchers.create',
-  postVouchers: 'vouchers.create',
+  // سند على حسابات المالك والشركاء (3xxx: رأس المال، الجاري) = سحب أو إيداع مصاري المالك: بدها «إدارة الصناديق»
+  // (تقرير 2.0.14: الكاشير كان يسحب لـ«جاري المالك» من يومية الصندوق)
+  postVoucher: (args) => (ownerMoney(args[0]) ? 'cash.manage' : 'vouchers.create'),
+  postVouchers: (args) => (Array.isArray(args[0]) && (args[0] as unknown[]).some(ownerMoney) ? 'cash.manage' : 'vouchers.create'),
   payRecurring: 'vouchers.create',
   saveRecurring: 'accounts.manage',
   deleteRecurring: 'accounts.manage',
   // التعديل = إلغاء + جديد: بدو صلاحية الإلغاء (والمنفّذ بيطلب صلاحية الإنشاء كمان)
-  editVoucher: 'vouchers.void',
+  editVoucher: (args) => (ownerMoney(args[1]) ? 'cash.manage' : 'vouchers.void'),
   editDebt: 'vouchers.void',
   editEntry: 'vouchers.void',
   editAdjustment: 'stock.adjust',

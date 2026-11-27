@@ -76,7 +76,13 @@ function writeSettings(s: Settings): void {
   fs.renameSync(tmp, settingsFile()); // حفظ آمن من انقطاع الكهرباء
 }
 
+/** نسخة مستعادة: اسمها بالقائمة وشاشة الدخول فيه «(مستعادة)» حتى ما تتلخبط مع الأصلية (تقرير 2.0.14) */
+function shownName(name: string, dir: string): string {
+  return path.basename(dir).includes('(مستعادة)') && !name.includes('مستعادة') ? `${name} (مستعادة)` : name;
+}
+
 function remember(name: string, dir: string): void {
+  name = shownName(name, dir);
   const s = readSettings();
   s.recent = [{ name, dir }, ...s.recent.filter((r) => r.dir !== dir)].slice(0, 10);
   writeSettings(s);
@@ -99,7 +105,7 @@ function restoreWazn(bytes: Uint8Array): { dir: string; name: string; usernames:
     const dir = uniqueDir(`${meta.name} (مستعادة)`);
     fs.mkdirSync(dir, { recursive: true });
     for (const f of Object.keys(files)) fs.copyFileSync(path.join(tmp, f), path.join(dir, f));
-    return { dir, name: meta.name, usernames };
+    return { dir, name: shownName(meta.name, dir), usernames };
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
@@ -371,7 +377,8 @@ async function printOrPdfRaw(contents: WebContents, opts: { paper: string; print
     const res = await afterDialog(dialog.showSaveDialog(win!, { title: 'حفظ PDF', defaultPath: path.join(app.getPath('documents'), `${safeFolderName(opts.pdf)}.pdf`), filters: [{ name: 'PDF', extensions: ['pdf'] }] }));
     if (res.canceled || !res.filePath) return false;
     // printToPDF بياخد المقاس بالإنش (مش ميكرون متل print)
-    const data = await contents.printToPDF({ printBackground: true, preferCSSPageSize: true, ...(opts.scale ? { scale: opts.scale } : {}), ...(custom ? { pageSize: { width: custom.width / 25400, height: custom.height / 25400 }, margins: { top: 0, bottom: 0, left: 0, right: 0 } } : PAGE_SIZES[opts.paper] ? { pageSize: PAGE_SIZES[opts.paper] } : {}) });
+    // مقاس الحراري المحسوب لازم يغلب «@page 80mm auto» (كان يطلع الإيصال بنص صفحة A4 عند بعض الأجهزة)
+    const data = await contents.printToPDF({ printBackground: true, preferCSSPageSize: !custom, ...(opts.scale ? { scale: opts.scale } : {}), ...(custom ? { pageSize: { width: custom.width / 25400, height: custom.height / 25400 }, margins: { top: 0, bottom: 0, left: 0, right: 0 } } : PAGE_SIZES[opts.paper] ? { pageSize: PAGE_SIZES[opts.paper] } : {}) });
     fs.writeFileSync(res.filePath, data);
     return res.filePath;
   }
@@ -555,7 +562,7 @@ function registerIpc(): void {
       dir = res.filePaths[0];
     }
     const { meta, usernames } = peekCompany(dir);
-    return { dir, name: meta.name, activity: meta.activity, usernames };
+    return { dir, name: shownName(meta.name, dir), activity: meta.activity, usernames };
   });
 
   handle('company:login', async (dir: string, creds: Credentials) => {
@@ -585,7 +592,7 @@ function registerIpc(): void {
     for (const f of BACKUP_FILES) {
       if (fs.existsSync(path.join(src, f))) fs.copyFileSync(path.join(src, f), path.join(dir, f));
     }
-    return { dir, name: meta.name, usernames };
+    return { dir, name: shownName(meta.name, dir), usernames };
   });
 
   handle('company:close', async () => {

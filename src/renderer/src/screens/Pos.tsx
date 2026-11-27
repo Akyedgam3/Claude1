@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { autoSendInvoice } from '../components/whatsapp';
+import { checkBelowCost } from '../components/cashGuard';
 import { invoiceText } from './InvoiceView';
 import { itemTitle, partyBalance, resolveScan, type Invoice, type Item } from '../../../core';
 import { discountProblem, convertPrice, fxRates, money, cleanNumber, parseAmount, parseDiscount, parsePrice, qtyText, shownCurrencies, today, toInput, uid, useCompany } from '../api';
@@ -47,15 +48,27 @@ export function Pos() {
   const { state, call, notify, can, user, profile } = useCompany();
   const base = state.info!.baseCurrency;
   const printer = usePrinter();
-  const [cart, setCart] = useState<CartLine[]>([]);
+  // السلة بتضل محفوظة على هالجهاز إذا رحت لشاشة تانية أو سكّرت البرنامج (تقرير 2.0.14: كانت تضيع)، لحد ما يخلص البيع
+  const cartKey = `wazn.pos.cart.${state.info!.name}.${user.id}`;
+  const saved = useMemo(() => {
+    try {
+      const v = JSON.parse(localStorage.getItem(cartKey) ?? 'null') as { cart: CartLine[]; partyId: string | null; discount: string; cur: string } | null;
+      return v && Array.isArray(v.cart) ? { ...v, cart: v.cart.filter((l) => state.items[l.itemId]) } : null;
+    } catch {
+      return null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const [cart, setCart] = useState<CartLine[]>(saved?.cart ?? []);
   const [category, setCategory] = useState('');
   const [query, setQuery] = useState('');
-  const [partyId, setPartyId] = useState<string | null>(null);
+  const [partyId, setPartyId] = useState<string | null>(saved?.partyId && state.parties[saved.partyId] ? saved.partyId : null);
   const [received, setReceived] = useState('');
-  const [discount, setDiscount] = useState('');
+  const [discount, setDiscount] = useState(saved?.discount ?? '');
   // الاختيار بينحفظ على هالجهاز (كان يرجع مفعّل كل ما يطلع ويرجع على الكاشير)
   const [autoPrint, setAutoPrintState] = useState(() => {
-    try { return localStorage.getItem('wazn.pos.autoPrint') !== '0'; } catch { return true; }
+    // افتراضياً مطفية (ما كل محل عنده طابعة إيصالات)، وبتنحفظ لما تشغّلها
+    try { return localStorage.getItem('wazn.pos.autoPrint') === '1'; } catch { return false; }
   });
   const setAutoPrint = (on: boolean) => {
     setAutoPrintState(on);
@@ -68,7 +81,15 @@ export function Pos() {
   const [priceFor, setPriceFor] = useState<string | null>(null);
   const party = partyId ? state.parties[partyId] : null;
   // عملة البيع: الكاشير بيختار ليرة أو دولار لكل فاتورة، والأسعار بتتحوّل بسعر الصرف
-  const [cur, setCur] = useState(base);
+  const [cur, setCur] = useState(saved?.cur && state.currencies[saved.cur] ? saved.cur : base);
+  useEffect(() => {
+    try {
+      if (cart.length) localStorage.setItem(cartKey, JSON.stringify({ cart, partyId, discount, cur }));
+      else localStorage.removeItem(cartKey);
+    } catch {
+      /* تخزين الجهاز مقفول: السلة بتضل بالذاكرة بس */
+    }
+  }, [cart, partyId, discount, cur, cartKey]);
   const rates = fxRates(state, today());
   const currencies = shownCurrencies(state, cur);
   const otherCur = cur !== state.info!.baseCurrency ? state.info!.baseCurrency : (currencies.find((c) => c.code === 'USD' && c.code !== cur) ?? currencies.find((c) => c.code !== cur))?.code;
@@ -219,11 +240,22 @@ export function Pos() {
     return out;
   }, [total, cur, state.currencies, rates]);
 
+  const payingRef = useRef(false);
   const pay = async (credit: boolean) => {
+    if (payingRef.current) return;
+    payingRef.current = true;
+    try {
+      await payInner(credit);
+    } finally {
+      payingRef.current = false;
+    }
+  };
+  const payInner = async (credit: boolean) => {
     if (!cart.length || busy) return;
     if (discountError) return notify(discountError, 'error');
     if (credit && !partyId) return notify('اختار الزبون من فوق أول، البيع على الحساب لازمه اسم', 'error');
     if (!credit && change < 0) return notify('المبلغ المستلم أقل من الإجمالي', 'error');
+    if (!(await checkBelowCost(state, can as (p: string) => boolean, notify, cart, cur, today()))) return;
     setBusy(true);
     const res = await call<Invoice>('postInvoice', {
       kind: 'sale',
@@ -412,7 +444,26 @@ export function Pos() {
           </div>
         )}
         <div className="with-button">
-          <Picker options={partyOptions(state, 'customer')} value={partyId} onChange={setPartyId} placeholder="زبون نقدي" />
+          <Picker
+            options={partyOptions(state, 'customer')}
+            value={partyId}
+            onChange={setPartyId}
+            placeholder="زبون نقدي"
+            // زبون مش موجود: بينضاف من هون بكبسة (كان «لا نتائج» والاسم يضيع)
+            {...(can('parties.manage')
+              ? {
+                  createLabel: 'زبون جديد',
+                  onCreate: (name: string) =>
+                    void (async () => {
+                      const id = uid();
+                      if (await call('saveParty', { id, kind: 'customer', name })) {
+                        setPartyId(id);
+                        notify(`انضاف «${name}» زبون جديد`);
+                      }
+                    })(),
+                }
+              : {})}
+          />
           {partyId && (
             <button className="icon" onClick={() => setPartyId(null)}>
               <Icon name="close" size={16} />

@@ -6,8 +6,8 @@ import { Icon } from './icons';
 export type DocKind = 'invoice' | 'receipt' | 'kitchen' | 'label' | 'report';
 
 const PAGE_CSS: Record<Paper, string> = {
-  a4: '@page { size: A4; margin: 12mm; }',
-  a5: '@page { size: A5; margin: 8mm; }',
+  a4: '@page { size: A4; margin: 12mm; } html, body { background: #fff !important; }',
+  a5: '@page { size: A5; margin: 8mm; } html, body { background: #fff !important; }',
   '80mm': '@page { size: 80mm auto; margin: 2mm 0; }',
   '58mm': '@page { size: 58mm auto; margin: 2mm 0; }',
 };
@@ -75,11 +75,13 @@ export function usePrinter() {
       }
     },
     async pdf(name: string, paper: Paper = 'a4') {
+      if (document.body.classList.contains('pdf-busy')) return; // كبستين = نافذتين حفظ
       // بياخد كم ثانية: مؤشر حتى ما يكبس مرة تانية ويفكّر ما صار شي
       document.body.classList.add('pdf-busy');
       notify('عم يجهّز ملف PDF…');
       try {
-        const file = await withPaper(paper, () => api.exportPdf({ paper, name }));
+        // اسم الملف فيه القياس (فاتورة 11 - حراري 80mm) حتى ما تنكتب نسخة فوق التانية
+        const file = await withPaper(paper, () => api.exportPdf({ paper, name: paper === 'a4' ? name : `${name} - ${PAPER_NAMES[paper]}` }));
         if (file) notify(`تم حفظ الملف: ${file}`);
       } catch (e) {
         notify((e as Error).message, 'error');

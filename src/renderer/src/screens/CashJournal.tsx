@@ -40,16 +40,18 @@ export function CashJournal() {
     if (box?.currency && box.currency !== currency) setCurrency(box.currency);
   }, [box?.currency, currency]);
 
+  // حسابات المالك (رأس المال والجاري) بس لإلي معه «إدارة الصناديق»
+  const ownerOk = can('cash.manage');
   // الأسماء: الزباين والموردين، وتحتهم الحسابات (مصاريف، إيرادات، جاري المالك...)
   const options = useMemo(() => {
     const parties = Object.values(state.parties)
       .filter((p) => !p.archived)
       .map((p) => ({ id: `p:${p.id}`, label: p.name, hint: p.kind === 'supplier' ? 'مورد' : p.kind === 'both' ? 'عميل ومورد' : 'عميل' }));
     const accounts = Object.values(state.accounts)
-      .filter((a) => !a.isGroup && !a.archived && !a.hidden && ['expense', 'revenue', 'equity', 'liability'].includes(a.type) && (!a.currency || a.currency === currency))
+      .filter((a) => !a.isGroup && !a.archived && !a.hidden && ['expense', 'revenue', 'equity', 'liability'].includes(a.type) && (a.type !== 'equity' || ownerOk) && (!a.currency || a.currency === currency))
       .map((a) => ({ id: `a:${a.id}`, label: a.name, hint: a.type === 'expense' ? 'مصروف' : a.type === 'revenue' ? 'إيراد' : 'حساب' }));
     return [...parties, ...accounts];
-  }, [state.parties, state.accounts, currency]);
+  }, [state.parties, state.accounts, currency, ownerOk]);
 
   const amount = (t: string) => {
     if (!t.trim()) return 0;

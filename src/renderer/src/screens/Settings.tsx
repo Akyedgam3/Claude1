@@ -1164,10 +1164,29 @@ function PeriodTab() {
           <h4>قفل فترة (بعد مراجعة الشهر مثلاً)</h4>
           <div className="inline-form">
             <input type="date" value={lockDate} max={today()} onChange={(e) => setLockDate(e.target.value)} />
-            <button disabled={!lockDate} onClick={async () => (await call('lockPeriod', lockDate)) && notify('تم قفل الفترة')}>
+            <button
+              disabled={!lockDate}
+              onClick={async () => {
+                // قفل اليوم أو قبل يومين: ما بقى فيك تبيع ولا تقبض بتاريخ اليوم، منسأل قبل
+                if (lockDate >= today() && !(await askConfirm('رح تنقفل حركات اليوم كمان: ما بتقدر تبيع ولا تقبض ولا تعدّل شي بتاريخ اليوم. متأكد؟ (فيك تفك القفل بعدين)'))) return;
+                if ((await call('lockPeriod', lockDate)) !== null) notify('تم قفل الفترة');
+              }}
+            >
               قفل
             </button>
           </div>
+          {locked && (
+            <button
+              type="button"
+              className="link"
+              onClick={async () => {
+                if (!(await askConfirm(`فك قفل الحركات حتى ${dateText(locked)}؟ بعدها بيرجع فيك تعدّل عليها (إقفال السنة بيضل متل ما هو).`))) return;
+                if ((await call('unlockPeriod')) !== null) notify('انفك القفل');
+              }}
+            >
+              فك القفل
+            </button>
+          )}
         </div>
         <div>
           <h4>إقفال السنة المالية</h4>

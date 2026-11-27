@@ -783,6 +783,10 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
       }
       if (buyBase === null) return notify('ما في سعر صرف اليوم لعملة سعر الشراء. سجّله أول', 'error');
     }
+    // مادة تانية بنفس الاسم أو الباركود: منسأل (كان ينحفظ «خبز» مرتين بدون كلمة)
+    const norm = (t: string) => t.trim().replace(/\s+/g, ' ');
+    const twin = Object.values(state.items).find((x) => x.id !== data.id && !x.archived && (norm(x.name) === norm(data.name) || (!!data.barcode && x.barcode === data.barcode)));
+    if (twin && !(await askConfirm(twin.barcode && twin.barcode === data.barcode ? `الباركود ${data.barcode} موجود عند «${twin.name}». تحفظ مادة تانية بنفس الباركود؟` : `في مادة اسمها «${twin.name}» من قبل. تحفظ مادة تانية بنفس الاسم؟`))) return;
     if (await call('saveItem', data)) {
       if (buyBase !== null) {
         const qty = state.stock[data.id]?.totalQty ?? 0;
@@ -1107,10 +1111,13 @@ export function ItemForm({ item, onClose, onSaved }: { item: Item | null; onClos
               <input type="checkbox" checked={f.trackExpiry} disabled={hasStock} onChange={(e) => setF({ ...f, trackExpiry: e.target.checked })} />
               تتبع الدفعات وتواريخ الصلاحية (يُباع الأقرب انتهاءً أولاً)
             </label>
-            <label className="check wide">
-              <input type="checkbox" checked={f.trackSerial} disabled={hasStock} onChange={(e) => setF({ ...f, trackSerial: e.target.checked })} />
-              تتبع الأرقام التسلسلية / IMEI لكل قطعة
-            </label>
+            {/* الأرقام التسلسلية بس للأنشطة اللي إلها (موبايلات، ذهب، أجهزة)، أو إذا المادة مفعّلة عليها من قبل */}
+            {(feature('serials') || f.trackSerial) && (
+              <label className="check wide">
+                <input type="checkbox" checked={f.trackSerial} disabled={hasStock} onChange={(e) => setF({ ...f, trackSerial: e.target.checked })} />
+                تتبع الأرقام التسلسلية / IMEI لكل قطعة
+              </label>
+            )}
             {f.trackSerial && (
               <Field label="الكفالة (أشهر)">
                 <input type="number" min={0} value={f.warrantyMonths} onChange={set('warrantyMonths')} />

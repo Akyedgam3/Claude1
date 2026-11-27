@@ -53,9 +53,9 @@ export function Vouchers({ initialKind, editId }: { initialKind?: 'receipt' | 'p
   const counterAccounts = useMemo(
     () =>
       Object.values(state.accounts)
-        .filter((a) => !a.isGroup && !a.archived && (!a.currency || a.currency === currency) && (kind === 'payment' ? ['expense', 'equity', 'liability'].includes(a.type) : ['revenue', 'equity', 'liability'].includes(a.type)))
+        .filter((a) => !a.isGroup && !a.archived && (a.type !== 'equity' || can('cash.manage')) && (!a.currency || a.currency === currency) && (kind === 'payment' ? ['expense', 'equity', 'liability'].includes(a.type) : ['revenue', 'equity', 'liability'].includes(a.type)))
         .sort((a, b) => a.id.localeCompare(b.id)),
-    [state.accounts, kind, currency],
+    [state.accounts, kind, currency, can],
   );
   // الحساب المعروض هو نفسه الذي يُرحَّل عليه (لا قيمة مخفية خارج القائمة)
   const counterId = counterAccounts.some((a) => a.id === accountId) ? accountId : (counterAccounts[0]?.id ?? '');

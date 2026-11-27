@@ -932,6 +932,8 @@ export interface InvoiceLineDraft {
   batch?: string;
   expiry?: string;
   serials?: string[];
+  /** الخصم انكتب نسبة (5%): بينحفظ حتى التعديل يرجّعه نسبة مش مبلغ ثابت */
+  discountPct?: number;
   note?: string;
   /** خيارات الصنف (اللون، الوزن، الحجم...). إذا ما انبعتت منتاخد خيارات بطاقة الصنف نفسه. */
   attributes?: Record<string, string>;
@@ -1036,6 +1038,7 @@ export function buildInvoice(ctx: InvoiceContext, draft: InvoiceDraft, opts: { n
       ...(factor !== 1 ? { unit: d.unit!, factor } : {}),
       price: d.price,
       discount,
+      ...(d.discountPct && d.discountPct > 0 && d.discountPct <= 100 && discount > 0 ? { discountPct: d.discountPct } : {}),
       ...(d.note ? { note: d.note } : {}),
       ...(() => {
         const a = cleanAttributes(d.attributes ?? item?.attributes);

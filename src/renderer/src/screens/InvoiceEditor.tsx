@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { confirmCashOut, purchaseCashChoice } from '../components/cashGuard';
+import { checkBelowCost, confirmCashOut, purchaseCashChoice } from '../components/cashGuard';
 import { autoSendInvoice } from '../components/whatsapp';
 import { invoiceText } from './InvoiceView';
 import { SYSTEM_ACCOUNTS, isMarketer, marketerTerms, attributesFor, ATTRIBUTE_SUGGESTIONS, isCashBox, computeTaxes, PRICE_TIER_NAMES, tierPrice, COST_LIST, FREE_LIST, isBuiltinList, partyPriceList, priceListPrice, type PriceTier, niceUnitCost, PRICE_SCALE, roundPrice, findRate, itemPlace, listPrices, withPlace, partyListPrice, INVOICE_KIND_NAMES, itemTitle, itemUnitCost, matchSerials, priceFromMargin, resolveScan, weighingText, type CompanyState, type ScanResult, type SerialMatch, type Invoice, type InvoiceKind, type Item, type Party, type Weighing } from '../../../core';
@@ -159,7 +159,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
             unit: l.unit ?? '',
             qty: String(l.qty),
             price: editInput(l.price),
-            discount: l.discount ? editInput(l.discount) : '',
+            discount: l.discountPct ? `${l.discountPct}%` : l.discount ? editInput(l.discount) : '',
             batch: l.batches?.[0]?.batch ?? '',
             expiry: l.batches?.[0]?.expiry ?? '',
             serials: (l.serials ?? []).join(' '),
@@ -287,7 +287,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
   const storedRate = findRate(state, currency, date);
   // بعض العملات سعرها بينكتب مقلوب (الشركة بالدولار والفاتورة بالليرة: «الدولار بكم ليرة»)
   const invertRate = rateInverted(state, currency);
-  const typedRate = Number(rateText) || 0;
+  const typedRate = Number(cleanNumber(rateText ?? '')) || 0;
   const rate = currency === base ? 1 : (typedRate ? inputToRate(state, currency, typedRate) : storedRate || 0);
   const items = useMemo(() => itemOptions(state, (i) => isSale || i.kind !== 'composite'), [state, isSale]);
   const boxes = cashAccounts(state, currency);
@@ -600,11 +600,23 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
   // حساب جاري: المدفوع أكتر من الفاتورة ← الزيادة بتنسجّل دفعة من الدين القديم (سند قبض/دفع بنفس الصندوق)
   const extra = payMode === 'partial' && (kind === 'sale' || kind === 'purchase') && paid > preview.total ? paid - preview.total : 0;
 
+  // منع الحفظ مرتين (Ctrl+Enter المتكرر أو كبستين سريعين): القفل من أول كبسة، وبعد حفظ ناجح بيضل شوي لحتى تنتقل الشاشة
+  // (تقرير 2.0.14: كبستين عـ«حفظ» بفاتورة شراء آجلة عملوا فاتورتين ودين المورد تضاعف)
   const save = async () => {
-    if (savingRef.current) return; // منع الحفظ مرتين (Ctrl+Enter المتكرر)
+    if (savingRef.current) return;
+    savingRef.current = true;
+    let ok: boolean | void = false;
+    try {
+      ok = await doSave();
+    } finally {
+      if (ok) setTimeout(() => (savingRef.current = false), 2000);
+      else savingRef.current = false;
+    }
+  };
+  const doSave = async (): Promise<boolean | void> => {
     if (preview.error) return notify(preview.error, 'error');
     if (currency !== base && !rate) return notify('أدخل سعر الصرف', 'error');
-    if (payMode !== 'cash' && !partyId) return notify(isSale ? 'اختر العميل ليُسجَّل الدين عليه' : 'اختر المورد ليُسجَّل الدين له', 'error');
+    if (payMode !== 'cash' && !partyId) return notify(kind === 'sale_return' ? 'اختر العميل ليُسجَّل المرتجع له على حسابه' : kind === 'purchase_return' ? 'اختر المورد ليُسجَّل المرتجع عليه' : isSale ? 'اختر العميل ليُسجَّل الدين عليه' : 'اختر المورد ليُسجَّل الدين له', 'error');
     let extraCosts: ReturnType<typeof extraCostsOf> = [];
     if (kind === 'purchase') {
       try {
@@ -616,9 +628,17 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
       if (extraCosts.some((x) => x.pay === 'party' && !x.partyId)) return notify('اختار الجهة اللي إلها التكلفة الإضافية (شركة الشحن أو المخلّص)', 'error');
     }
     // فاتورة شراء مدفوعة من الصندوق: إذا الصندوق ما فيه كفاية منسأل قبل ما يصير بالسالب
+    if (kind === 'sale' && !(await checkBelowCost(state, can as (p: string) => boolean, notify, used.map((l) => ({ itemId: l.itemId, price: (() => { try { return parsePrice(state, l.price, currency); } catch { return 0; } })(), ...(l.unit ? { unit: l.unit } : {}) })), currency, date, currency !== base ? rate : undefined))) return;
+    // تاريخ بعيد (سنة غلط): منسأل قبل (كانت تنحفظ 2030 و1990 بدون كلمة)
+    if (!editing) {
+      const days = (Date.parse(date) - Date.parse(today())) / 86400000;
+      if ((days > 1 || days < -366) && !(await askConfirm(`تاريخ الفاتورة ${dateText(date)} ${days > 0 ? 'بالمستقبل' : 'قديم كتير'}. متأكد منه؟`))) return;
+    }
     let capitalTopUp = 0;
     if (kind === 'purchase' && !editing) {
-      const { choice, shortfall } = await purchaseCashChoice(state, cashId, currency, paid + Math.max(0, extra));
+      // التكاليف الإضافية (نقل، جمركة) المدفوعة من نفس الصندوق بتنحسب كمان (كان التحذير ناقصها)
+      const extrasFromBox = extraCosts.filter((x) => x.pay === 'cash' && (x.cashAccountId ?? cashId) === cashId).reduce((t, x) => t + x.amount, 0);
+      const { choice, shortfall } = await purchaseCashChoice(state, cashId, currency, paid + Math.max(0, extra) + extrasFromBox);
       if (!choice) return;
       if (choice === 'credit') {
         setPayMode('credit');
@@ -627,7 +647,6 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
       if (choice === 'capital') capitalTopUp = shortfall;
     } else if (kind === 'sale_return' && !editing && !(await confirmCashOut(state, cashId, currency, paid + Math.max(0, extra)))) return;
     if (extra > 0 && !(await askConfirm(`المدفوع أكتر من الفاتورة بـ ${money(state, extra, currency)}. بتنسجّل الزيادة ${isSale ? 'مقبوضة من' : 'مدفوعة لـ'} ${state.parties[partyId!]?.name ?? ''} على حسابه الجاري؟`))) return;
-    savingRef.current = true;
     setSaving(true);
     try {
       const draft = {
@@ -644,6 +663,10 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
           ...(l.unit ? { unit: l.unit } : {}),
           price: parsePrice(state, l.price, currency),
           discount: parseDiscount(state, l.discount, currency, Math.round(Number(cleanNumber(l.qty || '0')) * parsePrice(state, l.price, currency))),
+          ...(() => {
+            const m = /^(\d+(?:\.\d+)?)%$|^%(\d+(?:\.\d+)?)$/.exec(cleanNumber(l.discount ?? ''));
+            return m ? { discountPct: Math.min(100, Number(m[1] ?? m[2])) } : {};
+          })(),
           ...(l.batch.trim() ? { batch: l.batch.trim() } : {}),
           ...(l.expiry ? { expiry: l.expiry } : {}),
           ...(l.serials.trim() ? { serials: l.serials.split(/[\s,،]+/).map((s) => s.trim()).filter(Boolean) } : {}),
@@ -731,11 +754,11 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
           autoSendInvoice(state, res.value, invoiceText, notify);
         }
         navigate('invoice', res.value.id);
+        return true;
       }
     } catch (e) {
       notify((e as Error).message, 'error');
     } finally {
-      savingRef.current = false;
       setSaving(false);
     }
   };
@@ -809,7 +832,21 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
       <section className="card form-grid four">
         <Field label={isSale ? 'العميل' : 'المورد'}>
           <div className="with-button">
-            <Picker options={partyOptions(state, isSale ? 'customer' : 'supplier')} value={partyId} onChange={changeParty} placeholder={isSale ? 'زبون نقدي (اختياري)' : 'مورد نقدي (اختياري)'} />
+            <Picker
+              options={partyOptions(state, isSale ? 'customer' : 'supplier')}
+              value={partyId}
+              onChange={changeParty}
+              placeholder={isSale ? 'زبون نقدي (اختياري)' : 'مورد نقدي (اختياري)'}
+              {...(can('parties.manage')
+                ? {
+                    createLabel: isSale ? 'زبون جديد' : 'مورد جديد',
+                    onCreate: (name: string) => {
+                      typedParty.current = name;
+                      setNewParty(true);
+                    },
+                  }
+                : {})}
+            />
             {partyId && (
               <button type="button" className="icon" title="إزالة" onClick={() => changeParty(null)}>
                 <Icon name="close" size={16} />
@@ -1145,7 +1182,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
                   <td data-label="الكمية">
                     <div className="qty-cell">
                       <input
-                        className="num-input"
+                        className={`num-input${/[A-Za-z\u0621-\u064A]/.test(l.qty) ? ' invalid' : ''}`}
                         value={l.qty}
                         title={l.weighing ? 'الكمية من الوزنات — اكبس زر الميزان لتعدّلها' : feature('poultry') ? 'فيك تكتب الوزنات: 99+110+114' : undefined}
                         onChange={(e) => {
@@ -1296,7 +1333,7 @@ export function InvoiceEditor({ kind: kindProp, editId, draftId: draftProp, save
             </div>
           )}
           <PaySwitch kind={kind} mode={payMode} onChange={setPayMode} cashOnly={cashOnly} />
-          {payMode !== 'cash' && !partyId && <p className="bad small-note">{isSale ? 'اختر العميل في الأعلى ليُسجَّل الدين عليه' : 'اختر المورد في الأعلى ليُسجَّل الدين له'}</p>}
+          {payMode !== 'cash' && !partyId && <p className="bad small-note">{kind === 'sale_return' ? 'اختر العميل في الأعلى ليُسجَّل المرتجع له' : kind === 'purchase_return' ? 'اختر المورد في الأعلى ليُسجَّل المرتجع عليه' : isSale ? 'اختر العميل في الأعلى ليُسجَّل الدين عليه' : 'اختر المورد في الأعلى ليُسجَّل الدين له'}</p>}
           <div className="kv">
             {payMode === 'partial' && (
               <>

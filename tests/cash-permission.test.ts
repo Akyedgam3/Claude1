@@ -22,4 +22,11 @@ describe('cash box permissions', () => {
   it('pharmacy dealer box settlement keeps working with vouchers permission', () => {
     expect(need('transferBox', { from: '11019', to: '1101' })).toBe('vouchers.create');
   });
+  it('vouchers to the owner/partners accounts need cash.manage (cash journal too)', () => {
+    expect(need('postVoucher', { kind: 'payment', accountId: '3102', amount: 1000 })).toBe('cash.manage');
+    expect(need('postVoucher', { kind: 'payment', accountId: '5201', amount: 1000 })).toBe('vouchers.create');
+    expect(need('postVouchers', [{ accountId: '5201' }, { accountId: '3102' }])).toBe('cash.manage');
+    expect(need('postVouchers', [{ partyId: 'c' }])).toBe('vouchers.create');
+    expect(need('editVoucher', 'x', { accountId: '3101' })).toBe('cash.manage');
+  });
 });

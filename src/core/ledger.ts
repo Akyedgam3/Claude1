@@ -21,6 +21,9 @@ import { fxMid, fxSide, newRemitCode } from './fx';
 import { woodExpenseAccount, woodLotSales } from './woodlots';
 
 /** حساب عمولات المسوّقين (بينعمل لحالو أول مرة). */
+/** فك قفل الفترات كلها (حدث period.locked بهالتاريخ بيشيل التاريخ) */
+const NO_LOCK = '0000-01-01';
+
 export const COMMISSION_ACCOUNT = '5211';
 import { printJobDeposits, printJobToInvoiceLines, printJobTotals } from './printshop';
 import { solarDeposits, solarToInvoiceLines, solarTotals } from './solar';
@@ -413,7 +416,11 @@ export function applyEvent(state: CompanyState, event: CompanyEvent): CompanySta
       break;
     case 'period.locked':
       if (event.entry) state.entries.push(event.entry);
-      state.info = { ...state.info!, lockedUntil: event.until };
+      if (event.until === NO_LOCK) {
+        const { lockedUntil: _l, ...rest } = state.info!;
+        void _l;
+        state.info = rest;
+      } else state.info = { ...state.info!, lockedUntil: event.until };
       break;
     case 'user.saved':
       state.users[event.user.id] = { ...event.user };
@@ -466,6 +473,7 @@ export interface EntryDraft {
   memo: string;
   lines: LineDraft[];
   source?: { type: string; id: string };
+  appliesTo?: string;
   createdBy?: string;
 }
 
@@ -484,6 +492,8 @@ export interface VoucherDraft {
   createdBy?: string;
   /** داخلي: بادئة لمعرّف المصدر (مثلاً `rec:<id>:<YYYY-MM>` للمصاريف الثابتة) — بتضل مع التعديل */
   tag?: string;
+  /** «قبض دفعة» من جوّا فاتورة: معرّف قيد الفاتورة، فالدفعة بتسدّها أول */
+  appliesTo?: string;
 }
 
 /** دين بدون فاتورة: إلي على حدا (owed) أو علي لحدا (owe). */
@@ -503,6 +513,8 @@ export interface DebtDraft {
 
 /** تسديد دين: قبضت من حدا أو دفعت لحدا. */
 export interface DebtPaymentDraft {
+  /** القبض من جوّا فاتورة: قيد الفاتورة، فبتنسدّ هي أول */
+  appliesTo?: string;
   direction: 'in' | 'out';
   partyId: string;
   date: string;
@@ -868,6 +880,7 @@ export class Ledger {
       memo: draft.memo,
       lines,
       ...(draft.source ? { source: draft.source } : {}),
+      ...(draft.appliesTo ? { appliesTo: draft.appliesTo } : {}),
       createdAt: new Date().toISOString(),
       createdBy: draft.createdBy ?? this.actor,
     };
@@ -917,6 +930,19 @@ export class Ledger {
   /** يمنع أي تعديل على الحركات حتى التاريخ المحدد (بعد تدقيق الشهر مثلاً). */
   lockPeriod(until: string): void {
     this.emit({ type: 'period.locked', until });
+  }
+
+  /**
+   * فك قفل الفترة (تقرير 2.0.14: قفل اليوم كان يوقف البيع وما في زر يفكّه). ما بيرجع لقبل آخر إقفال سنة،
+   * لأنو قيد الإقفال صفّر الإيرادات والمصاريف لهاد التاريخ. `until` = لوين يضل مقفول (فاضي = كلشي مفتوح).
+   */
+  unlockPeriod(until?: string): void {
+    const floor = this.state.entries.filter((e) => e.source?.type === 'closing' && !this.state.voided[e.id]).reduce((d, e) => (e.date > d ? e.date : d), '');
+    const target = until && until > floor ? until : floor;
+    const cur = this.state.info?.lockedUntil ?? '';
+    if (target && cur && target >= cur) fail('هالتاريخ مقفول أصلاً');
+    if (until && floor && until < floor) fail(`ما بيصير تفك قبل إقفال السنة (${floor})`);
+    this.emit({ type: 'period.locked', until: target || NO_LOCK });
   }
 
   /**
@@ -1500,7 +1526,7 @@ export class Ledger {
     const num = Number(/رقم (\d+):/.exec(e.memo)?.[1]) || undefined;
     // سند مصروف ثابت: بيضل مربوط بشهره بعد التعديل
     const tag = e.source!.id.includes(':') ? e.source!.id.slice(0, e.source!.id.lastIndexOf(':')) : undefined;
-    const next: VoucherDraft = { ...v, ...(num && v.kind === e.source!.type ? { number: num } : {}), ...(tag && !v.tag ? { tag } : {}) };
+    const next: VoucherDraft = { ...v, ...(num && v.kind === e.source!.type ? { number: num } : {}), ...(tag && !v.tag ? { tag } : {}), ...(e.appliesTo && !v.appliesTo && v.partyId ? { appliesTo: e.appliesTo } : {}) };
     const trial = this.trialCopy();
     trial.voidEntry(e.id, e.date);
     trial.postVoucher(next);
@@ -1590,6 +1616,8 @@ export class Ledger {
         },
       ],
       source: { type: v.kind, id: v.tag ? `${v.tag}:${newId()}` : newId() },
+      // «قبض دفعة» من جوّا فاتورة: الدفعة بتسدّ هالفاتورة أول (كانت تروح عالأقدم والفاتورة تضل متل ما هي)
+      ...(v.appliesTo && party && this.state.entries.some((e) => e.id === v.appliesTo && e.lines.some((l) => l.partyId === party.id)) ? { appliesTo: v.appliesTo } : {}),
       ...(v.createdBy ? { createdBy: v.createdBy } : {}),
     });
   }
@@ -1646,6 +1674,7 @@ export class Ledger {
       ...(d.rate ? { rate: d.rate } : {}),
       ...(d.cashAccountId ? { cashAccountId: d.cashAccountId } : {}),
       ...(d.createdBy ? { createdBy: d.createdBy } : {}),
+      ...(d.appliesTo ? { appliesTo: d.appliesTo } : {}),
     });
   }
 

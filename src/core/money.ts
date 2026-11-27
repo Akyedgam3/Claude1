@@ -78,6 +78,8 @@ export function isUnitPrice(n: unknown): n is number {
 
 /** يعرض المبلغ بصيغة مقروءة مع فواصل الآلاف: 1,250.75 */
 export function formatMinor(minor: number, decimals: number): string {
+  // مش رقم (حرف انكتب بخانة الكمية مثلاً): كان يدخل بحلقة لا نهائية ويوقّع الشاشة (تقرير 2.0.14)
+  if (!Number.isFinite(minor)) return '0';
   // سعر وحدة أدق من أصغر وحدة (مثلاً 0.076$): منعرض المنازل الزيادة بس إذا موجودة
   if (!Number.isInteger(minor)) {
     const extra = Math.round(minor * PRICE_SCALE);

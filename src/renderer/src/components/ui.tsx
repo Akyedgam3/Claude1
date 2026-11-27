@@ -130,12 +130,17 @@ export function Picker({
   onChange,
   placeholder,
   filter,
+  onCreate,
+  createLabel,
 }: {
   options: Option[];
   value: string | null;
   onChange: (id: string | null) => void;
   placeholder?: string;
   filter?: (option: Option, query: string) => boolean;
+  /** الاسم مش موجود: سطر «+ ضيف «الاسم»» بآخر القائمة (زبون جديد من نقطة البيع) */
+  onCreate?: (name: string) => void;
+  createLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -180,7 +185,12 @@ export function Picker({
           else if (e.key === 'ArrowUp') setActive((a) => Math.max(a - 1, 0));
           else if (e.key === 'Enter') {
             e.preventDefault();
-            choose(list[active]);
+            if (list[active]) choose(list[active]);
+            else if (onCreate && query.trim()) {
+              onCreate(query.trim());
+              setOpen(false);
+              setQuery('');
+            }
           } else if (e.key === 'Escape' && open) {
             e.preventDefault(); // يغلق القائمة فقط، لا النافذة
             setOpen(false);
@@ -189,13 +199,25 @@ export function Picker({
       />
       {open && (
         <ul className="picker-list">
-          {list.length === 0 && <li className="muted">لا نتائج</li>}
+          {list.length === 0 && !(onCreate && query.trim()) && <li className="muted">لا نتائج</li>}
           {list.map((o, i) => (
             <li key={o.id} className={i === active ? 'active' : ''} onMouseDown={() => choose(o)} onMouseEnter={() => setActive(i)}>
               <div>{o.label}</div>
               {o.hint && <small>{o.hint}</small>}
             </li>
           ))}
+          {onCreate && query.trim() && !list.some((o) => o.label.trim() === query.trim()) && (
+            <li
+              className={`picker-create ${list.length === 0 ? 'active' : ''}`}
+              onMouseDown={() => {
+                onCreate(query.trim());
+                setOpen(false);
+                setQuery('');
+              }}
+            >
+              + {createLabel ?? 'ضيف'} «{query.trim()}»
+            </li>
+          )}
           {total > list.length && (
             <li className="muted picker-more">
               عم يظهر {list.length} من {total} — اكتب الاسم أو الرمز أو الباركود لتلاقي الباقي

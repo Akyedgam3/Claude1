@@ -661,13 +661,13 @@ function DebtForm({ direction: initial, partyId: presetParty, onClose, edit }: {
   );
 }
 
-export function PayForm({ party, direction, onClose }: { party: Party; direction: 'in' | 'out'; onClose: () => void }) {
+export function PayForm({ party, direction, onClose, invoice }: { party: Party; direction: 'in' | 'out'; onClose: () => void; invoice?: { entryId: string; currency: string; number: number } }) {
   const { state, call, notify, can } = useCompany();
   const base = state.info!.baseCurrency;
   const bal = partyBalance(state, party.id);
   const sign = direction === 'in' ? 1 : -1;
   const open = Object.entries(bal.byCurrency).filter(([, v]) => v * sign > 0);
-  const [currency, setCurrency] = useState(open[0]?.[0] ?? base);
+  const [currency, setCurrency] = useState(invoice?.currency ?? open[0]?.[0] ?? base);
   const outstanding = Math.max(0, (bal.byCurrency[currency] ?? 0) * sign);
   const [amount, setAmount] = useState(outstanding ? toInput(state, outstanding, currency) : '');
   const [date, setDate] = useState(today());
@@ -690,7 +690,7 @@ export function PayForm({ party, direction, onClose }: { party: Party; direction
     if (direction === 'out' && !(await confirmCashOut(state, cashId, currency, minor))) return;
     setBusy(true);
     try {
-      const res = await call('settleDebt', { direction, partyId: party.id, date, amount: minor, currency, ...(cashId ? { cashAccountId: cashId } : {}), ...(memo.trim() ? { memo: memo.trim() } : {}) });
+      const res = await call('settleDebt', { direction, partyId: party.id, date, amount: minor, currency, ...(cashId ? { cashAccountId: cashId } : {}), ...(memo.trim() ? { memo: memo.trim() } : invoice ? { memo: `دفعة من فاتورة رقم ${invoice.number}` } : {}), ...(invoice && currency === invoice.currency ? { appliesTo: invoice.entryId } : {}) });
       if (!res) return;
       // سُدِّد الدين بالكامل: نحذف موعد السداد. بقي جزء: نحفظ الموعد الجديد
       if (can('parties.manage')) {

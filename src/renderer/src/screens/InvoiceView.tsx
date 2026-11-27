@@ -224,7 +224,7 @@ function InvoiceInfoBar({ inv }: { inv: Invoice }) {
           </button>
         </span>
       </div>
-      {paying && party && <PayForm party={party} direction={saleSide ? 'in' : 'out'} onClose={() => setPaying(false)} />}
+      {paying && party && <PayForm party={party} direction={saleSide ? 'in' : 'out'} invoice={{ entryId: inv.entryId, currency: inv.currency, number: inv.number }} onClose={() => setPaying(false)} />}
     </section>
   );
 }
@@ -668,6 +668,9 @@ export function partyAccountRows(state: CompanyState, inv: Invoice): { before: {
   const s = sale ? 1 : -1; // موجب = بالاتجاه الطبيعي: الزبون مديون إلنا، أو نحنا مديونين للمورد
   const prev = s * bal.previous;
   const after = s * bal.after;
+  let nowRaw = 0;
+  for (const e of state.entries) for (const l of e.lines) if (l.partyId === inv.partyId && l.currency === inv.currency) nowRaw += l.debit - l.credit;
+  const now = Object.keys(bal.others).length || bal.others.length ? after : s * nowRaw;
   const adds = inv.kind === 'sale' || inv.kind === 'purchase';
   return {
     before: [
@@ -678,7 +681,9 @@ export function partyAccountRows(state: CompanyState, inv: Invoice): { before: {
         : []),
       ...(adds && prev > 0 ? [{ label: 'الإجمالي مع الحساب السابق', value: m(prev + inv.total) }] : []),
     ],
-    after: [{ label: after >= 0 ? (sale ? 'الباقي بذمته' : 'الباقي علينا') : sale ? 'رصيد إله عندنا' : 'رصيد إلنا عنده', value: m(Math.abs(after)) }],
+    // بعد الفاتورة صار في دفعات أو مرتجعات: الرصيد وقت الفاتورة صار قديم ومتناقض مع «المقبوض» (تقرير 2.0.14)،
+    // فمنكتب الحساب كلّه هلق بدالو
+    after: [now === after ? { label: after >= 0 ? (sale ? 'الباقي بذمته' : 'الباقي علينا') : sale ? 'رصيد إله عندنا' : 'رصيد إلنا عنده', value: m(Math.abs(after)) } : { label: now >= 0 ? (sale ? 'حسابه كلّه هلق' : 'حسابنا كلّه هلق') : sale ? 'رصيد إله عندنا هلق' : 'رصيد إلنا عنده هلق', value: m(Math.abs(now)) }],
   };
 }
 

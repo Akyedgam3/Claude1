@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { findRate, type Currency, type RateKind } from '../../../core';
-import { dateText, inputToRate, rateInverted, rateLine, rateQuestion, rateToInput, today, useCompany } from '../api';
+import { cleanNumber, dateText, inputToRate, rateInverted, rateLine, rateQuestion, rateToInput, today, useCompany } from '../api';
 import { Icon } from '../components/icons';
 import { Empty, Field, Modal, PageHeader } from '../components/ui';
 
@@ -23,7 +23,7 @@ export function Rates() {
   const save = async () => {
     let saved = 0;
     for (const [kind, v] of [['market', market], ['official', official]] as [RateKind, string][]) {
-      const n = Number(v);
+      const n = Number(cleanNumber(v)); // الأرقام العربية «١٢٥٫٥» كمان
       if (!v.trim()) continue;
       if (!(n > 0)) return notify('سعر غير صالح', 'error');
       if (await call('setRate', { date, currency: foreign, kind, rate: inputToRate(state, foreign, n) })) saved++;
@@ -185,7 +185,7 @@ function CurrencyForm({ currency, onClose, onSaved }: { currency: Currency | nul
   const save = async () => {
     const code = f.code.trim().toUpperCase();
     if (isNew && state.currencies[code]) return notify('في عملة بنفس الرمز', 'error');
-    const rate = Number(f.rate);
+    const rate = Number(cleanNumber(f.rate));
     if (f.rate.trim() && !(rate > 0)) return notify('سعر غير صالح', 'error');
     setBusy(true);
     try {

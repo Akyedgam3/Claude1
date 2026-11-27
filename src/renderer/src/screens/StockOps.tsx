@@ -1118,8 +1118,11 @@ function EditAdjustment({ id, onClose }: { id: string; onClose: (done: boolean) 
   const opening = a.kind === 'opening';
   const [date, setDate] = useState(a.date);
   const [rows, setRows] = useState(() =>
-    a.lines.map((l) => ({ key: uid(), itemId: l.itemId, qty: String(Math.abs(l.qty)), cost: opening && l.qty ? toInput(state, Math.round(Math.abs(l.cost) / Math.abs(l.qty)), base) : '' })),
+    // الدفعة والصلاحية بيضلّوا (كان التعديل يرفض «أدخل رقم الدفعة أو تاريخ الصلاحية» للمواد اللي إلها صلاحية)
+    a.lines.map((l) => ({ key: uid(), itemId: l.itemId, qty: String(Math.abs(l.qty)), cost: opening && l.qty ? toInput(state, Math.round(Math.abs(l.cost) / Math.abs(l.qty)), base) : '', batch: l.batch ?? '', expiry: l.expiry ?? '' })),
   );
+  const tracked = (itemId: string) => !!state.items[itemId]?.trackExpiry;
+  const anyTracked = rows.some((r) => tracked(r.itemId));
   const options = useMemo(() => itemOptions(state, (i) => i.kind === 'stock'), [state]);
   const save = async () => {
     const lines = [];
@@ -1134,7 +1137,7 @@ function EditAdjustment({ id, onClose }: { id: string; onClose: (done: boolean) 
           return notify('التكلفة مش مفهومة', 'error');
         }
       }
-      lines.push({ itemId: r.itemId, qty, ...(unitCost !== undefined ? { unitCost } : {}) });
+      lines.push({ itemId: r.itemId, qty, ...(unitCost !== undefined ? { unitCost } : {}), ...(r.batch.trim() ? { batch: r.batch.trim() } : {}), ...(r.expiry ? { expiry: r.expiry } : {}) });
     }
     if (!lines.length) return notify('ضيف مادة وحدة على الأقل', 'error');
     if (await call('editAdjustment', a.id, { kind: a.kind, date, warehouseId: a.warehouseId, lines, memo: a.memo })) {
@@ -1154,6 +1157,8 @@ function EditAdjustment({ id, onClose }: { id: string; onClose: (done: boolean) 
             <th>المادة</th>
             <th>الكمية</th>
             {opening && <th>تكلفة الوحدة</th>}
+            {anyTracked && <th>الدفعة</th>}
+            {anyTracked && <th>الصلاحية</th>}
             <th />
           </tr>
         </thead>
@@ -1171,6 +1176,12 @@ function EditAdjustment({ id, onClose }: { id: string; onClose: (done: boolean) 
                   <input className="num-input" inputMode="decimal" value={r.cost} onChange={(e) => setRows(rows.map((x) => (x.key === r.key ? { ...x, cost: e.target.value } : x)))} />
                 </td>
               )}
+              {anyTracked && (
+                <td>{tracked(r.itemId) && <input value={r.batch} onChange={(e) => setRows(rows.map((x) => (x.key === r.key ? { ...x, batch: e.target.value } : x)))} />}</td>
+              )}
+              {anyTracked && (
+                <td>{tracked(r.itemId) && <input type="date" value={r.expiry} onChange={(e) => setRows(rows.map((x) => (x.key === r.key ? { ...x, expiry: e.target.value } : x)))} />}</td>
+              )}
               <td>
                 <button type="button" className="icon" onClick={() => setRows(rows.filter((x) => x.key !== r.key))}>
                   ×
@@ -1181,7 +1192,7 @@ function EditAdjustment({ id, onClose }: { id: string; onClose: (done: boolean) 
         </tbody>
       </table>
       <div className="form-actions">
-        <button type="button" onClick={() => setRows([...rows, { key: uid(), itemId: '', qty: '1', cost: '' }])}>
+        <button type="button" onClick={() => setRows([...rows, { key: uid(), itemId: '', qty: '1', cost: '', batch: '', expiry: '' }])}>
           + مادة
         </button>
         <button className="primary" onClick={() => void save()}>

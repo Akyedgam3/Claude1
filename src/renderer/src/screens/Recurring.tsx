@@ -182,7 +182,8 @@ function RecurringForm({ def, onClose }: { def: RecurringExpense | null; onClose
   const { state, call, notify } = useCompany();
   const base = state.info!.baseCurrency;
   const accounts = Object.values(state.accounts)
-    .filter((a) => a.type === 'expense' && !a.isGroup && !a.archived)
+    // بدون حسابات البرنامج (تكلفة البضاعة، فروقات الصرف والجرد، التالف): كان الافتراضي «تكلفة البضاعة المباعة»
+    .filter((a) => a.type === 'expense' && !a.isGroup && !a.archived && !['5101', '5301', '5402', '5403', '5404'].includes(a.id))
     .sort((a, b) => a.id.localeCompare(b.id));
   const guess = (name: string) => accounts.find((a) => name && a.name.includes(name.trim().split(/\s+/)[0]!))?.id;
   const [name, setName] = useState(def?.name ?? '');
