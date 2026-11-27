@@ -339,6 +339,13 @@ function ReceiptTab() {
               <option value="right">عاليمين</option>
             </select>
           </Field>
+          <Field label="ترتيب الأصناف">
+            <select value={r.layout ?? 'auto'} onChange={(e) => setR({ ...r, layout: e.target.value as ReceiptSettings['layout'] })}>
+              <option value="auto">تلقائي (بسطر لحالو إذا في عمود مستهلك)</option>
+              <option value="columns">أعمدة (الصنف، الكمية، السعر، الإجمالي)</option>
+              <option value="stacked">الصنف بسطر لحالو وتحته الأرقام (أوضح)</option>
+            </select>
+          </Field>
           <Field label="شكل العنوان والصافي">
             <select value={r.titleStyle ?? 'plain'} onChange={(e) => setR({ ...r, titleStyle: e.target.value as ReceiptSettings['titleStyle'] })}>
               <option value="plain">خطوط منقطة</option>
@@ -372,6 +379,10 @@ function ReceiptTab() {
           {flag('showCode', 'رمز المادة تحت الاسم', false)}
           {flag('showPaid', 'المقبوض والباقي والحساب السابق')}
           {flag('showWords', 'المبلغ كتابة', false)}
+          {flag('showHeaderRow', 'عناوين الأعمدة')}
+          {flag('showQtyTotal', 'مجموع الكمية')}
+          {flag('hideDecimals', 'بدون كسور (1,130 بدل 1,130.00)', false)}
+          {flag('boldNumbers', 'أرقام عريضة (أوضح عالطابعة)', false)}
           {flag('grid', 'جدول بخطوط', false)}
           {flag('showQr', 'رمز QR', false)}
           {flag('showExtraQrs', 'رموز QR الإضافية (واتساب، شام كاش...)')}

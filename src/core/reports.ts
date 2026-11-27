@@ -90,8 +90,16 @@ export function trialBalance(state: CompanyState, period: Period = {}): TrialBal
   };
   let totalDebit = 0;
   let totalCredit = 0;
+  // قيد ملغى وقيد إلغائه بنفس الفترة بيلغوا بعض: ما منعرضهن بالمدين والدائن (فاتورة انعدّلت أو انحذفت كانت تنعد مرتين
+  // وتكبّر الأرقام بلا معنى). الأرصدة نفسها ما بتتغيّر.
+  const byId = new Map(state.entries.map((e) => [e.id, e]));
+  const pairInPeriod = (e: JournalEntry): boolean => {
+    const other = e.voidOf ? byId.get(e.voidOf) : state.voided[e.id] ? byId.get(state.voided[e.id]!) : undefined;
+    return !!other && inPeriod(other, period);
+  };
   for (const e of state.entries) {
     if (!inPeriod(e, period)) continue;
+    if (pairInPeriod(e)) continue;
     for (const l of e.lines) {
       totalDebit += l.baseDebit;
       totalCredit += l.baseCredit;
@@ -329,13 +337,16 @@ export function salesByItem(state: CompanyState, period: Period = {}): ItemSales
     const sign = inv.kind === 'sale' ? 1 : -1;
     const cur = state.currencies[inv.currency]!;
     const scale = 10 ** (base.decimals - cur.decimals);
+    // خصم الفاتورة (على كلها) بيتوزّع على الأسطر حسب قيمتها، فمجموع أرباح المواد = الأرباح والخسائر (تقرير 2.0.14)
+    const net = inv.lines.reduce((t, l) => t + Math.round(l.qty * l.price) - l.discount, 0);
+    const share = (amount: number) => (inv.discount && net > 0 ? amount - (inv.discount * amount) / net : amount);
     for (const l of inv.lines) {
       if (!l.itemId) continue;
       const item = state.items[l.itemId];
       if (!item) continue;
       const row = rows.get(item.id) ?? { item, qty: 0, revenue: 0, cost: 0, profit: 0 };
       row.qty += sign * l.qty * (l.factor ?? 1);
-      row.revenue += sign * Math.round((Math.round(l.qty * l.price) - l.discount) * inv.rate * scale);
+      row.revenue += sign * Math.round(share(Math.round(l.qty * l.price) - l.discount) * inv.rate * scale);
       row.cost += sign * (l.cost ?? 0);
       row.profit = row.revenue - row.cost;
       rows.set(item.id, row);
@@ -424,6 +435,8 @@ export function cashMovement(state: CompanyState, period: Period) {
   return boxes.map((a) => {
     const rows: Record<string, { opening: number; inflow: number; outflow: number; closing: number }> = {};
     for (const e of state.entries) {
+      // الملغى وقيد إلغائه (فاتورة انحذفت أو انعدّلت) بيلغوا بعض: ما بينحسبوا داخل وطالع (متل كرت الصندوق وجدوله)
+      if (e.voidOf || state.voided[e.id]) continue;
       for (const l of e.lines) {
         if (l.accountId !== a.id) continue;
         const r = (rows[l.currency] ??= { opening: 0, inflow: 0, outflow: 0, closing: 0 });
@@ -503,7 +516,8 @@ export function dailySummary(state: CompanyState, date: string, userId?: string)
       r.purchasesCash += inv.paid;
     }
   }
-  const cashIds = new Set(Object.values(state.accounts).filter((a) => !a.isGroup && /^110[128]/.test(a.id)).map((a) => a.id));
+  // صناديق النقد بس (كل صناديق العملات، بدون البنك): التحويل للبنك بيبيّن طالع، فالصافي = اللي بالدرج (تقرير 2.0.14)
+  const cashIds = new Set(cashBoxes(state).filter((a) => a.id !== '1102').map((a) => a.id));
   for (const e of state.entries) {
     if (e.date !== date || !mine(e.createdBy)) continue;
     const kind = e.source?.type;

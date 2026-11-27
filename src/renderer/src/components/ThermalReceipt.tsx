@@ -75,6 +75,11 @@ export function ThermalReceipt({ data, preview, always, logo }: { data: ReceiptD
   const showPrice = on(r.showPrice);
   // سعر المستهلك عمود جنب السعر (كان سطر تحت الصنف وكان يتخربط مع الأسطر)
   const showCons = on(r.showConsumer) && data.lines.some((l) => !!l.consumer);
+  // «تلقائي»: مع عمود المستهلك الأعمدة ما بتساع على 80mm (كانت الأرقام تلزق ببعض)، فالصنف بسطر وتحته أرقامه
+  const stacked = r.layout === 'stacked' || ((r.layout ?? 'auto') === 'auto' && showCons);
+  // بدون كسور: 1,130.00 ← 1,130 (بس إذا الكسور أصفار)
+  const nd = (v: string) => (r.hideDecimals ? v.replace(/(\d)\.0+(?!\d)/g, '$1') : v);
+  const totals = data.totals.filter((t) => on(r.showQtyTotal) || t.label !== 'مجموع الكمية');
   const meta: [string, ReactNode][] = [];
   if (on(r.showNumber) && data.number !== undefined) meta.push([data.draft ? 'رقم الطلب' : 'رقم الفاتورة', <b className="ltr">{data.number}</b>]);
   if (on(r.showDate) && data.date) meta.push(['التاريخ', <span className="ltr">{data.date}</span>]);
@@ -89,7 +94,7 @@ export function ThermalReceipt({ data, preview, always, logo }: { data: ReceiptD
 
   return (
     <div
-      className={`thermal-doc print-area t-${r.fontSize ?? 'md'} ${r.grid ? 't-grid' : ''} ${r.align === 'right' ? 't-right' : ''} t-title-${r.titleStyle ?? 'plain'} ${always ? 'always' : ''}`}
+      className={`thermal-doc print-area t-${r.fontSize ?? 'md'} ${r.grid ? 't-grid' : ''} ${stacked ? 't-stacked' : ''} ${r.boldNumbers ? 't-boldnum' : ''} ${r.align === 'right' ? 't-right' : ''} t-title-${r.titleStyle ?? 'plain'} ${always ? 'always' : ''}`}
       style={{ ['--t-w80' as string]: `${r.width80 ?? 70}mm`, ['--t-w58' as string]: `${r.width58 ?? 48}mm` }}
     >
       {img && logoMode !== 'none' && (
@@ -131,12 +136,12 @@ export function ThermalReceipt({ data, preview, always, logo }: { data: ReceiptD
       <table className={`t-lines${showCons ? ' with-cons' : ''}`}>
         <colgroup>
           <col />
-          <col style={{ width: showCons ? '11%' : showPrice ? '14%' : '16%' }} />
-          {showPrice && <col style={{ width: showCons ? '19%' : '21%' }} />}
+          <col style={{ width: showCons ? '13%' : showPrice ? '14%' : '16%' }} />
+          {showPrice && <col style={{ width: showCons ? '18%' : '21%' }} />}
           {showCons && <col style={{ width: '19%' }} />}
-          <col style={{ width: showCons ? '22%' : showPrice ? '26%' : '32%' }} />
+          <col style={{ width: showCons ? '21%' : showPrice ? '26%' : '32%' }} />
         </colgroup>
-        <thead>
+        <thead className={on(r.showHeaderRow) ? '' : 't-nohead'}>
           <tr>
             <th className="t-n">الصنف</th>
             <th>الكمية</th>
@@ -159,30 +164,30 @@ export function ThermalReceipt({ data, preview, always, logo }: { data: ReceiptD
                     </div>
                   ))}
                 </td>
-                <td className="num t-qty">{l.qty}</td>
-                {showPrice && <td className="num t-price">{l.price}</td>}
-                {showCons && <td className="num t-cons-col">{l.consumer ?? ''}</td>}
-                <td className="num t-total">{l.total}</td>
+                <td className="num t-qty">{nd(l.qty)}</td>
+                {showPrice && <td className="num t-price">{nd(l.price)}</td>}
+                {showCons && <td className="num t-cons-col">{l.consumer ? nd(l.consumer) : ''}</td>}
+                <td className="num t-total">{nd(l.total)}</td>
               </tr>
             </Fragment>
           ))}
         </tbody>
       </table>
       <div className="t-totals">
-        {data.totals.map((t, i) => (
+        {totals.map((t, i) => (
           <div key={i}>
             <span>{t.label}</span>
-            <strong>{t.value}</strong>
+            <strong>{nd(t.value)}</strong>
           </div>
         ))}
         <div className="t-grand">
           <span>{data.grand.label}</span>
-          <strong>{data.grand.value}</strong>
+          <strong>{nd(data.grand.value)}</strong>
         </div>
         {on(r.showPaid) && data.after?.map((t, i) => (
           <div key={i}>
             <span>{t.label}</span>
-            <strong>{t.value}</strong>
+            <strong>{nd(t.value)}</strong>
           </div>
         ))}
       </div>

@@ -5059,3 +5059,26 @@ body:not(.mobile) .stats .stat strong { white-space: nowrap; font-size: min(21px
 /* الحراري: المبلغ مع «ل.س» بسطر واحد (على 58mm كانت «ل.س» تنزل لحالها) */
 .thermal-doc .t-totals strong, .thermal-doc .t-totals span { white-space: nowrap; }
 .thermal-doc .t-totals > div { gap: 4px; }
+/* الإيصال الحراري «الصنف بسطر لحالو»: الاسم عرض الورقة، وتحته الكمية × السعر، المستهلك، والإجمالي (ما بيتزاحموا) */
+.thermal-doc.t-stacked .t-lines,
+.thermal-doc.t-stacked .t-lines tbody { display: block; width: 100%; }
+.thermal-doc.t-stacked .t-lines colgroup,
+.thermal-doc.t-stacked .t-lines thead { display: none; }
+.thermal-doc.t-stacked .t-lines tr { display: grid; grid-template-columns: auto auto 1fr auto; gap: 0 6px; align-items: baseline; padding: 2px 0; }
+.thermal-doc.t-stacked .t-lines td { display: block; padding: 1px 0; border: none !important; text-align: right; }
+.thermal-doc.t-stacked .t-lines td.t-n { grid-column: 1 / -1; font-weight: 700; padding-top: 3px; }
+.thermal-doc.t-stacked .t-lines td.t-qty { grid-column: 1; }
+.thermal-doc.t-stacked .t-lines td.t-price { grid-column: 2; }
+.thermal-doc.t-stacked .t-lines td.t-price::before { content: '× '; }
+.thermal-doc.t-stacked .t-lines td.t-cons-col { grid-column: 3; text-align: center; font-size: 0.9em; direction: rtl; }
+.thermal-doc.t-stacked .t-lines td.t-cons-col:empty { visibility: hidden; }
+.thermal-doc.t-stacked .t-lines td.t-cons-col::before { content: 'مستهلك: '; }
+.thermal-doc.t-stacked .t-lines td.t-total { grid-column: 4; text-align: left; font-weight: 700; }
+.thermal-doc.t-stacked:not(.t-grid) .t-lines tbody tr + tr { border-top: 1px dotted #000; }
+.thermal-doc.t-stacked.t-grid .t-lines tr { border-bottom: 1px solid #000; }
+/* بدون عناوين الأعمدة، وأرقام عريضة */
+.thermal-doc .t-lines thead.t-nohead { display: none; }
+.thermal-doc.t-boldnum .t-lines td.num { font-weight: 700; }
+/* الأعمدة العادية: العناوين ما بتلزق ببعض (كانت «الكميةالسعر») */
+.thermal-doc .t-lines th { overflow: hidden; text-overflow: clip; font-size: 0.82em; padding-inline: 2px; }
+.page-header .back-arrow { flex: none; width: 34px; height: 34px; padding: 0; display: inline-grid; place-items: center; border-radius: 10px; }

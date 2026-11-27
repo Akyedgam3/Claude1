@@ -209,7 +209,7 @@ export function App() {
 
   const ctx = useMemo<CompanyCtx | null>(() => {
     if (!info?.session || !state) return null;
-    return { state: visibleState(state, info.session.user), info, session: info.session, call, notify, navigate, screenKey: screen.key, back, reloadInfo: loadInfo, ...makeCtxHelpers(state, info.session.user) };
+    return { state: visibleState(state, info.session.user), info, session: info.session, call, notify, navigate, screenKey: screen.key, back, canBack: trail.current.length > 0, reloadInfo: loadInfo, ...makeCtxHelpers(state, info.session.user) };
   }, [info, state, call, notify, navigate, screen.key, back, loadInfo]);
 
   // الاتصال عن بعد (خدمة إضافية): بس إذا مفعّلة بالترخيص والشركة مفتوحة على هالجهاز
@@ -251,6 +251,32 @@ export function App() {
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, [hasCompany, back, notify]);
+  // الكمبيوتر: زر الرجوع بالماوس (الجانبي) وAlt+← بيرجعوا للشاشة اللي قبل، إذا ما في نافذة مفتوحة
+  useEffect(() => {
+    if (IS_MOBILE || !hasCompany) return;
+    const goBack = () => {
+      if (document.querySelector('.modal-backdrop')) return;
+      back();
+    };
+    const onMouse = (e: MouseEvent) => {
+      if (e.button === 3) {
+        e.preventDefault();
+        goBack();
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.altKey && e.key === 'ArrowLeft') {
+        e.preventDefault();
+        goBack();
+      }
+    };
+    window.addEventListener('mouseup', onMouse);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('mouseup', onMouse);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [hasCompany, back]);
   // بعد «اكبس كمان مرة للخروج» إذا فتح شاشة تانية: منرجّع الخطوة الحارسة
   useEffect(() => {
     if (IS_MOBILE && hasCompany && !guarded.current) {

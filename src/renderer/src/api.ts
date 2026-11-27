@@ -197,6 +197,8 @@ export interface CompanyCtx {
   /** الشاشة الحالية، ورجوع للشاشة اللي قبلها (أو لقائمتها إذا ما في سجل). */
   screenKey: string;
   back: () => void;
+  /** في شاشة قبل هي بالسجل (زر الرجوع بيرجعلها) */
+  canBack?: boolean;
   reloadInfo: () => Promise<void>;
 }
 

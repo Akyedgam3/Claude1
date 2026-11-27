@@ -206,6 +206,12 @@ export interface ReceiptSettings {
   showWords?: boolean; // المبلغ كتابة (افتراضياً لا)
   align?: 'center' | 'right'; // رأس الإيصال بالنص أو عاليمين
   titleStyle?: 'plain' | 'box' | 'dark'; // شكل عنوان الإيصال والصافي
+  /** ترتيب الأصناف: أعمدة، أو الاسم بسطر وتحته الأرقام (أوسع)، أو تلقائي (بسطر لحالو إذا في عمود مستهلك) */
+  layout?: 'auto' | 'columns' | 'stacked';
+  hideDecimals?: boolean; // 1,130 بدل 1,130.00 (إذا الكسور أصفار)
+  showQtyTotal?: boolean; // سطر «مجموع الكمية»
+  showHeaderRow?: boolean; // عناوين الأعمدة (الصنف، الكمية...)
+  boldNumbers?: boolean; // أرقام الأسطر عريضة (أوضح عالطابعات الضعيفة)
 }
 
 /** إعدادات باركود الميزان (مواد الوزن): 2 + رمز المادة + الوزن/السعر + رقم تحقق. */

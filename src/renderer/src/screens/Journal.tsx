@@ -249,6 +249,10 @@ export function Journal({ editId }: { editId?: string } = {}) {
                           تعديل
                         </button>
                       )}
+                      {/* تحويل بين صناديق، سحب/إيداع المالك، صرف عملة، رصيد افتتاحي، دين مباشر: انعمل بالغلط؟ بينلغى من هون وبتعيده صح */}
+                      {['boxtransfer', 'debt', 'opening'].includes(e.source?.type ?? '') && !e.voidOf && !state.voided[e.id] && can('vouchers.void') && (e.source?.type !== 'boxtransfer' || can('cash.manage')) && (
+                        <ConfirmButton label="إلغاء" confirmLabel="أكيد؟ ألغيه" onConfirm={() => call('voidEntry', e.id, e.date).then((r) => r && notify('انلغت الحركة ورجعت الأرصدة متل قبلها'))} />
+                      )}
                       {e.source?.type === 'invoice' && invoicesById[e.source.id] && (
                         <button className="ghost small" onClick={() => navigate('invoice', e.source!.id)}>
                           فتح الفاتورة

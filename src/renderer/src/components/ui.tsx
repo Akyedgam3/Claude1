@@ -75,10 +75,17 @@ export function PageHeader({ title, children }: { title: string; children?: Reac
   const ctx = useContext(Company) as CompanyCtx | null;
   return (
     <div className="page-header">
-      {ctx && DETAIL_SCREENS.has(ctx.screenKey) && (
+      {ctx && DETAIL_SCREENS.has(ctx.screenKey) ? (
         <button className="back-x" onClick={ctx.back} title="رجوع" aria-label="رجوع">
           <Icon name="close" size={18} />
         </button>
+      ) : (
+        // كل الشاشات: سهم رجوع للشاشة اللي قبل (كمان زر الرجوع بالماوس وAlt+←)
+        ctx?.canBack && !IS_MOBILE && (
+          <button className="back-arrow" onClick={ctx.back} title="رجوع للشاشة اللي قبل (Alt+←)" aria-label="رجوع">
+            <Icon name="prev" size={18} />
+          </button>
+        )
       )}
       <h2>{title}</h2>
       <div className="actions">{children}</div>
